@@ -59,6 +59,7 @@ type SourceMatchRecord struct {
 	ActivityID        ActivityID
 	UserID            UserID
 	Provider          string
+	SourceWorkerName  string // the pool that imported it (one source per pool per activity)
 	ExternalAccountID *ExternalAccountID
 	ExternalID        string
 	SportClass        string

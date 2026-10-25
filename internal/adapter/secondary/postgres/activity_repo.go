@@ -579,7 +579,7 @@ func (r *ActivityRepo) ListSourceRecordsInBucket(ctx context.Context, userID dom
 	rows, err := db.Query(ctx, `
 		SELECT id, activity_id, user_id, provider, external_account_id, external_id,
 		       sport_class, start_utc, distance_m, moving_s, elapsed_s,
-		       start_lat, start_lng, status
+		       start_lat, start_lng, status, source_worker_name
 		  FROM activity_sources
 		 WHERE user_id = $1
 		   AND start_utc >= $2
@@ -605,27 +605,28 @@ func scanSourceMatchRecord(row rowScanner) (domain.SourceMatchRecord, error) {
 		distanceM           *float64
 		movingS, elapsedS   int64
 		startLat, startLng  *float64
-		status              string
+		status, worker      string
 	)
 	if err := row.Scan(&id, &activityID, &uid, &provider, &extAcct, &extID,
 		&sport, &startUTC, &distanceM, &movingS, &elapsedS,
-		&startLat, &startLng, &status); err != nil {
+		&startLat, &startLng, &status, &worker); err != nil {
 		return domain.SourceMatchRecord{}, err
 	}
 	rec := domain.SourceMatchRecord{
-		SourceID:   domain.SourceID(id),
-		ActivityID: domain.ActivityID(activityID),
-		UserID:     domain.UserID(uid),
-		Provider:   provider,
-		ExternalID: extID,
-		SportClass: sport,
-		StartUTC:   startUTC,
-		DistanceM:  distanceM,
-		MovingS:    movingS,
-		ElapsedS:   elapsedS,
-		StartLat:   startLat,
-		StartLng:   startLng,
-		Status:     domain.SourceStatus(status),
+		SourceID:         domain.SourceID(id),
+		ActivityID:       domain.ActivityID(activityID),
+		UserID:           domain.UserID(uid),
+		Provider:         provider,
+		SourceWorkerName: worker,
+		ExternalID:       extID,
+		SportClass:       sport,
+		StartUTC:         startUTC,
+		DistanceM:        distanceM,
+		MovingS:          movingS,
+		ElapsedS:         elapsedS,
+		StartLat:         startLat,
+		StartLng:         startLng,
+		Status:           domain.SourceStatus(status),
 	}
 	if extAcct != nil {
 		ea := domain.ExternalAccountID(*extAcct)

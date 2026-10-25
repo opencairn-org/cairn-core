@@ -156,3 +156,24 @@ func TestClusterBucket_ThreeProviderSameActivity(t *testing.T) {
 		t.Errorf("no conflicts expected (all distinct providers), got %d", len(res.Conflicts))
 	}
 }
+
+func TestClusterBucket_OneSourcePerPoolNotPerProvider(t *testing.T) {
+	lat, lng := 52.5, 13.4
+	f := SourceFeatures{Provider: "garmin", SportClass: "Ride", StartUTC: time.Date(2026, 7, 4, 13, 40, 0, 0, time.UTC),
+		DistanceM: 42000, MovingS: 5400, ElapsedS: 5600, StartLat: &lat, StartLng: &lng}
+	// Two pools of one provider (API + FIT importer) report the same ride.
+	res := ClusterBucket([]Record{{ID: "api", Pool: "garmin-api", SourceFeatures: f}, {ID: "fit", Pool: "garmin-fit", SourceFeatures: f}}, Constraints{}, DefaultOptions())
+	if len(res.Clusters) != 1 || len(res.Clusters[0].RecordIDs) != 2 || res.Clusters[0].Confidence != BandHigh || len(res.Conflicts) != 0 {
+		t.Fatalf("two pools: %+v", res)
+	}
+	// The same pool twice stays a conflict.
+	res = ClusterBucket([]Record{{ID: "a", Pool: "garmin-api", SourceFeatures: f}, {ID: "b", Pool: "garmin-api", SourceFeatures: f}}, Constraints{}, DefaultOptions())
+	if len(res.Clusters) != 2 || len(res.Conflicts) != 1 {
+		t.Fatalf("same pool: %+v", res)
+	}
+	// Without pools the provider is the identity (pre-0.5 behaviour).
+	res = ClusterBucket([]Record{rec("a", f), rec("b", f)}, Constraints{}, DefaultOptions())
+	if len(res.Conflicts) != 1 {
+		t.Fatalf("no pools: %+v", res)
+	}
+}

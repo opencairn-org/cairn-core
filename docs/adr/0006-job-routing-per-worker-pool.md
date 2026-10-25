@@ -57,6 +57,9 @@ pool:
   `worker_name` against the subject, so a pool cannot publish for or look up another pool's
   accounts. Tokens, blobs and credentials stay provider-scoped: pools of one provider are
   mutually trusted for those. The pre-0.5 provider-scoped subjects stay allowed through 0.5.
+- **The matcher allows one source per pool, not per provider.** Two pools of one provider
+  importing the same workout cluster into one activity; two imports by the same pool are still
+  a conflict.
 - **One pool is one provider app.** Each pool uses its own OAuth app or credentials, so two pools
   authorizing the same provider account never share or invalidate each other's tokens, and the
   **rate-limit budget is per pool** (`<provider>.<pool>.<window>` in the shared KV).
