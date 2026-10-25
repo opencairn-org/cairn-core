@@ -6,6 +6,63 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-25
+
+Upgrade order: Core first, then both workers to 0.5.0 (the contract changed:
+jobs, results and the account lookup are now per worker pool, see
+docs/adr/0006; a 0.4 worker keeps running against a 0.5 core but gets no
+new jobs). Jobs queued before the upgrade are drained by the 0.5 workers.
+Sources imported before 0.5 are flagged "newer parser available"; the new
+"Re-parse N out of date" action on Connections brings them up to date
+without provider quota. Garmin activities need a re-fetch to pick up gear.
+
+### Added
+- Provider versioning (docs/adr/0005): `worker_version` is the parser
+  version `N.M` (dataset `N` = archive format, `M` = output revision; a
+  legacy bare `N` reads as `N.0`). Re-parse goes to the newest live parser of
+  the source's package and dataset and carries `min_parser_version`; ingest
+  rejects results that would lower a source's version. `JobResult` gains
+  `worker_release`, stamped on sources (migration 00064). Manifest updates
+  flag older sources `update_available` with reason `newer_parser` (re-parse)
+  or `newer_dataset` (re-fetch); `POST /api/accounts/{id}/reparse-out-of-date`
+  re-parses them in bulk, and the Connections page shows the counts.
+- Release compatibility: core publishes its release in the `cairn_core` KV
+  bucket. Before 1.0 a worker needs the same major.minor; from 1.0 on the
+  same major and a minor not above core's. Incompatible workers are flagged
+  in admin and ignored for routing.
+- Worker pools (docs/adr/0006): jobs on
+  `cairn.jobs.<job>.<provider>.<worker_name>`, discovery, results and the
+  webhook account lookup per pool; core checks each result against the pool
+  named in the subject, the pool's registered package (`worker_pools`,
+  migration 00066; a name is bound to one package for good) and the account's
+  pool. Admins list and retire pools (`/api/admin/worker-pools`).
+- One connection per pool per provider account (migration 00065). Accounts
+  are assigned to a pool (automatically when the provider has one; a picker
+  when it has several); owners may move a connection
+  (`PUT /api/accounts/{id}/worker`, confirmation when the implementation
+  changes, which flags the connection's activities `pool_changed`).
+- Merge priority entries may name a pool, `<provider>.<worker_name>`; the
+  matcher allows one source per pool, so two importers of one provider feed
+  one activity. A gear record mapped on one connection maps the same provider
+  gear id on the account's other connections.
+- Rate budgets per provider app: the token reply carries `app_id`; budgets
+  are read from `<provider>.<app>.<window>`.
+- Gear: an unknown provider gear id on an activity becomes a pending
+  decision (before, it waited for an `import_gear` run). Activities without
+  gear show a "Gear?" prompt; "No gear" dismisses it. Payload `gear_unknown`
+  keeps a source's previous gear on re-import.
+- Shared header with navigation on the activity, edit and manage pages.
+
+### Changed
+- The permission template grants pool-scoped subjects; the pre-0.5
+  provider-scoped job subjects stay subscribable through 0.5 (removed in
+  0.6), results and lookups are pool-scoped only.
+- Manage page shows dataset, parser and release per source and whether a
+  newer parser or dataset is available; "Last reimported" is "Last parsed".
+- A `parse_blob` failure with code `parser_too_old` keeps the source flagged
+  for re-parse instead of failing it. Reconcile skips accounts without a
+  pool quietly. Presence scans are cached for 5 seconds.
+
 ## [0.4.0] — 2026-10-21
 
 Upgrade order: Core before the workers (job results now ignore unknown
