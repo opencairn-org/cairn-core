@@ -172,6 +172,11 @@ func (uc *IngestActivityFromWorker) handleReimport(
 	}
 	updated := existing
 	updated.Parsed = in.Payload
+	// An unknown gear lookup must not clear gear a previous import had.
+	if in.Payload.GearUnknown && in.Payload.GearExternalID == "" && existing.Parsed.GearExternalID != "" {
+		updated.Parsed.GearExternalID = existing.Parsed.GearExternalID
+		updated.Parsed.GearName = existing.Parsed.GearName
+	}
 	updated.SourceWorkerName = in.SourceWorkerName
 	updated.SourceWorkerVersion = in.SourceWorkerVersion
 	updated.SourceWorkerPackage = in.SourceWorkerPackage

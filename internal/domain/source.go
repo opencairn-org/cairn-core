@@ -142,6 +142,9 @@ type ActivitySourcePayload struct {
 	// the gear is imported.
 	GearExternalID string
 	GearName       string
+	// GearUnknown: the worker could not look the gear up (not a "no gear");
+	// a re-import keeps the source's previous gear.
+	GearUnknown bool
 }
 
 // ActivityLap is a per-lap summary record. Same per-source flag and merge

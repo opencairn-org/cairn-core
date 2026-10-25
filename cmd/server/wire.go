@@ -81,6 +81,8 @@ type App struct {
 	Clubs                  *postgres.ClubRepo
 	ExternalAccounts       *postgres.ExternalAccountRepo
 	WorkerEnrollments      *postgres.WorkerEnrollmentRepo
+	WorkerPools            port.WorkerPoolRepo
+	presence               presenceCache
 	SigningKeys            *postgres.SigningKeyRepo
 	OAuthTokens            *postgres.OAuthTokenRepo
 	DeadLetters            *postgres.DeadLetterRepo
@@ -269,6 +271,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 		cfg.Scheduler.WebhookDriftInterval,
 	)
 	app.WorkerEnrollments = postgres.NewWorkerEnrollmentRepo(pool)
+	app.WorkerPools = postgres.NewWorkerPoolRepo(pool)
 	app.SigningKeys = postgres.NewSigningKeyRepo(pool)
 	app.Sessions = postgres.NewSessionRepo(pool)
 	app.LinkedIdentities = postgres.NewLinkedIdentityRepo(pool)
@@ -544,8 +547,8 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 		app.ExternalAccounts,
 		bus,
 		presenceWorkerRouter{app: app, logger: logger},
-		func(ctx context.Context, provider string) bool {
-			_, exhausted := providerBudget(ctx, bus, provider)
+		func(ctx context.Context, provider, pool string) bool {
+			_, exhausted := providerBudget(ctx, bus, provider, pool)
 			return exhausted
 		},
 		gearSyncHook(app, logger),

@@ -1473,3 +1473,63 @@ func (r *ActivityRepo) ActivityTotalsForRange(ctx context.Context, userID domain
 	}
 	return out, nil
 }
+
+// SourceWorker is one (pool, package) an account's sources came from.
+type SourceWorker struct{ Name, Package string }
+
+// ListSourceWorkersForAccount lists the distinct pools that imported the
+// account's live sources.
+func (r *ActivityRepo) ListSourceWorkersForAccount(ctx context.Context, acct domain.ExternalAccountID) ([]SourceWorker, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT DISTINCT source_worker_name, source_worker_package FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached'`, acct.UUID())
+	if err != nil {
+		return nil, fmt.Errorf("list source workers: %w", err)
+	}
+	defer rows.Close()
+	var out []SourceWorker
+	for rows.Next() {
+		var w SourceWorker
+		if err := rows.Scan(&w.Name, &w.Package); err != nil {
+			return nil, err
+		}
+		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
+// CountSourcesOutOfDate counts the account's update_available sources per reason.
+func (r *ActivityRepo) CountSourcesOutOfDate(ctx context.Context, acct domain.ExternalAccountID) (map[string]int, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT reimport_status_reason, count(*) FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached' AND reimport_status = 'update_available'
+		 GROUP BY reimport_status_reason`, acct.UUID())
+	if err != nil {
+		return nil, fmt.Errorf("count sources out of date: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var reason string
+		var n int
+		if err := rows.Scan(&reason, &n); err != nil {
+			return nil, err
+		}
+		out[reason] = n
+	}
+	return out, rows.Err()
+}
+
+// ListSourcesOutOfDate lists the account's sources flagged update_available
+// for reason, oldest import first, at most limit.
+func (r *ActivityRepo) ListSourcesOutOfDate(ctx context.Context, acct domain.ExternalAccountID, reason string, limit int) ([]domain.ActivitySource, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT `+sourceColumns+` FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached'
+		   AND reimport_status = 'update_available' AND reimport_status_reason = $2
+		 ORDER BY imported_at LIMIT $3`, acct.UUID(), reason, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list sources out of date: %w", err)
+	}
+	return pgCollectRows(rows, scanSourceRow, "scan source row", "iterate source rows")
+}

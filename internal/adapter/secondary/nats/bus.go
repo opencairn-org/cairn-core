@@ -443,12 +443,24 @@ func (b *Bus) RespondTo(
 	subject string,
 	handler port.RequestHandler,
 ) (port.Subscription, error) {
+	return b.RespondToSubject(ctx, subject, func(ctx context.Context, _ string, body []byte) ([]byte, error) {
+		return handler(ctx, body)
+	})
+}
+
+// RespondToSubject registers a request/reply handler on a (wildcard)
+// subject; the handler sees the concrete subject of each request.
+func (b *Bus) RespondToSubject(
+	ctx context.Context,
+	subject string,
+	handler port.SubjectRequestHandler,
+) (port.Subscription, error) {
 	sub, err := b.conn.Subscribe(subject, func(msg *nats.Msg) {
 		if msg.Reply == "" {
-			b.logger.Warn("nats: request without reply subject", "subject", subject)
+			b.logger.Warn("nats: request without reply subject", "subject", msg.Subject)
 			return
 		}
-		resp, herr := handler(ctx, msg.Data)
+		resp, herr := handler(ctx, msg.Subject, msg.Data)
 		reply := &nats.Msg{
 			Subject: msg.Reply,
 			Data:    resp,
@@ -461,7 +473,7 @@ func (b *Bus) RespondTo(
 			}
 		}
 		if pubErr := b.conn.PublishMsg(reply); pubErr != nil {
-			b.logger.Warn("nats: reply publish failed", "subject", subject, "error", pubErr)
+			b.logger.Warn("nats: reply publish failed", "subject", msg.Subject, "error", pubErr)
 		}
 	})
 	if err != nil {

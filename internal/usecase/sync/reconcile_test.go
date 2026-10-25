@@ -408,3 +408,35 @@ func TestExecute_AllMode_PerAccountErrorIsolation(t *testing.T) {
 		t.Errorf("failed AccountID = %s, want %s", res.Errors[0].AccountID, failID)
 	}
 }
+
+func (f *fakeBus) RespondToSubject(context.Context, string, port.SubjectRequestHandler) (port.Subscription, error) {
+	return nil, nil
+}
+
+type errRouter struct{ err error }
+
+func (r errRouter) AccountWorker(context.Context, domain.ExternalAccount) (string, error) {
+	return "", r.err
+}
+
+func TestExecute_NoPoolYet_SkipsQuietly(t *testing.T) {
+	id := domain.ExternalAccountID(stableAccount)
+	accounts := &fakeAccounts{byID: map[domain.ExternalAccountID]domain.ExternalAccount{id: makeActiveAccount("strava")}}
+	bus := &fakeBus{}
+	uc := NewReconcileExternalAccount(accounts, bus, errRouter{domain.ErrNoWorker}, nil, nil,
+		func() time.Time { return fixedNow }, func() uuid.UUID { return stableUUID })
+	res, err := uc.Execute(context.Background(), ReconcileInput{AccountID: &id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.AccountsSkipped != 1 || len(res.Errors) != 0 || res.AccountsScheduled != 0 {
+		t.Fatalf("res = %+v", res)
+	}
+	// Any other routing failure is an error for that account.
+	uc = NewReconcileExternalAccount(accounts, bus, errRouter{domain.ErrWorkerAmbiguous}, nil, nil,
+		func() time.Time { return fixedNow }, func() uuid.UUID { return stableUUID })
+	res, _ = uc.Execute(context.Background(), ReconcileInput{AccountID: &id})
+	if len(res.Errors) != 1 {
+		t.Fatalf("res = %+v", res)
+	}
+}

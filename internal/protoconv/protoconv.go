@@ -94,6 +94,7 @@ func ActivitySourcePayloadFromProto(p *cairnv1.ActivitySourcePayload) domain.Act
 		Summary:         activitySummaryFromProto(p.GetSummary()),
 		GearExternalID:  p.GetGearExternalId(),
 		GearName:        p.GetGearName(),
+		GearUnknown:     p.GetGearUnknown(),
 	}
 	if ts := p.GetStartTime(); ts != nil {
 		out.StartTime = ts.AsTime()

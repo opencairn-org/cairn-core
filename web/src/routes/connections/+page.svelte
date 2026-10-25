@@ -16,7 +16,13 @@
 		has_secret: boolean;
 		oauth: boolean;
 	};
-	type Pool = { name: string; package: string; parser_version: string; release: string };
+	type Pool = {
+		name: string;
+		package: string;
+		parser_version: string;
+		release: string;
+		online: boolean;
+	};
 	type ProviderType = {
 		provider: string;
 		display_name: string;
@@ -276,7 +282,7 @@
 					>
 						<option value="">— choose —</option>
 						{#each poolsFor(form.provider) as p (p.name)}
-							<option value={p.name}>{p.name} · {p.package}</option>
+							<option value={p.name}>{p.name} · {p.package}{p.online ? '' : ' (offline)'}</option>
 						{/each}
 					</select>
 					<p class="mt-1 text-xs text-zinc-500">
@@ -334,7 +340,7 @@
 						>
 							<option value="">— importer —</option>
 							{#each poolsFor(c.provider) as p (p.name)}
-								<option value={p.name}>{p.name}</option>
+								<option value={p.name}>{p.name}{p.online ? '' : ' (offline)'}</option>
 							{/each}
 						</select>
 					{/if}

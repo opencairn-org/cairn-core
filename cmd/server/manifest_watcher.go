@@ -87,6 +87,13 @@ func handleManifestUpdate(ctx context.Context, app *App, log *slog.Logger, entry
 	if m.Provider == "" || m.Package == "" {
 		return
 	}
+	// A pool name is bound to one package for good (docs/adr/0006).
+	if app.WorkerPools != nil {
+		if err := app.WorkerPools.Upsert(ctx, domain.WorkerPool{Provider: m.Provider, Name: m.WorkerName, Package: m.Package}); err != nil {
+			log.Error("worker pool refused", "worker_name", m.WorkerName, "provider", m.Provider, "package", m.Package, "error", err)
+			return
+		}
+	}
 	version, err := domain.ParseParserVersion(m.Version)
 	if err != nil {
 		log.Warn("manifest version is not a parser version N.M; cannot drive update-available",

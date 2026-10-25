@@ -83,8 +83,13 @@ func (r *ExternalAccountRepo) CreateAccount(ctx context.Context, a domain.Extern
 			   AND e.assigned_worker_name IS NULL
 			   AND NOT EXISTS (SELECT 1 FROM external_accounts o
 			                    WHERE o.user_id = $1 AND o.provider = $2 AND o.provider_account_id = $3
-			                      AND o.assigned_worker_name = $4)`,
-			a.UserID.UUID(), a.Provider, a.ProviderAccountID, a.AssignedWorkerName); err != nil {
+			                      AND o.assigned_worker_name = $4)
+			   -- its history must belong to this pool: same connection, or
+			   -- every source was imported under this pool's name
+			   AND (e.connection_id IS NOT DISTINCT FROM $5
+			        OR NOT EXISTS (SELECT 1 FROM activity_sources s
+			                        WHERE s.external_account_id = e.id AND s.source_worker_name <> $4))`,
+			a.UserID.UUID(), a.Provider, a.ProviderAccountID, a.AssignedWorkerName, connectionID); err != nil {
 			return domain.ExternalAccountID{}, fmt.Errorf("adopt external account: %w", err)
 		}
 	}

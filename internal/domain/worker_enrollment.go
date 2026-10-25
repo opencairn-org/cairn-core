@@ -246,6 +246,18 @@ func JobSubject(job, provider, workerName string) string {
 	return "cairn.jobs." + job + "." + provider + "." + workerName
 }
 
+// ResultSubject is where a pool publishes a job kind's results:
+// cairn.results.<job>.<provider>.<worker_name> (reconcile adds the account).
+func ResultSubject(job, provider, workerName string) string {
+	return "cairn.results." + job + "." + provider + "." + workerName
+}
+
+// LookupSubject is the pool's request/reply subject for resolving a
+// provider owner id to its connection (webhooks).
+func LookupSubject(provider, workerName string) string {
+	return "cairn.accounts.lookup." + provider + "." + workerName
+}
+
 // DiscoverSubject is the request/reply subject the named pool answers
 // discovery on.
 func DiscoverSubject(provider, workerName string) string {
@@ -287,10 +299,19 @@ func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTem
 	return WorkerPermissionTemplate{
 		Name: "standard",
 		AllowPublish: append([]string{
+			// Results per pool; core checks the sender's name against the subject.
+			ResultSubject("fetch_source", p, workerName),
+			ResultSubject("parse_blob", p, workerName),
+			ResultSubject("backfill", p, workerName),
+			ResultSubject("reconcile", p, workerName) + ".*", // account-suffixed
+			ResultSubject("import_metrics", p, workerName),
+			ResultSubject("import_gear", p, workerName),
+			LookupSubject(p, workerName), // webhook → account resolution
+			// Pre-0.5 provider-scoped results and lookup; remove in 0.6.
 			fmt.Sprintf("cairn.results.fetch_source.%s", p),
 			fmt.Sprintf("cairn.results.parse_blob.%s", p),
 			fmt.Sprintf("cairn.results.backfill.%s", p),
-			fmt.Sprintf("cairn.results.reconcile.%s.*", p), // account-suffixed
+			fmt.Sprintf("cairn.results.reconcile.%s.*", p),
 			fmt.Sprintf("cairn.results.import_metrics.%s", p),
 			fmt.Sprintf("cairn.results.import_gear.%s", p),
 			JobSubject("fetch_source", p, workerName), // reconcile/webhook sub-jobs to its own pool
@@ -299,8 +320,8 @@ func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTem
 			fmt.Sprintf("cairn.creds.%s.get", p), // custom-credential providers
 			fmt.Sprintf("cairn.blobs.presign_upload.%s", p),
 			fmt.Sprintf("cairn.blobs.presign_download.%s", p),
-			"cairn.accounts.lookup_by_provider_ext", // webhook → account resolution
-			"_INBOX.>",                              // request/reply replies the worker initiates
+			"cairn.accounts.lookup_by_provider_ext",
+			"_INBOX.>", // request/reply replies the worker initiates
 		}, workerJetStreamPublish(jobs, webhookEvent)...),
 		AllowSubscribe: append(slices.Clone(jobs),
 			fmt.Sprintf("cairn.cmd.worker.%s.>", wk),

@@ -35,6 +35,7 @@ type Bus struct {
 
 	// request-reply handlers, keyed by literal subject.
 	rrHandlers map[string]port.RequestHandler
+	rrPatterns map[string]port.SubjectRequestHandler // wildcard responders
 
 	// dedup window — simple set keyed by Nats-Msg-Id header value.
 	seenMsgIDs map[string]struct{}
@@ -48,6 +49,7 @@ type Bus struct {
 func New() *Bus {
 	return &Bus{
 		rrHandlers: map[string]port.RequestHandler{},
+		rrPatterns: map[string]port.SubjectRequestHandler{},
 		seenMsgIDs: map[string]struct{}{},
 		kvs:        map[string]*KV{},
 		oss:        map[string]*ObjectStore{},
@@ -125,6 +127,14 @@ func (b *Bus) Request(
 ) ([]byte, error) {
 	b.mu.Lock()
 	h, ok := b.rrHandlers[subject]
+	if !ok {
+		for pattern, ph := range b.rrPatterns {
+			if subjectMatches(pattern, subject) {
+				h, ok = func(ctx context.Context, body []byte) ([]byte, error) { return ph(ctx, subject, body) }, true
+				break
+			}
+		}
+	}
 	b.mu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("inmem: no responder for %s", subject)
@@ -141,6 +151,17 @@ func (b *Bus) RespondTo(
 ) (port.Subscription, error) {
 	b.mu.Lock()
 	b.rrHandlers[subject] = handler
+	b.mu.Unlock()
+	return &rrSubscription{bus: b, subject: subject}, nil
+}
+
+func (b *Bus) RespondToSubject(
+	_ context.Context,
+	subject string,
+	handler port.SubjectRequestHandler,
+) (port.Subscription, error) {
+	b.mu.Lock()
+	b.rrPatterns[subject] = handler
 	b.mu.Unlock()
 	return &rrSubscription{bus: b, subject: subject}, nil
 }
@@ -191,6 +212,7 @@ type rrSubscription struct {
 func (s *rrSubscription) Close(_ context.Context) error {
 	s.bus.mu.Lock()
 	delete(s.bus.rrHandlers, s.subject)
+	delete(s.bus.rrPatterns, s.subject)
 	s.bus.mu.Unlock()
 	return nil
 }

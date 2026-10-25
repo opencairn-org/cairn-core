@@ -66,6 +66,9 @@ func mountSyncEndpoints(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// named worker pool (docs/adr/0006).
 	mux.HandleFunc("PUT /api/accounts/{id}/worker", h.setWorker)
 
+	// POST /api/accounts/{id}/reparse-out-of-date — bulk re-parse (docs/adr/0005).
+	mux.HandleFunc("POST /api/accounts/{id}/reparse-out-of-date", h.reparseOutOfDate)
+
 	// POST /api/accounts/{id}/sync/preview — discover + summarize (no enqueue).
 	mux.HandleFunc("POST /api/accounts/{id}/sync/preview", h.syncPreview)
 
@@ -433,13 +436,14 @@ type kvBus interface {
 	KV(bucket string) (port.KV, error)
 }
 
-// providerBudget reads the provider's live API budget from the shared
-// cairn_rate_limits KV (keys <provider>.short / <provider>.daily). Returns a
+// providerBudget reads the pool's live API budget from the shared
+// cairn_rate_limits KV (keys <provider>.<pool>.short / .daily, docs/adr/0006;
+// a 0.4 worker writes <provider>.short / .daily, read as a fallback). Returns a
 // UI-friendly map per window plus whether any window is currently exhausted —
 // this is what flips the connection badge to "Rate limited" while the worker
 // waits out a 429, and what the reconcile scheduler's budget gate keys on.
 // Missing bucket/keys mean "no worker has reported yet".
-func providerBudget(ctx context.Context, bus kvBus, provider string) (map[string]any, bool) {
+func providerBudget(ctx context.Context, bus kvBus, provider, pool string) (map[string]any, bool) {
 	if bus == nil {
 		return nil, false
 	}
@@ -451,9 +455,11 @@ func providerBudget(ctx context.Context, bus kvBus, provider string) (map[string
 	limited := false
 	now := time.Now().UTC()
 	for _, win := range []string{"short", "daily"} {
-		entry, err := kv.Get(ctx, provider+"."+win)
-		if err != nil {
-			continue
+		entry, err := kv.Get(ctx, provider+"."+pool+"."+win)
+		if pool == "" || err != nil {
+			if entry, err = kv.Get(ctx, provider+"."+win); err != nil {
+				continue
+			}
 		}
 		var st rateLimitKVState
 		if json.Unmarshal(entry.Value, &st) != nil || st.Capacity <= 0 {

@@ -137,14 +137,13 @@ func (h *oauthConnectHandlers) list(w http.ResponseWriter, r *http.Request) {
 			"oauth":        oauthProvider(providerRegistry[c.Provider]),
 		})
 	}
-	// Live pools per provider: with several, the user picks which one a
+	// Known pools per provider: with several, the user picks which one a
 	// connection is for (docs/adr/0006).
-	workers := currentWorkers(r.Context(), h.app, h.logger)
 	providers := make([]map[string]any, 0, len(providerRegistry))
 	for id, meta := range providerRegistry {
 		providers = append(providers, map[string]any{
 			"provider": id, "display_name": meta.DisplayName, "oauth": oauthProvider(meta),
-			"worker_pools": workerPoolsJSON(workers, id),
+			"worker_pools": workerPoolsJSON(r.Context(), h.app, h.logger, id),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"connections": out, "providers": providers})
@@ -309,7 +308,7 @@ func connectPool(ctx context.Context, app *App, logger *slog.Logger, userID doma
 			}
 		}
 	}
-	return domain.ResolveConnectPool(requested, existing, livePoolNames(currentWorkers(ctx, app, logger), provider))
+	return domain.ResolveConnectPool(requested, existing, knownPoolNames(ctx, app, logger, provider))
 }
 
 func (h *oauthConnectHandlers) update(w http.ResponseWriter, r *http.Request) {

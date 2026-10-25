@@ -284,6 +284,10 @@ type liveWorker struct {
 // live worker. Empty when NATS isn't wired / nothing is online — callers treat
 // that as "no compatible worker, re-parse not possible".
 func currentWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorker {
+	return app.presence.get(time.Now(), func() []liveWorker { return scanWorkers(ctx, app, log) })
+}
+
+func scanWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorker {
 	var out []liveWorker
 	if app.NATSBus == nil {
 		return out

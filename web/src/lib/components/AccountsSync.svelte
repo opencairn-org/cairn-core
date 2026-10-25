@@ -34,7 +34,14 @@
 		poll_interval_seconds: number;
 		auto_import_enabled: boolean;
 		assigned_worker: string;
-		worker_pools: { name: string; package: string; parser_version: string; release: string }[];
+		worker_pools: {
+			name: string;
+			package: string;
+			parser_version: string;
+			release: string;
+			online: boolean;
+		}[];
+		out_of_date?: Record<string, number>;
 		queue: Queue;
 	};
 	type Preview = { total: number; already_present: number; new: number; complete?: boolean };
@@ -213,6 +220,27 @@
 			if (res.ok) await loadAccounts();
 		} catch {
 			/* ignore */
+		}
+	}
+
+	// Quota-free re-parse of every source a newer parser of its pool can read.
+	let reparsed = $state<Record<string, string>>({});
+	async function reparseOutOfDate(id: string) {
+		busy = { ...busy, [id]: true };
+		try {
+			const res = await fetch(`/api/accounts/${id}/reparse-out-of-date`, { method: 'POST' });
+			if (!res.ok) {
+				error = (await res.text()).trim() || res.statusText;
+				return;
+			}
+			const b = await res.json();
+			reparsed = {
+				...reparsed,
+				[id]: `${b.queued} queued${b.remaining ? `, ${b.remaining} left` : ''}`
+			};
+			await loadAccounts();
+		} finally {
+			busy = { ...busy, [id]: false };
 		}
 	}
 
@@ -468,6 +496,17 @@
 							>
 								{importOpen[a.id] ? 'Cancel import' : 'Import activity'}
 							</button>
+							{#if (a.out_of_date?.newer_parser ?? 0) > 0}
+								<button
+									type="button"
+									disabled={busy[a.id]}
+									onclick={() => reparseOutOfDate(a.id)}
+									title="A newer parser is available for these activities. Re-parses them from their archived originals; no provider quota is used."
+									class="rounded border border-sky-700/60 px-2.5 py-1 text-sky-300 hover:border-sky-500 disabled:opacity-50 max-md:py-2"
+								>
+									{reparsed[a.id] ?? `Re-parse ${a.out_of_date?.newer_parser} out of date`}
+								</button>
+							{/if}
 							<button
 								type="button"
 								disabled={busy[a.id]}
@@ -792,7 +831,9 @@
 									<option value="">— choose —</option>
 									{#each a.worker_pools ?? [] as p (p.name)}
 										<option value={p.name}
-											>{p.name} · {p.package} · parser {p.parser_version}</option
+											>{p.name} · {p.package}{p.online
+												? ` · parser ${p.parser_version}`
+												: ' · offline'}</option
 										>
 									{/each}
 									{#if a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker)}
@@ -804,6 +845,13 @@
 								>
 							</div>
 						{/if}
+					{/if}
+
+					{#if (a.out_of_date?.newer_dataset ?? 0) > 0}
+						<div class="mt-2 text-xs text-amber-300">
+							{a.out_of_date?.newer_dataset} activities were imported in an older archive format and need
+							a re-fetch from the provider to pick up the new parser.
+						</div>
 					{/if}
 
 					{#if !a.auto_import_enabled}

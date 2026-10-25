@@ -46,6 +46,7 @@ type payloadJSON struct {
 
 	GearExternalID string `json:"gear_external_id,omitempty"`
 	GearName       string `json:"gear_name,omitempty"`
+	GearUnknown    bool   `json:"gear_unknown,omitempty"`
 }
 
 type summaryJSON struct {
@@ -117,6 +118,7 @@ func encodePayload(p domain.ActivitySourcePayload) ([]byte, error) {
 		HasStream:        p.HasStream,
 		GearExternalID:   p.GearExternalID,
 		GearName:         p.GearName,
+		GearUnknown:      p.GearUnknown,
 	}
 	w.Laps = payloadLapsToJSON(p.Laps)
 	return json.Marshal(w)
@@ -154,6 +156,7 @@ func decodePayload(b []byte) (domain.ActivitySourcePayload, error) {
 		HasStream:       w.HasStream,
 		GearExternalID:  w.GearExternalID,
 		GearName:        w.GearName,
+		GearUnknown:     w.GearUnknown,
 	}
 	p.Laps = payloadLapsFromJSON(w.Laps)
 	return p, nil

@@ -45,6 +45,8 @@ type JobBus interface {
 	// RespondTo registers a request/reply handler. The server uses this
 	// for cairn.tokens.<provider>.fetch and cairn.blobs.presign_*.> .
 	RespondTo(ctx context.Context, subject string, handler RequestHandler) (Subscription, error)
+	// RespondToSubject is RespondTo for a wildcard subject.
+	RespondToSubject(ctx context.Context, subject string, handler SubjectRequestHandler) (Subscription, error)
 
 	// KV returns a handle on the named KV bucket.
 	KV(bucket string) (KV, error)
@@ -78,6 +80,10 @@ const (
 
 type MessageHandler func(ctx context.Context, msg Message) error
 type RequestHandler func(ctx context.Context, body []byte) ([]byte, error)
+
+// SubjectRequestHandler is a RequestHandler that also sees the concrete
+// subject a request arrived on (for wildcard responders).
+type SubjectRequestHandler func(ctx context.Context, subject string, body []byte) ([]byte, error)
 
 type Message struct {
 	Subject         string

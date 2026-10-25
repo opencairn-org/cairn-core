@@ -16,11 +16,11 @@ type presenceWorkerRouter struct {
 }
 
 func (r presenceWorkerRouter) AccountWorker(ctx context.Context, a domain.ExternalAccount) (string, error) {
-	var live []string
+	var known []string
 	if a.AssignedWorkerName == "" {
-		live = livePoolNames(currentWorkers(ctx, r.app, r.logger), a.Provider)
+		known = knownPoolNames(ctx, r.app, r.logger, a.Provider)
 	}
-	name, persist, err := domain.ResolveAccountWorker(a.AssignedWorkerName, live)
+	name, persist, err := domain.ResolveAccountWorker(a.AssignedWorkerName, known)
 	if err != nil {
 		return "", err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -36,6 +37,24 @@ func startAccountLookupHandler(
 	if err != nil {
 		return nil, err
 	}
+	// Per-pool subject (docs/adr/0006): the pool is taken from the subject
+	// the worker is allowed to publish on, not from the body.
+	poolSub, err := app.NATSBus.RespondToSubject(ctx, "cairn.accounts.lookup.*.*",
+		func(ctx context.Context, subject string, body []byte) ([]byte, error) {
+			parts := strings.Split(subject, ".")
+			var req accountLookupRequest
+			if json.Unmarshal(body, &req) != nil {
+				return accountLookupErr("bad_request"), nil
+			}
+			req.Provider, req.WorkerName = parts[3], parts[4]
+			scoped, _ := json.Marshal(req)
+			return accountLookupRespond(ctx, app, log, scoped), nil
+		})
+	if err != nil {
+		_ = sub.Close(ctx)
+		return nil, err
+	}
+	sub = multiSubscription{sub, poolSub}
 	log.Info("account lookup handler active on cairn.accounts.lookup_by_provider_ext")
 	return sub, nil
 }
@@ -118,4 +137,15 @@ func accountLookupSelfHeal(ctx context.Context, app *App, log *slog.Logger, req 
 	log.Info("recorded webhook subscription mapping",
 		"provider", req.Provider, "account_id", acct.ID.String(),
 		"subscription_id", req.SubscriptionID)
+}
+
+// multiSubscription closes several subscriptions as one.
+type multiSubscription []port.Subscription
+
+func (m multiSubscription) Close(ctx context.Context) error {
+	var err error
+	for _, s := range m {
+		err = errors.Join(err, s.Close(ctx))
+	}
+	return err
 }

@@ -77,6 +77,10 @@ func routeJobResult(ctx context.Context, app *App, log *slog.Logger, msg port.Me
 	// Worker-reported terminal failure: fail the queue item now with the
 	// true reason. Without this the item sits in_progress until the stale
 	// reaper masks the cause as "no result after N dispatch attempts".
+	if err := checkResultPool(ctx, app, log, msg.Subject, &jr); err != nil {
+		log.Error("result rejected", "subject", msg.Subject, "worker", jr.GetWorkerName(), "package", jr.GetWorkerPackage(), "error", err)
+		return nil // deterministic: redelivery cannot fix it
+	}
 	if jr.GetError() != nil {
 		applyWorkerFailure(ctx, app, log, msg.Subject, &jr)
 		return nil
@@ -214,14 +218,16 @@ func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *wor
 // new still counts as "checked" and the account isn't re-polled every tick.
 // Returns whether the message was a reconcile result (and thus fully handled).
 func applyReconcileResult(ctx context.Context, app *App, log *slog.Logger, subject string, jr *workerv1.JobResult) bool {
+	// cairn.results.reconcile.<provider>[.<pool>].<account>
 	parts := strings.Split(subject, ".")
-	if len(parts) != 5 || parts[0] != "cairn" || parts[1] != "results" || parts[2] != "reconcile" {
+	if (len(parts) != 5 && len(parts) != 6) || parts[0] != "cairn" || parts[1] != "results" || parts[2] != "reconcile" {
 		return false
 	}
 	if app.ExternalAccounts == nil {
 		return true
 	}
-	au, err := uuid.Parse(parts[4])
+	acctToken := parts[len(parts)-1]
+	au, err := uuid.Parse(acctToken)
 	if err != nil {
 		log.Warn("reconcile result with unparseable account id", "subject", subject)
 		return true
@@ -233,7 +239,7 @@ func applyReconcileResult(ctx context.Context, app *App, log *slog.Logger, subje
 		wm = ts.AsTime()
 	}
 	if err := app.ExternalAccounts.UpdateSyncWatermark(ctx, domain.ExternalAccountID(au), wm, true, time.Now().UTC()); err != nil {
-		log.Warn("apply reconcile result failed", "account_id", parts[4], "error", err)
+		log.Warn("apply reconcile result failed", "account_id", acctToken, "error", err)
 	}
 	return true
 }
@@ -262,8 +268,35 @@ func applyWorkerFailure(ctx context.Context, app *App, log *slog.Logger, subject
 	if m := we.GetMessage(); m != "" {
 		reason += ": " + m
 	}
+	if job, provider, _, ok := domain.ResultSubjectPool(subject); ok && job == "parse_blob" {
+		markReparseFailed(ctx, app, log, provider, ref, we.GetCode(), reason)
+		return
+	}
 	if err := app.ImportQueue.MarkFailedByExternalID(ctx, domain.ExternalAccountID(eu), domain.ImportItemActivity, ref.GetExternalId(), reason); err != nil {
 		log.Warn("mark queue item failed", "external_id", ref.GetExternalId(), "error", err)
+	}
+}
+
+// markReparseFailed records a failed re-parse on the source. parser_too_old
+// (no instance of the pool is new enough yet) keeps the source flagged for
+// re-parse instead of failing it.
+func markReparseFailed(ctx context.Context, app *App, log *slog.Logger, provider string, ref *workerv1.ExternalRef, code, reason string) {
+	acctUUID, err := uuid.Parse(ref.GetExternalAccountId())
+	if err != nil {
+		return
+	}
+	acct := domain.ExternalAccountID(acctUUID)
+	src, err := app.Activities.FindSourceByExternalID(ctx, provider, &acct, ref.GetExternalId())
+	if err != nil {
+		log.Warn("re-parse failure for unknown source", "external_id", ref.GetExternalId(), "error", err)
+		return
+	}
+	status, why := domain.ReimportStatusFailed, reason
+	if code == "parser_too_old" {
+		status, why = domain.ReimportStatusUpdateAvailable, "newer_parser"
+	}
+	if err := app.Activities.SetSourceReimportStatus(ctx, src.ID, status, why); err != nil {
+		log.Warn("set reimport status after failure", "source_id", src.ID, "error", err)
 	}
 }
 

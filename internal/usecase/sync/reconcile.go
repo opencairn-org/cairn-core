@@ -54,7 +54,7 @@ type ReconcileExternalAccount struct {
 	// Scheduled runs skip such accounts instead of queueing jobs that can
 	// only 429 — every poll against an exhausted budget is a wasted call.
 	// Force bypasses the gate.
-	budgetExhausted func(ctx context.Context, provider string) bool
+	budgetExhausted func(ctx context.Context, provider, pool string) bool
 	// gearSync publishes an import_gear job alongside each reconcile; it
 	// decides whether the provider's worker declares gear at all. May be nil.
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error
@@ -70,7 +70,7 @@ func NewReconcileExternalAccount(
 	accounts port.ExternalAccountRepo,
 	bus port.JobBus,
 	router port.WorkerRouter,
-	budgetExhausted func(ctx context.Context, provider string) bool,
+	budgetExhausted func(ctx context.Context, provider, pool string) bool,
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error,
 	now func() time.Time,
 	newID func() uuid.UUID,
@@ -206,16 +206,26 @@ func (uc *ReconcileExternalAccount) reconcilePublishAll(ctx context.Context, tar
 	// batch, not per account.
 	exhausted := map[string]bool{}
 	for _, a := range targets {
+		worker, err := uc.router.AccountWorker(ctx, a)
+		if errors.Is(err, domain.ErrNoWorker) {
+			res.AccountsSkipped++ // no pool yet: nothing could take the job
+			continue
+		}
+		if err != nil {
+			res.Errors = append(res.Errors, ReconcileError{AccountID: a.ID, Err: err})
+			continue
+		}
+		key := a.Provider + "/" + worker
 		if !force && uc.budgetExhausted != nil {
-			if _, seen := exhausted[a.Provider]; !seen {
-				exhausted[a.Provider] = uc.budgetExhausted(ctx, a.Provider)
+			if _, seen := exhausted[key]; !seen {
+				exhausted[key] = uc.budgetExhausted(ctx, a.Provider, worker)
 			}
-			if exhausted[a.Provider] {
+			if exhausted[key] {
 				res.AccountsSkipped++
 				continue
 			}
 		}
-		if err := uc.publishOne(ctx, a, reason); err != nil {
+		if err := uc.publishOne(ctx, a, worker, reason); err != nil {
 			res.Errors = append(res.Errors, ReconcileError{
 				AccountID: a.ID,
 				Err:       err,
@@ -267,13 +277,9 @@ const (
 func (uc *ReconcileExternalAccount) publishOne(
 	ctx context.Context,
 	a domain.ExternalAccount,
-	reason string,
+	worker, reason string,
 ) error {
 	now := uc.now()
-	worker, err := uc.router.AccountWorker(ctx, a)
-	if err != nil {
-		return fmt.Errorf("route reconcile %s: %w", a.ID, err)
-	}
 	subject := domain.JobSubject("reconcile", a.Provider, worker)
 
 	since := now.Add(-reconcileKnownIDsLookback)
