@@ -20,6 +20,7 @@ func TestWorkerTemplateNamesMatchBootstrap(t *testing.T) {
 		domain.WorkerPresenceBucket: KVWorkerPresence,
 		domain.WorkerManifestBucket: KVWorkerManifests,
 		domain.WorkerRateBucket:     KVRateLimits,
+		domain.CoreInfoBucket:       KVCoreInfo,
 	} {
 		if got != want {
 			t.Errorf("template name %q != bootstrap name %q", got, want)
@@ -31,7 +32,7 @@ func TestWorkerTemplateNamesMatchBootstrap(t *testing.T) {
 // restricted to the standard template, as the auth-callout would issue it.
 func newPermissionedWorker(t *testing.T) (admin, worker *Bus) {
 	t.Helper()
-	tpl := domain.StandardPermissionTemplate("strava", "w1-strava")
+	tpl := domain.StandardPermissionTemplate("strava", "w1")
 	s := startServer(t, &server.Options{Users: []*server.User{
 		{Username: "admin", Password: "admin"},
 		{Username: "worker", Password: "worker", Permissions: &server.Permissions{
@@ -70,7 +71,9 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 	defer cancel()
 
 	for _, cc := range []port.ConsumerConfig{
-		{Stream: StreamJobs, Durable: "strava__fetch", Subject: "cairn.jobs.fetch_source.strava"},
+		{Stream: StreamJobs, Durable: "w1__fetch", Subject: "cairn.jobs.fetch_source.strava.w1"},
+		{Stream: StreamJobs, Durable: "w1__gear", Subject: "cairn.jobs.import_gear.strava.w1"},
+		{Stream: StreamJobs, Durable: "strava__fetch", Subject: "cairn.jobs.fetch_source.strava"}, // legacy drain
 		{Stream: StreamJobs, Durable: "strava__reconcile", Subject: "cairn.jobs.reconcile.strava"},
 		{Stream: StreamJobs, Durable: "strava__metrics", Subject: "cairn.jobs.import_metrics.strava"},
 		{Stream: StreamWebhooks, Durable: "strava__webhook_event", Subject: "cairn.webhooks.w1-strava.event"},
@@ -98,11 +101,18 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 		"cairn.results.fetch_source.strava",
 		"cairn.results.import_metrics.strava",
 		"cairn.results.reconcile.strava.acct-1",
-		"cairn.jobs.fetch_source.strava", // reconcile sub-job
+		"cairn.jobs.fetch_source.strava.w1", // reconcile sub-job to its own pool
 	} {
 		if err := worker.Publish(ctx, subj, "", []byte("result")); err != nil {
 			t.Fatalf("publish %s: %v", subj, err)
 		}
+	}
+
+	// Another pool's jobs are out of reach (docs/adr/0006).
+	denyCtx, denyCancel := context.WithTimeout(ctx, 2*time.Second)
+	defer denyCancel()
+	if _, err := worker.Pull(denyCtx, port.ConsumerConfig{Stream: StreamJobs, Durable: "w2__fetch", Subject: "cairn.jobs.fetch_source.strava.w2"}); err == nil {
+		t.Fatal("pulled another pool's job subject")
 	}
 
 	// Core request/reply: the worker asks for credentials and serves discover.
@@ -117,7 +127,7 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 	if _, err := worker.Request(ctx, "cairn.creds.strava.get", []byte("{}"), 2*time.Second); err != nil {
 		t.Fatalf("creds request: %v", err)
 	}
-	if _, err := worker.RespondTo(ctx, "cairn.discover.strava", func(context.Context, []byte) ([]byte, error) {
+	if _, err := worker.RespondTo(ctx, "cairn.discover.strava.w1", func(context.Context, []byte) ([]byte, error) {
 		return []byte("items"), nil
 	}); err != nil {
 		t.Fatal(err)
@@ -125,11 +135,30 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 	if err := worker.Conn().Flush(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := admin.Request(ctx, "cairn.discover.strava", []byte("{}"), 2*time.Second); err != nil {
+	if _, err := admin.Request(ctx, "cairn.discover.strava.w1", []byte("{}"), 2*time.Second); err != nil {
 		t.Fatalf("discover reply: %v", err)
 	}
 	if err := worker.Publish(ctx, "cairn.workers.w1-strava.heartbeat", "", []byte("hb")); err != nil {
 		t.Fatalf("core publish: %v", err)
+	}
+
+	// Core info: readable, not writable.
+	if akv, err := admin.KV(KVCoreInfo); err != nil {
+		t.Fatal(err)
+	} else if _, err := akv.Put(ctx, "info", []byte(`{"release":"v0.5.0"}`)); err != nil {
+		t.Fatal(err)
+	}
+	ikv, err := worker.KV(KVCoreInfo)
+	if err != nil {
+		t.Fatalf("kv %s: %v", KVCoreInfo, err)
+	}
+	if e, err := ikv.Get(ctx, "info"); err != nil || len(e.Value) == 0 {
+		t.Fatalf("read core info: %v", err)
+	}
+	wctx, wcancel := context.WithTimeout(ctx, 2*time.Second)
+	defer wcancel()
+	if _, err := ikv.Put(wctx, "info", []byte("{}")); err == nil {
+		t.Fatal("worker overwrote core info")
 	}
 
 	for _, bucket := range []string{KVWorkerPresence, KVWorkerManifests, KVRateLimits} {

@@ -271,6 +271,7 @@ func activityManageRecomputeDerivedHandler(app *App, logger *slog.Logger) http.H
 // triple parses a blob the same way. Worker NAME/alias is deliberately NOT part
 // of the identity: names are admin-assigned routing labels, not code identity.
 type liveWorker struct {
+	name         string // pool name: jobs go to cairn.jobs.<job>.<provider>.<name>
 	provider     string
 	version      string // parser version N.M
 	pkg          string
@@ -302,6 +303,7 @@ func currentWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorke
 			continue
 		}
 		var hb struct {
+			WorkerName   string              `json:"worker_name"`
 			Provider     string              `json:"provider"`
 			Version      string              `json:"version"`
 			Release      string              `json:"release"`
@@ -317,7 +319,7 @@ func currentWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorke
 		}
 		compatible, _ := domain.ReleaseCompatible(Version, hb.Release)
 		out = append(out, liveWorker{
-			provider: hb.Provider, version: hb.Version, pkg: hb.Package,
+			name: hb.WorkerName, provider: hb.Provider, version: hb.Version, pkg: hb.Package,
 			release: hb.Release, compatible: compatible, capabilities: hb.Capabilities,
 		})
 	}

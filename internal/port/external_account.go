@@ -48,6 +48,8 @@ type ExternalAccountRepo interface {
 	// SetAutoImport toggles automatic imports (reconcile + webhook fetch) for
 	// one registered account (#93). The account stays linked either way.
 	SetAutoImport(ctx context.Context, id domain.ExternalAccountID, enabled bool) error
+	// SetAssignedWorker pins the account to a named worker pool; "" unpins.
+	SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, workerName string) error
 
 	// ListAccountsDueForReconcile returns accounts whose next reconcile
 	// is due based on the per-account schedule. Returned accounts are

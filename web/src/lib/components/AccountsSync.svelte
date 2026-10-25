@@ -33,6 +33,8 @@
 		discovering: boolean;
 		poll_interval_seconds: number;
 		auto_import_enabled: boolean;
+		assigned_worker: string;
+		worker_pools: { name: string; package: string; parser_version: string; release: string }[];
 		queue: Queue;
 	};
 	type Preview = { total: number; already_present: number; new: number; complete?: boolean };
@@ -209,6 +211,21 @@
 				body: JSON.stringify({ enabled })
 			});
 			if (res.ok) await loadAccounts();
+		} catch {
+			/* ignore */
+		}
+	}
+
+	// Route the account's jobs to a named worker pool ("" = the only one).
+	async function setWorker(id: string, worker: string) {
+		try {
+			const res = await fetch(`/api/accounts/${id}/worker`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ worker })
+			});
+			if (!res.ok) error = (await res.text()).trim() || res.statusText;
+			await loadAccounts();
 		} catch {
 			/* ignore */
 		}
@@ -756,6 +773,30 @@
 								Auto-import
 							</label>
 						</div>
+						{#if (a.worker_pools ?? []).length > 1 || (a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker))}
+							<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+								<label class="text-zinc-400" for={`worker-${a.id}`}>Worker</label>
+								<select
+									id={`worker-${a.id}`}
+									value={a.assigned_worker}
+									onchange={(e) => setWorker(a.id, e.currentTarget.value)}
+									class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-200"
+								>
+									<option value="">— choose —</option>
+									{#each a.worker_pools ?? [] as p (p.name)}
+										<option value={p.name}
+											>{p.name} · {p.package} · parser {p.parser_version}</option
+										>
+									{/each}
+									{#if a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker)}
+										<option value={a.assigned_worker}>{a.assigned_worker} (offline)</option>
+									{/if}
+								</select>
+								<span class="text-zinc-600"
+									>Imports and re-fetches for this connection run on this worker.</span
+								>
+							</div>
+						{/if}
 					{/if}
 
 					{#if !a.auto_import_enabled}

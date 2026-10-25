@@ -73,6 +73,17 @@ func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscri
 	return domain.ExternalAccount{}, fmt.Errorf("not found")
 }
 
+func (f *fakeAccounts) SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, name string) error {
+	return nil
+}
+
+// staticRouter routes every account to one pool.
+type staticRouter string
+
+func (r staticRouter) AccountWorker(context.Context, domain.ExternalAccount) (string, error) {
+	return string(r), nil
+}
+
 func (f *fakeAccounts) SetAutoImport(ctx context.Context, id domain.ExternalAccountID, enabled bool) error {
 	return nil
 }
@@ -160,6 +171,7 @@ func newUC(t *testing.T, accounts *fakeAccounts, bus *fakeBus) *ReconcileExterna
 	return NewReconcileExternalAccount(
 		accounts,
 		bus,
+		staticRouter("w1"),
 		nil, // no budget gate in tests
 		nil, // no gear sync in tests
 		func() time.Time { return fixedNow },
@@ -208,8 +220,8 @@ func TestExecute_SingleAccount_PublishesOne(t *testing.T) {
 		t.Fatalf("published = %d, want 1", len(bus.published))
 	}
 	p := bus.published[0]
-	if p.Subject != "cairn.jobs.reconcile.strava" {
-		t.Errorf("subject = %q, want cairn.jobs.reconcile.strava", p.Subject)
+	if p.Subject != "cairn.jobs.reconcile.strava.w1" {
+		t.Errorf("subject = %q, want cairn.jobs.reconcile.strava.w1", p.Subject)
 	}
 	// msgID is bucketed to the minute and contains the account UUID.
 	if !strings.Contains(p.MsgID, stableAccount.String()) {
@@ -364,8 +376,8 @@ func TestExecute_AllMode_UsesBatchSize(t *testing.T) {
 	}
 	// Both should hit cairn.jobs.reconcile.strava (first two in `due`).
 	for _, p := range bus.published {
-		if p.Subject != "cairn.jobs.reconcile.strava" {
-			t.Errorf("subject = %q, want cairn.jobs.reconcile.strava", p.Subject)
+		if p.Subject != "cairn.jobs.reconcile.strava.w1" {
+			t.Errorf("subject = %q, want cairn.jobs.reconcile.strava.w1", p.Subject)
 		}
 	}
 }

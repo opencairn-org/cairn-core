@@ -62,6 +62,10 @@ func mountSyncEndpoints(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// imports (reconcile + webhook fetch) for this account (#93).
 	mux.HandleFunc("PUT /api/accounts/{id}/auto-import", h.setAutoImport)
 
+	// PUT /api/accounts/{id}/worker {worker} — route this account's jobs to a
+	// named worker pool (docs/adr/0006).
+	mux.HandleFunc("PUT /api/accounts/{id}/worker", h.setWorker)
+
 	// POST /api/accounts/{id}/sync/preview — discover + summarize (no enqueue).
 	mux.HandleFunc("POST /api/accounts/{id}/sync/preview", h.syncPreview)
 
@@ -113,7 +117,11 @@ func mountSyncEndpoints(mux *http.ServeMux, app *App, logger *slog.Logger) {
 // caller can resume.
 func discoverBatch(ctx context.Context, app *App, a domain.ExternalAccount, startPage int) (syncDiscoverResp, error) {
 	reqBody, _ := json.Marshal(map[string]any{"account_id": a.ID.String(), "start_page": startPage})
-	respBytes, err := app.NATSBus.Request(ctx, "cairn.discover."+a.Provider, reqBody, 90*time.Second)
+	name, err := (presenceWorkerRouter{app: app, logger: slog.Default()}).AccountWorker(ctx, a)
+	if err != nil {
+		return syncDiscoverResp{}, err
+	}
+	respBytes, err := app.NATSBus.Request(ctx, domain.DiscoverSubject(a.Provider, name), reqBody, 90*time.Second)
 	if err != nil {
 		return syncDiscoverResp{}, err
 	}
@@ -341,6 +349,11 @@ func processAccountQueue(ctx context.Context, log *slog.Logger, app *App, acctID
 		return
 	}
 
+	subject, err := accountJobSubject(ctx, app, log, "fetch_source", acct)
+	if err != nil {
+		log.Warn("queue: no worker pool for account", "account_id", acctID, "error", err)
+		return
+	}
 	items, err := app.ImportQueue.ClaimPending(ctx, acctID, avail)
 	if err != nil {
 		log.Warn("queue: claim pending failed", "account_id", acctID, "error", err)
@@ -360,7 +373,7 @@ func processAccountQueue(ctx context.Context, log *slog.Logger, app *App, acctID
 			Reason:       "queue",
 		})
 		msgID := "queue:" + it.Provider + ":" + acctID.String() + ":" + it.ExternalID
-		if err := app.NATSBus.Publish(ctx, "cairn.jobs.fetch_source."+it.Provider, msgID, body); err != nil {
+		if err := app.NATSBus.Publish(ctx, subject, msgID, body); err != nil {
 			_ = app.ImportQueue.MarkFailed(ctx, it.ID, "dispatch: "+err.Error())
 		}
 		// Item stays in_progress; result_router marks it done after ingest.

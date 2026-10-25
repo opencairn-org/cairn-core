@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -68,8 +69,14 @@ func (h syncHandlers) listAccounts(w http.ResponseWriter, r *http.Request) {
 			budgets[a.Provider], budgetLimited[a.Provider] = providerBudget(r.Context(), h.app.NATSBus, a.Provider)
 		}
 	}
+	workers := currentWorkers(r.Context(), h.app, h.logger)
 	for _, a := range accts {
-		out = append(out, h.accountRow(r.Context(), a, budgets[a.Provider], budgetLimited[a.Provider]))
+		row := h.accountRow(r.Context(), a, budgets[a.Provider], budgetLimited[a.Provider])
+		// The pool this account's jobs go to, and the pools it could move to
+		// (docs/adr/0006).
+		row["assigned_worker"] = a.AssignedWorkerName
+		row["worker_pools"] = workerPoolsJSON(workers, a.Provider)
+		out = append(out, row)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"accounts": out,
@@ -165,6 +172,47 @@ func (h syncHandlers) accountRow(ctx context.Context, a domain.ExternalAccount, 
 		"auto_import_enabled":   a.AutoImportEnabled,
 		"queue":                 h.queueCounts(ctx, a.ID),
 	}
+}
+
+// workerPoolsJSON lists the live release-compatible pools for provider, one
+// entry per name.
+func workerPoolsJSON(workers []liveWorker, provider string) []map[string]any {
+	seen := map[string]bool{}
+	out := []map[string]any{}
+	for _, w := range workers {
+		if !w.compatible || w.provider != provider || w.name == "" || seen[w.name] {
+			continue
+		}
+		seen[w.name] = true
+		out = append(out, map[string]any{"name": w.name, "package": w.pkg, "parser_version": w.version, "release": w.release})
+	}
+	return out
+}
+
+// setWorker serves PUT /api/accounts/{id}/worker {worker}: pins the account
+// to a live pool of its provider; "" unpins (the only pool is used).
+func (h syncHandlers) setWorker(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.ownAccount(r)
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	var body struct {
+		Worker string `json:"worker"`
+	}
+	if err := decodeJSONBody(r, &body); err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	if body.Worker != "" && !slices.Contains(livePoolNames(currentWorkers(r.Context(), h.app, h.logger), a.Provider), body.Worker) {
+		http.Error(w, "no live "+a.Provider+" worker with that name", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.ExternalAccounts.SetAssignedWorker(r.Context(), a.ID, body.Worker); err != nil {
+		http.Error(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"assigned_worker": body.Worker})
 }
 
 // setAutoImport serves PUT /api/accounts/{id}/auto-import.

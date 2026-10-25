@@ -1,0 +1,49 @@
+# 6. Jobs are routed to named worker pools
+
+Status: accepted (2026-10-25). Replaces "pool by name, one subject per provider" in
+`docs/worker-pooling-vs-versioning.md`.
+
+## Context
+
+Jobs were published on `cairn.jobs.<job>.<provider>` and each worker created a durable consumer
+named after its `worker_name`. `CAIRN_JOBS` is a work-queue stream, which refuses a second
+consumer with the same filter (`err_code=10100 filtered consumer not unique on workqueue
+stream`). So a provider could only ever have one worker name, and two implementations of one
+provider (e.g. an API importer and a FIT-file importer) could not run side by side. With a shared
+subject, whichever worker pulled a re-fetch would also silently move the source to its package.
+
+Several worker implementations per provider are a goal.
+
+## Decision
+
+A **pool** is every instance sharing one `worker_name` for one provider. Jobs go to exactly one
+pool:
+
+- Subjects are `cairn.jobs.<job>.<provider>.<worker_name>`, discovery is
+  `cairn.discover.<provider>.<worker_name>`. Provider and name are separate subject tokens, so two
+  pools never overlap; joining them with `-` would not be unique (`a-b`+`c` vs `a`+`b-c`).
+- Instances of one pool share one durable consumer per subject; versions inside a pool follow
+  ADR 0005.
+- An external account belongs to one pool (`external_accounts.assigned_worker_name`). Every
+  account-scoped job (reconcile, fetch_source incl. re-fetch, import_gear, import_metrics,
+  discovery) goes to that pool. An unassigned account uses the provider's only live,
+  release-compatible pool and is then assigned to it; with several pools the user picks one on
+  Connections. An assigned pool that is offline keeps receiving jobs; they wait in the queue.
+- Re-parse goes to a pool of the source's own package with an allowed parser (ADR 0005), which
+  need not be the account's pool.
+- A source changes package only through a re-fetch by the account's pool, i.e. after the account
+  was deliberately moved to another implementation.
+- The worker key `{name}-{provider}` stays the webhook URL and control subject; enrollment refuses
+  a name whose key equals another pool's.
+- Pre-0.5 provider-only job subjects stay in the permission template for one minor release so an
+  upgraded pool drains jobs queued before the upgrade. Removed in 0.6.
+
+## Consequences
+
+- Specialised importers for one provider can run side by side, each owning the accounts assigned
+  to it. Two pools feeding the same activity need two connections (see the account-identity
+  follow-up in the 0.5 notes).
+- Workers derive all job subjects from their own name, and publish their own `fetch_source`
+  sub-jobs to their own pool.
+- Renaming a worker moves it to a new pool: reassign its accounts, or jobs keep going to the old
+  name.

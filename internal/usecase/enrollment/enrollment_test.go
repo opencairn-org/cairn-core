@@ -24,6 +24,10 @@ func (m *memRepo) CreateEnrollment(_ context.Context, e domain.WorkerEnrollment)
 	return e, nil
 }
 
+func (m *memRepo) ListEnrollments(context.Context, port.ListEnrollmentsFilter) ([]domain.WorkerEnrollment, error) {
+	return m.rows, nil
+}
+
 func (m *memRepo) FindEnrollmentByTokenHash(_ context.Context, hash []byte) (domain.WorkerEnrollment, error) {
 	for _, e := range m.rows {
 		if string(e.TokenHash) == string(hash) {
@@ -112,5 +116,22 @@ func TestAuthCalloutIssuesProviderTemplate(t *testing.T) {
 	}
 	if len(issuer.calls) != 1 || len(issuer.calls[0].Permissions.AllowSubscribe) == 0 || repo.grants != 1 {
 		t.Fatalf("want one scoped issuance and grant: %+v, %d grants", issuer.calls, repo.grants)
+	}
+}
+
+func TestCreateEnrollment_RefusesCollidingWorkerKey(t *testing.T) {
+	repo := &memRepo{}
+	uc := NewCreateWorkerEnrollment(repo, nil, nil, nil)
+	ctx := context.Background()
+	if _, err := uc.Execute(ctx, CreateEnrollmentInput{Provider: "c", Name: "a-b", ExpiresIn: time.Hour}); err != nil {
+		t.Fatal(err)
+	}
+	// "a" + "b-c" also yields the key "a-b-c".
+	if _, err := uc.Execute(ctx, CreateEnrollmentInput{Provider: "b-c", Name: "a", ExpiresIn: time.Hour}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("want ErrInvalidInput, got %v", err)
+	}
+	// The same pool may be enrolled again (another instance's token).
+	if _, err := uc.Execute(ctx, CreateEnrollmentInput{Provider: "c", Name: "a-b", ExpiresIn: time.Hour}); err != nil {
+		t.Fatal(err)
 	}
 }

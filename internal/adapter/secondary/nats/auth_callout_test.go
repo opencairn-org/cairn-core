@@ -36,6 +36,12 @@ func (f *fakeEnrollments) CreateEnrollment(_ context.Context, e domain.WorkerEnr
 	return e, nil
 }
 
+func (f *fakeEnrollments) ListEnrollments(context.Context, port.ListEnrollmentsFilter) ([]domain.WorkerEnrollment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.rows), nil
+}
+
 func (f *fakeEnrollments) FindEnrollmentByTokenHash(_ context.Context, hash []byte) (domain.WorkerEnrollment, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -383,7 +389,7 @@ func TestIssueWorkerCredential(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	strava := domain.StandardPermissionTemplate("strava", "w1-strava")
+	strava := domain.StandardPermissionTemplate("strava", "w1")
 	issuer := NewCredentialIssuer(keys, box, "CAIRN")
 	for name, perms := range map[string]domain.WorkerPermissionTemplate{
 		"no provider":  domain.StandardPermissionTemplate("", "w1"),

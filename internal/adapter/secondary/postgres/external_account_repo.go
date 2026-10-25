@@ -197,6 +197,18 @@ func (r *ExternalAccountRepo) SetAutoImport(
 	return nil
 }
 
+// SetAssignedWorker pins the account to a named worker pool; "" unpins.
+func (r *ExternalAccountRepo) SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, workerName string) error {
+	db := dbtx(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`UPDATE external_accounts SET assigned_worker_name = NULLIF($2, ''), updated_at = now() WHERE id = $1`,
+		id.UUID(), workerName)
+	if err != nil {
+		return fmt.Errorf("set assigned worker: %w", err)
+	}
+	return nil
+}
+
 // RegisterWebhookSubscription records the provider push-subscription →
 // connection mapping (#50) on the account's own webhook_subscription_id column
 // (per-connection, so it disambiguates where provider_account_id cannot).

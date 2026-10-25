@@ -47,6 +47,7 @@ import (
 type ReconcileExternalAccount struct {
 	accounts port.ExternalAccountRepo
 	bus      port.JobBus
+	router   port.WorkerRouter
 
 	// budgetExhausted, when non-nil, reports whether the provider's live
 	// API budget is currently spent (read from the shared rate-limit KV).
@@ -68,6 +69,7 @@ type ReconcileExternalAccount struct {
 func NewReconcileExternalAccount(
 	accounts port.ExternalAccountRepo,
 	bus port.JobBus,
+	router port.WorkerRouter,
 	budgetExhausted func(ctx context.Context, provider string) bool,
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error,
 	now func() time.Time,
@@ -88,6 +90,7 @@ func NewReconcileExternalAccount(
 	return &ReconcileExternalAccount{
 		accounts:        accounts,
 		bus:             bus,
+		router:          router,
 		budgetExhausted: budgetExhausted,
 		gearSync:        gearSync,
 		now:             now,
@@ -267,7 +270,11 @@ func (uc *ReconcileExternalAccount) publishOne(
 	reason string,
 ) error {
 	now := uc.now()
-	subject := fmt.Sprintf("cairn.jobs.reconcile.%s", a.Provider)
+	worker, err := uc.router.AccountWorker(ctx, a)
+	if err != nil {
+		return fmt.Errorf("route reconcile %s: %w", a.ID, err)
+	}
+	subject := domain.JobSubject("reconcile", a.Provider, worker)
 
 	since := now.Add(-reconcileKnownIDsLookback)
 	if a.SyncWatermark != nil {

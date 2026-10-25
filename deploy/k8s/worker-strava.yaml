@@ -1,5 +1,5 @@
 # Strava worker — joins the NATS control plane and consumes
-# cairn.jobs.*.strava. Stateless; pull consumers share the work, so this scales
+# cairn.jobs.*.strava.<worker_name>. Stateless; pull consumers share the work, so this scales
 # to >1 replica — BUT only if CAIRN_STRAVA_WEBHOOK_VERIFY_TOKEN is UNSET (see
 # the env note below: exactly one instance may own the webhook subject). Strava
 # OAuth client creds are per-user (entered in the Connections UI), so the worker

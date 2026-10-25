@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -493,6 +494,13 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 	if err := bus.BootstrapStreams(ctx); err != nil {
 		return err
 	}
+	// Workers compare their release with this (docs/adr/0005).
+	if kv, err := bus.KV(natsadapter.KVCoreInfo); err == nil {
+		info, _ := json.Marshal(map[string]string{"release": Version})
+		if _, err := kv.Put(ctx, "info", info); err != nil {
+			logger.Warn("publish core info failed", "error", err)
+		}
+	}
 
 	credentialIssuer := natsadapter.NewCredentialIssuer(app.SigningKeys, app.SecretBox, cfg.NATS.WorkerAccount)
 
@@ -535,6 +543,7 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 	app.ReconcileAccount = syncuc.NewReconcileExternalAccount(
 		app.ExternalAccounts,
 		bus,
+		presenceWorkerRouter{app: app, logger: logger},
 		func(ctx context.Context, provider string) bool {
 			_, exhausted := providerBudget(ctx, bus, provider)
 			return exhausted

@@ -1,8 +1,10 @@
 # Worker pooling vs. version separation — design decision
 
-> **Superseded in part (2026-10-25):** the "matching build" re-parse rule and the
-> integer `version` below are replaced by release / dataset / parser versions,
-> see [ADR 0005](adr/0005-provider-versioning.md). Pooling by name still holds.
+> **Superseded (2026-10-25):** the "matching build" re-parse rule and the
+> integer `version` below are replaced by release / dataset / parser versions
+> ([ADR 0005](adr/0005-provider-versioning.md)); job routing per named pool
+> replaces the shared provider subject ([ADR 0006](adr/0006-job-routing-per-worker-pool.md)).
+> Kept for history.
 
 Status: **decided** (revisited 2026-06-05). This records the model Cairn uses for
 running multiple worker instances of the same provider, how versions interact
