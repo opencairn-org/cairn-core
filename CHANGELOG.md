@@ -6,6 +6,10 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-10-25
+
+Core-only patch; the 0.5.0 workers stay compatible.
+
 ### Fixed
 - "Re-download all" on a full sync re-fetches activities that an earlier sync
   already imported. Before, the queue kept their finished rows and only
