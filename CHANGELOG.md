@@ -6,6 +6,12 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- "Re-download all" on a full sync re-fetches activities that an earlier sync
+  already imported. Before, the queue kept their finished rows and only
+  activities never queued were fetched (923 discovered, 15 queued), so the
+  Garmin gear backfill after 0.5.0 never ran.
+
 ## [0.5.0] — 2026-10-25
 
 Upgrade order: Core first, then both workers to 0.5.0 (the contract changed:

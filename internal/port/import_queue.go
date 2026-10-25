@@ -15,6 +15,11 @@ type ImportQueueRepo interface {
 	// Returns the number of rows newly inserted.
 	Enqueue(ctx context.Context, items []domain.ImportQueueItem) (int, error)
 
+	// Requeue is Enqueue for a re-download: items whose row is already
+	// done, failed or skipped go back to pending; pending and in_progress
+	// rows are left alone. Returns the number of rows inserted or reset.
+	Requeue(ctx context.Context, items []domain.ImportQueueItem) (int, error)
+
 	// ClaimPending atomically marks up to limit pending items for an account
 	// as in_progress (FOR UPDATE SKIP LOCKED) and returns them. Safe to call
 	// from multiple processor instances.

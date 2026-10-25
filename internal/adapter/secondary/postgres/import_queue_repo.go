@@ -28,6 +28,22 @@ const importQueueCols = `
 	created_at, started_at, completed_at`
 
 func (r *ImportQueueRepo) Enqueue(ctx context.Context, items []domain.ImportQueueItem) (int, error) {
+	return r.insert(ctx, items, `ON CONFLICT (external_account_id, item_type, external_id) DO NOTHING`)
+}
+
+func (r *ImportQueueRepo) Requeue(ctx context.Context, items []domain.ImportQueueItem) (int, error) {
+	// A finished row goes back to pending as a fresh attempt; a pending or
+	// in_progress row is left alone so overlapping syncs don't reset work.
+	return r.insert(ctx, items, `ON CONFLICT (external_account_id, item_type, external_id) DO UPDATE SET
+				status = 'pending', attempts = 0, last_error = NULL,
+				started_at = NULL, completed_at = NULL,
+				item_time = EXCLUDED.item_time, updated_at = now()
+			WHERE import_queue.status IN ('done', 'failed', 'skipped')`)
+}
+
+// insert bulk-inserts items with the given ON CONFLICT clause and returns
+// the number of rows inserted or updated.
+func (r *ImportQueueRepo) insert(ctx context.Context, items []domain.ImportQueueItem, onConflict string) (int, error) {
 	if len(items) == 0 {
 		return 0, nil
 	}
@@ -37,22 +53,22 @@ func (r *ImportQueueRepo) Enqueue(ctx context.Context, items []domain.ImportQueu
 			INSERT INTO import_queue
 				(external_account_id, user_id, provider, item_type, external_id, item_time)
 			VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (external_account_id, item_type, external_id) DO NOTHING`,
+			`+onConflict,
 			it.ExternalAccountID.UUID(), it.UserID.UUID(), it.Provider,
 			string(it.ItemType), it.ExternalID, it.ItemTime)
 	}
 	br := r.pool.SendBatch(ctx, batch)
 	defer func() { _ = br.Close() }()
 
-	inserted := 0
+	affected := 0
 	for range items {
 		tag, err := br.Exec()
 		if err != nil {
-			return inserted, fmt.Errorf("enqueue: %w", err)
+			return affected, fmt.Errorf("enqueue: %w", err)
 		}
-		inserted += int(tag.RowsAffected())
+		affected += int(tag.RowsAffected())
 	}
-	return inserted, nil
+	return affected, nil
 }
 
 func (r *ImportQueueRepo) ClaimPending(ctx context.Context, accountID domain.ExternalAccountID, limit int) ([]domain.ImportQueueItem, error) {
