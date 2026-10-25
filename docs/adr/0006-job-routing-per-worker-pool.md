@@ -38,6 +38,32 @@ pool:
 - Pre-0.5 provider-only job subjects stay in the permission template for one minor release so an
   upgraded pool drains jobs queued before the upgrade. Removed in 0.6.
 
+## Refinements (2026-10-25 review)
+
+- **Pools are a registry, not a presence snapshot.** `worker_pools` (provider, name → package)
+  is filled from manifests and results and backfilled from existing sources. Routing,
+  connect-time choice and the UI pickers use it; presence only says online/offline. A pool
+  name is permanent and bound to one package: a worker reporting another package under a known
+  name is refused (manifest and results). A different implementation needs a new name.
+- **Adoption.** A pre-0.5 connection (no pool) is adopted by the first pool that connects the
+  same provider account only when its sources were imported under that pool's name, or the same
+  connection reconnects. Otherwise the connect creates a new row and the old one stays
+  unassigned until its own pool connects it.
+- **Reassignment** (`PUT /api/accounts/{id}/worker`) is allowed only onto a pool of the same
+  package as the connection's imports; another implementation is another connection. Unpinning
+  is refused while the provider account has another connection.
+- **Results and lookups are per pool**: `cairn.results.<job>.<provider>.<name>` (reconcile
+  appends the account) and `cairn.accounts.lookup.<provider>.<name>`. Core verifies the sender's
+  `worker_name` against the subject, so a pool cannot publish for or look up another pool's
+  accounts. Tokens, blobs and credentials stay provider-scoped: pools of one provider are
+  mutually trusted for those. The pre-0.5 provider-scoped subjects stay allowed through 0.5.
+- **Rate-limit budgets are per pool** (`<provider>.<pool>.<window>` in the shared KV), i.e. per
+  provider app.
+- **Bulk re-parse**: `POST /api/accounts/{id}/reparse-out-of-date` re-parses every source a
+  newer parser of its pool can read; the Connections page shows the counts. A worker too old for
+  a re-parse hands the job back with back-off and, after ~35 minutes, reports `parser_too_old`,
+  which keeps the source flagged rather than failing it.
+
 ## Consequences
 
 - Specialised importers for one provider can run side by side, each owning the accounts assigned

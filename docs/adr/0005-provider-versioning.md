@@ -16,8 +16,12 @@ archive, and is its output newer than what is stored.
 A provider worker has three independent versions.
 
 **Release** (`v0.4.1`, semver, the git tag). States the core contract the worker implements
-(proto messages, NATS subjects, job and result shapes). A worker is compatible with core when
-both have the same major and minor; patch levels are free. A dev build (no tag) is exempt.
+(proto messages, NATS subjects, job and result shapes). Before 1.0 a worker is compatible with
+core when both have the same major and minor; patch levels are free. From 1.0 on, minor and
+patch releases are backwards compatible: a worker is compatible when the major matches and its
+minor is not above core's (an older worker keeps working against a newer core; a newer worker
+may need a newer core). Core publishes its release in the `cairn_core` KV bucket; a worker
+refuses to start, and stops, against an incompatible core. A dev build (no tag) is exempt.
 
 **Dataset version** (`N`, integer, per provider package). The format of the archived raw blob
 the importer writes: the `version` field of the archive envelope. Bumped only when a parser can
@@ -57,8 +61,8 @@ the result if one gets through.
 - Workers declare `PARSER_VERSION` (`N.M`) and `DATASET_VERSION` (`N`) as constants and check
   that the archive envelope version equals `N`. A golden-file test per worker parses fixture
   archives of every supported dataset; changing the golden output without bumping `M` fails it.
-- Every core minor release needs worker releases with the same minor, even without a contract
-  change.
+- Before 1.0, every core minor release needs worker releases with the same minor, even without
+  a contract change. From 1.0 on only a new major does.
 - Re-parse becomes the normal way to apply new parser logic to history; re-fetch is needed only
   after a dataset bump or when no archive exists.
 - `source_worker_version` keeps the raw string; `dataset_version` and `parser_version` are
