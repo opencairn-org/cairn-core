@@ -35,6 +35,9 @@ reads, `M` counts changes to its output. Rules:
   parser `>= N.M`; core refuses a result that would lower a source's version. A new dataset
   version resets `M` to 0 (`1.4` → `2.0`).
 - A legacy bare integer `N` reads as `N.0`.
+- The archive holds every input the parser uses. A parser change that needs a new input (e.g. a
+  separate gear call) first makes the importer archive it; that is additive and stays dataset
+  `N`, archives written before it lack the input and need a re-fetch to gain it.
 
 Consequences for core:
 
