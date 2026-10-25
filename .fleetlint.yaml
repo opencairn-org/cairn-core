@@ -24,9 +24,6 @@ overrides:
   changelog/generator-configured:
     enabled: false
     reason: "CHANGELOG.md is curated by hand (Keep a Changelog); `make release` refuses a tag without its section"
-  release/changelog-in-release:
-    enabled: false
-    reason: "a v* tag publishes a signed container image only; there is no release body to generate"
 exceptions:
   - rule: containers/non-root-user
     match: "docker/Dockerfile.build-base"
