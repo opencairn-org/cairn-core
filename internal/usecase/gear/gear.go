@@ -242,6 +242,19 @@ func (s *Service) ListDefaults(ctx context.Context, userID domain.UserID) ([]dom
 // refreshes its description and follows a provider-side retirement; user
 // edits to the gear itself are never clobbered.
 func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.UserID, key domain.GearRefKey, in domain.GearImport) (domain.GearExternalRef, error) {
+	return s.importRef(ctx, claimedUser, key, in, false)
+}
+
+// NoteActivityGear records a provider gear id an activity carries as a
+// pending ref when no gear record has described it yet (import_gear failed
+// or never ran), so the user is still asked to decide. Known refs are left
+// untouched.
+func (s *Service) NoteActivityGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, name string) error {
+	_, err := s.importRef(ctx, userID, key, domain.GearImport{Name: name}, true)
+	return err
+}
+
+func (s *Service) importRef(ctx context.Context, claimedUser domain.UserID, key domain.GearRefKey, in domain.GearImport, onlyNew bool) (domain.GearExternalRef, error) {
 	acct, err := s.accounts.GetExternalAccount(ctx, key.ExternalAccountID)
 	if err != nil {
 		return domain.GearExternalRef{}, fmt.Errorf("import gear %s/%s: account: %w", key.Provider, key.ExternalID, err)
@@ -254,7 +267,7 @@ func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.Use
 		newPending bool
 	)
 	err = s.tx.InTx(ctx, func(ctx context.Context) error {
-		out, newPending, err = s.recordProviderGear(ctx, acct.UserID, key, in)
+		out, newPending, err = s.recordProviderGear(ctx, acct.UserID, key, in, onlyNew)
 		return err
 	})
 	if err != nil {
@@ -270,7 +283,7 @@ func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.Use
 
 // recordProviderGear upserts the ref inside the import transaction and
 // reports whether it is a new pending record.
-func (s *Service) recordProviderGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, in domain.GearImport) (domain.GearExternalRef, bool, error) {
+func (s *Service) recordProviderGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, in domain.GearImport, onlyNew bool) (domain.GearExternalRef, bool, error) {
 	ref, err := s.gear.GetExternalRef(ctx, key)
 	newPending := errors.Is(err, domain.ErrNotFound)
 	switch {
@@ -278,6 +291,8 @@ func (s *Service) recordProviderGear(ctx context.Context, userID domain.UserID, 
 		ref = domain.GearExternalRef{UserID: userID, Provider: key.Provider, ExternalAccountID: key.ExternalAccountID, ExternalID: key.ExternalID}
 	case err != nil:
 		return domain.GearExternalRef{}, false, err
+	case onlyNew:
+		return ref, false, nil
 	}
 	ref.Describe(in, s.now())
 	if ref.GearID != nil && in.Retired {

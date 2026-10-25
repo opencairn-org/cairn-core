@@ -531,6 +531,7 @@ func ingestActivityEvent(
 			"provider", in.Provider, "external_id", in.ExternalID, "error", err)
 		return activity.IngestResult{}, err
 	}
+	ingestActivityGearRef(ctx, app, log, in)
 	ingestActivityRecluster(ctx, app, log, in.UserID, payload.StartTime)
 	log.Info("ingest succeeded",
 		"activity_id", out.ActivityID, "source_id", out.SourceID, "action", out.Action)
@@ -560,6 +561,18 @@ func ingestActivityParseRef(ref *workerv1.ExternalRef) (uuid.UUID, *domain.Exter
 	}
 	ea := domain.ExternalAccountID(eu)
 	return uid, &ea, nil
+}
+
+// ingestActivityGearRef makes an unknown provider gear id a pending decision.
+// Non-fatal, like the gear event.
+func ingestActivityGearRef(ctx context.Context, app *App, log *slog.Logger, in activity.IngestInput) {
+	if app.Gear == nil || in.ExternalAccountID == nil || in.Payload.GearExternalID == "" {
+		return
+	}
+	key := domain.GearRefKey{Provider: in.Provider, ExternalAccountID: *in.ExternalAccountID, ExternalID: in.Payload.GearExternalID}
+	if err := app.Gear.NoteActivityGear(ctx, in.UserID, key, in.Payload.GearName); err != nil {
+		log.Warn("note activity gear failed", "provider", in.Provider, "gear_external_id", key.ExternalID, "error", err)
+	}
 }
 
 // ingestActivityRecluster re-derives same-activity grouping around the new source.

@@ -181,6 +181,36 @@ func TestImportFromProvider_OwnerComesFromTheAccount(t *testing.T) {
 	}
 }
 
+func TestNoteActivityGear_PendingOnlyWhenUnknown(t *testing.T) {
+	h := newHarness()
+	ctx := context.Background()
+	key := h.key("strava", h.account("strava"), "b7")
+
+	// Gear id seen only on an activity (import_gear never described it).
+	if err := h.svc.NoteActivityGear(ctx, h.user, key, ""); err != nil {
+		t.Fatalf("note: %v", err)
+	}
+	if pending, _ := h.svc.ListPending(ctx, h.user); len(pending) != 1 || len(h.notified) != 1 {
+		t.Fatalf("pending = %d, notified = %d", len(pending), len(h.notified))
+	}
+
+	// A described ref is not clobbered by the activity's sparse view.
+	if _, err := h.svc.ImportFromProvider(ctx, h.user, key, domain.GearImport{Kind: domain.GearKindBike, Name: "Canyon"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.svc.NoteActivityGear(ctx, h.user, key, ""); err != nil {
+		t.Fatal(err)
+	}
+	pending, _ := h.svc.ListPending(ctx, h.user)
+	if len(pending) != 1 || pending[0].ProviderName != "Canyon" || pending[0].Kind != domain.GearKindBike || len(h.notified) != 1 {
+		t.Fatalf("pending = %+v, notified = %d", pending, len(h.notified))
+	}
+
+	if err := h.svc.NoteActivityGear(ctx, domain.UserID(uuid.New()), key, ""); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("foreign user: %v", err)
+	}
+}
+
 func TestDecisions_DefaultNotOverwritten(t *testing.T) {
 	h := newHarness()
 	ctx := context.Background()
