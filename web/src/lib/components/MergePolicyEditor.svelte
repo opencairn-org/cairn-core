@@ -4,7 +4,8 @@
 	// Per-activity-type provider priority editor (merge-layer brief §5). A policy
 	// is a default provider-priority list plus optional per-field-group overrides;
 	// this compact editor exposes the default priority (the common case) as a
-	// comma-separated provider list. _any is the wildcard catch-all.
+	// comma-separated provider list. _any is the wildcard catch-all;
+	// "provider.worker_name" names one importer pool (docs/adr/0006).
 
 	type Policy = { default_priority: string[]; overrides?: Record<string, string[]> };
 
@@ -80,8 +81,11 @@
 	<h2 class="text-sm font-semibold text-zinc-200">Merge priority</h2>
 	<p class="mt-1 text-xs text-zinc-500">
 		When several providers report the same activity, the first provider in the list that has a value
-		wins each field. Use <code class="text-zinc-400">_any</code> as a catch-all. Leave a row blank to
-		use the instance default.
+		wins each field. Use <code class="text-zinc-400">_any</code> as a catch-all. To prefer one
+		importer of a provider, name it as <code class="text-zinc-400">provider.importer</code> (for
+		example
+		<code class="text-zinc-400">garmin.garmin-fit</code>). Leave a row blank to use the instance
+		default.
 	</p>
 
 	{#if loaded}

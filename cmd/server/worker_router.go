@@ -24,9 +24,11 @@ func (r presenceWorkerRouter) AccountWorker(ctx context.Context, a domain.Extern
 	if err != nil {
 		return "", err
 	}
+	// Persist so the account keeps its pool; failing (e.g. a sibling
+	// connection already holds it) stops the job rather than send it twice.
 	if persist && r.app.ExternalAccounts != nil {
 		if err := r.app.ExternalAccounts.SetAssignedWorker(ctx, a.ID, name); err != nil {
-			r.logger.Warn("persist worker assignment failed", "account_id", a.ID, "worker", name, "error", err)
+			return "", err
 		}
 	}
 	return name, nil

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -71,6 +72,7 @@ func providerActivityURL(provider, externalID string) string {
 const (
 	oauthStateCookie      = "cairn_oauth_state"
 	oauthConnectionCookie = "cairn_oauth_connection"
+	oauthWorkerCookie     = "cairn_oauth_worker"
 )
 
 // mountOAuthConnect wires connection CRUD + the OAuth account-connect flow:
@@ -135,10 +137,14 @@ func (h *oauthConnectHandlers) list(w http.ResponseWriter, r *http.Request) {
 			"oauth":        oauthProvider(providerRegistry[c.Provider]),
 		})
 	}
+	// Live pools per provider: with several, the user picks which one a
+	// connection is for (docs/adr/0006).
+	workers := currentWorkers(r.Context(), h.app, h.logger)
 	providers := make([]map[string]any, 0, len(providerRegistry))
 	for id, meta := range providerRegistry {
 		providers = append(providers, map[string]any{
 			"provider": id, "display_name": meta.DisplayName, "oauth": oauthProvider(meta),
+			"worker_pools": workerPoolsJSON(workers, id),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"connections": out, "providers": providers})
@@ -202,6 +208,9 @@ type oauthConnectCreateBody struct {
 	Label        string `json:"label"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
+	// Worker is the pool the account is connected for (docs/adr/0006);
+	// required only when several pools serve the provider.
+	Worker string `json:"worker"`
 }
 
 func (h *oauthConnectHandlers) create(w http.ResponseWriter, r *http.Request) {
@@ -245,8 +254,13 @@ func (h *oauthConnectHandlers) create(w http.ResponseWriter, r *http.Request) {
 	// Credential providers have no authorize round-trip: the credentials ARE
 	// the account link, so create the external account with the connection.
 	if !oauthProvider(meta) && h.app.ExternalAccounts != nil {
-		if !h.linkCredentialAccount(r.Context(), userID, id, body) {
-			http.Error(w, "could not create", http.StatusInternalServerError)
+		if err := h.linkCredentialAccount(r.Context(), userID, id, body); err != nil {
+			switch {
+			case errors.Is(err, domain.ErrWorkerAmbiguous), errors.Is(err, domain.ErrNoWorker):
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			default:
+				http.Error(w, "could not create", http.StatusInternalServerError)
+			}
 			return
 		}
 	}
@@ -254,27 +268,48 @@ func (h *oauthConnectHandlers) create(w http.ResponseWriter, r *http.Request) {
 }
 
 // linkCredentialAccount creates the external account for a credential provider;
-// on failure it rolls the connection back and returns false.
-func (h *oauthConnectHandlers) linkCredentialAccount(ctx context.Context, userID domain.UserID, id domain.ConnectionID, body oauthConnectCreateBody) bool {
-	acctID, err := h.app.ExternalAccounts.CreateAccount(ctx, domain.ExternalAccount{
-		UserID:            userID,
-		Provider:          body.Provider,
-		ProviderAccountID: strings.TrimSpace(body.ClientID),
-		ConnectionID:      &id,
-		DisplayLabel:      strings.TrimSpace(body.ClientID),
-		Status:            domain.ExternalAccountStatusActive,
-		AutoImportEnabled: true,
-	})
+// on failure it rolls the connection back.
+func (h *oauthConnectHandlers) linkCredentialAccount(ctx context.Context, userID domain.UserID, id domain.ConnectionID, body oauthConnectCreateBody) error {
+	login := strings.TrimSpace(body.ClientID)
+	pool, err := connectPool(ctx, h.app, h.logger, userID, body.Provider, id, login, body.Worker)
+	var acctID domain.ExternalAccountID
+	if err == nil {
+		acctID, err = h.app.ExternalAccounts.CreateAccount(ctx, domain.ExternalAccount{
+			UserID:             userID,
+			Provider:           body.Provider,
+			ProviderAccountID:  login,
+			ConnectionID:       &id,
+			DisplayLabel:       login,
+			AssignedWorkerName: pool,
+			Status:             domain.ExternalAccountStatusActive,
+			AutoImportEnabled:  true,
+		})
+	}
 	if err != nil {
 		// Roll the config back so the user can retry cleanly instead of
 		// being left with a credential-less half-connection.
 		_ = h.app.UserProviderConfigs.Delete(ctx, id)
 		h.logger.Error("create connection: account link failed", "provider", body.Provider, "error", err)
-		return false
+		return err
 	}
-	h.logger.Info("connection + account created", "provider", body.Provider, "account", acctID)
+	h.logger.Info("connection + account created", "provider", body.Provider, "account", acctID, "worker", pool)
 	syncGearOnConnect(ctx, h.app, h.logger, acctID)
-	return true
+	return nil
+}
+
+// connectPool resolves the worker pool a connection's account is created for
+// (domain.ResolveConnectPool): the user's choice, else the pool this
+// connection already used for the same provider account, else the only one.
+func connectPool(ctx context.Context, app *App, logger *slog.Logger, userID domain.UserID, provider string, conn domain.ConnectionID, providerAcctID, requested string) (string, error) {
+	var existing string
+	if accts, err := app.ExternalAccounts.ListAccountsForUser(ctx, userID); err == nil {
+		for _, a := range accts {
+			if a.Provider == provider && a.ProviderAccountID == providerAcctID && a.ConnectionID != nil && *a.ConnectionID == conn {
+				existing = a.AssignedWorkerName
+			}
+		}
+	}
+	return domain.ResolveConnectPool(requested, existing, livePoolNames(currentWorkers(ctx, app, logger), provider))
 }
 
 func (h *oauthConnectHandlers) update(w http.ResponseWriter, r *http.Request) {
@@ -363,9 +398,20 @@ func (h *oauthConnectHandlers) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The pool to connect for travels through the round-trip (docs/adr/0006).
+	worker := r.URL.Query().Get("worker")
+	if worker != "" && !domain.ValidWorkerName(worker) {
+		http.Redirect(w, r, "/connections?error=bad_worker", http.StatusFound)
+		return
+	}
+
 	state := randToken()
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure unless the public URL and the request are plain http (dev)
 		Name: oauthStateCookie, Value: state, Path: "/auth/oauth/",
+		HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: cookieSecure(r), MaxAge: 600,
+	})
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure unless the public URL and the request are plain http (dev)
+		Name: oauthWorkerCookie, Value: worker, Path: "/auth/oauth/",
 		HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: cookieSecure(r), MaxAge: 600,
 	})
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure unless the public URL and the request are plain http (dev)
@@ -441,9 +487,20 @@ func (h *oauthConnectHandlers) callback(w http.ResponseWriter, r *http.Request) 
 	if conn.Label != "" {
 		label = conn.Label
 	}
+	var requested string
+	if c, err := r.Cookie(oauthWorkerCookie); err == nil {
+		requested = c.Value
+	}
+	pool, err := connectPool(r.Context(), h.app, h.logger, userID, meta.Provider, connID, providerAcctID, requested)
+	if err != nil {
+		h.logger.Warn("oauth connect: no worker pool", "provider", meta.Provider, "error", err)
+		http.Redirect(w, r, "/connections?error=choose_worker", http.StatusFound)
+		return
+	}
 	acctID, err := h.app.ExternalAccounts.CreateAccount(r.Context(), domain.ExternalAccount{
 		UserID: userID, Provider: meta.Provider, ProviderAccountID: providerAcctID,
 		ConnectionID: &connID, DisplayLabel: label, GrantedScopes: splitScopes(meta.Scopes),
+		AssignedWorkerName: pool,
 	})
 	if err != nil {
 		h.logger.Error("create external account failed", "error", err)

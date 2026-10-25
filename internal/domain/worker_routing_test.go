@@ -25,3 +25,24 @@ func TestResolveAccountWorker(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveConnectPool(t *testing.T) {
+	for _, c := range []struct {
+		requested, existing string
+		live                []string
+		want                string
+		err                 error
+	}{
+		{"b", "", []string{"a", "b"}, "b", nil},
+		{"x", "", []string{"a", "b"}, "", ErrNoWorker},
+		{"", "a", []string{"a", "b"}, "a", nil},
+		{"", "", nil, "", nil},
+		{"", "", []string{"a", "a"}, "a", nil},
+		{"", "", []string{"a", "b"}, "", ErrWorkerAmbiguous},
+	} {
+		got, err := ResolveConnectPool(c.requested, c.existing, c.live)
+		if got != c.want || !errors.Is(err, c.err) {
+			t.Errorf("%+v = %q %v", c, got, err)
+		}
+	}
+}

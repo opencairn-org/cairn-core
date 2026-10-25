@@ -34,6 +34,10 @@ type GearRepo interface {
 	GetExternalRef(ctx context.Context, key domain.GearRefKey) (domain.GearExternalRef, error)
 	// ListPendingRefs returns the user's provider records awaiting a decision.
 	ListPendingRefs(ctx context.Context, userID domain.UserID) ([]domain.GearExternalRef, error)
+	// ListSiblingRefs returns the refs for the same provider gear id on the
+	// user's other connections of the same provider account (one connection
+	// per worker pool, docs/adr/0006).
+	ListSiblingRefs(ctx context.Context, key domain.GearRefKey) ([]domain.GearExternalRef, error)
 	// ResolveExternalRefs resolves many keys to their mapped gear at once;
 	// absent and pending keys are missing from the result.
 	ResolveExternalRefs(ctx context.Context, keys []domain.GearRefKey) (map[domain.GearRefKey]domain.GearID, error)

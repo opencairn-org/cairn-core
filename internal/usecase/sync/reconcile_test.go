@@ -56,7 +56,7 @@ func (f *fakeAccounts) UpdateAccountConfig(ctx context.Context, id domain.Extern
 	return nil
 }
 
-func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID, pool string) (domain.ExternalAccount, error) {
 	for _, a := range f.byID {
 		if a.Provider == provider && a.ProviderAccountID == externalID {
 			return a, nil
@@ -69,7 +69,7 @@ func (f *fakeAccounts) RegisterWebhookSubscription(ctx context.Context, provider
 	return nil
 }
 
-func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID, pool string) (domain.ExternalAccount, error) {
 	return domain.ExternalAccount{}, fmt.Errorf("not found")
 }
 

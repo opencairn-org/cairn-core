@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -209,6 +210,10 @@ func (h syncHandlers) setWorker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.app.ExternalAccounts.SetAssignedWorker(r.Context(), a.ID, body.Worker); err != nil {
+		if errors.Is(err, domain.ErrPoolTaken) {
+			http.Error(w, domain.ErrPoolTaken.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, "update failed", http.StatusInternalServerError)
 		return
 	}

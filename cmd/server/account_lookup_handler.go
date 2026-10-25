@@ -50,6 +50,9 @@ type accountLookupRequest struct {
 	Provider       string `json:"provider"`
 	ExternalID     string `json:"external_id"`
 	SubscriptionID string `json:"subscription_id"`
+	// WorkerName is the asking pool: one provider account may have a
+	// connection per pool (docs/adr/0006). Empty (pre-0.5 workers) matches any.
+	WorkerName string `json:"worker_name"`
 }
 
 // accountLookupRespond resolves one lookup request into its reply payload.
@@ -88,13 +91,13 @@ func accountLookupRespond(ctx context.Context, app *App, log *slog.Logger, body 
 // resolve to the wrong one. Falls back to owner_id only when the subscription is unknown.
 func accountLookupFind(ctx context.Context, app *App, log *slog.Logger, req accountLookupRequest) (domain.ExternalAccount, error) {
 	if req.SubscriptionID == "" {
-		return app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID)
+		return app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
 	}
-	acct, err := app.ExternalAccounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID)
+	acct, err := app.ExternalAccounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID, req.WorkerName)
 	if errors.Is(err, domain.ErrNotFound) && req.ExternalID != "" {
 		log.Warn("subscription unknown, falling back to external_id",
 			"provider", req.Provider, "subscription_id", req.SubscriptionID)
-		acct, err = app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID)
+		acct, err = app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
 	}
 	return acct, err
 }

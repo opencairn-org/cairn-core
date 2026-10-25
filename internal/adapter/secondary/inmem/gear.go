@@ -22,6 +22,36 @@ type GearRepo struct {
 	activities map[domain.ActivityID]inmemGearActivity
 	// TotalsCalls counts RecomputeTotalsForUser invocations.
 	TotalsCalls int
+	// providerAccount: external account → provider account id, for siblings.
+	providerAccount map[domain.ExternalAccountID]string
+}
+
+// SetProviderAccount records an external account's provider account id, so
+// connections of the same provider account count as siblings.
+func (m *GearRepo) SetProviderAccount(id domain.ExternalAccountID, providerAccountID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.providerAccount == nil {
+		m.providerAccount = map[domain.ExternalAccountID]string{}
+	}
+	m.providerAccount[id] = providerAccountID
+}
+
+func (m *GearRepo) ListSiblingRefs(_ context.Context, key domain.GearRefKey) ([]domain.GearExternalRef, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	pa, ok := m.providerAccount[key.ExternalAccountID]
+	if !ok {
+		return nil, nil
+	}
+	var out []domain.GearExternalRef
+	for k, r := range m.refs {
+		if k.Provider == key.Provider && k.ExternalID == key.ExternalID && k.ExternalAccountID != key.ExternalAccountID &&
+			m.providerAccount[k.ExternalAccountID] == pa {
+			out = append(out, r)
+		}
+	}
+	return out, nil
 }
 
 type inmemGearActivity struct {

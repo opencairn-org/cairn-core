@@ -427,6 +427,13 @@
 							<span class="font-medium">
 								{a.provider_account_id ? `Account ${a.provider_account_id}` : a.label}
 							</span>
+							{#if a.assigned_worker && accounts.some((o) => o.id !== a.id && o.provider === a.provider && o.provider_account_id && o.provider_account_id === a.provider_account_id)}
+								<span
+									class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
+									title="This account is connected once per importer; this connection uses this one"
+									>via {a.assigned_worker}</span
+								>
+							{/if}
 							<span
 								class="ml-2 inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide {toneClass[
 									st.tone

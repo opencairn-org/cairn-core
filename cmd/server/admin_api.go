@@ -160,8 +160,8 @@ func adminAPIWorkerJSON(hb adminAPIHeartbeat) map[string]any {
 		"release_compatible": compatible,
 		"release_known":      known,
 		"core_release":       Version,
-		"provider":    hb.Provider,
-		"package":     hb.Package,
+		"provider":           hb.Provider,
+		"package":            hb.Package,
 		// Build info is informational (may differ across pooled
 		// instances); version+name+provider are the identity.
 		"go_version": hb.GoVersion,

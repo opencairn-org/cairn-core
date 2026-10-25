@@ -41,8 +41,14 @@ pool:
 ## Consequences
 
 - Specialised importers for one provider can run side by side, each owning the accounts assigned
-  to it. Two pools feeding the same activity need two connections (see the account-identity
-  follow-up in the 0.5 notes).
+  to it. One provider account may be connected once per pool (`external_accounts` is unique on
+  user, provider, provider account id and pool): two pools feeding the same activity are two
+  connections, each with its own sync state, queue and tokens, and a user who does not want a
+  pool simply does not connect it. The matcher groups their sources into one activity; a merge
+  priority entry `<provider>.<worker_name>` prefers one pool, a bare provider covers all of them.
+  The webhook account lookup takes the asking pool's name and returns its connection. A gear
+  record mapped on one connection maps the same provider gear id on the account's other
+  connections.
 - Workers derive all job subjects from their own name, and publish their own `fetch_source`
   sub-jobs to their own pool.
 - Renaming a worker moves it to a new pool: reassign its accounts, or jobs keep going to the old
