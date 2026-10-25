@@ -56,7 +56,10 @@ pool:
   appends the account) and `cairn.accounts.lookup.<provider>.<name>`. Core verifies the sender's
   `worker_name` against the subject, so a pool cannot publish for or look up another pool's
   accounts. Tokens, blobs and credentials stay provider-scoped: pools of one provider are
-  mutually trusted for those. The pre-0.5 provider-scoped subjects stay allowed through 0.5.
+  mutually trusted for those. Core also checks an activity result against the account: a
+  `fetch_source` result must come from the account's pool, a `parse_blob` result from a pool of
+  the source's package. Only the pre-0.5 provider-scoped *job* subjects stay subscribable through
+  0.5 (to drain queued jobs); results and lookups are pool-scoped from 0.5.0.
 - **The matcher allows one source per pool, not per provider.** Two pools of one provider
   importing the same workout cluster into one activity; two imports by the same pool are still
   a conflict.
@@ -65,8 +68,8 @@ pool:
   **rate-limit budget is per pool** (`<provider>.<pool>.<window>` in the shared KV).
 - **Bulk re-parse**: `POST /api/accounts/{id}/reparse-out-of-date` re-parses every source a
   newer parser of its pool can read; the Connections page shows the counts. A worker too old for
-  a re-parse hands the job back with back-off and, after ~35 minutes, reports `parser_too_old`,
-  which keeps the source flagged rather than failing it.
+  a re-parse hands the job back with back-off and, after ten deliveries (within the hour),
+  reports `parser_too_old`, which keeps the source flagged rather than failing it.
 
 ## Consequences
 

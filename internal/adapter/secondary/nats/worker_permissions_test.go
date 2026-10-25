@@ -98,9 +98,9 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 	}
 
 	for _, subj := range []string{
-		"cairn.results.fetch_source.strava",
-		"cairn.results.import_metrics.strava",
-		"cairn.results.reconcile.strava.acct-1",
+		"cairn.results.fetch_source.strava.w1",
+		"cairn.results.import_metrics.strava.w1",
+		"cairn.results.reconcile.strava.w1.acct-1",
 		"cairn.jobs.fetch_source.strava.w1", // reconcile sub-job to its own pool
 	} {
 		if err := worker.Publish(ctx, subj, "", []byte("result")); err != nil {

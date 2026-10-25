@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
@@ -117,4 +119,51 @@ func (c *presenceCache) get(now time.Time, scan func() []liveWorker) []liveWorke
 	}
 	c.list, c.at = scan(), now
 	return c.list
+}
+
+// ErrResultWrongPool: an activity result from a pool that neither owns the
+// account nor shares the source's package.
+var ErrResultWrongPool = errors.New("result from a pool that does not serve this account")
+
+// accountPoolAllowed decides whether a pool's activity result is accepted
+// (docs/adr/0006). fetch_source/backfill results must come from the account's
+// pool (an unassigned account accepts any). parse_blob results must come from
+// the package that imported the source, since re-parse is routed by package.
+func accountPoolAllowed(job, workerName, workerPackage string, acct domain.ExternalAccount, src *domain.ActivitySource) error {
+	switch job {
+	case "parse_blob":
+		if src != nil && src.SourceWorkerPackage != "" && src.SourceWorkerPackage != workerPackage {
+			return fmt.Errorf("%w: re-parse by package %s of a %s source", ErrResultWrongPool, workerPackage, src.SourceWorkerPackage)
+		}
+	default:
+		if acct.AssignedWorkerName != "" && workerName != "" && acct.AssignedWorkerName != workerName {
+			return fmt.Errorf("%w: account is served by %s, result from %s", ErrResultWrongPool, acct.AssignedWorkerName, workerName)
+		}
+	}
+	return nil
+}
+
+// checkResultAccount loads what accountPoolAllowed needs; lookups that fail
+// transiently do not reject the result.
+func checkResultAccount(ctx context.Context, app *App, job string, jr *workerv1.JobResult, ia *workerv1.ImportedActivity) error {
+	ref := ia.GetRef()
+	if ref.GetExternalAccountId() == "" || app.ExternalAccounts == nil {
+		return nil
+	}
+	acctUUID, err := uuid.Parse(ref.GetExternalAccountId())
+	if err != nil {
+		return nil // ingest reports the malformed ref
+	}
+	acctID := domain.ExternalAccountID(acctUUID)
+	acct, err := app.ExternalAccounts.GetExternalAccount(ctx, acctID)
+	if err != nil {
+		return nil
+	}
+	var src *domain.ActivitySource
+	if job == "parse_blob" && app.Activities != nil {
+		if s, err := app.Activities.FindSourceByExternalID(ctx, ref.GetProvider(), &acctID, ref.GetExternalId()); err == nil {
+			src = &s
+		}
+	}
+	return accountPoolAllowed(job, jr.GetWorkerName(), jr.GetWorkerPackage(), acct, src)
 }

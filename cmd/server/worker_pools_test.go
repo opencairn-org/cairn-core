@@ -75,3 +75,27 @@ func TestCheckResultPool(t *testing.T) {
 		t.Fatalf("known pools = %v", names)
 	}
 }
+
+func TestAccountPoolAllowed(t *testing.T) {
+	assigned := domain.ExternalAccount{AssignedWorkerName: "garmin-api"}
+	src := &domain.ActivitySource{SourceWorkerPackage: "pkg-api"}
+	for _, c := range []struct {
+		name, job, worker, pkg string
+		acct                   domain.ExternalAccount
+		src                    *domain.ActivitySource
+		reject                 bool
+	}{
+		{"own pool imports", "fetch_source", "garmin-api", "pkg-api", assigned, nil, false},
+		{"other pool imports", "fetch_source", "garmin-fit", "pkg-fit", assigned, nil, true},
+		{"unassigned account", "fetch_source", "garmin-fit", "pkg-fit", domain.ExternalAccount{}, nil, false},
+		{"legacy result without name", "fetch_source", "", "", assigned, nil, false},
+		{"reparse same package other pool", "parse_blob", "garmin-api2", "pkg-api", assigned, src, false},
+		{"reparse other package", "parse_blob", "garmin-fit", "pkg-fit", assigned, src, true},
+		{"reparse unknown source", "parse_blob", "garmin-fit", "pkg-fit", assigned, nil, false},
+	} {
+		err := accountPoolAllowed(c.job, c.worker, c.pkg, c.acct, c.src)
+		if errors.Is(err, ErrResultWrongPool) != c.reject {
+			t.Errorf("%s: err = %v", c.name, err)
+		}
+	}
+}

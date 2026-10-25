@@ -15,6 +15,7 @@ INSERT INTO worker_pools (provider, name, package, first_seen_at, last_seen_at)
 SELECT provider, source_worker_name, source_worker_package, min(imported_at), max(updated_at)
   FROM activity_sources
  WHERE source_worker_name <> '' AND source_worker_package <> ''
+   AND external_account_id IS NOT NULL -- provider imports only, not upload/manual/derived
  GROUP BY provider, source_worker_name, source_worker_package
  ON CONFLICT DO NOTHING;
 

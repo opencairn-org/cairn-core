@@ -145,7 +145,8 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 	// earlier without a DB round-trip. Each effort resolves its activity by
 	// external id (FindSourceByExternalID), so the segment message is
 	// self-contained.
-	b := &ingestBundle{segByExternal: map[string]domain.SegmentID{}}
+	job, _, _, _ := domain.ResultSubjectPool(subject)
+	b := &ingestBundle{segByExternal: map[string]domain.SegmentID{}, job: job}
 
 	for _, ev := range jr.GetEvents() {
 		if err := processWorkerEvent(ctx, app, log, jr, b, ev); err != nil {
@@ -159,6 +160,12 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ev *workerv1.WorkerEvent) error {
 	switch ev.GetType() {
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_ACTIVITY:
+		// A pool may only import for its own accounts and re-parse its own
+		// package's sources (docs/adr/0006).
+		if err := checkResultAccount(ctx, app, b.job, jr, ev.GetActivity()); err != nil {
+			failQueueItem(ctx, app, log, ev.GetActivity().GetRef(), err)
+			return nil
+		}
 		if _, err := ingestActivityEvent(ctx, app, log, jr, ev.GetActivity()); err != nil {
 			// Terminal (bad data) → fail the queue item + ACK; retrying the
 			// same payload can't help, and leaving it in_progress would
@@ -394,6 +401,7 @@ func ingestGearEvent(ctx context.Context, app *App, g *workerv1.ImportedGear) er
 // so efforts resolve them without a DB round-trip.
 type ingestBundle struct {
 	segByExternal map[string]domain.SegmentID
+	job           string // job kind of the result subject
 }
 
 // ingestSegmentEvent find-or-creates the external (provider-mirrored) segment

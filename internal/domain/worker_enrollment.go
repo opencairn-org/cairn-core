@@ -306,21 +306,13 @@ func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTem
 			ResultSubject("reconcile", p, workerName) + ".*", // account-suffixed
 			ResultSubject("import_metrics", p, workerName),
 			ResultSubject("import_gear", p, workerName),
-			LookupSubject(p, workerName), // webhook → account resolution
-			// Pre-0.5 provider-scoped results and lookup; remove in 0.6.
-			fmt.Sprintf("cairn.results.fetch_source.%s", p),
-			fmt.Sprintf("cairn.results.parse_blob.%s", p),
-			fmt.Sprintf("cairn.results.backfill.%s", p),
-			fmt.Sprintf("cairn.results.reconcile.%s.*", p),
-			fmt.Sprintf("cairn.results.import_metrics.%s", p),
-			fmt.Sprintf("cairn.results.import_gear.%s", p),
+			LookupSubject(p, workerName),              // webhook → account resolution
 			JobSubject("fetch_source", p, workerName), // reconcile/webhook sub-jobs to its own pool
 			fmt.Sprintf("cairn.workers.%s.>", wk),
 			fmt.Sprintf("cairn.tokens.%s.>", p),
 			fmt.Sprintf("cairn.creds.%s.get", p), // custom-credential providers
 			fmt.Sprintf("cairn.blobs.presign_upload.%s", p),
 			fmt.Sprintf("cairn.blobs.presign_download.%s", p),
-			"cairn.accounts.lookup_by_provider_ext",
 			"_INBOX.>", // request/reply replies the worker initiates
 		}, workerJetStreamPublish(jobs, webhookEvent)...),
 		AllowSubscribe: append(slices.Clone(jobs),
