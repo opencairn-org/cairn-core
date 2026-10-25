@@ -451,9 +451,15 @@ func TestAuthCalloutScopesUnregisteredProvider(t *testing.T) {
 			t.Errorf("subscribe %s must be allowed", subj)
 		}
 	}
-	for _, subj := range []string{"cairn.tokens.polar.get", "cairn.creds.polar.get", "cairn.results.fetch_source.polar", "cairn.workers.p1-polar.heartbeat"} {
+	for _, subj := range []string{"cairn.tokens.polar.get", "cairn.creds.polar.get", "cairn.results.fetch_source.polar.p1", "cairn.accounts.lookup.polar.p1", "cairn.workers.p1-polar.heartbeat"} {
 		if !canPublish(t, nc, subj) {
 			t.Errorf("publish %s must be allowed", subj)
+		}
+	}
+	// Results are per pool: neither the pre-0.5 provider subject nor another pool's.
+	for _, subj := range []string{"cairn.results.fetch_source.polar", "cairn.results.fetch_source.polar.p2", "cairn.accounts.lookup_by_provider_ext"} {
+		if canPublish(t, nc, subj) {
+			t.Errorf("publish %s must be denied", subj)
 		}
 	}
 	for _, subj := range []string{"cairn.jobs.fetch_source.strava", "cairn.tokens.strava.>", "cairn.cmd.worker.w1-strava.>", "cairn.tokens.>", ">"} {
