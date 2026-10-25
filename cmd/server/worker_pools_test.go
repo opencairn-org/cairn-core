@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"testing"
+	"time"
 
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -38,6 +39,41 @@ func (f *fakePools) ListForProvider(_ context.Context, provider string) ([]domai
 		}
 	}
 	return out, nil
+}
+
+func (f *fakePools) ListAll(context.Context) ([]domain.WorkerPool, error) {
+	var out []domain.WorkerPool
+	for _, p := range f.m {
+		out = append(out, p)
+	}
+	return out, nil
+}
+func (f *fakePools) Retire(_ context.Context, provider, name string) error {
+	p, ok := f.m[provider+"/"+name]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	now := time.Now()
+	p.RetiredAt = &now
+	f.m[provider+"/"+name] = p
+	return nil
+}
+
+func TestKnownPools_SkipRetired(t *testing.T) {
+	ctx := context.Background()
+	pools := &fakePools{m: map[string]domain.WorkerPool{}}
+	app := &App{WorkerPools: pools}
+	_ = pools.Upsert(ctx, domain.WorkerPool{Provider: "garmin", Name: "old", Package: "a"})
+	_ = pools.Upsert(ctx, domain.WorkerPool{Provider: "garmin", Name: "new", Package: "b"})
+	if err := pools.Retire(ctx, "garmin", "old"); err != nil {
+		t.Fatal(err)
+	}
+	if names := knownPoolNames(ctx, app, slog.Default(), "garmin"); len(names) != 1 || names[0] != "new" {
+		t.Fatalf("known = %v", names)
+	}
+	if a, b := domain.AppID("client-1"), domain.AppID("client-1"); a != b || len(a) != 12 || domain.AppID("") != "" {
+		t.Fatalf("AppID = %q %q", a, b)
+	}
 }
 
 func TestCheckResultPool(t *testing.T) {

@@ -436,14 +436,11 @@ type kvBus interface {
 	KV(bucket string) (port.KV, error)
 }
 
-// providerBudget reads the pool's live API budget from the shared
-// cairn_rate_limits KV (keys <provider>.<pool>.short / .daily, docs/adr/0006;
-// a 0.4 worker writes <provider>.short / .daily, read as a fallback). Returns a
-// UI-friendly map per window plus whether any window is currently exhausted —
-// this is what flips the connection badge to "Rate limited" while the worker
-// waits out a 429, and what the reconcile scheduler's budget gate keys on.
-// Missing bucket/keys mean "no worker has reported yet".
-func providerBudget(ctx context.Context, bus kvBus, provider, pool string) (map[string]any, bool) {
+// providerBudget reads the live API budget of the account's provider app
+// from the shared cairn_rate_limits KV: <provider>.<app>.<window>, else the
+// pool's <provider>.<pool>.<window> (token without app id), else the 0.4
+// <provider>.<window>.
+func providerBudget(ctx context.Context, bus kvBus, provider, app, pool string) (map[string]any, bool) {
 	if bus == nil {
 		return nil, false
 	}
@@ -455,11 +452,22 @@ func providerBudget(ctx context.Context, bus kvBus, provider, pool string) (map[
 	limited := false
 	now := time.Now().UTC()
 	for _, win := range []string{"short", "daily"} {
-		entry, err := kv.Get(ctx, provider+"."+pool+"."+win)
-		if pool == "" || err != nil {
-			if entry, err = kv.Get(ctx, provider+"."+win); err != nil {
-				continue
+		keys := []string{}
+		for _, scope := range []string{app, pool} {
+			if scope != "" {
+				keys = append(keys, provider+"."+scope+"."+win)
 			}
+		}
+		keys = append(keys, provider+"."+win)
+		var entry port.KVEntry
+		var err error = port.ErrKVKeyNotFound
+		for _, key := range keys {
+			if entry, err = kv.Get(ctx, key); err == nil {
+				break
+			}
+		}
+		if err != nil {
+			continue
 		}
 		var st rateLimitKVState
 		if json.Unmarshal(entry.Value, &st) != nil || st.Capacity <= 0 {
@@ -499,4 +507,17 @@ func rateLimitedNow(rl *domain.RateLimitSnapshot) bool {
 		return true
 	}
 	return false
+}
+
+// accountAppID is the hash of the account's connection app (client id), the
+// scope of its rate-limit budget; "" when the connection is unknown.
+func accountAppID(ctx context.Context, app *App, a domain.ExternalAccount) string {
+	if a.ConnectionID == nil || app.UserProviderConfigs == nil {
+		return ""
+	}
+	conn, err := app.UserProviderConfigs.GetByID(ctx, *a.ConnectionID)
+	if err != nil {
+		return ""
+	}
+	return domain.AppID(conn.ClientID)
 }

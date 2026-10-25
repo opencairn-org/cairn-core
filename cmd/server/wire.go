@@ -547,8 +547,8 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 		app.ExternalAccounts,
 		bus,
 		presenceWorkerRouter{app: app, logger: logger},
-		func(ctx context.Context, provider, pool string) bool {
-			_, exhausted := providerBudget(ctx, bus, provider, pool)
+		func(ctx context.Context, a domain.ExternalAccount, pool string) bool {
+			_, exhausted := providerBudget(ctx, bus, a.Provider, accountAppID(ctx, app, a), pool)
 			return exhausted
 		},
 		gearSyncHook(app, logger),

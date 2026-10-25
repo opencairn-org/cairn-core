@@ -54,7 +54,7 @@ type ReconcileExternalAccount struct {
 	// Scheduled runs skip such accounts instead of queueing jobs that can
 	// only 429 — every poll against an exhausted budget is a wasted call.
 	// Force bypasses the gate.
-	budgetExhausted func(ctx context.Context, provider, pool string) bool
+	budgetExhausted func(ctx context.Context, a domain.ExternalAccount, pool string) bool
 	// gearSync publishes an import_gear job alongside each reconcile; it
 	// decides whether the provider's worker declares gear at all. May be nil.
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error
@@ -70,7 +70,7 @@ func NewReconcileExternalAccount(
 	accounts port.ExternalAccountRepo,
 	bus port.JobBus,
 	router port.WorkerRouter,
-	budgetExhausted func(ctx context.Context, provider, pool string) bool,
+	budgetExhausted func(ctx context.Context, a domain.ExternalAccount, pool string) bool,
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error,
 	now func() time.Time,
 	newID func() uuid.UUID,
@@ -215,10 +215,14 @@ func (uc *ReconcileExternalAccount) reconcilePublishAll(ctx context.Context, tar
 			res.Errors = append(res.Errors, ReconcileError{AccountID: a.ID, Err: err})
 			continue
 		}
+		// One budget per provider app, i.e. per connection.
 		key := a.Provider + "/" + worker
+		if a.ConnectionID != nil {
+			key += "/" + a.ConnectionID.String()
+		}
 		if !force && uc.budgetExhausted != nil {
 			if _, seen := exhausted[key]; !seen {
-				exhausted[key] = uc.budgetExhausted(ctx, a.Provider, worker)
+				exhausted[key] = uc.budgetExhausted(ctx, a, worker)
 			}
 			if exhausted[key] {
 				res.AccountsSkipped++

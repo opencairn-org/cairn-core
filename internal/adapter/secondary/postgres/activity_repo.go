@@ -1534,3 +1534,18 @@ func (r *ActivityRepo) ListSourcesOutOfDate(ctx context.Context, acct domain.Ext
 	}
 	return pgCollectRows(rows, scanSourceRow, "scan source row", "iterate source rows")
 }
+
+// MarkSourcesPoolChanged flags the account's sources imported by another
+// pool as update_available/pool_changed after the connection moved to
+// newPool, so the user sees what a re-fetch by the new pool would update.
+func (r *ActivityRepo) MarkSourcesPoolChanged(ctx context.Context, acct domain.ExternalAccountID, newPool string) (int, error) {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx, `UPDATE activity_sources
+		    SET reimport_status = 'update_available', reimport_status_reason = 'pool_changed'
+		  WHERE external_account_id = $1 AND status != 'detached' AND source_worker_name <> $2
+		    AND reimport_status IN ('current', 'update_available')`, acct.UUID(), newPool)
+	if err != nil {
+		return 0, fmt.Errorf("mark sources pool changed: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
+}
