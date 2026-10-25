@@ -217,7 +217,7 @@ func runFullDiscovery(app *App, logger *slog.Logger, a domain.ExternalAccount, s
 			break
 		}
 		discovered += len(b.Items)
-		enqueued += fullDiscoveryEnqueue(ctx, log, app, buildImportQueue(b.Items, a, skipExisting, existing))
+		enqueued += fullDiscoveryEnqueue(ctx, log, app, buildImportQueue(b.Items, a, skipExisting, existing), !skipExisting)
 		_ = app.ExternalAccounts.UpdateAccountConfig(ctx, a.ID,
 			map[string]any{"last_discovered_total": discovered, "discovering": true})
 
@@ -238,12 +238,18 @@ func runFullDiscovery(app *App, logger *slog.Logger, a domain.ExternalAccount, s
 	log.Info("full discovery complete", "discovered", discovered, "enqueued", enqueued)
 }
 
-// fullDiscoveryEnqueue enqueues one discovered batch and returns how many rows were new.
-func fullDiscoveryEnqueue(ctx context.Context, log *slog.Logger, app *App, q []domain.ImportQueueItem) int {
+// fullDiscoveryEnqueue enqueues one discovered batch and returns how many rows
+// were new. A re-download (requeue) also resets rows finished by an earlier
+// sync, so already imported activities are fetched again.
+func fullDiscoveryEnqueue(ctx context.Context, log *slog.Logger, app *App, q []domain.ImportQueueItem, requeue bool) int {
 	if len(q) == 0 {
 		return 0
 	}
-	n, e := app.ImportQueue.Enqueue(ctx, q)
+	enqueue := app.ImportQueue.Enqueue
+	if requeue {
+		enqueue = app.ImportQueue.Requeue
+	}
+	n, e := enqueue(ctx, q)
 	if e != nil {
 		log.Warn("enqueue failed", "error", e)
 		return 0

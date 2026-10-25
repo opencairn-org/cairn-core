@@ -162,3 +162,67 @@ func TestImportQueueRepo_RequeueFailed(t *testing.T) {
 		t.Fatalf("re-claim after requeue: %+v err=%v", claimed, err)
 	}
 }
+
+// TestImportQueueRepo_Requeue proves a re-download resets rows an earlier
+// sync finished (done, failed) to a fresh pending attempt, inserts unknown
+// ids, and leaves pending/in_progress rows alone.
+func TestImportQueueRepo_Requeue(t *testing.T) {
+	ctx, repo, acct := queueFixture(t)
+
+	when := time.Now().UTC().Truncate(time.Second)
+	byExt := enqueueActivities(t, ctx, repo, acct, []string{"done", "failed", "pending", "running"},
+		[]time.Time{when, when.Add(time.Second), when.Add(2 * time.Second), when.Add(3 * time.Second)})
+
+	// Claim all four, then settle "done" and "failed"; "running" stays
+	// in_progress and "pending" goes back to pending via requeue-failed.
+	if _, err := repo.ClaimPending(ctx, acct.ID, 4); err != nil {
+		t.Fatalf("ClaimPending: %v", err)
+	}
+	if err := repo.MarkDone(ctx, byExt["done"].ID); err != nil {
+		t.Fatalf("MarkDone: %v", err)
+	}
+	if err := repo.MarkFailed(ctx, byExt["failed"].ID, "boom"); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+	if err := repo.MarkFailed(ctx, byExt["pending"].ID, "boom"); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+	if ok, err := repo.RequeueFailed(ctx, acct.ID, byExt["pending"].ID); err != nil || !ok {
+		t.Fatalf("RequeueFailed: ok=%v err=%v", ok, err)
+	}
+
+	// Plain Enqueue of the same ids is a no-op: that is the bug being fixed.
+	same := func(ext string) domain.ImportQueueItem {
+		return domain.ImportQueueItem{ExternalAccountID: acct.ID, UserID: acct.UserID, Provider: acct.Provider,
+			ItemType: domain.ImportItemActivity, ExternalID: ext, ItemTime: &when}
+	}
+	items := []domain.ImportQueueItem{same("done"), same("failed"), same("pending"), same("running"), same("new")}
+	if n, err := repo.Enqueue(ctx, items); err != nil || n != 1 {
+		t.Fatalf("Enqueue: n=%d err=%v, want 1 (only the unknown id)", n, err)
+	}
+
+	// Requeue: "done" + "failed" reset, "new" already inserted above, the
+	// pending and in_progress rows untouched → 2 rows affected.
+	n, err := repo.Requeue(ctx, items)
+	if err != nil || n != 2 {
+		t.Fatalf("Requeue: n=%d err=%v, want 2", n, err)
+	}
+
+	listed, err := repo.ListForAccount(ctx, acct.ID, nil, 10)
+	if err != nil {
+		t.Fatalf("ListForAccount: %v", err)
+	}
+	status := map[string]domain.ImportQueueItem{}
+	for _, it := range listed {
+		status[it.ExternalID] = it
+	}
+	for _, ext := range []string{"done", "failed", "pending", "new"} {
+		got := status[ext]
+		if got.Status != domain.ImportStatusPending || got.Attempts != 0 || got.LastError != "" || got.CompletedAt != nil {
+			t.Fatalf("%s after requeue: %+v, want fresh pending", ext, got)
+		}
+	}
+	if got := status["running"]; got.Status != domain.ImportStatusInProgress || got.Attempts != 1 {
+		t.Fatalf("running after requeue: %+v, want untouched in_progress", got)
+	}
+}
