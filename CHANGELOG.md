@@ -6,6 +6,12 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- A v* tag now also publishes the GitHub release: the tag's CHANGELOG.md
+  section as notes plus the image digest and verify commands, with an SPDX
+  SBOM of that digest (syft) attached. Before, the release object was created
+  by hand (and skipped for 0.5.x).
+
 ## [0.5.1] — 2026-10-25
 
 Core-only patch; the 0.5.0 workers stay compatible.

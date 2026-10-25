@@ -57,6 +57,8 @@ jobs:
     timeout-minutes: 45
     # Only build/push once `make check` is green.
     needs: check
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}   # for the release job
     if: github.event_name == 'push'
     # id-token/attestations only here — the check job stays unprivileged.
     permissions:
@@ -135,3 +137,81 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+  # The GitHub release for the tag. Runs only after the image is pushed, signed
+  # and attested: releases are immutable org-wide (a published release reserves
+  # its tag forever), so a failed build must never leave one behind. Notes are
+  # the tag's CHANGELOG.md section plus the image digest and verify commands;
+  # the one asset is an SPDX SBOM of that digest (syft), in addition to the
+  # BuildKit SBOM attestation already attached to the image.
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-push
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write   # create the release
+      packages: read    # syft pulls the image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+          DIGEST: ${{ needs.build-push.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          v="${TAG#v}"
+          # the tag's section without its heading, blank lines around it trimmed
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md \
+            | sed -e '1{/^$/d}' -e :a -e '/^\n*$/{$d;N;ba' -e '}' > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no '## [$v]' section"; exit 1; }
+          cat >> notes.md <<EOF
+
+          ### Image
+
+          ~~~
+          ${IMAGE}:${TAG}
+          ${IMAGE}@${DIGEST}
+          ~~~
+
+          Signed keyless with cosign and attested by GitHub Actions. Verify with
+
+          ~~~
+          cosign verify ${IMAGE}@${DIGEST} \\
+            --certificate-identity-regexp '^https://github.com/${REPO}/' \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          gh attestation verify oci://${IMAGE}@${DIGEST} --repo ${REPO}
+          ~~~
+
+          The attached SPDX file is the SBOM of this digest (syft). The BuildKit
+          SBOM and provenance attestations are attached to the image itself.
+          EOF
+
+      - name: SBOM of the pushed image (SPDX JSON)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}@${{ needs.build-push.outputs.digest }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          format: spdx-json
+          output-file: ${{ github.event.repository.name }}-${{ github.ref_name }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          # shellcheck disable=SC2086  # $pre is an optional flag
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md $pre "${NAME}-${TAG}.spdx.json"
