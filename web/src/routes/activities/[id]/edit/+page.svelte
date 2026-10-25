@@ -7,6 +7,7 @@
 	import { ACTIVITY_TYPES, DISCIPLINES, typeLabel } from '#lib/activity-types.js';
 	import SportIcon from '#lib/components/SportIcon.svelte';
 	import GearPicker from '#lib/components/GearPicker.svelte';
+	import ActivityNav from '#lib/components/ActivityNav.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PageData } from './$types';
 
@@ -197,18 +198,20 @@
 	}
 </script>
 
-<div class="mx-auto max-w-2xl px-4 py-6">
-	<a href={`/activities/${init.id}`} class="text-sm text-zinc-400 hover:text-zinc-200">← Back</a>
-	<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold">
-		<SportIcon {type} size={24} /> Edit activity
-	</h1>
-	<p class="mt-1 text-sm text-zinc-500">
-		Classification edits (sport, flags) are saved as your overlay — they stick even when a source
-		re-imports.
-	</p>
+<section class="space-y-8">
+	<header>
+		<ActivityNav id={init.id} title={init.title} />
+		<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+			<SportIcon {type} size={24} /> Edit activity
+		</h1>
+		<p class="mt-1 text-sm text-zinc-400">
+			Classification edits (sport, flags) are saved as your overlay — they stick even when a source
+			re-imports.
+		</p>
+	</header>
 
 	<form
-		class="mt-6 space-y-5"
+		class="max-w-2xl space-y-5"
 		onsubmit={(e) => {
 			e.preventDefault();
 			save();
@@ -402,7 +405,7 @@
 
 	<!-- Source data from another activity (e.g. borrow a route you rode without
 	     your watch). Creates a derived source pinned to the chosen fields. -->
-	<section class="mt-10 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+	<section class="max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
 		<h2 class="text-lg font-semibold">Source data from another activity</h2>
 		<p class="mt-1 text-sm text-zinc-500">
 			Borrow the route or metrics from one of your other activities. The route is rebased to this
@@ -451,4 +454,4 @@
 			</button>
 		</div>
 	</section>
-</div>
+</section>

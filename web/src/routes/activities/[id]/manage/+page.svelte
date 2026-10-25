@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { formatDate } from '#lib/format.js';
+	import ActivityNav from '#lib/components/ActivityNav.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -324,9 +325,7 @@
 
 <section class="space-y-8">
 	<header>
-		<a href={`/activities/${a.id}`} class="text-xs text-accent-400 hover:text-accent-300">
-			← {a.title || 'Activity'}
-		</a>
+		<ActivityNav id={a.id} title={a.title} />
 		<h1 class="mt-2 text-2xl font-semibold tracking-tight">Manage &amp; insights</h1>
 		<p class="mt-1 text-sm text-zinc-400">
 			Technical provenance and maintenance actions for this activity.
@@ -630,7 +629,7 @@
 								<dd class="text-zinc-300">{formatDate(s.imported_at)}</dd>
 							</div>
 							<div class="flex justify-between gap-2">
-								<dt class="text-zinc-500">Last reimported</dt>
+								<dt class="text-zinc-500">Last parsed</dt>
 								<dd class="text-zinc-300">
 									{s.last_reimported_at ? formatDate(s.last_reimported_at) : '—'}
 								</dd>

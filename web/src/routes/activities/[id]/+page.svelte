@@ -16,6 +16,8 @@
 	import ElevationProfile from '#lib/components/ElevationProfile.svelte';
 	import SportIcon from '#lib/components/SportIcon.svelte';
 	import KudosComments from '#lib/components/KudosComments.svelte';
+	import GearPrompt from '#lib/components/GearPrompt.svelte';
+	import ActivityNav from '#lib/components/ActivityNav.svelte';
 	import { onMount } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { buildSeries } from './streamSeries';
@@ -276,31 +278,7 @@
 
 <section class="space-y-8">
 	<header>
-		<div class="flex items-center justify-between gap-4 max-md:flex-wrap">
-			<a href="/activities" class="text-xs text-accent-400 hover:text-accent-300"
-				>{m.detail_back()}</a
-			>
-			<div class="flex items-center gap-2 max-md:flex-wrap">
-				<a
-					href={`/activities/${a.id}/similar`}
-					class="rounded border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300"
-				>
-					Similar routes
-				</a>
-				<a
-					href={`/activities/${a.id}/edit`}
-					class="rounded border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300"
-				>
-					Edit
-				</a>
-				<a
-					href={`/activities/${a.id}/manage`}
-					class="rounded border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300"
-				>
-					Manage &amp; insights
-				</a>
-			</div>
-		</div>
+		<ActivityNav id={a.id} />
 		<div class="mt-2 flex items-start gap-4">
 			<span
 				class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-accent-300"
@@ -318,6 +296,9 @@
 					· {formatDate(a.startTime)}
 					{#if a.startPlace}· {a.startPlace}{/if}
 				</p>
+				{#if !a.gearId && a.gearSetBy !== 'user' && data.gear.length > 0}
+					<GearPrompt activityId={a.id} type={a.type} gear={data.gear} />
+				{/if}
 				{#if a.gearId}
 					<p class="mt-1 text-sm text-zinc-400">
 						<a href="/gear" class="text-zinc-300 hover:text-accent-300"
