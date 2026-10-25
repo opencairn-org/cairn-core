@@ -744,9 +744,9 @@ type WorkerManifest struct {
 	// Stable name across versions (e.g. "strava-worker"). Used for routing
 	// and for migration tracking when this worker upgrades.
 	WorkerName string `protobuf:"bytes,1,opt,name=worker_name,json=workerName,proto3" json:"worker_name,omitempty"`
-	// Semantic version of the worker (e.g. "1.4.2"). Drives auto-reimport
-	// policies — activities imported by older versions can be flagged
-	// for update when this worker registers.
+	// Parser version "N.M" (docs/adr/0005). Drives update-available —
+	// sources parsed by an older version are flagged when this worker
+	// registers.
 	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	// Hash of the manifest contents (excluding this field). Computed by the
 	// Core on registration; even within the same semver version, changes to
@@ -3227,12 +3227,13 @@ type JobResult struct {
 	NewWatermark  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=new_watermark,json=newWatermark,proto3" json:"new_watermark,omitempty"`
 	MoreAvailable bool                   `protobuf:"varint,3,opt,name=more_available,json=moreAvailable,proto3" json:"more_available,omitempty"`
 	// Worker identity, stamped onto every activity_source produced from this
-	// result (source_worker_name/version/package). The update-available +
-	// re-parse-eligibility key is (provider, package, version): a newer worker
-	// from the SAME package for the SAME provider marks older sources
-	// out-of-date / re-parseable. The routing name/alias is deliberately NOT
-	// part of that key, and the former manifest_hash (field 6) is retired —
-	// those three attributes ARE the maintainer-upheld compatibility contract.
+	// result (source_worker_name/version/package/release). worker_version is
+	// the parser version "N.M" (docs/adr/0005): N = dataset (archive format)
+	// read, M = output revision, bumped on every change to the parsed output.
+	// Core only lets a parser of the same package and dataset with M >= the
+	// stored one re-parse a source, and rejects results that would lower it.
+	// The routing name is not part of that key; the former manifest_hash
+	// (field 6) is retired.
 	WorkerName    string `protobuf:"bytes,4,opt,name=worker_name,json=workerName,proto3" json:"worker_name,omitempty"`
 	WorkerVersion string `protobuf:"bytes,5,opt,name=worker_version,json=workerVersion,proto3" json:"worker_version,omitempty"`
 	// worker_package is the stable build/package identity (e.g.
@@ -3246,6 +3247,9 @@ type JobResult struct {
 	// Core fetches, ingests, then deletes the object (a bucket lifecycle
 	// rule reaps orphans).
 	PayloadRef *PayloadRef `protobuf:"bytes,8,opt,name=payload_ref,json=payloadRef,proto3" json:"payload_ref,omitempty"`
+	// Worker release tag (e.g. "v0.5.1"), the core contract it implements;
+	// compatible when major.minor equals core's. Diagnostics only on a source.
+	WorkerRelease string `protobuf:"bytes,11,opt,name=worker_release,json=workerRelease,proto3" json:"worker_release,omitempty"`
 	// Terminal worker-side failure, set INSTEAD of events (with failed_ref
 	// for correlation). Lets the Core fail the import-queue item immediately
 	// with the true reason — without it a Term'd job leaves the item
@@ -3334,6 +3338,13 @@ func (x *JobResult) GetPayloadRef() *PayloadRef {
 		return x.PayloadRef
 	}
 	return nil
+}
+
+func (x *JobResult) GetWorkerRelease() string {
+	if x != nil {
+		return x.WorkerRelease
+	}
+	return ""
 }
 
 func (x *JobResult) GetError() *WorkerError {
@@ -5050,7 +5061,7 @@ const file_cairn_worker_v1_worker_service_proto_rawDesc = "" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12.\n" +
 	"\x13external_account_id\x18\x03 \x01(\tR\x11externalAccountId\x12\x1f\n" +
 	"\vexternal_id\x18\x04 \x01(\tR\n" +
-	"externalId\"\xcd\x03\n" +
+	"externalId\"\xf4\x03\n" +
 	"\tJobResult\x124\n" +
 	"\x06events\x18\x01 \x03(\v2\x1c.cairn.worker.v1.WorkerEventR\x06events\x12?\n" +
 	"\rnew_watermark\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\fnewWatermark\x12%\n" +
@@ -5060,7 +5071,8 @@ const file_cairn_worker_v1_worker_service_proto_rawDesc = "" +
 	"\x0eworker_version\x18\x05 \x01(\tR\rworkerVersion\x12%\n" +
 	"\x0eworker_package\x18\a \x01(\tR\rworkerPackage\x12<\n" +
 	"\vpayload_ref\x18\b \x01(\v2\x1b.cairn.worker.v1.PayloadRefR\n" +
-	"payloadRef\x122\n" +
+	"payloadRef\x12%\n" +
+	"\x0eworker_release\x18\v \x01(\tR\rworkerRelease\x122\n" +
 	"\x05error\x18\t \x01(\v2\x1c.cairn.worker.v1.WorkerErrorR\x05error\x12;\n" +
 	"\n" +
 	"failed_ref\x18\n" +

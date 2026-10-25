@@ -371,6 +371,15 @@ func writeReimportError(w http.ResponseWriter, err error) {
 	http.Error(w, "re-parse failed", http.StatusInternalServerError)
 }
 
+// minParserVersion is the source's parser version as N.M, or the raw string
+// when it is not one.
+func minParserVersion(src domain.ActivitySource) string {
+	if v, err := domain.ParseParserVersion(src.SourceWorkerVersion); err == nil {
+		return v.String()
+	}
+	return src.SourceWorkerVersion
+}
+
 // dispatchReparse mints a presigned download URL for the source's archived raw
 // blob and publishes a parse_blob.<provider> job. A worker re-runs its mapping
 // over the archive (no provider API quota) and publishes a result that flows
@@ -381,6 +390,9 @@ func dispatchReparse(ctx context.Context, app *App, logger *slog.Logger, userID 
 	}
 	if src.RawBlobID == "" {
 		return &reimportError{http.StatusBadRequest, "this source has no archived original to re-parse — re-fetch from the provider first"}
+	}
+	if _, ok := reparseWorker(currentWorkers(ctx, app, logger), src); !ok {
+		return &reimportError{http.StatusConflict, "no compatible worker is online to re-parse this source (needs the same dataset and a parser at least as new)"}
 	}
 
 	signed, err := app.BlobStore.PresignDownload(ctx, src.RawBlobID, port.PresignDownloadOpts{})
@@ -400,6 +412,8 @@ func dispatchReparse(ctx context.Context, app *App, logger *slog.Logger, userID 
 		"provider":   src.Provider,
 		"account_id": acctID,
 		"ext_id":     src.ExternalID,
+		// A pooled worker with an older parser NAKs (docs/adr/0005).
+		"min_parser_version": minParserVersion(src),
 		"blob": map[string]any{
 			"url":             signed.URL,
 			"expires_at":      signed.ExpiresAt,

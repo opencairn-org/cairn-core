@@ -71,6 +71,7 @@ type adminAPIHeartbeat struct {
 	WorkerKey    string                           `json:"worker_key"`
 	InstanceID   string                           `json:"instance_id"`
 	Version      string                           `json:"version"`
+	Release      string                           `json:"release"`
 	Provider     string                           `json:"provider"`
 	Package      string                           `json:"package"`
 	GoVersion    string                           `json:"go_version"`
@@ -147,11 +148,18 @@ func (h *adminAPIHandlers) liveWorkers(r *http.Request, kv port.KV, out []map[st
 
 // adminAPIWorkerJSON renders one presence record for the admin UI.
 func adminAPIWorkerJSON(hb adminAPIHeartbeat) map[string]any {
+	compatible, known := domain.ReleaseCompatible(Version, hb.Release)
 	return map[string]any{
 		"worker_name": hb.WorkerName,
 		"worker_key":  hb.WorkerKey,
 		"instance_id": hb.InstanceID,
 		"version":     hb.Version,
+		// Release vs core's major.minor (docs/adr/0005); release_known is
+		// false for untagged builds on either side.
+		"release":            hb.Release,
+		"release_compatible": compatible,
+		"release_known":      known,
+		"core_release":       Version,
 		"provider":    hb.Provider,
 		"package":     hb.Package,
 		// Build info is informational (may differ across pooled

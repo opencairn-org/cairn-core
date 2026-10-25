@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 
+	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
@@ -16,8 +15,8 @@ import (
 // manifest (typically on startup; possibly on hash-change during a
 // rolling deploy), the watcher fires the mark-out-of-date pipeline.
 //
-// Concretely: when a worker publishes a manifest with a HIGHER version than
-// the version that imported a source (same provider + package), every such
+// Concretely: when a worker publishes a manifest with a HIGHER parser version
+// (docs/adr/0005) than the one that last parsed a source (same provider + package), every such
 // activity_source is flipped to reimport_status='update_available'. The
 // next reconcile / admin-trigger then enqueues parse_blob.<provider>
 // jobs to bring those sources up to date.
@@ -88,15 +87,15 @@ func handleManifestUpdate(ctx context.Context, app *App, log *slog.Logger, entry
 	if m.Provider == "" || m.Package == "" {
 		return
 	}
-	version, err := strconv.Atoi(strings.TrimSpace(m.Version))
+	version, err := domain.ParseParserVersion(m.Version)
 	if err != nil {
-		log.Warn("manifest version not an integer; cannot drive update-available",
+		log.Warn("manifest version is not a parser version N.M; cannot drive update-available",
 			"worker_name", m.WorkerName, "version", m.Version)
 		return
 	}
 
-	// Pure-SQL: flag every 'current' source from the same package+provider with
-	// a lower version. Idempotent — re-running for the same version is a no-op.
+	// Pure-SQL: flag every source from the same package+provider parsed by an
+	// older version. Idempotent — re-running for the same version is a no-op.
 	updated, err := app.Activities.MarkSourcesOutOfDate(ctx, m.Provider, m.Package, version)
 	if err != nil {
 		log.Warn("mark sources out-of-date failed",
@@ -104,7 +103,7 @@ func handleManifestUpdate(ctx context.Context, app *App, log *slog.Logger, entry
 		return
 	}
 	if updated > 0 {
-		log.Info("flagged sources for reimport (newer worker version)",
+		log.Info("flagged sources out of date (newer parser)",
 			"provider", m.Provider, "package", m.Package, "version", version, "count", updated)
 	}
 }

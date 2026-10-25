@@ -514,6 +514,7 @@ func ingestActivityEvent(
 		SourceWorkerName:    jr.GetWorkerName(),
 		SourceWorkerVersion: jr.GetWorkerVersion(),
 		SourceWorkerPackage: jr.GetWorkerPackage(),
+		SourceWorkerRelease: jr.GetWorkerRelease(),
 		RawBlobID:           ia.GetRawBlobId(),
 		RawContentType:      ia.GetRawContentType(),
 		RawSizeBytes:        ia.GetRawSizeBytes(),

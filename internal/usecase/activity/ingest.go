@@ -89,6 +89,7 @@ type IngestInput struct {
 	SourceWorkerName    string
 	SourceWorkerVersion string
 	SourceWorkerPackage string
+	SourceWorkerRelease string
 
 	RawBlobID      string
 	RawContentType string
@@ -166,11 +167,15 @@ func (uc *IngestActivityFromWorker) handleReimport(
 	// Replace the parsed payload and provenance fields. ID, ActivityID,
 	// UserID, Provider, ExternalAccountID, ExternalID, and ImportedAt
 	// are preserved — they are the source's identity.
+	if err := domain.CheckParserForward(existing, in.SourceWorkerPackage, in.SourceWorkerVersion); err != nil {
+		return err
+	}
 	updated := existing
 	updated.Parsed = in.Payload
 	updated.SourceWorkerName = in.SourceWorkerName
 	updated.SourceWorkerVersion = in.SourceWorkerVersion
 	updated.SourceWorkerPackage = in.SourceWorkerPackage
+	updated.SourceWorkerRelease = in.SourceWorkerRelease
 	updated.RawBlobID = in.RawBlobID
 	// Preserve existing blob metadata when a re-push doesn't supply it (e.g. a
 	// reparse that reuses the archived blob without re-stating its size/type).
@@ -323,6 +328,7 @@ func (uc *IngestActivityFromWorker) buildSource(
 		SourceWorkerName:    in.SourceWorkerName,
 		SourceWorkerVersion: in.SourceWorkerVersion,
 		SourceWorkerPackage: in.SourceWorkerPackage,
+		SourceWorkerRelease: in.SourceWorkerRelease,
 		RawBlobID:           in.RawBlobID,
 		RawContentType:      in.RawContentType,
 		RawSizeBytes:        in.RawSizeBytes,

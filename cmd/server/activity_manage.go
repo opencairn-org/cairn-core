@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -107,11 +108,8 @@ func activityManageInsightsHandler(app *App, logger *slog.Logger) http.HandlerFu
 			primary = act.PrimaryStreamSourceID.String()
 		}
 
-		// Live workers, to flag sources a compatible worker can re-parse:
-		// re-parse is possible only when a worker with the SAME provider +
-		// version + package as the importer is online. Those three are the
-		// compatibility contract; it is the maintainer's job to keep a
-		// (provider, package, version) triple parse-compatible.
+		// Live workers decide re-parse eligibility and offered upgrades
+		// (docs/adr/0005).
 		workers := currentWorkers(r.Context(), app, logger)
 
 		// Reverse the merge provenance: source id → the field groups it won.
@@ -190,10 +188,17 @@ func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, pri
 	if s.LastReimportedAt != nil {
 		lastReimport = s.LastReimportedAt.UTC()
 	}
-	// Re-parse is possible only when the source has an archived blob AND
-	// a live worker matches its provider + version + package.
-	reparseEligible := s.RawBlobID != "" &&
-		canReparseSource(workers, s.Provider, s.SourceWorkerVersion, s.SourceWorkerPackage)
+	// Re-parse needs an archived blob and a live worker allowed to parse it.
+	rw, canReparse := reparseWorker(workers, s)
+	reparseEligible := s.RawBlobID != "" && canReparse
+	var reparseWith string
+	if reparseEligible {
+		reparseWith = rw.version
+	}
+	parser, dataset := s.SourceWorkerVersion, ""
+	if v, err := domain.ParseParserVersion(s.SourceWorkerVersion); err == nil {
+		parser, dataset = v.String(), strconv.Itoa(v.Dataset)
+	}
 	return map[string]any{
 		"id":                 s.ID.String(),
 		"provider":           s.Provider,
@@ -201,6 +206,11 @@ func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, pri
 		"external_account":   extAcct,
 		"worker_name":        s.SourceWorkerName,
 		"worker_version":     s.SourceWorkerVersion,
+		"worker_release":     s.SourceWorkerRelease,
+		"parser_version":     parser,
+		"dataset_version":    dataset,
+		"reparse_with":       reparseWith,
+		"upgrade":            sourceUpgrade(workers, s),
 		"worker_package":     s.SourceWorkerPackage,
 		"reparse_eligible":   reparseEligible,
 		"has_blob":           s.RawBlobID != "",
@@ -262,8 +272,10 @@ func activityManageRecomputeDerivedHandler(app *App, logger *slog.Logger) http.H
 // of the identity: names are admin-assigned routing labels, not code identity.
 type liveWorker struct {
 	provider     string
-	version      string
+	version      string // parser version N.M
 	pkg          string
+	release      string
+	compatible   bool // release matches core's major.minor (or either is untagged)
 	capabilities capability.Manifest
 }
 
@@ -292,6 +304,7 @@ func currentWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorke
 		var hb struct {
 			Provider     string              `json:"provider"`
 			Version      string              `json:"version"`
+			Release      string              `json:"release"`
 			Package      string              `json:"package"`
 			LastSeen     string              `json:"last_seen"`
 			Capabilities capability.Manifest `json:"capabilities"`
@@ -302,26 +315,71 @@ func currentWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorke
 		if ts, perr := time.Parse(time.RFC3339, hb.LastSeen); perr == nil && now.Sub(ts) > presenceStaleAfter {
 			continue // stale ghost
 		}
-		out = append(out, liveWorker{provider: hb.Provider, version: hb.Version, pkg: hb.Package, capabilities: hb.Capabilities})
+		compatible, _ := domain.ReleaseCompatible(Version, hb.Release)
+		out = append(out, liveWorker{
+			provider: hb.Provider, version: hb.Version, pkg: hb.Package,
+			release: hb.Release, compatible: compatible, capabilities: hb.Capabilities,
+		})
 	}
 	return out
 }
 
-// canReparseSource reports whether a live worker can re-parse this source's
-// archived blob — i.e. a worker is online whose provider + version + package
-// exactly match the importer that produced the blob. Those three are the
-// maintainer-upheld compatibility contract; nothing else (notably not a build
-// hash) gates eligibility.
-func canReparseSource(workers []liveWorker, provider, version, pkg string) bool {
-	if pkg == "" {
-		return false // legacy source without package provenance — can't match
+// reparseWorker returns the newest live, release-compatible worker allowed
+// to re-parse src's archive (docs/adr/0005): same provider and package, same
+// dataset, parser not older than the one that last parsed it. A source with
+// a non-N.M version only matches its exact version.
+func reparseWorker(workers []liveWorker, src domain.ActivitySource) (liveWorker, bool) {
+	if src.SourceWorkerPackage == "" {
+		return liveWorker{}, false // legacy source without package provenance
 	}
+	stored, serr := domain.ParseParserVersion(src.SourceWorkerVersion)
+	var best liveWorker
+	var bestV domain.ParserVersion
+	found := false
 	for _, w := range workers {
-		if w.provider == provider && w.version == version && w.pkg == pkg {
-			return true
+		if !w.compatible || w.provider != src.Provider || w.pkg != src.SourceWorkerPackage {
+			continue
+		}
+		wv, werr := domain.ParseParserVersion(w.version)
+		switch {
+		case serr != nil || werr != nil:
+			if w.version != src.SourceWorkerVersion {
+				continue
+			}
+		case !wv.CanReparse(stored):
+			continue
+		}
+		if !found || wv.Compare(bestV) > 0 {
+			best, bestV, found = w, wv, true
 		}
 	}
-	return false
+	return best, found
+}
+
+// sourceUpgrade says what the live workers offer src beyond its current
+// parse: "new_parser" (re-parse from the archive), "new_dataset" (re-fetch)
+// or "".
+func sourceUpgrade(workers []liveWorker, src domain.ActivitySource) string {
+	stored, err := domain.ParseParserVersion(src.SourceWorkerVersion)
+	if err != nil {
+		return ""
+	}
+	up := domain.UpgradeNone
+	for _, w := range workers {
+		if !w.compatible || w.provider != src.Provider || w.pkg != src.SourceWorkerPackage {
+			continue
+		}
+		if wv, err := domain.ParseParserVersion(w.version); err == nil {
+			up = max(up, wv.UpgradeFor(stored))
+		}
+	}
+	switch up {
+	case domain.UpgradeNewParser:
+		return "new_parser"
+	case domain.UpgradeNewDataset:
+		return "new_dataset"
+	}
+	return ""
 }
 
 // recomputeDerivedForActivity re-runs the per-source derived computations

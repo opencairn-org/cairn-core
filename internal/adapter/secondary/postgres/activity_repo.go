@@ -373,7 +373,8 @@ const sourceColumns = `
 	parsed,
 	status, status_reason,
 	reimport_status, reimport_status_reason,
-	imported_at, last_reimported_at, updated_at
+	imported_at, last_reimported_at, updated_at,
+	source_worker_release
 `
 
 // GetSource reads one activity_sources row by ID.
@@ -486,6 +487,7 @@ func sourceSaveArgs(s domain.ActivitySource, parsedJSON []byte) []any {
 		string(s.ReimportStatus), s.ReimportStatusReason,
 		nullableTime(s.ImportedAt), lastReimportedParam,
 		mf.sportClass, nullableTime(mf.startUTC), mf.distanceM, mf.movingS, mf.elapsedS, mf.startLat, mf.startLng,
+		s.SourceWorkerRelease,
 	}
 }
 
@@ -500,7 +502,8 @@ const sourceSaveSQL = `
 			status, status_reason,
 			reimport_status, reimport_status_reason,
 			imported_at, last_reimported_at, updated_at,
-			sport_class, start_utc, distance_m, moving_s, elapsed_s, start_lat, start_lng
+			sport_class, start_utc, distance_m, moving_s, elapsed_s, start_lat, start_lng,
+			source_worker_release
 		) VALUES (
 			$1, $2, $3,
 			$4, $5, $6,
@@ -510,7 +513,8 @@ const sourceSaveSQL = `
 			$14, $15,
 			$16, $17,
 			COALESCE($18, now()), $19, now(),
-			$20, $21, $22, $23, $24, $25, $26
+			$20, $21, $22, $23, $24, $25, $26,
+			$27
 		)
 		ON CONFLICT (id) DO UPDATE SET
 			-- activity_id, user_id, provider, external_account_id, external_id:
@@ -518,6 +522,7 @@ const sourceSaveSQL = `
 			source_worker_name = EXCLUDED.source_worker_name,
 			source_worker_version = EXCLUDED.source_worker_version,
 			source_worker_package = EXCLUDED.source_worker_package,
+			source_worker_release = EXCLUDED.source_worker_release,
 			raw_blob_id = EXCLUDED.raw_blob_id,
 			raw_content_type = EXCLUDED.raw_content_type,
 			raw_size_bytes = EXCLUDED.raw_size_bytes,
@@ -812,16 +817,15 @@ func (r *ActivityRepo) SetSourceReimportStatus(ctx context.Context, id domain.So
 	return nil
 }
 
-// MarkSourcesOutOfDate flags every 'current' source as update_available when a
-// newer worker FROM THE SAME PACKAGE for the SAME PROVIDER arrives. The match
-// key is (provider, source_worker_package, version < newVersion) — the routing
-// name/alias is deliberately NOT part of it. Versions are simple incrementing
-// integers (#54); non-numeric stored versions are skipped defensively. Empty
-// package never matches (legacy rows imported before package-stamping).
+// MarkSourcesOutOfDate flags the provider+package sources parsed by an older
+// version than live (docs/adr/0005) as update_available. The reason says
+// what helps: 'newer_parser' (same dataset, re-parse from the archive) or
+// 'newer_dataset' (re-fetch). Idempotent. Sources of another package, or
+// with a non-N.M version, are never touched.
 func (r *ActivityRepo) MarkSourcesOutOfDate(
 	ctx context.Context,
 	provider, pkg string,
-	newVersion int,
+	live domain.ParserVersion,
 ) (int, error) {
 	if provider == "" || pkg == "" {
 		return 0, nil
@@ -830,13 +834,17 @@ func (r *ActivityRepo) MarkSourcesOutOfDate(
 	tag, err := db.Exec(ctx,
 		`UPDATE activity_sources
 		    SET reimport_status        = 'update_available',
-		        reimport_status_reason = 'newer_worker_version'
+		        reimport_status_reason = CASE
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
+		            ELSE 'newer_parser' END
 		  WHERE provider = $1
 		    AND source_worker_package = $2
-		    AND reimport_status = 'current'
-		    AND source_worker_version ~ '^[0-9]+$'
-		    AND source_worker_version::int < $3`,
-		provider, pkg, newVersion,
+		    AND reimport_status IN ('current', 'update_available')
+		    AND cairn_parser_version(source_worker_version) < ARRAY[$3::int, $4::int]
+		    AND reimport_status_reason IS DISTINCT FROM CASE
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
+		            ELSE 'newer_parser' END`,
+		provider, pkg, live.Dataset, live.Parser,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("mark sources out-of-date for %s/%s: %w", provider, pkg, err)
@@ -1413,6 +1421,7 @@ func scanSourceRow(row rowScanner) (domain.ActivitySource, error) {
 		&status, &s.StatusReason,
 		&reimport, &s.ReimportStatusReason,
 		&s.ImportedAt, &s.LastReimportedAt, &s.UpdatedAt,
+		&s.SourceWorkerRelease,
 	)
 	if err != nil {
 		return domain.ActivitySource{}, err

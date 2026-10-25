@@ -23,8 +23,9 @@ type ActivitySource struct {
 	// Worker provenance — versioning lets the auto-reimport policy detect
 	// when a source can be re-parsed by a newer worker.
 	SourceWorkerName    string
-	SourceWorkerVersion string
+	SourceWorkerVersion string // parser version "N.M" (docs/adr/0005)
 	SourceWorkerPackage string
+	SourceWorkerRelease string // release tag that last parsed it; diagnostics only
 
 	// Raw blob reference (S3 key). Optional — some workers stream-parse
 	// without storing a raw blob.

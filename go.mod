@@ -50,6 +50,7 @@ require (
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
 	github.com/tormoder/fit v0.15.0
 	github.com/wneessen/go-mail v0.8.1
+	golang.org/x/mod v0.41.0
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -95,7 +96,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
-	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 // indirect

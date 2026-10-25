@@ -23,6 +23,10 @@
 		worker_key?: string;
 		instance_id: string;
 		version: string;
+		release?: string;
+		release_compatible?: boolean;
+		release_known?: boolean;
+		core_release?: string;
 		provider: string;
 		package?: string;
 		manifest_hash?: string;
@@ -187,8 +191,19 @@
 									>
 									<span
 										class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400"
-										title="reported version">v{w.version}</span
+										title="parser version (dataset.revision)">parser {w.version}</span
 									>
+									{#if w.release}
+										<span
+											class="ml-2 rounded px-1.5 py-0.5 {w.release_compatible
+												? 'bg-zinc-800 text-zinc-400'
+												: 'bg-red-500/15 text-red-300'}"
+											title={w.release_compatible
+												? 'worker release'
+												: `Incompatible with core ${w.core_release}: major.minor must match. Ignored for re-parse and gear sync.`}
+											>{w.release}{w.release_compatible ? '' : ' · incompatible'}</span
+										>
+									{/if}
 									{#if w.webhooks}
 										<span
 											class="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-300"

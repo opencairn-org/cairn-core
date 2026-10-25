@@ -27,7 +27,7 @@ var errGearNotSupported = errors.New("no connected worker for this provider impo
 // workerDeclares reports whether any live worker for provider can read dt.
 func workerDeclares(ctx context.Context, app *App, logger *slog.Logger, provider string, dt capability.DataType) bool {
 	for _, w := range currentWorkers(ctx, app, logger) {
-		if w.provider == provider && w.capabilities.CanRead(dt) {
+		if w.compatible && w.provider == provider && w.capabilities.CanRead(dt) {
 			return true
 		}
 	}
