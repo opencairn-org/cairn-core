@@ -107,7 +107,7 @@ services:
   # instead — see docs/architecture.md §4.5.
   # ---------------------------------------------------------------------------
   nats:
-    image: nats:2.15.1-alpine@sha256:2ae57dfba3063d5e25fecb75256118c0882a1a2d2cf7d0fba17a7c701df956f6
+    image: nats:2.15.1-alpine@sha256:7ae34c25dfd6fe2e01c6483eabef20d796690fdcac6c4d94ca780a6cf9877fde
     restart: unless-stopped
     networks: [cairn]
     # docker/nats.conf sets max_payload: 8MB (no CLI flag exists for it) — long
