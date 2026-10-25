@@ -8,6 +8,9 @@ CREATE TABLE worker_pools (
     package       text NOT NULL,
     first_seen_at timestamptz NOT NULL DEFAULT now(),
     last_seen_at  timestamptz NOT NULL DEFAULT now(),
+    -- Retired by an admin: hidden from routing and pickers; the name stays
+    -- bound to its package. A worker of that package coming back un-retires it.
+    retired_at    timestamptz,
     PRIMARY KEY (provider, name)
 );
 -- Pools already in use: every (provider, name, package) that produced a source.

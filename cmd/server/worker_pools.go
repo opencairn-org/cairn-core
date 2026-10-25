@@ -33,6 +33,9 @@ func knownPools(ctx context.Context, app *App, logger *slog.Logger, provider str
 			logger.Warn("list worker pools failed", "provider", provider, "error", err)
 		}
 		for _, p := range rows {
+			if p.RetiredAt != nil {
+				continue // hidden from routing and pickers
+			}
 			byName[p.Name] = &poolInfo{name: p.Name, pkg: p.Package}
 		}
 	}
@@ -42,6 +45,11 @@ func knownPools(ctx context.Context, app *App, logger *slog.Logger, provider str
 		}
 		p, ok := byName[w.name]
 		if !ok {
+			if app.WorkerPools != nil {
+				if reg, err := app.WorkerPools.Get(ctx, provider, w.name); err == nil && reg.RetiredAt != nil {
+					continue // retired: online but not offered
+				}
+			}
 			p = &poolInfo{name: w.name, pkg: w.pkg}
 			byName[w.name] = p
 		}

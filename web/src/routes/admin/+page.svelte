@@ -2,6 +2,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatDate } from '#lib/format.js';
 	import WorkerOnboarding from '#lib/components/WorkerOnboarding.svelte';
+	import WorkerPools from '#lib/components/WorkerPools.svelte';
 	import InviteManager from '#lib/components/InviteManager.svelte';
 	import type { PageData } from './$types';
 
@@ -92,4 +93,5 @@
 	<InviteManager />
 
 	<WorkerOnboarding />
+	<WorkerPools />
 </section>

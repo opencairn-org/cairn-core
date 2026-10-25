@@ -245,14 +245,23 @@
 	}
 
 	// Route the account's jobs to a named worker pool ("" = the only one).
-	async function setWorker(id: string, worker: string) {
+	async function setWorker(id: string, worker: string, confirmed = false) {
 		try {
 			const res = await fetch(`/api/accounts/${id}/worker`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worker })
+				body: JSON.stringify({ worker, confirm: confirmed })
 			});
-			if (!res.ok) error = (await res.text()).trim() || res.statusText;
+			if (!res.ok) {
+				const text = (await res.text()).trim() || res.statusText;
+				// Moving to another implementation asks the owner first.
+				if (res.status === 409 && text.startsWith('confirm:') && !confirmed) {
+					if (confirm(text.slice('confirm:'.length).trim())) await setWorker(id, worker, true);
+					else await loadAccounts();
+					return;
+				}
+				error = text;
+			}
 			await loadAccounts();
 		} catch {
 			/* ignore */
@@ -847,6 +856,12 @@
 						{/if}
 					{/if}
 
+					{#if (a.out_of_date?.pool_changed ?? 0) > 0}
+						<div class="mt-2 text-xs text-amber-300">
+							{a.out_of_date?.pool_changed} activities were imported by the previous importer. A full
+							sync re-fetches them with {a.assigned_worker}.
+						</div>
+					{/if}
 					{#if (a.out_of_date?.newer_dataset ?? 0) > 0}
 						<div class="mt-2 text-xs text-amber-300">
 							{a.out_of_date?.newer_dataset} activities were imported in an older archive format and need

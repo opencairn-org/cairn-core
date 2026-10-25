@@ -13,4 +13,7 @@ type WorkerPoolRepo interface {
 	Upsert(ctx context.Context, p domain.WorkerPool) error
 	Get(ctx context.Context, provider, name string) (domain.WorkerPool, error)
 	ListForProvider(ctx context.Context, provider string) ([]domain.WorkerPool, error)
+	ListAll(ctx context.Context) ([]domain.WorkerPool, error)
+	// Retire hides a pool from routing and pickers; its name stays bound.
+	Retire(ctx context.Context, provider, name string) error
 }

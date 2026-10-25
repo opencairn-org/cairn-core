@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -15,6 +17,17 @@ type WorkerPool struct {
 	Package     string
 	FirstSeenAt time.Time
 	LastSeenAt  time.Time
+	RetiredAt   *time.Time
+}
+
+// AppID identifies a provider app (OAuth client id) without exposing it:
+// the first 12 hex digits of its SHA-256. Rate-limit budgets are per app.
+func AppID(clientID string) string {
+	if clientID == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(clientID))
+	return hex.EncodeToString(sum[:])[:12]
 }
 
 // ErrPoolPackageChanged: a worker reported another package under a known

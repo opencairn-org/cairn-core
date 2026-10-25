@@ -49,9 +49,15 @@ pool:
   same provider account only when its sources were imported under that pool's name, or the same
   connection reconnects. Otherwise the connect creates a new row and the old one stays
   unassigned until its own pool connects it.
-- **Reassignment** (`PUT /api/accounts/{id}/worker`) is allowed only onto a pool of the same
-  package as the connection's imports; another implementation is another connection. Unpinning
-  is refused while the provider account has another connection.
+- **Reassignment** (`PUT /api/accounts/{id}/worker`) by the connection's owner. Onto a pool of
+  the same package it is free. Onto another implementation it needs `confirm: true` (the UI
+  asks); the connection keeps its activities, and those imported by the previous pool are
+  flagged `update_available / pool_changed` so the user can re-fetch them with the new pool.
+  Unpinning is refused while the provider account has another connection.
+- **Retiring a pool** (`POST /api/admin/worker-pools/{provider}/{name}/retire`, admin page)
+  hides it from routing and pickers. Its name stays bound to its package; a worker of that
+  package coming back un-retires it. Accounts assigned to a retired pool keep the assignment
+  (jobs queue) until the owner moves them.
 - **Results and lookups are per pool**: `cairn.results.<job>.<provider>.<name>` (reconcile
   appends the account) and `cairn.accounts.lookup.<provider>.<name>`. Core verifies the sender's
   `worker_name` against the subject, so a pool cannot publish for or look up another pool's
@@ -63,9 +69,12 @@ pool:
 - **The matcher allows one source per pool, not per provider.** Two pools of one provider
   importing the same workout cluster into one activity; two imports by the same pool are still
   a conflict.
-- **One pool is one provider app.** Each pool uses its own OAuth app or credentials, so two pools
-  authorizing the same provider account never share or invalidate each other's tokens, and the
-  **rate-limit budget is per pool** (`<provider>.<pool>.<window>` in the shared KV).
+- **Apps belong to connections, budgets to apps.** OAuth app credentials live on the connection
+  (`user_provider_configs`), so one pool serves many apps. Core names the app in the token reply
+  (`app_id`, a hash of the client id) and the **rate-limit budget is per app**
+  (`<provider>.<app>.<window>` in the shared KV; a token without an app id uses the pool's
+  `<provider>.<pool>.<window>`). Two connections of one provider account on different pools use
+  different apps, so their tokens are independent.
 - **Bulk re-parse**: `POST /api/accounts/{id}/reparse-out-of-date` re-parses every source a
   newer parser of its pool can read; the Connections page shows the counts. A worker too old for
   a re-parse hands the job back with back-off and, after ten deliveries (within the hour),
