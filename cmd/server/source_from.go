@@ -116,7 +116,7 @@ func sourceFromDerived(userID domain.UserID, req sourceFromRequest, donor domain
 		Provider:            "derived",
 		ExternalID:          uuid.NewString(),
 		SourceWorkerName:    "derived",
-		SourceWorkerVersion: "1",
+		SourceWorkerVersion: "1.0",
 		SourceWorkerPackage: "cairn",
 		Parsed:              payload,
 		Status:              domain.SourceStatusActive,

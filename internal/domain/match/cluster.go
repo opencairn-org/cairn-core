@@ -9,7 +9,20 @@ import "sort"
 // Record is one bucket source record: stable ID + scoring features.
 type Record struct {
 	ID string
+	// Pool is the worker pool (name) that imported the source. A cluster holds
+	// at most one source per pool: two pools of one provider (docs/adr/0006)
+	// may both feed an activity, two imports by one pool may not. Empty
+	// means the provider alone is the identity.
+	Pool string
 	SourceFeatures
+}
+
+// identity is the one-per-cluster key of a record.
+func (r Record) identity() string {
+	if r.Pool == "" {
+		return r.Provider
+	}
+	return r.Provider + "/" + r.Pool
 }
 
 // Band is a cluster's confidence: high→auto, medium→flag, low→keep separate.
@@ -241,7 +254,7 @@ func newUnionFind(recs []Record) *unionFind {
 	}
 	for i, r := range recs {
 		uf.parent[i] = i
-		uf.providers[i] = map[string]int{r.Provider: 1}
+		uf.providers[i] = map[string]int{r.identity(): 1}
 		uf.recIDs[i] = []string{r.ID}
 	}
 	return uf
@@ -255,7 +268,7 @@ func (uf *unionFind) find(i int) int {
 	return i
 }
 
-// shareProvider reports whether two components share a provider (≤1-per-provider).
+// shareProvider reports whether two components share a provider pool (≤1 per pool).
 func (uf *unionFind) shareProvider(ra, rb int) bool {
 	pa, pb := uf.providers[ra], uf.providers[rb]
 	if len(pb) < len(pa) {

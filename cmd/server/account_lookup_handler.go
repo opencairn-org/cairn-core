@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -36,6 +37,24 @@ func startAccountLookupHandler(
 	if err != nil {
 		return nil, err
 	}
+	// Per-pool subject (docs/adr/0006): the pool is taken from the subject
+	// the worker is allowed to publish on, not from the body.
+	poolSub, err := app.NATSBus.RespondToSubject(ctx, "cairn.accounts.lookup.*.*",
+		func(ctx context.Context, subject string, body []byte) ([]byte, error) {
+			parts := strings.Split(subject, ".")
+			var req accountLookupRequest
+			if json.Unmarshal(body, &req) != nil {
+				return accountLookupErr("bad_request"), nil
+			}
+			req.Provider, req.WorkerName = parts[3], parts[4]
+			scoped, _ := json.Marshal(req)
+			return accountLookupRespond(ctx, app, log, scoped), nil
+		})
+	if err != nil {
+		_ = sub.Close(ctx)
+		return nil, err
+	}
+	sub = multiSubscription{sub, poolSub}
 	log.Info("account lookup handler active on cairn.accounts.lookup_by_provider_ext")
 	return sub, nil
 }
@@ -50,6 +69,9 @@ type accountLookupRequest struct {
 	Provider       string `json:"provider"`
 	ExternalID     string `json:"external_id"`
 	SubscriptionID string `json:"subscription_id"`
+	// WorkerName is the asking pool: one provider account may have a
+	// connection per pool (docs/adr/0006). Empty (pre-0.5 workers) matches any.
+	WorkerName string `json:"worker_name"`
 }
 
 // accountLookupRespond resolves one lookup request into its reply payload.
@@ -88,13 +110,13 @@ func accountLookupRespond(ctx context.Context, app *App, log *slog.Logger, body 
 // resolve to the wrong one. Falls back to owner_id only when the subscription is unknown.
 func accountLookupFind(ctx context.Context, app *App, log *slog.Logger, req accountLookupRequest) (domain.ExternalAccount, error) {
 	if req.SubscriptionID == "" {
-		return app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID)
+		return app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
 	}
-	acct, err := app.ExternalAccounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID)
+	acct, err := app.ExternalAccounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID, req.WorkerName)
 	if errors.Is(err, domain.ErrNotFound) && req.ExternalID != "" {
 		log.Warn("subscription unknown, falling back to external_id",
 			"provider", req.Provider, "subscription_id", req.SubscriptionID)
-		acct, err = app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID)
+		acct, err = app.ExternalAccounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
 	}
 	return acct, err
 }
@@ -115,4 +137,15 @@ func accountLookupSelfHeal(ctx context.Context, app *App, log *slog.Logger, req 
 	log.Info("recorded webhook subscription mapping",
 		"provider", req.Provider, "account_id", acct.ID.String(),
 		"subscription_id", req.SubscriptionID)
+}
+
+// multiSubscription closes several subscriptions as one.
+type multiSubscription []port.Subscription
+
+func (m multiSubscription) Close(ctx context.Context) error {
+	var err error
+	for _, s := range m {
+		err = errors.Join(err, s.Close(ctx))
+	}
+	return err
 }

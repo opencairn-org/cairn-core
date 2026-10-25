@@ -16,7 +16,19 @@
 		has_secret: boolean;
 		oauth: boolean;
 	};
-	type ProviderType = { provider: string; display_name: string; oauth: boolean };
+	type Pool = {
+		name: string;
+		package: string;
+		parser_version: string;
+		release: string;
+		online: boolean;
+	};
+	type ProviderType = {
+		provider: string;
+		display_name: string;
+		oauth: boolean;
+		worker_pools?: Pool[];
+	};
 
 	type WebhookEndpoint = { provider: string; worker_key: string; url: string };
 
@@ -32,7 +44,24 @@
 	}
 
 	let showAdd = $state(false);
-	let form = $state({ provider: 'strava', label: '', client_id: '', client_secret: '' });
+	let form = $state({
+		provider: 'strava',
+		label: '',
+		client_id: '',
+		client_secret: '',
+		worker: ''
+	});
+
+	// Several worker pools for one provider: a connection is made for one of
+	// them, and the same provider account can be connected once per pool.
+	function poolsFor(provider: string): Pool[] {
+		return providers.find((p) => p.provider === provider)?.worker_pools ?? [];
+	}
+	let connectWorker = $state<Record<string, string>>({});
+	function connectHref(c: Conn): string {
+		const w = connectWorker[c.id];
+		return `/auth/oauth/${c.provider}/connect?connection=${c.id}${w ? `&worker=${encodeURIComponent(w)}` : ''}`;
+	}
 
 	// Credential-based providers (no OAuth) store a login as client_id/secret —
 	// label the fields accordingly. Driven by the server's provider metadata.
@@ -50,6 +79,9 @@
 		configure_first: m.connections_error_configure_first(),
 		exchange_failed: m.connections_error_exchange_failed(),
 		no_connection: 'Pick a connection to connect.',
+		choose_worker:
+			'Several importers serve this provider. Choose which one this connection is for, then connect again.',
+		bad_worker: 'That importer name is not valid.',
 		secret_unreadable:
 			'Stored credentials could not be read (encryption changed). Open ⚙ Settings on this connection and re-enter your client secret.'
 	};
@@ -95,7 +127,7 @@
 			});
 			if (!res.ok) throw new Error((await res.text()).trim());
 			showAdd = false;
-			form = { provider: form.provider, label: '', client_id: '', client_secret: '' };
+			form = { provider: form.provider, label: '', client_id: '', client_secret: '', worker: '' };
 			await load();
 		} catch (e) {
 			error = (e as Error).message;
@@ -240,6 +272,25 @@
 					/>
 				</div>
 			</div>
+			{#if !formProviderOAuth && poolsFor(form.provider).length > 1}
+				<div>
+					<label for="nw" class="mb-1 block text-xs text-zinc-400">Importer</label>
+					<select
+						id="nw"
+						bind:value={form.worker}
+						class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm focus:border-accent-400 focus:outline-none sm:w-1/2"
+					>
+						<option value="">— choose —</option>
+						{#each poolsFor(form.provider) as p (p.name)}
+							<option value={p.name}>{p.name} · {p.package}{p.online ? '' : ' (offline)'}</option>
+						{/each}
+					</select>
+					<p class="mt-1 text-xs text-zinc-500">
+						The same account can be connected once per importer. Leave out an importer you don't
+						want.
+					</p>
+				</div>
+			{/if}
 			{#if !formProviderOAuth}
 				<p class="text-xs text-zinc-500">
 					{form.provider === 'garmin'
@@ -249,7 +300,10 @@
 			{/if}
 			<button
 				type="button"
-				disabled={busy || !form.client_id.trim() || (!formProviderOAuth && !form.client_secret)}
+				disabled={busy ||
+					!form.client_id.trim() ||
+					(!formProviderOAuth && !form.client_secret) ||
+					(!formProviderOAuth && poolsFor(form.provider).length > 1 && !form.worker)}
 				onclick={addConnection}
 				class="rounded bg-accent-500 px-3 py-1.5 text-sm font-medium text-zinc-950 hover:bg-accent-400 disabled:opacity-50"
 			>
@@ -276,9 +330,23 @@
 					</div>
 				</div>
 				<div class="flex items-center gap-2 max-md:flex-wrap">
+					{#if c.oauth && poolsFor(c.provider).length > 1}
+						<label class="sr-only" for={`cw-${c.id}`}>Importer</label>
+						<select
+							id={`cw-${c.id}`}
+							bind:value={connectWorker[c.id]}
+							title="Which importer this connection is for"
+							class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200"
+						>
+							<option value="">— importer —</option>
+							{#each poolsFor(c.provider) as p (p.name)}
+								<option value={p.name}>{p.name}{p.online ? '' : ' (offline)'}</option>
+							{/each}
+						</select>
+					{/if}
 					{#if c.oauth}
 						<a
-							href={`/auth/oauth/${c.provider}/connect?connection=${c.id}`}
+							href={connectHref(c)}
 							class="rounded bg-accent-500 px-3 py-1.5 text-xs font-medium text-zinc-950 hover:bg-accent-400"
 						>
 							{connectedIds.has(c.id) ? 'Reconnect' : m.connections_connect_account()}

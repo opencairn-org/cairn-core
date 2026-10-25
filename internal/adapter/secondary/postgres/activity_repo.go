@@ -373,7 +373,8 @@ const sourceColumns = `
 	parsed,
 	status, status_reason,
 	reimport_status, reimport_status_reason,
-	imported_at, last_reimported_at, updated_at
+	imported_at, last_reimported_at, updated_at,
+	source_worker_release
 `
 
 // GetSource reads one activity_sources row by ID.
@@ -486,6 +487,7 @@ func sourceSaveArgs(s domain.ActivitySource, parsedJSON []byte) []any {
 		string(s.ReimportStatus), s.ReimportStatusReason,
 		nullableTime(s.ImportedAt), lastReimportedParam,
 		mf.sportClass, nullableTime(mf.startUTC), mf.distanceM, mf.movingS, mf.elapsedS, mf.startLat, mf.startLng,
+		s.SourceWorkerRelease,
 	}
 }
 
@@ -500,7 +502,8 @@ const sourceSaveSQL = `
 			status, status_reason,
 			reimport_status, reimport_status_reason,
 			imported_at, last_reimported_at, updated_at,
-			sport_class, start_utc, distance_m, moving_s, elapsed_s, start_lat, start_lng
+			sport_class, start_utc, distance_m, moving_s, elapsed_s, start_lat, start_lng,
+			source_worker_release
 		) VALUES (
 			$1, $2, $3,
 			$4, $5, $6,
@@ -510,7 +513,8 @@ const sourceSaveSQL = `
 			$14, $15,
 			$16, $17,
 			COALESCE($18, now()), $19, now(),
-			$20, $21, $22, $23, $24, $25, $26
+			$20, $21, $22, $23, $24, $25, $26,
+			$27
 		)
 		ON CONFLICT (id) DO UPDATE SET
 			-- activity_id, user_id, provider, external_account_id, external_id:
@@ -518,6 +522,7 @@ const sourceSaveSQL = `
 			source_worker_name = EXCLUDED.source_worker_name,
 			source_worker_version = EXCLUDED.source_worker_version,
 			source_worker_package = EXCLUDED.source_worker_package,
+			source_worker_release = EXCLUDED.source_worker_release,
 			raw_blob_id = EXCLUDED.raw_blob_id,
 			raw_content_type = EXCLUDED.raw_content_type,
 			raw_size_bytes = EXCLUDED.raw_size_bytes,
@@ -574,7 +579,7 @@ func (r *ActivityRepo) ListSourceRecordsInBucket(ctx context.Context, userID dom
 	rows, err := db.Query(ctx, `
 		SELECT id, activity_id, user_id, provider, external_account_id, external_id,
 		       sport_class, start_utc, distance_m, moving_s, elapsed_s,
-		       start_lat, start_lng, status
+		       start_lat, start_lng, status, source_worker_name
 		  FROM activity_sources
 		 WHERE user_id = $1
 		   AND start_utc >= $2
@@ -600,27 +605,28 @@ func scanSourceMatchRecord(row rowScanner) (domain.SourceMatchRecord, error) {
 		distanceM           *float64
 		movingS, elapsedS   int64
 		startLat, startLng  *float64
-		status              string
+		status, worker      string
 	)
 	if err := row.Scan(&id, &activityID, &uid, &provider, &extAcct, &extID,
 		&sport, &startUTC, &distanceM, &movingS, &elapsedS,
-		&startLat, &startLng, &status); err != nil {
+		&startLat, &startLng, &status, &worker); err != nil {
 		return domain.SourceMatchRecord{}, err
 	}
 	rec := domain.SourceMatchRecord{
-		SourceID:   domain.SourceID(id),
-		ActivityID: domain.ActivityID(activityID),
-		UserID:     domain.UserID(uid),
-		Provider:   provider,
-		ExternalID: extID,
-		SportClass: sport,
-		StartUTC:   startUTC,
-		DistanceM:  distanceM,
-		MovingS:    movingS,
-		ElapsedS:   elapsedS,
-		StartLat:   startLat,
-		StartLng:   startLng,
-		Status:     domain.SourceStatus(status),
+		SourceID:         domain.SourceID(id),
+		ActivityID:       domain.ActivityID(activityID),
+		UserID:           domain.UserID(uid),
+		Provider:         provider,
+		SourceWorkerName: worker,
+		ExternalID:       extID,
+		SportClass:       sport,
+		StartUTC:         startUTC,
+		DistanceM:        distanceM,
+		MovingS:          movingS,
+		ElapsedS:         elapsedS,
+		StartLat:         startLat,
+		StartLng:         startLng,
+		Status:           domain.SourceStatus(status),
 	}
 	if extAcct != nil {
 		ea := domain.ExternalAccountID(*extAcct)
@@ -812,16 +818,15 @@ func (r *ActivityRepo) SetSourceReimportStatus(ctx context.Context, id domain.So
 	return nil
 }
 
-// MarkSourcesOutOfDate flags every 'current' source as update_available when a
-// newer worker FROM THE SAME PACKAGE for the SAME PROVIDER arrives. The match
-// key is (provider, source_worker_package, version < newVersion) — the routing
-// name/alias is deliberately NOT part of it. Versions are simple incrementing
-// integers (#54); non-numeric stored versions are skipped defensively. Empty
-// package never matches (legacy rows imported before package-stamping).
+// MarkSourcesOutOfDate flags the provider+package sources parsed by an older
+// version than live (docs/adr/0005) as update_available. The reason says
+// what helps: 'newer_parser' (same dataset, re-parse from the archive) or
+// 'newer_dataset' (re-fetch). Idempotent. Sources of another package, or
+// with a non-N.M version, are never touched.
 func (r *ActivityRepo) MarkSourcesOutOfDate(
 	ctx context.Context,
 	provider, pkg string,
-	newVersion int,
+	live domain.ParserVersion,
 ) (int, error) {
 	if provider == "" || pkg == "" {
 		return 0, nil
@@ -830,13 +835,17 @@ func (r *ActivityRepo) MarkSourcesOutOfDate(
 	tag, err := db.Exec(ctx,
 		`UPDATE activity_sources
 		    SET reimport_status        = 'update_available',
-		        reimport_status_reason = 'newer_worker_version'
+		        reimport_status_reason = CASE
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
+		            ELSE 'newer_parser' END
 		  WHERE provider = $1
 		    AND source_worker_package = $2
-		    AND reimport_status = 'current'
-		    AND source_worker_version ~ '^[0-9]+$'
-		    AND source_worker_version::int < $3`,
-		provider, pkg, newVersion,
+		    AND reimport_status IN ('current', 'update_available')
+		    AND cairn_parser_version(source_worker_version) < ARRAY[$3::int, $4::int]
+		    AND reimport_status_reason IS DISTINCT FROM CASE
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
+		            ELSE 'newer_parser' END`,
+		provider, pkg, live.Dataset, live.Parser,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("mark sources out-of-date for %s/%s: %w", provider, pkg, err)
@@ -1413,6 +1422,7 @@ func scanSourceRow(row rowScanner) (domain.ActivitySource, error) {
 		&status, &s.StatusReason,
 		&reimport, &s.ReimportStatusReason,
 		&s.ImportedAt, &s.LastReimportedAt, &s.UpdatedAt,
+		&s.SourceWorkerRelease,
 	)
 	if err != nil {
 		return domain.ActivitySource{}, err
@@ -1463,4 +1473,79 @@ func (r *ActivityRepo) ActivityTotalsForRange(ctx context.Context, userID domain
 		return port.ActivityTotalsResult{}, fmt.Errorf("activity totals for range: %w", err)
 	}
 	return out, nil
+}
+
+// SourceWorker is one (pool, package) an account's sources came from.
+type SourceWorker struct{ Name, Package string }
+
+// ListSourceWorkersForAccount lists the distinct pools that imported the
+// account's live sources.
+func (r *ActivityRepo) ListSourceWorkersForAccount(ctx context.Context, acct domain.ExternalAccountID) ([]SourceWorker, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT DISTINCT source_worker_name, source_worker_package FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached'`, acct.UUID())
+	if err != nil {
+		return nil, fmt.Errorf("list source workers: %w", err)
+	}
+	defer rows.Close()
+	var out []SourceWorker
+	for rows.Next() {
+		var w SourceWorker
+		if err := rows.Scan(&w.Name, &w.Package); err != nil {
+			return nil, err
+		}
+		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
+// CountSourcesOutOfDate counts the account's update_available sources per reason.
+func (r *ActivityRepo) CountSourcesOutOfDate(ctx context.Context, acct domain.ExternalAccountID) (map[string]int, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT reimport_status_reason, count(*) FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached' AND reimport_status = 'update_available'
+		 GROUP BY reimport_status_reason`, acct.UUID())
+	if err != nil {
+		return nil, fmt.Errorf("count sources out of date: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var reason string
+		var n int
+		if err := rows.Scan(&reason, &n); err != nil {
+			return nil, err
+		}
+		out[reason] = n
+	}
+	return out, rows.Err()
+}
+
+// ListSourcesOutOfDate lists the account's sources flagged update_available
+// for reason, oldest import first, at most limit.
+func (r *ActivityRepo) ListSourcesOutOfDate(ctx context.Context, acct domain.ExternalAccountID, reason string, limit int) ([]domain.ActivitySource, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `SELECT `+sourceColumns+` FROM activity_sources
+		 WHERE external_account_id = $1 AND status != 'detached'
+		   AND reimport_status = 'update_available' AND reimport_status_reason = $2
+		 ORDER BY imported_at LIMIT $3`, acct.UUID(), reason, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list sources out of date: %w", err)
+	}
+	return pgCollectRows(rows, scanSourceRow, "scan source row", "iterate source rows")
+}
+
+// MarkSourcesPoolChanged flags the account's sources imported by another
+// pool as update_available/pool_changed after the connection moved to
+// newPool, so the user sees what a re-fetch by the new pool would update.
+func (r *ActivityRepo) MarkSourcesPoolChanged(ctx context.Context, acct domain.ExternalAccountID, newPool string) (int, error) {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx, `UPDATE activity_sources
+		    SET reimport_status = 'update_available', reimport_status_reason = 'pool_changed'
+		  WHERE external_account_id = $1 AND status != 'detached' AND source_worker_name <> $2
+		    AND reimport_status IN ('current', 'update_available')`, acct.UUID(), newPool)
+	if err != nil {
+		return 0, fmt.Errorf("mark sources pool changed: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
 }

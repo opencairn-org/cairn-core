@@ -24,6 +24,7 @@
 		elevation_gain_m: number | null;
 		tss: number | null;
 		start_place: string;
+		gear_unset: boolean;
 	};
 	type Feed = {
 		total: number;
@@ -261,8 +262,16 @@
 							<SportIcon type={activity.discipline || activity.type} size={24} />
 						</div>
 						<div class="min-w-0 flex-1">
-							<div class="truncate font-medium">
-								{activity.title || `${humanize(activity.discipline || activity.type)} Activity`}
+							<div class="flex items-center gap-2">
+								<span class="truncate font-medium">
+									{activity.title || `${humanize(activity.discipline || activity.type)} Activity`}
+								</span>
+								{#if activity.gear_unset}
+									<span
+										class="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300"
+										title={m.gear_prompt_list_hint()}>{m.gear_prompt_badge()}</span
+									>
+								{/if}
 							</div>
 							<div class="mt-0.5 text-xs text-zinc-500">
 								{formatRelativeDate(activity.start_time)}{activity.start_place

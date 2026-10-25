@@ -253,6 +253,30 @@ func (r *GearRepo) ListPendingRefs(ctx context.Context, userID domain.UserID) ([
 	return out, rows.Err()
 }
 
+func (r *GearRepo) ListSiblingRefs(ctx context.Context, key domain.GearRefKey) ([]domain.GearExternalRef, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT `+gearRefColumns+gearRefFrom+`
+		   JOIN external_accounts me ON me.id = $2
+		  WHERE r.provider = $1 AND r.external_id = $3
+		    AND a.id <> me.id AND a.user_id = me.user_id AND a.provider = me.provider
+		    AND a.provider_account_id = me.provider_account_id`,
+		key.Provider, key.ExternalAccountID.UUID(), key.ExternalID)
+	if err != nil {
+		return nil, fmt.Errorf("list sibling gear refs: %w", err)
+	}
+	defer rows.Close()
+	var out []domain.GearExternalRef
+	for rows.Next() {
+		ref, err := scanGearRef(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan gear ref: %w", err)
+		}
+		out = append(out, ref)
+	}
+	return out, rows.Err()
+}
+
 func (r *GearRepo) ResolveExternalRefs(ctx context.Context, keys []domain.GearRefKey) (map[domain.GearRefKey]domain.GearID, error) {
 	out := make(map[domain.GearRefKey]domain.GearID, len(keys))
 	if len(keys) == 0 {

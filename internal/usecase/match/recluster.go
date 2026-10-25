@@ -181,7 +181,8 @@ func (uc *ReclusterBucket) reclusterBuildBucket(ctx context.Context, userID doma
 		}
 
 		b.mrecs = append(b.mrecs, dmatch.Record{
-			ID: sid,
+			ID:   sid,
+			Pool: r.SourceWorkerName,
 			SourceFeatures: dmatch.SourceFeatures{
 				Provider:   r.Provider,
 				SportClass: r.SportClass,

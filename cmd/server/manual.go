@@ -74,7 +74,7 @@ func createManualActivity(w http.ResponseWriter, r *http.Request, app *App, logg
 		return
 	}
 
-	jr := &workerv1.JobResult{WorkerName: "manual-entry", WorkerVersion: "1"}
+	jr := &workerv1.JobResult{WorkerName: "manual-entry", WorkerVersion: "1.0"}
 	ev := &workerv1.ImportedActivity{
 		Ref: &workerv1.ExternalRef{
 			UserId:     userID.String(),

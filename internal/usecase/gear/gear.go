@@ -242,6 +242,19 @@ func (s *Service) ListDefaults(ctx context.Context, userID domain.UserID) ([]dom
 // refreshes its description and follows a provider-side retirement; user
 // edits to the gear itself are never clobbered.
 func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.UserID, key domain.GearRefKey, in domain.GearImport) (domain.GearExternalRef, error) {
+	return s.importRef(ctx, claimedUser, key, in, false)
+}
+
+// NoteActivityGear records a provider gear id an activity carries as a
+// pending ref when no gear record has described it yet (import_gear failed
+// or never ran), so the user is still asked to decide. Known refs are left
+// untouched.
+func (s *Service) NoteActivityGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, name string) error {
+	_, err := s.importRef(ctx, userID, key, domain.GearImport{Name: name}, true)
+	return err
+}
+
+func (s *Service) importRef(ctx context.Context, claimedUser domain.UserID, key domain.GearRefKey, in domain.GearImport, onlyNew bool) (domain.GearExternalRef, error) {
 	acct, err := s.accounts.GetExternalAccount(ctx, key.ExternalAccountID)
 	if err != nil {
 		return domain.GearExternalRef{}, fmt.Errorf("import gear %s/%s: account: %w", key.Provider, key.ExternalID, err)
@@ -252,13 +265,17 @@ func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.Use
 	var (
 		out        domain.GearExternalRef
 		newPending bool
+		followed   bool
 	)
 	err = s.tx.InTx(ctx, func(ctx context.Context) error {
-		out, newPending, err = s.recordProviderGear(ctx, acct.UserID, key, in)
+		out, newPending, followed, err = s.recordProviderGear(ctx, acct.UserID, key, in, onlyNew)
 		return err
 	})
 	if err != nil {
 		return domain.GearExternalRef{}, fmt.Errorf("import gear %s/%s: %w", key.Provider, key.ExternalID, err)
+	}
+	if followed {
+		return out, s.afterMapping(ctx, acct.UserID, key)
 	}
 	if newPending && s.notify != nil {
 		if err := s.notify(ctx, out); err != nil {
@@ -268,27 +285,50 @@ func (s *Service) ImportFromProvider(ctx context.Context, claimedUser domain.Use
 	return out, nil
 }
 
-// recordProviderGear upserts the ref inside the import transaction and
-// reports whether it is a new pending record.
-func (s *Service) recordProviderGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, in domain.GearImport) (domain.GearExternalRef, bool, error) {
-	ref, err := s.gear.GetExternalRef(ctx, key)
-	newPending := errors.Is(err, domain.ErrNotFound)
+// recordProviderGear upserts the ref inside the import transaction. It
+// reports whether the ref is a new pending record, or new and mapped like a
+// sibling connection's ref of the same provider account (followed).
+func (s *Service) recordProviderGear(ctx context.Context, userID domain.UserID, key domain.GearRefKey, in domain.GearImport, onlyNew bool) (ref domain.GearExternalRef, newPending, followed bool, err error) {
+	ref, err = s.gear.GetExternalRef(ctx, key)
+	newPending = errors.Is(err, domain.ErrNotFound)
 	switch {
 	case newPending:
 		ref = domain.GearExternalRef{UserID: userID, Provider: key.Provider, ExternalAccountID: key.ExternalAccountID, ExternalID: key.ExternalID}
+		if gid, ok, err := s.siblingMapping(ctx, key); err != nil {
+			return domain.GearExternalRef{}, false, false, err
+		} else if ok {
+			ref.GearID, newPending, followed = &gid, false, true
+		}
 	case err != nil:
-		return domain.GearExternalRef{}, false, err
+		return domain.GearExternalRef{}, false, false, err
+	case onlyNew:
+		return ref, false, false, nil
 	}
 	ref.Describe(in, s.now())
 	if ref.GearID != nil && in.Retired {
 		if err := s.retireFromProvider(ctx, *ref.GearID); err != nil {
-			return domain.GearExternalRef{}, false, err
+			return domain.GearExternalRef{}, false, false, err
 		}
 	}
 	if err := s.gear.UpsertExternalRef(ctx, ref); err != nil {
-		return domain.GearExternalRef{}, false, err
+		return domain.GearExternalRef{}, false, false, err
 	}
-	return ref, newPending, nil
+	return ref, newPending, followed, nil
+}
+
+// siblingMapping is the gear a sibling connection already mapped this
+// provider gear id to: one decision covers every pool of an account.
+func (s *Service) siblingMapping(ctx context.Context, key domain.GearRefKey) (domain.GearID, bool, error) {
+	sibs, err := s.gear.ListSiblingRefs(ctx, key)
+	if err != nil {
+		return domain.GearID{}, false, err
+	}
+	for _, r := range sibs {
+		if r.GearID != nil {
+			return *r.GearID, true, nil
+		}
+	}
+	return domain.GearID{}, false, nil
 }
 
 // retireFromProvider follows a provider-side retirement onto the mapped gear.
@@ -384,10 +424,31 @@ func (s *Service) ownedRef(ctx context.Context, userID domain.UserID, key domain
 // gear came from the record follow the new mapping, then totals refresh.
 // Kept out of the transaction so a bike with thousands of rides does not hold
 // row locks for the whole re-derive.
+// Pending siblings on the account's other connections follow the decision.
 func (s *Service) afterMapping(ctx context.Context, userID domain.UserID, key domain.GearRefKey) error {
-	ids, err := s.gear.ListActivityIDsForRef(ctx, userID, key)
-	if err != nil {
-		return err
+	keys := []domain.GearRefKey{key}
+	if ref, err := s.gear.GetExternalRef(ctx, key); err == nil && ref.GearID != nil {
+		sibs, err := s.gear.ListSiblingRefs(ctx, key)
+		if err != nil {
+			return err
+		}
+		for _, sib := range sibs {
+			if !sib.Pending() {
+				continue
+			}
+			if _, err := s.gear.MapPendingRef(ctx, sib.Key(), *ref.GearID); err != nil {
+				return err
+			}
+			keys = append(keys, sib.Key())
+		}
+	}
+	var ids []domain.ActivityID
+	for _, k := range keys {
+		got, err := s.gear.ListActivityIDsForRef(ctx, userID, k)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, got...)
 	}
 	return s.rederive(ctx, userID, ids)
 }

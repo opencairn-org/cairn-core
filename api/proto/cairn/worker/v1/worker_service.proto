@@ -107,9 +107,9 @@ message WorkerManifest {
   // and for migration tracking when this worker upgrades.
   string worker_name = 1;
 
-  // Semantic version of the worker (e.g. "1.4.2"). Drives auto-reimport
-  // policies — activities imported by older versions can be flagged
-  // for update when this worker registers.
+  // Parser version "N.M" (docs/adr/0005). Drives update-available —
+  // sources parsed by an older version are flagged when this worker
+  // registers.
   string version = 2;
 
   // Hash of the manifest contents (excluding this field). Computed by the
@@ -734,12 +734,13 @@ message JobResult {
   bool more_available = 3;
 
   // Worker identity, stamped onto every activity_source produced from this
-  // result (source_worker_name/version/package). The update-available +
-  // re-parse-eligibility key is (provider, package, version): a newer worker
-  // from the SAME package for the SAME provider marks older sources
-  // out-of-date / re-parseable. The routing name/alias is deliberately NOT
-  // part of that key, and the former manifest_hash (field 6) is retired —
-  // those three attributes ARE the maintainer-upheld compatibility contract.
+  // result (source_worker_name/version/package/release). worker_version is
+  // the parser version "N.M" (docs/adr/0005): N = dataset (archive format)
+  // read, M = output revision, bumped on every change to the parsed output.
+  // Core only lets a parser of the same package and dataset with M >= the
+  // stored one re-parse a source, and rejects results that would lower it.
+  // The routing name is not part of that key; the former manifest_hash
+  // (field 6) is retired.
   string worker_name = 4;
   string worker_version = 5;
   reserved 6; // was manifest_hash
@@ -756,6 +757,10 @@ message JobResult {
   // Core fetches, ingests, then deletes the object (a bucket lifecycle
   // rule reaps orphans).
   PayloadRef payload_ref = 8;
+
+  // Worker release tag (e.g. "v0.5.1"), the core contract it implements;
+  // compatible when major.minor equals core's. Diagnostics only on a source.
+  string worker_release = 11;
 
   // Terminal worker-side failure, set INSTEAD of events (with failed_ref
   // for correlation). Lets the Core fail the import-queue item immediately

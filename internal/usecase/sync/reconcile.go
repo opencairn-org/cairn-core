@@ -47,13 +47,14 @@ import (
 type ReconcileExternalAccount struct {
 	accounts port.ExternalAccountRepo
 	bus      port.JobBus
+	router   port.WorkerRouter
 
 	// budgetExhausted, when non-nil, reports whether the provider's live
 	// API budget is currently spent (read from the shared rate-limit KV).
 	// Scheduled runs skip such accounts instead of queueing jobs that can
 	// only 429 — every poll against an exhausted budget is a wasted call.
 	// Force bypasses the gate.
-	budgetExhausted func(ctx context.Context, provider string) bool
+	budgetExhausted func(ctx context.Context, a domain.ExternalAccount, pool string) bool
 	// gearSync publishes an import_gear job alongside each reconcile; it
 	// decides whether the provider's worker declares gear at all. May be nil.
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error
@@ -68,7 +69,8 @@ type ReconcileExternalAccount struct {
 func NewReconcileExternalAccount(
 	accounts port.ExternalAccountRepo,
 	bus port.JobBus,
-	budgetExhausted func(ctx context.Context, provider string) bool,
+	router port.WorkerRouter,
+	budgetExhausted func(ctx context.Context, a domain.ExternalAccount, pool string) bool,
 	gearSync func(ctx context.Context, a domain.ExternalAccount) error,
 	now func() time.Time,
 	newID func() uuid.UUID,
@@ -88,6 +90,7 @@ func NewReconcileExternalAccount(
 	return &ReconcileExternalAccount{
 		accounts:        accounts,
 		bus:             bus,
+		router:          router,
 		budgetExhausted: budgetExhausted,
 		gearSync:        gearSync,
 		now:             now,
@@ -203,25 +206,45 @@ func (uc *ReconcileExternalAccount) reconcilePublishAll(ctx context.Context, tar
 	// batch, not per account.
 	exhausted := map[string]bool{}
 	for _, a := range targets {
-		if !force && uc.budgetExhausted != nil {
-			if _, seen := exhausted[a.Provider]; !seen {
-				exhausted[a.Provider] = uc.budgetExhausted(ctx, a.Provider)
-			}
-			if exhausted[a.Provider] {
-				res.AccountsSkipped++
-				continue
-			}
+		switch err := uc.publishTarget(ctx, a, reason, force, exhausted); {
+		case err == nil:
+			res.AccountsScheduled++
+		case errors.Is(err, errSkipped):
+			res.AccountsSkipped++
+		default:
+			res.Errors = append(res.Errors, ReconcileError{AccountID: a.ID, Err: err})
 		}
-		if err := uc.publishOne(ctx, a, reason); err != nil {
-			res.Errors = append(res.Errors, ReconcileError{
-				AccountID: a.ID,
-				Err:       err,
-			})
-			continue
-		}
-		res.AccountsScheduled++
 	}
 	return res
+}
+
+// errSkipped: nothing to publish for this account right now (no pool yet, or
+// the budget is spent).
+var errSkipped = errors.New("reconcile: skipped")
+
+// publishTarget routes, budget-gates and publishes one account's reconcile.
+func (uc *ReconcileExternalAccount) publishTarget(ctx context.Context, a domain.ExternalAccount, reason string, force bool, exhausted map[string]bool) error {
+	worker, err := uc.router.AccountWorker(ctx, a)
+	if errors.Is(err, domain.ErrNoWorker) {
+		return errSkipped // no pool yet: nothing could take the job
+	}
+	if err != nil {
+		return err
+	}
+	// One budget per provider app, i.e. per connection.
+	key := a.Provider + "/" + worker
+	if a.ConnectionID != nil {
+		key += "/" + a.ConnectionID.String()
+	}
+	if !force && uc.budgetExhausted != nil {
+		if _, seen := exhausted[key]; !seen {
+			exhausted[key] = uc.budgetExhausted(ctx, a, worker)
+		}
+		if exhausted[key] {
+			return errSkipped
+		}
+	}
+	return uc.publishOne(ctx, a, worker, reason)
 }
 
 // reconcileJobBody is the wire shape of the reconcile job. Encoded as
@@ -264,10 +287,10 @@ const (
 func (uc *ReconcileExternalAccount) publishOne(
 	ctx context.Context,
 	a domain.ExternalAccount,
-	reason string,
+	worker, reason string,
 ) error {
 	now := uc.now()
-	subject := fmt.Sprintf("cairn.jobs.reconcile.%s", a.Provider)
+	subject := domain.JobSubject("reconcile", a.Provider, worker)
 
 	since := now.Add(-reconcileKnownIDsLookback)
 	if a.SyncWatermark != nil {

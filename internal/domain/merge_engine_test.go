@@ -398,3 +398,45 @@ func assertSourceWon(t *testing.T, a Activity, g FieldGroup, want SourceID) {
 		t.Errorf("group %s: winner = %s, want %s", g, got, want)
 	}
 }
+
+func TestMerge_PoolPriority_PicksOneImporterOfAProvider(t *testing.T) {
+	// One Garmin account connected for two pools (docs/adr/0006): the API
+	// importer and a FIT importer. "garmin.garmin-fit" prefers the FIT pool
+	// for power even though the API source was imported later.
+	user := makeUserID("alice")
+	actID := makeActivityID("ride-pools")
+	api := makeGarminRide("g-api", user, actID, -1*time.Hour)
+	api.SourceWorkerName = "garmin-api"
+	fit := makeGarminRide("g-fit", user, actID, -2*time.Hour)
+	fit.SourceWorkerName = "garmin-fit"
+	fit.ExternalID = "fit-1"
+	fit.Parsed.Summary.AvgPowerW = Ptr(250)
+
+	resolver := func(ActivityType) MergePolicy {
+		return MergePolicy{
+			DefaultPriority: []string{"garmin", AnyProvider},
+			Overrides:       map[FieldGroup][]string{FieldGroupPower: {"garmin.garmin-fit", "garmin"}},
+		}
+	}
+	merged, err := Merge(actID, []ActivitySource{api, fit}, resolver, fixedNow)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	assertSourceWon(t, merged, FieldGroupPower, fit.ID)
+	// A bare provider entry still covers both pools: most recent import wins.
+	assertSourceWon(t, merged, FieldGroupHeartRate, api.ID)
+
+	// _any skips a source named by its pool.
+	resolver = func(ActivityType) MergePolicy {
+		return MergePolicy{DefaultPriority: []string{"garmin.garmin-api", AnyProvider}}
+	}
+	api.Parsed.Summary.AvgPowerW = nil
+	api.Parsed.Summary.MaxPowerW = nil
+	api.Parsed.Summary.NormalizedPowerW = nil
+	merged, err = Merge(actID, []ActivitySource{api, fit}, resolver, fixedNow)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	assertSourceWon(t, merged, FieldGroupPower, fit.ID)
+	assertSourceWon(t, merged, FieldGroupHeartRate, api.ID)
+}

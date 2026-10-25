@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
@@ -80,6 +81,8 @@ type App struct {
 	Clubs                  *postgres.ClubRepo
 	ExternalAccounts       *postgres.ExternalAccountRepo
 	WorkerEnrollments      *postgres.WorkerEnrollmentRepo
+	WorkerPools            port.WorkerPoolRepo
+	presence               presenceCache
 	SigningKeys            *postgres.SigningKeyRepo
 	OAuthTokens            *postgres.OAuthTokenRepo
 	DeadLetters            *postgres.DeadLetterRepo
@@ -268,6 +271,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 		cfg.Scheduler.WebhookDriftInterval,
 	)
 	app.WorkerEnrollments = postgres.NewWorkerEnrollmentRepo(pool)
+	app.WorkerPools = postgres.NewWorkerPoolRepo(pool)
 	app.SigningKeys = postgres.NewSigningKeyRepo(pool)
 	app.Sessions = postgres.NewSessionRepo(pool)
 	app.LinkedIdentities = postgres.NewLinkedIdentityRepo(pool)
@@ -493,6 +497,13 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 	if err := bus.BootstrapStreams(ctx); err != nil {
 		return err
 	}
+	// Workers compare their release with this (docs/adr/0005).
+	if kv, err := bus.KV(natsadapter.KVCoreInfo); err == nil {
+		info, _ := json.Marshal(map[string]string{"release": Version})
+		if _, err := kv.Put(ctx, "info", info); err != nil {
+			logger.Warn("publish core info failed", "error", err)
+		}
+	}
 
 	credentialIssuer := natsadapter.NewCredentialIssuer(app.SigningKeys, app.SecretBox, cfg.NATS.WorkerAccount)
 
@@ -535,8 +546,9 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 	app.ReconcileAccount = syncuc.NewReconcileExternalAccount(
 		app.ExternalAccounts,
 		bus,
-		func(ctx context.Context, provider string) bool {
-			_, exhausted := providerBudget(ctx, bus, provider)
+		presenceWorkerRouter{app: app, logger: logger},
+		func(ctx context.Context, a domain.ExternalAccount, pool string) bool {
+			_, exhausted := providerBudget(ctx, bus, a.Provider, accountAppID(ctx, app, a), pool)
 			return exhausted
 		},
 		gearSyncHook(app, logger),

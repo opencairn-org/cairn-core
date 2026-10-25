@@ -36,6 +36,12 @@ func (f *fakeEnrollments) CreateEnrollment(_ context.Context, e domain.WorkerEnr
 	return e, nil
 }
 
+func (f *fakeEnrollments) ListEnrollments(context.Context, port.ListEnrollmentsFilter) ([]domain.WorkerEnrollment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.rows), nil
+}
+
 func (f *fakeEnrollments) FindEnrollmentByTokenHash(_ context.Context, hash []byte) (domain.WorkerEnrollment, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -383,7 +389,7 @@ func TestIssueWorkerCredential(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	strava := domain.StandardPermissionTemplate("strava", "w1-strava")
+	strava := domain.StandardPermissionTemplate("strava", "w1")
 	issuer := NewCredentialIssuer(keys, box, "CAIRN")
 	for name, perms := range map[string]domain.WorkerPermissionTemplate{
 		"no provider":  domain.StandardPermissionTemplate("", "w1"),
@@ -445,9 +451,15 @@ func TestAuthCalloutScopesUnregisteredProvider(t *testing.T) {
 			t.Errorf("subscribe %s must be allowed", subj)
 		}
 	}
-	for _, subj := range []string{"cairn.tokens.polar.get", "cairn.creds.polar.get", "cairn.results.fetch_source.polar", "cairn.workers.p1-polar.heartbeat"} {
+	for _, subj := range []string{"cairn.tokens.polar.get", "cairn.creds.polar.get", "cairn.results.fetch_source.polar.p1", "cairn.accounts.lookup.polar.p1", "cairn.workers.p1-polar.heartbeat"} {
 		if !canPublish(t, nc, subj) {
 			t.Errorf("publish %s must be allowed", subj)
+		}
+	}
+	// Results are per pool: neither the pre-0.5 provider subject nor another pool's.
+	for _, subj := range []string{"cairn.results.fetch_source.polar", "cairn.results.fetch_source.polar.p2", "cairn.accounts.lookup_by_provider_ext"} {
+		if canPublish(t, nc, subj) {
+			t.Errorf("publish %s must be denied", subj)
 		}
 	}
 	for _, subj := range []string{"cairn.jobs.fetch_source.strava", "cairn.tokens.strava.>", "cairn.cmd.worker.w1-strava.>", "cairn.tokens.>", ">"} {

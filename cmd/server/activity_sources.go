@@ -323,6 +323,19 @@ func activitySourcesRefetch(w http.ResponseWriter, r *http.Request, app *App, lo
 		return
 	}
 
+	// The account's pool re-fetches; a reassigned account may switch the
+	// source to another worker package (docs/adr/0006).
+	acct, err := app.ExternalAccounts.GetExternalAccount(r.Context(), *src.ExternalAccountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+	subject, err := accountJobSubject(r.Context(), app, logger, "fetch_source", acct)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
 	// Flip to 'updating' first so a concurrent view sees the in-flight state.
 	if err := app.Activities.SetSourceReimportStatus(r.Context(), sID, domain.ReimportStatusUpdating, "user_refetch"); err != nil {
 		logger.Error("set reimport status failed", "source_id", sID, "error", err)
@@ -341,7 +354,7 @@ func activitySourcesRefetch(w http.ResponseWriter, r *http.Request, app *App, lo
 	})
 	// Deterministic msg-id collapses double-clicks within the dedup window.
 	msgID := "refetch:" + src.Provider + ":" + src.ExternalID
-	if err := app.NATSBus.Publish(r.Context(), "cairn.jobs.fetch_source."+src.Provider, msgID, body); err != nil {
+	if err := app.NATSBus.Publish(r.Context(), subject, msgID, body); err != nil {
 		// Roll the status back so the user can retry; the job never landed.
 		_ = app.Activities.SetSourceReimportStatus(r.Context(), sID, domain.ReimportStatusCurrent, "")
 		logger.Error("publish fetch_source failed", "source_id", sID, "error", err)
@@ -371,6 +384,15 @@ func writeReimportError(w http.ResponseWriter, err error) {
 	http.Error(w, "re-parse failed", http.StatusInternalServerError)
 }
 
+// minParserVersion is the source's parser version as N.M, or the raw string
+// when it is not one.
+func minParserVersion(src domain.ActivitySource) string {
+	if v, err := domain.ParseParserVersion(src.SourceWorkerVersion); err == nil {
+		return v.String()
+	}
+	return src.SourceWorkerVersion
+}
+
 // dispatchReparse mints a presigned download URL for the source's archived raw
 // blob and publishes a parse_blob.<provider> job. A worker re-runs its mapping
 // over the archive (no provider API quota) and publishes a result that flows
@@ -381,6 +403,12 @@ func dispatchReparse(ctx context.Context, app *App, logger *slog.Logger, userID 
 	}
 	if src.RawBlobID == "" {
 		return &reimportError{http.StatusBadRequest, "this source has no archived original to re-parse — re-fetch from the provider first"}
+	}
+	// Re-parse goes to a pool of the source's own package, which need not be
+	// the account's assigned one (docs/adr/0006).
+	rw, ok := reparseWorker(currentWorkers(ctx, app, logger), src)
+	if !ok {
+		return &reimportError{http.StatusConflict, "no compatible worker is online to re-parse this source (needs the same dataset and a parser at least as new)"}
 	}
 
 	signed, err := app.BlobStore.PresignDownload(ctx, src.RawBlobID, port.PresignDownloadOpts{})
@@ -400,6 +428,8 @@ func dispatchReparse(ctx context.Context, app *App, logger *slog.Logger, userID 
 		"provider":   src.Provider,
 		"account_id": acctID,
 		"ext_id":     src.ExternalID,
+		// A pooled worker with an older parser NAKs (docs/adr/0005).
+		"min_parser_version": minParserVersion(src),
 		"blob": map[string]any{
 			"url":             signed.URL,
 			"expires_at":      signed.ExpiresAt,
@@ -413,7 +443,7 @@ func dispatchReparse(ctx context.Context, app *App, logger *slog.Logger, userID 
 		return &reimportError{http.StatusInternalServerError, "could not start re-parse"}
 	}
 	msgID := "reparse:" + src.Provider + ":" + src.ExternalID
-	if err := app.NATSBus.Publish(ctx, "cairn.jobs.parse_blob."+src.Provider, msgID, body); err != nil {
+	if err := app.NATSBus.Publish(ctx, domain.JobSubject("parse_blob", src.Provider, rw.name), msgID, body); err != nil {
 		_ = app.Activities.SetSourceReimportStatus(ctx, src.ID, domain.ReimportStatusCurrent, "")
 		logger.Error("publish parse_blob failed", "source_id", src.ID, "error", err)
 		return &reimportError{http.StatusBadGateway, "could not queue re-parse"}

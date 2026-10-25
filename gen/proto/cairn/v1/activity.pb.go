@@ -1591,7 +1591,10 @@ type ActivitySourcePayload struct {
 	// the Core has not seen yet; it is resolved when the gear arrives.
 	GearExternalId string `protobuf:"bytes,22,opt,name=gear_external_id,json=gearExternalId,proto3" json:"gear_external_id,omitempty"`
 	// Provider display name of that gear, a hint until the gear is imported.
-	GearName      string `protobuf:"bytes,23,opt,name=gear_name,json=gearName,proto3" json:"gear_name,omitempty"`
+	GearName string `protobuf:"bytes,23,opt,name=gear_name,json=gearName,proto3" json:"gear_name,omitempty"`
+	// The worker could not look the gear up (lookup disabled or failed); not
+	// "no gear". Core keeps the source's previous gear on a re-import.
+	GearUnknown   bool `protobuf:"varint,24,opt,name=gear_unknown,json=gearUnknown,proto3" json:"gear_unknown,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1785,6 +1788,13 @@ func (x *ActivitySourcePayload) GetGearName() string {
 		return x.GearName
 	}
 	return ""
+}
+
+func (x *ActivitySourcePayload) GetGearUnknown() bool {
+	if x != nil {
+		return x.GearUnknown
+	}
+	return false
 }
 
 type ActivityLap struct {
@@ -5047,7 +5057,7 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"importedAt\x12H\n" +
 	"\x12last_reimported_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\x10lastReimportedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\b\x10\t\"\xa4\t\n" +
+	"updated_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\b\x10\t\"\xc7\t\n" +
 	"\x15ActivitySourcePayload\x12*\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x124\n" +
 	"\n" +
@@ -5077,7 +5087,8 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x15provider_best_efforts\x18\x11 \x03(\v2\x1c.cairn.v1.ProviderBestEffortR\x13providerBestEfforts\x12@\n" +
 	"\x05extra\x18\x12 \x03(\v2*.cairn.v1.ActivitySourcePayload.ExtraEntryR\x05extra\x12(\n" +
 	"\x10gear_external_id\x18\x16 \x01(\tR\x0egearExternalId\x12\x1b\n" +
-	"\tgear_name\x18\x17 \x01(\tR\bgearName\x1a8\n" +
+	"\tgear_name\x18\x17 \x01(\tR\bgearName\x12!\n" +
+	"\fgear_unknown\x18\x18 \x01(\bR\vgearUnknown\x1a8\n" +
 	"\n" +
 	"ExtraEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

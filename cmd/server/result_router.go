@@ -77,6 +77,10 @@ func routeJobResult(ctx context.Context, app *App, log *slog.Logger, msg port.Me
 	// Worker-reported terminal failure: fail the queue item now with the
 	// true reason. Without this the item sits in_progress until the stale
 	// reaper masks the cause as "no result after N dispatch attempts".
+	if err := checkResultPool(ctx, app, log, msg.Subject, &jr); err != nil {
+		log.Error("result rejected", "subject", msg.Subject, "worker", jr.GetWorkerName(), "package", jr.GetWorkerPackage(), "error", err)
+		return nil // deterministic: redelivery cannot fix it
+	}
 	if jr.GetError() != nil {
 		applyWorkerFailure(ctx, app, log, msg.Subject, &jr)
 		return nil
@@ -141,7 +145,8 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 	// earlier without a DB round-trip. Each effort resolves its activity by
 	// external id (FindSourceByExternalID), so the segment message is
 	// self-contained.
-	b := &ingestBundle{segByExternal: map[string]domain.SegmentID{}}
+	job, _, _, _ := domain.ResultSubjectPool(subject)
+	b := &ingestBundle{segByExternal: map[string]domain.SegmentID{}, job: job}
 
 	for _, ev := range jr.GetEvents() {
 		if err := processWorkerEvent(ctx, app, log, jr, b, ev); err != nil {
@@ -155,23 +160,7 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ev *workerv1.WorkerEvent) error {
 	switch ev.GetType() {
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_ACTIVITY:
-		if _, err := ingestActivityEvent(ctx, app, log, jr, ev.GetActivity()); err != nil {
-			// Terminal (bad data) → fail the queue item + ACK; retrying the
-			// same payload can't help, and leaving it in_progress would
-			// deadlock the account's capacity-gated queue. Postgres
-			// integrity/data violations are equally deterministic for a
-			// given payload — without this they NAK-loop into the DLQ and
-			// the item wedges as a masked "stale: no result" (live case:
-			// duplicate stream timestamps, 5 wasted provider re-fetches
-			// per activity).
-			if domain.IsActivityValidationError(err) || isDeterministicDBError(err) {
-				failQueueItem(ctx, app, log, ev.GetActivity().GetRef(), err)
-				return nil
-			}
-			// Transient (DB blip) → NAK; JetStream redelivers. Re-processing
-			// is safe — ingest dedups on (provider, external_id).
-			return err
-		}
+		return processActivityEvent(ctx, app, log, jr, b, ev.GetActivity())
 
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_SEGMENT:
 		// Non-fatal: a bad segment must not fail the durable activity ingest.
@@ -214,14 +203,16 @@ func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *wor
 // new still counts as "checked" and the account isn't re-polled every tick.
 // Returns whether the message was a reconcile result (and thus fully handled).
 func applyReconcileResult(ctx context.Context, app *App, log *slog.Logger, subject string, jr *workerv1.JobResult) bool {
+	// cairn.results.reconcile.<provider>[.<pool>].<account>
 	parts := strings.Split(subject, ".")
-	if len(parts) != 5 || parts[0] != "cairn" || parts[1] != "results" || parts[2] != "reconcile" {
+	if (len(parts) != 5 && len(parts) != 6) || parts[0] != "cairn" || parts[1] != "results" || parts[2] != "reconcile" {
 		return false
 	}
 	if app.ExternalAccounts == nil {
 		return true
 	}
-	au, err := uuid.Parse(parts[4])
+	acctToken := parts[len(parts)-1]
+	au, err := uuid.Parse(acctToken)
 	if err != nil {
 		log.Warn("reconcile result with unparseable account id", "subject", subject)
 		return true
@@ -233,7 +224,7 @@ func applyReconcileResult(ctx context.Context, app *App, log *slog.Logger, subje
 		wm = ts.AsTime()
 	}
 	if err := app.ExternalAccounts.UpdateSyncWatermark(ctx, domain.ExternalAccountID(au), wm, true, time.Now().UTC()); err != nil {
-		log.Warn("apply reconcile result failed", "account_id", parts[4], "error", err)
+		log.Warn("apply reconcile result failed", "account_id", acctToken, "error", err)
 	}
 	return true
 }
@@ -262,8 +253,35 @@ func applyWorkerFailure(ctx context.Context, app *App, log *slog.Logger, subject
 	if m := we.GetMessage(); m != "" {
 		reason += ": " + m
 	}
+	if job, provider, _, ok := domain.ResultSubjectPool(subject); ok && job == "parse_blob" {
+		markReparseFailed(ctx, app, log, provider, ref, we.GetCode(), reason)
+		return
+	}
 	if err := app.ImportQueue.MarkFailedByExternalID(ctx, domain.ExternalAccountID(eu), domain.ImportItemActivity, ref.GetExternalId(), reason); err != nil {
 		log.Warn("mark queue item failed", "external_id", ref.GetExternalId(), "error", err)
+	}
+}
+
+// markReparseFailed records a failed re-parse on the source. parser_too_old
+// (no instance of the pool is new enough yet) keeps the source flagged for
+// re-parse instead of failing it.
+func markReparseFailed(ctx context.Context, app *App, log *slog.Logger, provider string, ref *workerv1.ExternalRef, code, reason string) {
+	acctUUID, err := uuid.Parse(ref.GetExternalAccountId())
+	if err != nil {
+		return
+	}
+	acct := domain.ExternalAccountID(acctUUID)
+	src, err := app.Activities.FindSourceByExternalID(ctx, provider, &acct, ref.GetExternalId())
+	if err != nil {
+		log.Warn("re-parse failure for unknown source", "external_id", ref.GetExternalId(), "error", err)
+		return
+	}
+	status, why := domain.ReimportStatusFailed, reason
+	if code == "parser_too_old" {
+		status, why = domain.ReimportStatusUpdateAvailable, "newer_parser"
+	}
+	if err := app.Activities.SetSourceReimportStatus(ctx, src.ID, status, why); err != nil {
+		log.Warn("set reimport status after failure", "source_id", src.ID, "error", err)
 	}
 }
 
@@ -357,10 +375,39 @@ func ingestGearEvent(ctx context.Context, app *App, g *workerv1.ImportedGear) er
 	return err
 }
 
+// processActivityEvent ingests one activity; a returned error NAKs the message.
+func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ia *workerv1.ImportedActivity) error {
+	// A pool may only import for its own accounts and re-parse its own
+	// package's sources (docs/adr/0006).
+	if err := checkResultAccount(ctx, app, b.job, jr, ia); err != nil {
+		failQueueItem(ctx, app, log, ia.GetRef(), err)
+		return nil
+	}
+	_, err := ingestActivityEvent(ctx, app, log, jr, ia)
+	if err == nil {
+		return nil
+	}
+	// Terminal (bad data) → fail the queue item + ACK; retrying the same
+	// payload can't help, and leaving it in_progress would deadlock the
+	// account's capacity-gated queue. Postgres integrity/data violations are
+	// equally deterministic for a given payload — without this they NAK-loop
+	// into the DLQ and the item wedges as a masked "stale: no result" (live
+	// case: duplicate stream timestamps, 5 wasted provider re-fetches per
+	// activity).
+	if domain.IsActivityValidationError(err) || isDeterministicDBError(err) {
+		failQueueItem(ctx, app, log, ia.GetRef(), err)
+		return nil
+	}
+	// Transient (DB blip) → NAK; JetStream redelivers. Re-processing is
+	// safe — ingest dedups on (provider, external_id).
+	return err
+}
+
 // ingestBundle memoises segments created earlier in the same JobResult message
 // so efforts resolve them without a DB round-trip.
 type ingestBundle struct {
 	segByExternal map[string]domain.SegmentID
+	job           string // job kind of the result subject
 }
 
 // ingestSegmentEvent find-or-creates the external (provider-mirrored) segment
@@ -514,6 +561,7 @@ func ingestActivityEvent(
 		SourceWorkerName:    jr.GetWorkerName(),
 		SourceWorkerVersion: jr.GetWorkerVersion(),
 		SourceWorkerPackage: jr.GetWorkerPackage(),
+		SourceWorkerRelease: jr.GetWorkerRelease(),
 		RawBlobID:           ia.GetRawBlobId(),
 		RawContentType:      ia.GetRawContentType(),
 		RawSizeBytes:        ia.GetRawSizeBytes(),
@@ -531,6 +579,7 @@ func ingestActivityEvent(
 			"provider", in.Provider, "external_id", in.ExternalID, "error", err)
 		return activity.IngestResult{}, err
 	}
+	ingestActivityGearRef(ctx, app, log, in)
 	ingestActivityRecluster(ctx, app, log, in.UserID, payload.StartTime)
 	log.Info("ingest succeeded",
 		"activity_id", out.ActivityID, "source_id", out.SourceID, "action", out.Action)
@@ -560,6 +609,18 @@ func ingestActivityParseRef(ref *workerv1.ExternalRef) (uuid.UUID, *domain.Exter
 	}
 	ea := domain.ExternalAccountID(eu)
 	return uid, &ea, nil
+}
+
+// ingestActivityGearRef makes an unknown provider gear id a pending decision.
+// Non-fatal, like the gear event.
+func ingestActivityGearRef(ctx context.Context, app *App, log *slog.Logger, in activity.IngestInput) {
+	if app.Gear == nil || in.ExternalAccountID == nil || in.Payload.GearExternalID == "" {
+		return
+	}
+	key := domain.GearRefKey{Provider: in.Provider, ExternalAccountID: *in.ExternalAccountID, ExternalID: in.Payload.GearExternalID}
+	if err := app.Gear.NoteActivityGear(ctx, in.UserID, key, in.Payload.GearName); err != nil {
+		log.Warn("note activity gear failed", "provider", in.Provider, "gear_external_id", key.ExternalID, "error", err)
+	}
 }
 
 // ingestActivityRecluster re-derives same-activity grouping around the new source.

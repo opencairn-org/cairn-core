@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { formatDate } from '#lib/format.js';
+	import ActivityNav from '#lib/components/ActivityNav.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -45,6 +46,11 @@
 		external_account: string;
 		worker_name: string;
 		worker_version: string;
+		worker_release: string;
+		parser_version: string;
+		dataset_version: string;
+		reparse_with: string;
+		upgrade: '' | 'new_parser' | 'new_dataset';
 		worker_package: string;
 		reparse_eligible: boolean;
 		has_blob: boolean;
@@ -324,9 +330,7 @@
 
 <section class="space-y-8">
 	<header>
-		<a href={`/activities/${a.id}`} class="text-xs text-accent-400 hover:text-accent-300">
-			← {a.title || 'Activity'}
-		</a>
+		<ActivityNav id={a.id} title={a.title} />
 		<h1 class="mt-2 text-2xl font-semibold tracking-tight">Manage &amp; insights</h1>
 		<p class="mt-1 text-sm text-zinc-400">
 			Technical provenance and maintenance actions for this activity.
@@ -534,8 +538,21 @@
 								{#if s.reparse_eligible}
 									<span
 										class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase text-sky-300"
-										title={`A worker matching this importer (v${s.worker_version}, same build) is online — this source can be re-parsed from its archive`}
+										title={`A worker with parser ${s.reparse_with} (dataset v${s.dataset_version}) is online — this source can be re-parsed from its archive`}
 										>re-parsable</span
+									>
+								{/if}
+								{#if s.upgrade === 'new_parser'}
+									<span
+										class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase text-sky-300"
+										title={`Parsed by ${s.parser_version}; a newer parser is online. Re-parse from the archive to pick up its changes (no provider quota).`}
+										>newer parser</span
+									>
+								{:else if s.upgrade === 'new_dataset'}
+									<span
+										class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
+										title={`Imported as dataset v${s.dataset_version}; the online worker uses a newer archive format and cannot read it. Re-fetch from the provider.`}
+										>new dataset</span
 									>
 								{/if}
 								{#if s.reimport_status && s.reimport_status !== 'current'}
@@ -575,13 +592,17 @@
 										onclick={() => reparseSource(s)}
 										class="text-xs text-accent-400 hover:text-accent-300 disabled:opacity-50"
 									>
-										{busy === `reparse-${s.id}` ? 'Queuing…' : 'Re-parse from archive'}
+										{busy === `reparse-${s.id}`
+											? 'Queuing…'
+											: s.reparse_with && s.reparse_with !== s.parser_version
+												? `Re-parse with ${s.reparse_with}`
+												: 'Re-parse from archive'}
 									</button>
 								{:else if s.status !== 'detached'}
 									<span
 										class="inline-flex items-center gap-1 text-xs text-zinc-600"
 										title={s.has_blob
-											? `Re-parse re-runs the importing worker (${s.worker_name || s.provider} v${s.worker_version}, same build) over the archived bytes — it must be online.`
+											? `Re-parse needs a ${s.provider} worker online that reads dataset v${s.dataset_version || '?'} with parser ${s.parser_version || '?'} or newer.`
 											: 'No archived original to re-parse — re-fetch from the provider to create one.'}
 									>
 										<span class="cursor-not-allowed line-through decoration-zinc-700"
@@ -589,7 +610,7 @@
 										>
 										<span class="text-[10px] not-italic text-zinc-500">
 											{s.has_blob
-												? `· needs ${s.worker_name || s.provider} v${s.worker_version} worker online`
+												? `· needs ${s.provider} parser ≥ ${s.parser_version || s.worker_version} online`
 												: '· no archived original yet'}
 										</span>
 									</span>
@@ -630,16 +651,24 @@
 								<dd class="text-zinc-300">{formatDate(s.imported_at)}</dd>
 							</div>
 							<div class="flex justify-between gap-2">
-								<dt class="text-zinc-500">Last reimported</dt>
+								<dt class="text-zinc-500">Last parsed</dt>
 								<dd class="text-zinc-300">
 									{s.last_reimported_at ? formatDate(s.last_reimported_at) : '—'}
 								</dd>
 							</div>
 							<div class="flex justify-between gap-2">
-								<dt class="text-zinc-500">Importer</dt>
+								<dt class="text-zinc-500" title="Archive format the source was imported as">
+									Dataset
+								</dt>
+								<dd class="text-zinc-300">{s.dataset_version ? `v${s.dataset_version}` : '—'}</dd>
+							</div>
+							<div class="flex justify-between gap-2">
+								<dt class="text-zinc-500" title="Parser that produced the current data">Parser</dt>
 								<dd class="text-zinc-300">
-									{s.worker_name || '—'}{#if s.worker_version}
-										<span class="text-zinc-500"> v{s.worker_version}</span>{/if}
+									{s.parser_version || '—'}
+									<span class="text-zinc-500"
+										>{s.worker_name || ''}{s.worker_release ? ` ${s.worker_release}` : ''}</span
+									>
 								</dd>
 							</div>
 							<div class="flex justify-between gap-2">

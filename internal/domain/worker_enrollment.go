@@ -238,66 +238,86 @@ type WorkerPermissionTemplate struct {
 	AllowResponseTTL     time.Duration
 }
 
+// JobSubject is the subject core publishes a job on and the named worker
+// pool consumes: cairn.jobs.<job>.<provider>.<worker_name> (docs/adr/0006).
+// Provider and name are separate tokens, so no two pools overlap on the
+// CAIRN_JOBS work queue.
+func JobSubject(job, provider, workerName string) string {
+	return "cairn.jobs." + job + "." + provider + "." + workerName
+}
+
+// ResultSubject is where a pool publishes a job kind's results:
+// cairn.results.<job>.<provider>.<worker_name> (reconcile adds the account).
+func ResultSubject(job, provider, workerName string) string {
+	return "cairn.results." + job + "." + provider + "." + workerName
+}
+
+// LookupSubject is the pool's request/reply subject for resolving a
+// provider owner id to its connection (webhooks).
+func LookupSubject(provider, workerName string) string {
+	return "cairn.accounts.lookup." + provider + "." + workerName
+}
+
+// DiscoverSubject is the request/reply subject the named pool answers
+// discovery on.
+func DiscoverSubject(provider, workerName string) string {
+	return "cairn.discover." + provider + "." + workerName
+}
+
+// WorkerJobTypes are the job kinds a worker pool consumes (provider contract §3).
+var WorkerJobTypes = []string{"fetch_source", "parse_blob", "backfill", "reconcile", "import_metrics", "import_gear"}
+
 // StandardPermissionTemplate produces the canonical pub/sub list for a worker.
 //
-// Two scopes:
-//   - Provider-scoped (job dispatch, tokens, results, blobs): keyed on the
-//     PROVIDER, because the server dispatches by the account's provider and
-//     workers of the same provider currently share these subjects.
-//   - Worker-scoped (presence, control, WEBHOOKS): keyed on the WORKER KEY
-//     {name}-{provider}, so a worker owns its own webhook subject + control
-//     channel. This is what makes the webhook URL worker-name-specific.
-//
-// (Full per-worker isolation of job/token subjects is a follow-up; doing it
-// requires the server to resolve provider→worker-key at dispatch time.)
+// Three scopes:
+//   - Pool-scoped (jobs): keyed on provider AND worker name; core routes
+//     each job to one named pool (docs/adr/0006).
+//   - Provider-scoped (tokens, results, blobs): shared by the provider's
+//     workers.
+//   - Worker-scoped (presence, control, webhooks): keyed on the worker key
+//     {name}-{provider}, which is also the webhook URL.
 //
 // JetStream: workers pull jobs and webhook events through durable consumers
-// and use three KV buckets, so the template adds the JetStream API subjects
-// for exactly those (see workerJetStreamPublish).
-//
-// The function is pure (no I/O, no shared state) so the auth-callout can call
-// it on the hot path without coordination. An empty provider yields empty
-// allow lists, which the credential issuer refuses to sign.
-func StandardPermissionTemplate(provider, workerKey string) WorkerPermissionTemplate {
-	if provider == "" {
+// use three KV buckets and read core's info bucket, so the template adds the
+// JetStream API subjects for exactly those (see workerJetStreamPublish).
+func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTemplate {
+	if provider == "" || workerName == "" {
 		return WorkerPermissionTemplate{Name: "standard"}
 	}
 	p := provider
-	wk := workerKey
-	if wk == "" {
-		wk = p
+	wk := WorkerKey(workerName, provider)
+	jobs := make([]string, 0, 2*len(WorkerJobTypes))
+	for _, j := range WorkerJobTypes {
+		jobs = append(jobs, JobSubject(j, p, workerName))
 	}
-	// Job subjects as core publishes them (docs: provider contract §3).
-	jobs := []string{
-		fmt.Sprintf("cairn.jobs.fetch_source.%s", p),
-		fmt.Sprintf("cairn.jobs.parse_blob.%s", p),
-		fmt.Sprintf("cairn.jobs.backfill.%s", p),
-		fmt.Sprintf("cairn.jobs.reconcile.%s", p),
-		fmt.Sprintf("cairn.jobs.import_metrics.%s", p),
-		fmt.Sprintf("cairn.jobs.import_gear.%s", p),
+	// Pre-0.5 provider-only subjects, so an upgraded pool drains jobs queued
+	// before the upgrade. Remove in 0.6.
+	for _, j := range WorkerJobTypes {
+		jobs = append(jobs, "cairn.jobs."+j+"."+p)
 	}
 	webhookEvent := fmt.Sprintf("cairn.webhooks.%s.event", wk)
 	return WorkerPermissionTemplate{
 		Name: "standard",
 		AllowPublish: append([]string{
-			fmt.Sprintf("cairn.results.fetch_source.%s", p),
-			fmt.Sprintf("cairn.results.parse_blob.%s", p),
-			fmt.Sprintf("cairn.results.backfill.%s", p),
-			fmt.Sprintf("cairn.results.reconcile.%s.*", p), // account-suffixed
-			fmt.Sprintf("cairn.results.import_metrics.%s", p),
-			fmt.Sprintf("cairn.results.import_gear.%s", p),
-			fmt.Sprintf("cairn.jobs.fetch_source.%s", p), // reconcile/webhook sub-jobs
+			// Results per pool; core checks the sender's name against the subject.
+			ResultSubject("fetch_source", p, workerName),
+			ResultSubject("parse_blob", p, workerName),
+			ResultSubject("backfill", p, workerName),
+			ResultSubject("reconcile", p, workerName) + ".*", // account-suffixed
+			ResultSubject("import_metrics", p, workerName),
+			ResultSubject("import_gear", p, workerName),
+			LookupSubject(p, workerName),              // webhook → account resolution
+			JobSubject("fetch_source", p, workerName), // reconcile/webhook sub-jobs to its own pool
 			fmt.Sprintf("cairn.workers.%s.>", wk),
 			fmt.Sprintf("cairn.tokens.%s.>", p),
 			fmt.Sprintf("cairn.creds.%s.get", p), // custom-credential providers
 			fmt.Sprintf("cairn.blobs.presign_upload.%s", p),
 			fmt.Sprintf("cairn.blobs.presign_download.%s", p),
-			"cairn.accounts.lookup_by_provider_ext", // webhook → account resolution
-			"_INBOX.>",                              // request/reply replies the worker initiates
+			"_INBOX.>", // request/reply replies the worker initiates
 		}, workerJetStreamPublish(jobs, webhookEvent)...),
 		AllowSubscribe: append(slices.Clone(jobs),
 			fmt.Sprintf("cairn.cmd.worker.%s.>", wk),
-			fmt.Sprintf("cairn.discover.%s", p),
+			DiscoverSubject(p, workerName),
 			webhookEvent,
 			fmt.Sprintf("cairn.webhooks.%s.verify", wk),
 			"_INBOX.>",
@@ -315,6 +335,8 @@ const (
 	WorkerPresenceBucket = "cairn_worker_presence"
 	WorkerManifestBucket = "cairn_worker_manifests"
 	WorkerRateBucket     = "cairn_rate_limits"
+	// CoreInfoBucket holds core's release under key "info"; workers read it.
+	CoreInfoBucket = "cairn_core"
 )
 
 // workerJetStreamPublish lists the JetStream API subjects a worker needs:
@@ -341,6 +363,12 @@ func workerJetStreamPublish(jobs []string, webhookEvent string) []string {
 			"$JS.ACK."+st+".>",
 		)
 	}
+	// Core's release, read-only (docs/adr/0005 release check).
+	out = append(out,
+		"$JS.API.STREAM.INFO.KV_"+CoreInfoBucket,
+		"$JS.API.DIRECT.GET.KV_"+CoreInfoBucket+".>",
+		"$JS.API.STREAM.MSG.GET.KV_"+CoreInfoBucket,
+	)
 	for _, b := range []string{WorkerPresenceBucket, WorkerManifestBucket, WorkerRateBucket} {
 		out = append(out,
 			"$JS.API.STREAM.INFO.KV_"+b,

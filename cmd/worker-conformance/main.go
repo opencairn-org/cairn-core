@@ -26,6 +26,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+
+	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
 type check struct {
@@ -67,16 +69,16 @@ func main() {
 		os.Exit(2)
 	}
 
-	required := conformanceRequiredSubjects(*provider, *parseBlob, *metrics, *gear)
+	required := conformanceRequiredSubjects(*provider, *workerName, *parseBlob, *metrics, *gear)
 
 	var checks []check
 	checks = append(checks, check{"presence heartbeat", checkPresence(js, *workerName)})
 	for _, subj := range required {
 		checks = append(checks, check{"consumer for " + subj, checkConsumer(js, subj)})
 	}
-	checks = append(checks, check{"discover request/reply", checkDiscover(nc, *provider, *timeout)})
+	checks = append(checks, check{"discover request/reply", checkDiscover(nc, *provider, *workerName, *timeout)})
 	if *active {
-		checks = append(checks, check{"reconcile round-trip", checkReconcile(js, *provider, *accountID, *timeout)})
+		checks = append(checks, check{"reconcile round-trip", checkReconcile(js, *provider, *workerName, *accountID, *timeout)})
 	}
 
 	if failed := conformanceReport(checks); failed > 0 {
@@ -86,20 +88,22 @@ func main() {
 	fmt.Println("\nworker is contract-compliant")
 }
 
-// conformanceRequiredSubjects lists the job subjects the worker must consume.
-func conformanceRequiredSubjects(provider string, parseBlob, metrics, gear bool) []string {
-	required := []string{
-		"cairn.jobs.fetch_source." + provider,
-		"cairn.jobs.reconcile." + provider,
-	}
+// conformanceRequiredSubjects lists the job subjects the worker's pool must
+// consume (docs/adr/0006: cairn.jobs.<job>.<provider>.<worker_name>).
+func conformanceRequiredSubjects(provider, workerName string, parseBlob, metrics, gear bool) []string {
+	jobs := []string{"fetch_source", "reconcile"}
 	if parseBlob {
-		required = append(required, "cairn.jobs.parse_blob."+provider)
+		jobs = append(jobs, "parse_blob")
 	}
 	if metrics {
-		required = append(required, "cairn.jobs.import_metrics."+provider)
+		jobs = append(jobs, "import_metrics")
 	}
 	if gear {
-		required = append(required, "cairn.jobs.import_gear."+provider)
+		jobs = append(jobs, "import_gear")
+	}
+	required := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		required = append(required, domain.JobSubject(j, provider, workerName))
 	}
 	return required
 }
@@ -175,11 +179,12 @@ func checkConsumer(js nats.JetStreamContext, subject string) error {
 // checkDiscover sends an empty-account discover request. Any well-formed
 // reply passes — including {"error": ...}: the contract requires a valid
 // response shape, not successful listing without credentials.
-func checkDiscover(nc *nats.Conn, provider string, timeout time.Duration) error {
+func checkDiscover(nc *nats.Conn, provider, workerName string, timeout time.Duration) error {
 	req, _ := json.Marshal(map[string]any{"account_id": "", "start_page": 1})
-	msg, err := nc.Request("cairn.discover."+provider, req, timeout)
+	subj := domain.DiscoverSubject(provider, workerName)
+	msg, err := nc.Request(subj, req, timeout)
 	if err != nil {
-		return fmt.Errorf("no reply on cairn.discover.%s: %w", provider, err)
+		return fmt.Errorf("no reply on %s: %w", subj, err)
 	}
 	return validateDiscoverReply(msg.Data)
 }
@@ -187,7 +192,7 @@ func checkDiscover(nc *nats.Conn, provider string, timeout time.Duration) error 
 // checkReconcile publishes a synthetic reconcile job for accountID and waits
 // for the account-suffixed result. Requires a dev stack where the worker can
 // resolve that account's credentials.
-func checkReconcile(js nats.JetStreamContext, provider, accountID string, timeout time.Duration) error {
+func checkReconcile(js nats.JetStreamContext, provider, workerName, accountID string, timeout time.Duration) error {
 	if accountID == "" {
 		return fmt.Errorf("--active requires --account-id of an existing account")
 	}
@@ -203,7 +208,7 @@ func checkReconcile(js nats.JetStreamContext, provider, accountID string, timeou
 		"job_id": jobID, "account_id": accountID, "provider": provider,
 		"max_enqueue": 1,
 	})
-	if _, err := js.Publish("cairn.jobs.reconcile."+provider, body, nats.MsgId("conformance:"+jobID)); err != nil {
+	if _, err := js.Publish(domain.JobSubject("reconcile", provider, workerName), body, nats.MsgId("conformance:"+jobID)); err != nil {
 		return fmt.Errorf("publish reconcile job: %w", err)
 	}
 

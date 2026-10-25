@@ -71,6 +71,10 @@ var (
 	ErrGearRefMapped = errors.New("gear: provider record is already mapped")
 )
 
+// ErrParserDowngrade rejects a result from an older parser than the one that
+// last parsed the source (docs/adr/0005: versions only move forward).
+var ErrParserDowngrade = errors.New("source: parser version older than the stored one")
+
 // Segment invariants — checked by Segment.Validate.
 var (
 	ErrSegmentInvalidSource            = errors.New("segment: source must be external or native")
@@ -94,7 +98,7 @@ func IsActivityValidationError(err error) bool {
 		ErrActivityMissingID, ErrActivityMissingUserID, ErrActivityInvalidType,
 		ErrActivityDisciplineIncompatible, ErrActivityInvalidPrivacy, ErrActivityTimeOrder,
 		ErrActivityNegativeDuration, ErrActivityMovingExceedsElapsed, ErrActivityMissingTimezone,
-		ErrNoClassification,
+		ErrNoClassification, ErrParserDowngrade,
 	} {
 		if errors.Is(err, e) {
 			return true

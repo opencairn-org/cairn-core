@@ -3,6 +3,7 @@ package gear
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -181,6 +182,36 @@ func TestImportFromProvider_OwnerComesFromTheAccount(t *testing.T) {
 	}
 }
 
+func TestNoteActivityGear_PendingOnlyWhenUnknown(t *testing.T) {
+	h := newHarness()
+	ctx := context.Background()
+	key := h.key("strava", h.account("strava"), "b7")
+
+	// Gear id seen only on an activity (import_gear never described it).
+	if err := h.svc.NoteActivityGear(ctx, h.user, key, ""); err != nil {
+		t.Fatalf("note: %v", err)
+	}
+	if pending, _ := h.svc.ListPending(ctx, h.user); len(pending) != 1 || len(h.notified) != 1 {
+		t.Fatalf("pending = %d, notified = %d", len(pending), len(h.notified))
+	}
+
+	// A described ref is not clobbered by the activity's sparse view.
+	if _, err := h.svc.ImportFromProvider(ctx, h.user, key, domain.GearImport{Kind: domain.GearKindBike, Name: "Canyon"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.svc.NoteActivityGear(ctx, h.user, key, ""); err != nil {
+		t.Fatal(err)
+	}
+	pending, _ := h.svc.ListPending(ctx, h.user)
+	if len(pending) != 1 || pending[0].ProviderName != "Canyon" || pending[0].Kind != domain.GearKindBike || len(h.notified) != 1 {
+		t.Fatalf("pending = %+v, notified = %d", pending, len(h.notified))
+	}
+
+	if err := h.svc.NoteActivityGear(ctx, domain.UserID(uuid.New()), key, ""); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("foreign user: %v", err)
+	}
+}
+
 func TestDecisions_DefaultNotOverwritten(t *testing.T) {
 	h := newHarness()
 	ctx := context.Background()
@@ -317,5 +348,53 @@ func TestUpdate_RetireStampsTimeAndValidates(t *testing.T) {
 	}
 	if _, err := h.svc.Create(ctx, h.user, CreateInput{Kind: domain.GearKindBike, Name: string(long)}); !errors.Is(err, domain.ErrGearFieldTooLong) {
 		t.Fatalf("over-long name accepted: %v", err)
+	}
+}
+
+func TestSiblingConnections_ShareOneDecision(t *testing.T) {
+	// One Garmin account connected for two pools (docs/adr/0006).
+	h := newHarness()
+	ctx := context.Background()
+	apiAcct, fitAcct, otherAcct := h.account("garmin"), h.account("garmin"), h.account("garmin")
+	h.repo.SetProviderAccount(apiAcct, "123")
+	h.repo.SetProviderAccount(fitAcct, "123")
+	h.repo.SetProviderAccount(otherAcct, "456") // another Garmin account: not a sibling
+	api, fit, other := h.key("garmin", apiAcct, "g1"), h.key("garmin", fitAcct, "g1"), h.key("garmin", otherAcct, "g1")
+	in := domain.GearImport{Kind: domain.GearKindBike, Name: "Canyon"}
+
+	// Both pools report the gear before any decision: two pending refs.
+	for _, k := range []domain.GearRefKey{api, fit, other} {
+		if _, err := h.svc.ImportFromProvider(ctx, h.user, k, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	act := domain.ActivityID(uuid.New())
+	h.repo.Attach(act, h.user, nil, &fit, domain.GearSetByMerge)
+
+	// Deciding on one connection maps the sibling and re-derives its activity.
+	g, err := h.svc.CreateFromRef(ctx, h.user, api)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ref, _ := h.repo.GetExternalRef(ctx, fit); ref.GearID == nil || *ref.GearID != g.ID {
+		t.Fatalf("sibling ref = %+v", ref)
+	}
+	if ref, _ := h.repo.GetExternalRef(ctx, other); !ref.Pending() {
+		t.Fatalf("another account's ref was mapped: %+v", ref)
+	}
+	if !slices.Contains(h.recomputed, act) {
+		t.Fatalf("sibling activity not re-derived: %v", h.recomputed)
+	}
+
+	// A third connection of the same account follows without asking.
+	lateAcct := h.account("garmin")
+	h.repo.SetProviderAccount(lateAcct, "123")
+	notified := len(h.notified)
+	ref, err := h.svc.ImportFromProvider(ctx, h.user, h.key("garmin", lateAcct, "g1"), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ref.GearID == nil || *ref.GearID != g.ID || len(h.notified) != notified {
+		t.Fatalf("late sibling = %+v, notified %d→%d", ref, notified, len(h.notified))
 	}
 }

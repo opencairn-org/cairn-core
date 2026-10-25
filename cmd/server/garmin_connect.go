@@ -68,7 +68,12 @@ func garminImportHealthHandler(app *App) http.HandlerFunc {
 		body, _ := json.Marshal(job)
 		// Unique per request so re-triggering within the dedup window isn't dropped.
 		msgID := fmt.Sprintf("import_metrics:%s:%s:%d", acct.Provider, accID.String(), now.Unix())
-		if err := app.NATSBus.Publish(r.Context(), "cairn.jobs.import_metrics."+acct.Provider, msgID, body); err != nil {
+		subject, err := accountJobSubject(r.Context(), app, slog.Default(), "import_metrics", acct)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		if err := app.NATSBus.Publish(r.Context(), subject, msgID, body); err != nil {
 			http.Error(w, "enqueue failed", http.StatusInternalServerError)
 			return
 		}

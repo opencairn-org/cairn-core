@@ -29,6 +29,7 @@ const (
 	KVWorkerManifests = "cairn_worker_manifests"
 	KVRateLimits      = "cairn_rate_limits"
 	KVBlobHandles     = "cairn_blob_handles"
+	KVCoreInfo        = "cairn_core"
 
 	OSTransient = "cairn_transient"
 )
@@ -167,6 +168,12 @@ func natsBootstrapKVConfigs(replicas int) []jetstream.KeyValueConfig {
 			Bucket:      KVRateLimits,
 			Description: "Shared rate-limit counters per provider; 15min TTL covers the typical short rolling window most providers enforce.",
 			TTL:         15 * time.Minute,
+			History:     1,
+			Replicas:    replicas,
+		},
+		{
+			Bucket:      KVCoreInfo,
+			Description: "Core's release under key info; workers refuse to run against another major.minor.",
 			History:     1,
 			Replicas:    replicas,
 		},

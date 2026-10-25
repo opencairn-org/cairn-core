@@ -23,8 +23,9 @@ type ActivitySource struct {
 	// Worker provenance — versioning lets the auto-reimport policy detect
 	// when a source can be re-parsed by a newer worker.
 	SourceWorkerName    string
-	SourceWorkerVersion string
+	SourceWorkerVersion string // parser version "N.M" (docs/adr/0005)
 	SourceWorkerPackage string
+	SourceWorkerRelease string // release tag that last parsed it; diagnostics only
 
 	// Raw blob reference (S3 key). Optional — some workers stream-parse
 	// without storing a raw blob.
@@ -58,6 +59,7 @@ type SourceMatchRecord struct {
 	ActivityID        ActivityID
 	UserID            UserID
 	Provider          string
+	SourceWorkerName  string // the pool that imported it (one source per pool per activity)
 	ExternalAccountID *ExternalAccountID
 	ExternalID        string
 	SportClass        string
@@ -141,6 +143,9 @@ type ActivitySourcePayload struct {
 	// the gear is imported.
 	GearExternalID string
 	GearName       string
+	// GearUnknown: the worker could not look the gear up (not a "no gear");
+	// a re-import keeps the source's previous gear.
+	GearUnknown bool
 }
 
 // ActivityLap is a per-lap summary record. Same per-source flag and merge

@@ -24,10 +24,10 @@ import (
 
 var errGearNotSupported = errors.New("no connected worker for this provider imports gear")
 
-// workerDeclares reports whether any live worker for provider can read dt.
-func workerDeclares(ctx context.Context, app *App, logger *slog.Logger, provider string, dt capability.DataType) bool {
+// poolDeclares reports whether a live instance of the named pool can read dt.
+func poolDeclares(ctx context.Context, app *App, logger *slog.Logger, provider, name string, dt capability.DataType) bool {
 	for _, w := range currentWorkers(ctx, app, logger) {
-		if w.provider == provider && w.capabilities.CanRead(dt) {
+		if w.compatible && w.provider == provider && w.name == name && w.capabilities.CanRead(dt) {
 			return true
 		}
 	}
@@ -50,7 +50,11 @@ func publishImportGear(ctx context.Context, app *App, logger *slog.Logger, acct 
 	if app.NATSBus == nil {
 		return errors.New("worker bus unavailable")
 	}
-	if !workerDeclares(ctx, app, logger, acct.Provider, capability.DataTypeGear) {
+	name, err := (presenceWorkerRouter{app: app, logger: logger}).AccountWorker(ctx, acct)
+	if err != nil {
+		return err
+	}
+	if !poolDeclares(ctx, app, logger, acct.Provider, name, capability.DataTypeGear) {
 		return errGearNotSupported
 	}
 	now := time.Now().UTC()
@@ -68,7 +72,7 @@ func publishImportGear(ctx context.Context, app *App, logger *slog.Logger, acct 
 	// Minute-bucketed like reconcile: a tick and a manual trigger within the
 	// same minute collapse to one job.
 	msgID := fmt.Sprintf("import_gear:%s:%s", acct.ID, now.Format("2006-01-02T15:04"))
-	return app.NATSBus.Publish(ctx, "cairn.jobs.import_gear."+acct.Provider, msgID, body)
+	return app.NATSBus.Publish(ctx, domain.JobSubject("import_gear", acct.Provider, name), msgID, body)
 }
 
 // gearSyncHook is the reconcile-time publisher; a provider whose worker does

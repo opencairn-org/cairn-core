@@ -34,7 +34,9 @@ type ExternalAccountRepo interface {
 	// Index-backed: there's a UNIQUE constraint on
 	// (provider, provider_account_id) — webhook routing latency is a
 	// single index seek.
-	FindByProviderAndExternalID(ctx context.Context, provider, externalID string) (domain.ExternalAccount, error)
+	// pool narrows to the connection of that worker pool (docs/adr/0006);
+	// "" matches any.
+	FindByProviderAndExternalID(ctx context.Context, provider, externalID, pool string) (domain.ExternalAccount, error)
 
 	// RegisterWebhookSubscription records the provider push-subscription →
 	// connection mapping (#50). Idempotent on (provider, subscription_id).
@@ -43,11 +45,13 @@ type ExternalAccountRepo interface {
 	// FindBySubscription resolves the exact account behind a provider push
 	// subscription. This is unambiguous where FindByProviderAndExternalID is
 	// not (the same provider athlete may be linked by multiple connections).
-	FindBySubscription(ctx context.Context, provider, subscriptionID string) (domain.ExternalAccount, error)
+	FindBySubscription(ctx context.Context, provider, subscriptionID, pool string) (domain.ExternalAccount, error)
 
 	// SetAutoImport toggles automatic imports (reconcile + webhook fetch) for
 	// one registered account (#93). The account stays linked either way.
 	SetAutoImport(ctx context.Context, id domain.ExternalAccountID, enabled bool) error
+	// SetAssignedWorker pins the account to a named worker pool; "" unpins.
+	SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, workerName string) error
 
 	// ListAccountsDueForReconcile returns accounts whose next reconcile
 	// is due based on the per-account schedule. Returned accounts are

@@ -62,6 +62,13 @@ func mountSyncEndpoints(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// imports (reconcile + webhook fetch) for this account (#93).
 	mux.HandleFunc("PUT /api/accounts/{id}/auto-import", h.setAutoImport)
 
+	// PUT /api/accounts/{id}/worker {worker} — route this account's jobs to a
+	// named worker pool (docs/adr/0006).
+	mux.HandleFunc("PUT /api/accounts/{id}/worker", h.setWorker)
+
+	// POST /api/accounts/{id}/reparse-out-of-date — bulk re-parse (docs/adr/0005).
+	mux.HandleFunc("POST /api/accounts/{id}/reparse-out-of-date", h.reparseOutOfDate)
+
 	// POST /api/accounts/{id}/sync/preview — discover + summarize (no enqueue).
 	mux.HandleFunc("POST /api/accounts/{id}/sync/preview", h.syncPreview)
 
@@ -113,7 +120,11 @@ func mountSyncEndpoints(mux *http.ServeMux, app *App, logger *slog.Logger) {
 // caller can resume.
 func discoverBatch(ctx context.Context, app *App, a domain.ExternalAccount, startPage int) (syncDiscoverResp, error) {
 	reqBody, _ := json.Marshal(map[string]any{"account_id": a.ID.String(), "start_page": startPage})
-	respBytes, err := app.NATSBus.Request(ctx, "cairn.discover."+a.Provider, reqBody, 90*time.Second)
+	name, err := (presenceWorkerRouter{app: app, logger: slog.Default()}).AccountWorker(ctx, a)
+	if err != nil {
+		return syncDiscoverResp{}, err
+	}
+	respBytes, err := app.NATSBus.Request(ctx, domain.DiscoverSubject(a.Provider, name), reqBody, 90*time.Second)
 	if err != nil {
 		return syncDiscoverResp{}, err
 	}
@@ -341,6 +352,11 @@ func processAccountQueue(ctx context.Context, log *slog.Logger, app *App, acctID
 		return
 	}
 
+	subject, err := accountJobSubject(ctx, app, log, "fetch_source", acct)
+	if err != nil {
+		log.Warn("queue: no worker pool for account", "account_id", acctID, "error", err)
+		return
+	}
 	items, err := app.ImportQueue.ClaimPending(ctx, acctID, avail)
 	if err != nil {
 		log.Warn("queue: claim pending failed", "account_id", acctID, "error", err)
@@ -360,7 +376,7 @@ func processAccountQueue(ctx context.Context, log *slog.Logger, app *App, acctID
 			Reason:       "queue",
 		})
 		msgID := "queue:" + it.Provider + ":" + acctID.String() + ":" + it.ExternalID
-		if err := app.NATSBus.Publish(ctx, "cairn.jobs.fetch_source."+it.Provider, msgID, body); err != nil {
+		if err := app.NATSBus.Publish(ctx, subject, msgID, body); err != nil {
 			_ = app.ImportQueue.MarkFailed(ctx, it.ID, "dispatch: "+err.Error())
 		}
 		// Item stays in_progress; result_router marks it done after ingest.
@@ -420,13 +436,11 @@ type kvBus interface {
 	KV(bucket string) (port.KV, error)
 }
 
-// providerBudget reads the provider's live API budget from the shared
-// cairn_rate_limits KV (keys <provider>.short / <provider>.daily). Returns a
-// UI-friendly map per window plus whether any window is currently exhausted —
-// this is what flips the connection badge to "Rate limited" while the worker
-// waits out a 429, and what the reconcile scheduler's budget gate keys on.
-// Missing bucket/keys mean "no worker has reported yet".
-func providerBudget(ctx context.Context, bus kvBus, provider string) (map[string]any, bool) {
+// providerBudget reads the live API budget of the account's provider app
+// from the shared cairn_rate_limits KV: <provider>.<app>.<window>, else the
+// pool's <provider>.<pool>.<window> (token without app id), else the 0.4
+// <provider>.<window>.
+func providerBudget(ctx context.Context, bus kvBus, provider, app, pool string) (map[string]any, bool) {
 	if bus == nil {
 		return nil, false
 	}
@@ -438,12 +452,8 @@ func providerBudget(ctx context.Context, bus kvBus, provider string) (map[string
 	limited := false
 	now := time.Now().UTC()
 	for _, win := range []string{"short", "daily"} {
-		entry, err := kv.Get(ctx, provider+"."+win)
-		if err != nil {
-			continue
-		}
-		var st rateLimitKVState
-		if json.Unmarshal(entry.Value, &st) != nil || st.Capacity <= 0 {
+		st, ok := readBudgetState(ctx, kv, budgetKeys(provider, app, pool, win))
+		if !ok {
 			continue
 		}
 		active := now.Before(st.WindowResetAt)
@@ -466,6 +476,32 @@ func providerBudget(ctx context.Context, bus kvBus, provider string) (map[string
 	return out, limited
 }
 
+// budgetKeys lists the KV keys of one window, most specific first.
+func budgetKeys(provider, app, pool, win string) []string {
+	keys := []string{}
+	for _, scope := range []string{app, pool} {
+		if scope != "" {
+			keys = append(keys, provider+"."+scope+"."+win)
+		}
+	}
+	return append(keys, provider+"."+win)
+}
+
+// readBudgetState returns the first key's valid state.
+func readBudgetState(ctx context.Context, kv port.KV, keys []string) (rateLimitKVState, bool) {
+	for _, key := range keys {
+		entry, err := kv.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var st rateLimitKVState
+		if json.Unmarshal(entry.Value, &st) == nil && st.Capacity > 0 {
+			return st, true
+		}
+	}
+	return rateLimitKVState{}, false
+}
+
 // rateLimitedNow reports whether either provider window is exhausted and not
 // yet reset.
 func rateLimitedNow(rl *domain.RateLimitSnapshot) bool {
@@ -480,4 +516,17 @@ func rateLimitedNow(rl *domain.RateLimitSnapshot) bool {
 		return true
 	}
 	return false
+}
+
+// accountAppID is the hash of the account's connection app (client id), the
+// scope of its rate-limit budget; "" when the connection is unknown.
+func accountAppID(ctx context.Context, app *App, a domain.ExternalAccount) string {
+	if a.ConnectionID == nil || app.UserProviderConfigs == nil {
+		return ""
+	}
+	conn, err := app.UserProviderConfigs.GetByID(ctx, *a.ConnectionID)
+	if err != nil {
+		return ""
+	}
+	return domain.AppID(conn.ClientID)
 }

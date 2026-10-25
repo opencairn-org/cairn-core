@@ -46,6 +46,8 @@ type feedActivity struct {
 	ElevationGainM   *float64 `json:"elevation_gain_m"`
 	TSS              *float64 `json:"tss"`
 	StartPlace       string   `json:"start_place"`
+	// GearUnset: no gear and the user has not decided "no gear" either.
+	GearUnset bool `json:"gear_unset"`
 }
 
 type feedFacet struct {
@@ -218,6 +220,12 @@ func activitiesFeedHandler(app *App, logger *slog.Logger) http.HandlerFunc {
 		}
 
 		out := activitiesFeedItems(acts)
+		// The "gear not set" prompt only makes sense once the user has gear.
+		if gear, gerr := feedHasGear(r, app, userID); gerr != nil || !gear {
+			for i := range out {
+				out[i].GearUnset = false
+			}
+		}
 
 		writeJSON(w, http.StatusOK, map[string]any{
 			"total":   total,
@@ -233,6 +241,14 @@ func activitiesFeedHandler(app *App, logger *slog.Logger) http.HandlerFunc {
 			"has_more":   offset+len(out) < matched,
 		})
 	}
+}
+
+func feedHasGear(r *http.Request, app *App, userID domain.UserID) (bool, error) {
+	if app.Gear == nil {
+		return false, nil
+	}
+	gear, err := app.Gear.List(r.Context(), userID, false)
+	return len(gear) > 0, err
 }
 
 // activitiesFeedItems projects activities into the feed's row shape.
@@ -251,6 +267,7 @@ func activitiesFeedItems(acts []domain.Activity) []feedActivity {
 			ElevationGainM:   a.Summary.ElevationGainM,
 			TSS:              a.Summary.TSS,
 			StartPlace:       a.StartPlace,
+			GearUnset:        a.GearID == nil && a.GearSetBy != domain.GearSetByUser,
 		})
 	}
 	return out

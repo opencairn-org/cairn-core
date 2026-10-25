@@ -96,6 +96,8 @@ type tokenGetReply struct {
 	// user_provider_configs), not instance-global.
 	ClientID     string `json:"client_id,omitempty"`
 	ClientSecret string `json:"client_secret,omitempty"`
+	// AppID names the app (hash of client_id) for per-app rate-limit buckets.
+	AppID string `json:"app_id,omitempty"`
 
 	// Error categorises failure paths. Stable strings so worker SDK
 	// can map to *port.TerminalError / NakWithDelayError without parsing.
@@ -166,6 +168,7 @@ func handleTokenGet(
 		TokenType:    st.TokenType,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
+		AppID:        domain.AppID(clientID),
 	}), nil
 }
 

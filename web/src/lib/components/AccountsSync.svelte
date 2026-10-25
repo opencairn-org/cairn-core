@@ -33,6 +33,15 @@
 		discovering: boolean;
 		poll_interval_seconds: number;
 		auto_import_enabled: boolean;
+		assigned_worker: string;
+		worker_pools: {
+			name: string;
+			package: string;
+			parser_version: string;
+			release: string;
+			online: boolean;
+		}[];
+		out_of_date?: Record<string, number>;
 		queue: Queue;
 	};
 	type Preview = { total: number; already_present: number; new: number; complete?: boolean };
@@ -209,6 +218,51 @@
 				body: JSON.stringify({ enabled })
 			});
 			if (res.ok) await loadAccounts();
+		} catch {
+			/* ignore */
+		}
+	}
+
+	// Quota-free re-parse of every source a newer parser of its pool can read.
+	let reparsed = $state<Record<string, string>>({});
+	async function reparseOutOfDate(id: string) {
+		busy = { ...busy, [id]: true };
+		try {
+			const res = await fetch(`/api/accounts/${id}/reparse-out-of-date`, { method: 'POST' });
+			if (!res.ok) {
+				error = (await res.text()).trim() || res.statusText;
+				return;
+			}
+			const b = await res.json();
+			reparsed = {
+				...reparsed,
+				[id]: `${b.queued} queued${b.remaining ? `, ${b.remaining} left` : ''}`
+			};
+			await loadAccounts();
+		} finally {
+			busy = { ...busy, [id]: false };
+		}
+	}
+
+	// Route the account's jobs to a named worker pool ("" = the only one).
+	async function setWorker(id: string, worker: string, confirmed = false) {
+		try {
+			const res = await fetch(`/api/accounts/${id}/worker`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ worker, confirm: confirmed })
+			});
+			if (!res.ok) {
+				const text = (await res.text()).trim() || res.statusText;
+				// Moving to another implementation asks the owner first.
+				if (res.status === 409 && text.startsWith('confirm:') && !confirmed) {
+					if (confirm(text.slice('confirm:'.length).trim())) await setWorker(id, worker, true);
+					else await loadAccounts();
+					return;
+				}
+				error = text;
+			}
+			await loadAccounts();
 		} catch {
 			/* ignore */
 		}
@@ -410,6 +464,13 @@
 							<span class="font-medium">
 								{a.provider_account_id ? `Account ${a.provider_account_id}` : a.label}
 							</span>
+							{#if a.assigned_worker && accounts.some((o) => o.id !== a.id && o.provider === a.provider && o.provider_account_id && o.provider_account_id === a.provider_account_id)}
+								<span
+									class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
+									title="This account is connected once per importer; this connection uses this one"
+									>via {a.assigned_worker}</span
+								>
+							{/if}
 							<span
 								class="ml-2 inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide {toneClass[
 									st.tone
@@ -444,6 +505,17 @@
 							>
 								{importOpen[a.id] ? 'Cancel import' : 'Import activity'}
 							</button>
+							{#if (a.out_of_date?.newer_parser ?? 0) > 0}
+								<button
+									type="button"
+									disabled={busy[a.id]}
+									onclick={() => reparseOutOfDate(a.id)}
+									title="A newer parser is available for these activities. Re-parses them from their archived originals; no provider quota is used."
+									class="rounded border border-sky-700/60 px-2.5 py-1 text-sky-300 hover:border-sky-500 disabled:opacity-50 max-md:py-2"
+								>
+									{reparsed[a.id] ?? `Re-parse ${a.out_of_date?.newer_parser} out of date`}
+								</button>
+							{/if}
 							<button
 								type="button"
 								disabled={busy[a.id]}
@@ -755,6 +827,45 @@
 								/>
 								Auto-import
 							</label>
+						</div>
+						{#if (a.worker_pools ?? []).length > 1 || (a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker))}
+							<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+								<label class="text-zinc-400" for={`worker-${a.id}`}>Worker</label>
+								<select
+									id={`worker-${a.id}`}
+									value={a.assigned_worker}
+									onchange={(e) => setWorker(a.id, e.currentTarget.value)}
+									class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-200"
+								>
+									<option value="">— choose —</option>
+									{#each a.worker_pools ?? [] as p (p.name)}
+										<option value={p.name}
+											>{p.name} · {p.package}{p.online
+												? ` · parser ${p.parser_version}`
+												: ' · offline'}</option
+										>
+									{/each}
+									{#if a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker)}
+										<option value={a.assigned_worker}>{a.assigned_worker} (offline)</option>
+									{/if}
+								</select>
+								<span class="text-zinc-600"
+									>Imports and re-fetches for this connection run on this worker.</span
+								>
+							</div>
+						{/if}
+					{/if}
+
+					{#if (a.out_of_date?.pool_changed ?? 0) > 0}
+						<div class="mt-2 text-xs text-amber-300">
+							{a.out_of_date?.pool_changed} activities were imported by the previous importer. A full
+							sync re-fetches them with {a.assigned_worker}.
+						</div>
+					{/if}
+					{#if (a.out_of_date?.newer_dataset ?? 0) > 0}
+						<div class="mt-2 text-xs text-amber-300">
+							{a.out_of_date?.newer_dataset} activities were imported in an older archive format and need
+							a re-fetch from the provider to pick up the new parser.
 						</div>
 					{/if}
 

@@ -1,5 +1,5 @@
 # Garmin worker (Python) — joins the NATS control plane and consumes
-# cairn.jobs.*.garmin. Stateless: per-user Garmin credentials are fetched fresh
+# cairn.jobs.*.garmin.<worker_name>. Stateless: per-user Garmin credentials are fetched fresh
 # from core storage over NATS per account (runtime._fetch_creds → CREDS_SUBJECT),
 # so the worker carries no credentials and can run >1 replica.
 #

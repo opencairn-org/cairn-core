@@ -100,6 +100,40 @@ type CreateEnrollmentResult struct {
 	Token string
 }
 
+// checkWorkerKeyUnique refuses a name whose webhook/control key
+// {name}-{provider} equals another pool's ("a-b"+"c" vs "a"+"b-c").
+func (uc *CreateWorkerEnrollment) checkWorkerKeyUnique(ctx context.Context, in CreateEnrollmentInput) error {
+	if in.Name == "" {
+		return nil
+	}
+	existing, err := uc.enrollments.ListEnrollments(ctx, port.ListEnrollmentsFilter{})
+	if err != nil {
+		return fmt.Errorf("list enrollments: %w", err)
+	}
+	key := domain.WorkerKey(in.Name, in.Provider)
+	for _, e := range existing {
+		if e.WorkerKey() == key && (e.Name != in.Name || e.Provider != in.Provider) {
+			return fmt.Errorf("%w: worker key %q is already used by %s/%s", ErrInvalidInput, key, e.Provider, e.Name)
+		}
+	}
+	return nil
+}
+
+// createDefaults fills the optional enrollment fields.
+func createDefaults(in CreateEnrollmentInput) (pattern string, version int, tpl string) {
+	pattern, version, tpl = in.WorkerNamePattern, in.Version, in.PermissionTemplate
+	if pattern == "" {
+		pattern = "*"
+	}
+	if version <= 0 {
+		version = 1
+	}
+	if tpl == "" {
+		tpl = "standard"
+	}
+	return pattern, version, tpl
+}
+
 // Execute generates a 32-byte cryptographic token, hashes it, and stores
 // the enrollment row. Errors fall into three buckets:
 //
@@ -113,19 +147,11 @@ func (uc *CreateWorkerEnrollment) Execute(
 	if err := validateCreateInput(in); err != nil {
 		return CreateEnrollmentResult{}, err
 	}
+	if err := uc.checkWorkerKeyUnique(ctx, in); err != nil {
+		return CreateEnrollmentResult{}, err
+	}
 
-	pattern := in.WorkerNamePattern
-	if pattern == "" {
-		pattern = "*"
-	}
-	version := in.Version
-	if version <= 0 {
-		version = 1
-	}
-	tpl := in.PermissionTemplate
-	if tpl == "" {
-		tpl = "standard"
-	}
+	pattern, version, tpl := createDefaults(in)
 
 	now := uc.now()
 
@@ -367,7 +393,13 @@ func (uc *ProcessAuthCallout) Execute(
 
 	// (5) mint the JWT. The issuer signs with the active account seed
 	// from SigningKeyRepo (internal to the adapter).
-	perms := domain.StandardPermissionTemplate(enroll.Provider, enroll.WorkerKey())
+	// Legacy pattern-only enrollments have no Name: the matched CONNECT name
+	// is the pool name.
+	name := enroll.Name
+	if name == "" {
+		name = in.WorkerName
+	}
+	perms := domain.StandardPermissionTemplate(enroll.Provider, name)
 	credOut, err := uc.issuer.IssueWorkerCredential(ctx, port.IssueCredentialInput{
 		UserNKeyPublic: in.UserNKeyPublic,
 		Permissions:    perms,

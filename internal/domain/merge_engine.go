@@ -206,15 +206,24 @@ func pickWinnerBy(sources []ActivitySource, priorities []string, provides func(*
 	return ActivitySource{}, false
 }
 
+// poolPriority is the priority entry naming s's worker pool,
+// "<provider>.<worker_name>" (docs/adr/0006); a bare provider entry matches
+// every pool of that provider.
+func poolPriority(s *ActivitySource) string {
+	return s.Provider + "." + s.SourceWorkerName
+}
+
 // pickWinnerForPriority returns the first source matching priority entry p that satisfies provides.
 func pickWinnerForPriority(sources []ActivitySource, p string, named map[string]struct{}, provides func(*ActivitySource) bool) (ActivitySource, bool) {
 	for i := range sources {
 		s := &sources[i]
 		if p == AnyProvider {
-			if _, isNamed := named[s.Provider]; isNamed {
+			_, byProvider := named[s.Provider]
+			_, byPool := named[poolPriority(s)]
+			if byProvider || byPool {
 				continue
 			}
-		} else if s.Provider != p {
+		} else if p != s.Provider && p != poolPriority(s) {
 			continue
 		}
 		if provides(s) {

@@ -71,6 +71,7 @@ type adminAPIHeartbeat struct {
 	WorkerKey    string                           `json:"worker_key"`
 	InstanceID   string                           `json:"instance_id"`
 	Version      string                           `json:"version"`
+	Release      string                           `json:"release"`
 	Provider     string                           `json:"provider"`
 	Package      string                           `json:"package"`
 	GoVersion    string                           `json:"go_version"`
@@ -91,6 +92,9 @@ func mountAdminAPI(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// GET /api/admin/workers — connected workers (from the presence KV), with
 	// the version they run and the service type (provider) they connect.
 	mux.HandleFunc("GET /api/admin/workers", h.listWorkers)
+	// Worker pools (docs/adr/0006): the registry, with retirement.
+	mux.HandleFunc("GET /api/admin/worker-pools", h.listPools)
+	mux.HandleFunc("POST /api/admin/worker-pools/{provider}/{name}/retire", h.retirePool)
 	mux.HandleFunc("GET /api/admin/worker-enrollments", h.listEnrollments)
 	mux.HandleFunc("POST /api/admin/worker-enrollments", h.createEnrollment)
 	mux.HandleFunc("POST /api/admin/worker-enrollments/{id}/revoke", h.revokeEnrollment)
@@ -112,6 +116,67 @@ func (h *adminAPIHandlers) listWorkers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"workers": out})
+}
+
+func (h *adminAPIHandlers) listPools(w http.ResponseWriter, r *http.Request) {
+	if _, ok := resolveAdminUser(r, h.app); !ok {
+		http.Error(w, "admin only", http.StatusForbidden)
+		return
+	}
+	out := []map[string]any{}
+	if h.app.WorkerPools != nil {
+		pools, err := h.app.WorkerPools.ListAll(r.Context())
+		if err != nil {
+			http.Error(w, "list failed", http.StatusInternalServerError)
+			return
+		}
+		live := currentWorkers(r.Context(), h.app, h.logger)
+		for _, p := range pools {
+			out = append(out, poolJSON(p, live))
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"pools": out})
+}
+
+// poolJSON renders one registry row with its live instance count.
+func poolJSON(p domain.WorkerPool, live []liveWorker) map[string]any {
+	online := 0
+	for _, l := range live {
+		if l.provider == p.Provider && l.name == p.Name {
+			online++
+		}
+	}
+	var retired any
+	if p.RetiredAt != nil {
+		retired = p.RetiredAt.UTC()
+	}
+	return map[string]any{
+		"provider": p.Provider, "name": p.Name, "package": p.Package,
+		"first_seen_at": p.FirstSeenAt.UTC(), "last_seen_at": p.LastSeenAt.UTC(),
+		"retired_at": retired, "online_instances": online,
+	}
+}
+
+func (h *adminAPIHandlers) retirePool(w http.ResponseWriter, r *http.Request) {
+	if _, ok := resolveAdminUser(r, h.app); !ok {
+		http.Error(w, "admin only", http.StatusForbidden)
+		return
+	}
+	if h.app.WorkerPools == nil {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	provider, name := r.PathValue("provider"), r.PathValue("name")
+	if err := h.app.WorkerPools.Retire(r.Context(), provider, name); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			http.Error(w, "no such active pool", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "retire failed", http.StatusInternalServerError)
+		return
+	}
+	h.logger.Info("worker pool retired", "provider", provider, "pool", name)
+	writeJSON(w, http.StatusOK, map[string]any{"retired": true})
 }
 
 // liveWorkers appends every live presence record in kv to out, pruning stale ones.
@@ -147,13 +212,20 @@ func (h *adminAPIHandlers) liveWorkers(r *http.Request, kv port.KV, out []map[st
 
 // adminAPIWorkerJSON renders one presence record for the admin UI.
 func adminAPIWorkerJSON(hb adminAPIHeartbeat) map[string]any {
+	compatible, known := domain.ReleaseCompatible(Version, hb.Release)
 	return map[string]any{
 		"worker_name": hb.WorkerName,
 		"worker_key":  hb.WorkerKey,
 		"instance_id": hb.InstanceID,
 		"version":     hb.Version,
-		"provider":    hb.Provider,
-		"package":     hb.Package,
+		// Release vs core's major.minor (docs/adr/0005); release_known is
+		// false for untagged builds on either side.
+		"release":            hb.Release,
+		"release_compatible": compatible,
+		"release_known":      known,
+		"core_release":       Version,
+		"provider":           hb.Provider,
+		"package":            hb.Package,
 		// Build info is informational (may differ across pooled
 		// instances); version+name+provider are the identity.
 		"go_version": hb.GoVersion,

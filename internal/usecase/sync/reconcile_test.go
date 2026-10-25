@@ -56,7 +56,7 @@ func (f *fakeAccounts) UpdateAccountConfig(ctx context.Context, id domain.Extern
 	return nil
 }
 
-func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID, pool string) (domain.ExternalAccount, error) {
 	for _, a := range f.byID {
 		if a.Provider == provider && a.ProviderAccountID == externalID {
 			return a, nil
@@ -69,8 +69,19 @@ func (f *fakeAccounts) RegisterWebhookSubscription(ctx context.Context, provider
 	return nil
 }
 
-func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID, pool string) (domain.ExternalAccount, error) {
 	return domain.ExternalAccount{}, fmt.Errorf("not found")
+}
+
+func (f *fakeAccounts) SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, name string) error {
+	return nil
+}
+
+// staticRouter routes every account to one pool.
+type staticRouter string
+
+func (r staticRouter) AccountWorker(context.Context, domain.ExternalAccount) (string, error) {
+	return string(r), nil
 }
 
 func (f *fakeAccounts) SetAutoImport(ctx context.Context, id domain.ExternalAccountID, enabled bool) error {
@@ -160,6 +171,7 @@ func newUC(t *testing.T, accounts *fakeAccounts, bus *fakeBus) *ReconcileExterna
 	return NewReconcileExternalAccount(
 		accounts,
 		bus,
+		staticRouter("w1"),
 		nil, // no budget gate in tests
 		nil, // no gear sync in tests
 		func() time.Time { return fixedNow },
@@ -208,8 +220,8 @@ func TestExecute_SingleAccount_PublishesOne(t *testing.T) {
 		t.Fatalf("published = %d, want 1", len(bus.published))
 	}
 	p := bus.published[0]
-	if p.Subject != "cairn.jobs.reconcile.strava" {
-		t.Errorf("subject = %q, want cairn.jobs.reconcile.strava", p.Subject)
+	if p.Subject != "cairn.jobs.reconcile.strava.w1" {
+		t.Errorf("subject = %q, want cairn.jobs.reconcile.strava.w1", p.Subject)
 	}
 	// msgID is bucketed to the minute and contains the account UUID.
 	if !strings.Contains(p.MsgID, stableAccount.String()) {
@@ -364,8 +376,8 @@ func TestExecute_AllMode_UsesBatchSize(t *testing.T) {
 	}
 	// Both should hit cairn.jobs.reconcile.strava (first two in `due`).
 	for _, p := range bus.published {
-		if p.Subject != "cairn.jobs.reconcile.strava" {
-			t.Errorf("subject = %q, want cairn.jobs.reconcile.strava", p.Subject)
+		if p.Subject != "cairn.jobs.reconcile.strava.w1" {
+			t.Errorf("subject = %q, want cairn.jobs.reconcile.strava.w1", p.Subject)
 		}
 	}
 }
@@ -394,5 +406,37 @@ func TestExecute_AllMode_PerAccountErrorIsolation(t *testing.T) {
 	}
 	if res.Errors[0].AccountID != failID {
 		t.Errorf("failed AccountID = %s, want %s", res.Errors[0].AccountID, failID)
+	}
+}
+
+func (f *fakeBus) RespondToSubject(context.Context, string, port.SubjectRequestHandler) (port.Subscription, error) {
+	return nil, nil
+}
+
+type errRouter struct{ err error }
+
+func (r errRouter) AccountWorker(context.Context, domain.ExternalAccount) (string, error) {
+	return "", r.err
+}
+
+func TestExecute_NoPoolYet_SkipsQuietly(t *testing.T) {
+	id := domain.ExternalAccountID(stableAccount)
+	accounts := &fakeAccounts{byID: map[domain.ExternalAccountID]domain.ExternalAccount{id: makeActiveAccount("strava")}}
+	bus := &fakeBus{}
+	uc := NewReconcileExternalAccount(accounts, bus, errRouter{domain.ErrNoWorker}, nil, nil,
+		func() time.Time { return fixedNow }, func() uuid.UUID { return stableUUID })
+	res, err := uc.Execute(context.Background(), ReconcileInput{AccountID: &id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.AccountsSkipped != 1 || len(res.Errors) != 0 || res.AccountsScheduled != 0 {
+		t.Fatalf("res = %+v", res)
+	}
+	// Any other routing failure is an error for that account.
+	uc = NewReconcileExternalAccount(accounts, bus, errRouter{domain.ErrWorkerAmbiguous}, nil, nil,
+		func() time.Time { return fixedNow }, func() uuid.UUID { return stableUUID })
+	res, _ = uc.Execute(context.Background(), ReconcileInput{AccountID: &id})
+	if len(res.Errors) != 1 {
+		t.Fatalf("res = %+v", res)
 	}
 }

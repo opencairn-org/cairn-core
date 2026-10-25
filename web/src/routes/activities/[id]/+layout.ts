@@ -14,6 +14,7 @@ import {
 	StreamChannel
 } from '#lib/proto/cairn/v1/activity_pb.js';
 import { enumName, protoDurationToSeconds, protoTimestampToISO } from '#lib/proto-helpers.js';
+import { gearToView, type GearView } from '#lib/gear.js';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async ({ fetch, url, params, parent }) => {
@@ -44,7 +45,7 @@ export const load: LayoutLoad = async ({ fetch, url, params, parent }) => {
 
 	// Streams and best-efforts are independent — run them in parallel.
 	const a = activity;
-	const [streamResult, bestEfforts] = await Promise.all([
+	const [streamResult, bestEfforts, gear] = await Promise.all([
 		loadStream(clients, a),
 		clients.activity
 			.listBestEfforts({ activityId: a.id })
@@ -52,7 +53,12 @@ export const load: LayoutLoad = async ({ fetch, url, params, parent }) => {
 			.catch((err) => {
 				console.warn('ListBestEfforts failed', err);
 				return [] as BestEffortView[];
-			})
+			}),
+		// For the "gear not set" prompt; failure just hides it.
+		clients.gear
+			.listGear({ includeRetired: false })
+			.then((res) => res.gear.map(gearToView))
+			.catch(() => [] as GearView[])
 	]);
 
 	// Per-channel merged stream (best field from best source) — only worth
@@ -75,7 +81,8 @@ export const load: LayoutLoad = async ({ fetch, url, params, parent }) => {
 		//   'absent' — no primary stream source at all (nothing to load)
 		//   'error'  — the stream request failed (offer a retry)
 		streamStatus: streamResult.status,
-		bestEfforts
+		bestEfforts,
+		gear
 	};
 };
 

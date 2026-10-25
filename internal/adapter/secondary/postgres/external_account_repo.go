@@ -55,8 +55,9 @@ func NewExternalAccountRepo(
 }
 
 // CreateAccount inserts a new external_accounts row, or on re-connect
-// (same user+provider+provider_account_id) reuses the existing one. Returns
-// the row id either way.
+// (same user+provider+provider_account_id+worker pool) reuses the existing
+// one. A pre-0.5 row without a pool is adopted by the first pool that
+// connects it. Returns the row id either way.
 func (r *ExternalAccountRepo) CreateAccount(ctx context.Context, a domain.ExternalAccount) (domain.ExternalAccountID, error) {
 	label := a.DisplayLabel
 	if label == "" {
@@ -74,10 +75,28 @@ func (r *ExternalAccountRepo) CreateAccount(ctx context.Context, a domain.Extern
 	if a.ConnectionID != nil {
 		connectionID = a.ConnectionID.UUID()
 	}
+	db := dbtx(ctx, r.pool)
+	if a.AssignedWorkerName != "" && a.ProviderAccountID != "" {
+		if _, err := db.Exec(ctx, `
+			UPDATE external_accounts e SET assigned_worker_name = $4, updated_at = now()
+			 WHERE e.user_id = $1 AND e.provider = $2 AND e.provider_account_id = $3
+			   AND e.assigned_worker_name IS NULL
+			   AND NOT EXISTS (SELECT 1 FROM external_accounts o
+			                    WHERE o.user_id = $1 AND o.provider = $2 AND o.provider_account_id = $3
+			                      AND o.assigned_worker_name = $4)
+			   -- its history must belong to this pool: same connection, or
+			   -- every source was imported under this pool's name
+			   AND (e.connection_id IS NOT DISTINCT FROM $5
+			        OR NOT EXISTS (SELECT 1 FROM activity_sources s
+			                        WHERE s.external_account_id = e.id AND s.source_worker_name <> $4))`,
+			a.UserID.UUID(), a.Provider, a.ProviderAccountID, a.AssignedWorkerName, connectionID); err != nil {
+			return domain.ExternalAccountID{}, fmt.Errorf("adopt external account: %w", err)
+		}
+	}
 	const q = `
-		INSERT INTO external_accounts (user_id, provider, provider_account_id, connection_id, display_label, granted_scopes, status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'active')
-		ON CONFLICT (user_id, provider, provider_account_id) WHERE provider_account_id IS NOT NULL
+		INSERT INTO external_accounts (user_id, provider, provider_account_id, connection_id, display_label, granted_scopes, status, assigned_worker_name)
+		VALUES ($1, $2, $3, $4, $5, $6, 'active', NULLIF($7, ''))
+		ON CONFLICT (user_id, provider, provider_account_id, (COALESCE(assigned_worker_name, ''))) WHERE provider_account_id IS NOT NULL
 		DO UPDATE SET
 			connection_id = EXCLUDED.connection_id,
 			display_label = EXCLUDED.display_label,
@@ -87,7 +106,7 @@ func (r *ExternalAccountRepo) CreateAccount(ctx context.Context, a domain.Extern
 			updated_at = now()
 		RETURNING id`
 	var id uuid.UUID
-	if err := r.pool.QueryRow(ctx, q, a.UserID.UUID(), a.Provider, providerAcct, connectionID, label, scopes).Scan(&id); err != nil {
+	if err := db.QueryRow(ctx, q, a.UserID.UUID(), a.Provider, providerAcct, connectionID, label, scopes, a.AssignedWorkerName).Scan(&id); err != nil {
 		return domain.ExternalAccountID{}, fmt.Errorf("create external account: %w", err)
 	}
 	return domain.ExternalAccountID(id), nil
@@ -158,15 +177,18 @@ func (r *ExternalAccountRepo) ListAccountsForUser(
 // from migration 4 — single index seek.
 func (r *ExternalAccountRepo) FindByProviderAndExternalID(
 	ctx context.Context,
-	provider, externalID string,
+	provider, externalID, pool string,
 ) (domain.ExternalAccount, error) {
 	db := dbtx(ctx, r.pool)
 	row := db.QueryRow(ctx,
 		`SELECT `+externalAccountColumns+`
 		   FROM external_accounts
 		  WHERE provider = $1
-		    AND provider_account_id = $2`,
-		provider, externalID,
+		    AND provider_account_id = $2
+		    AND ($3 = '' OR assigned_worker_name = $3 OR assigned_worker_name IS NULL)
+		  ORDER BY assigned_worker_name IS NULL
+		  LIMIT 1`,
+		provider, externalID, pool,
 	)
 	a, err := scanExternalAccountRow(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -193,6 +215,21 @@ func (r *ExternalAccountRepo) SetAutoImport(
 		id.UUID(), enabled)
 	if err != nil {
 		return fmt.Errorf("set auto-import: %w", err)
+	}
+	return nil
+}
+
+// SetAssignedWorker pins the account to a named worker pool; "" unpins.
+func (r *ExternalAccountRepo) SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, workerName string) error {
+	db := dbtx(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`UPDATE external_accounts SET assigned_worker_name = NULLIF($2, ''), updated_at = now() WHERE id = $1`,
+		id.UUID(), workerName)
+	if isUniqueViolation(err) {
+		return fmt.Errorf("set assigned worker: %w", domain.ErrPoolTaken)
+	}
+	if err != nil {
+		return fmt.Errorf("set assigned worker: %w", err)
 	}
 	return nil
 }
@@ -225,14 +262,17 @@ func (r *ExternalAccountRepo) RegisterWebhookSubscription(
 // per-user-OAuth connection has its own subscription_id).
 func (r *ExternalAccountRepo) FindBySubscription(
 	ctx context.Context,
-	provider, subscriptionID string,
+	provider, subscriptionID, pool string,
 ) (domain.ExternalAccount, error) {
 	db := dbtx(ctx, r.pool)
 	row := db.QueryRow(ctx,
 		`SELECT `+externalAccountColumns+`
 		   FROM external_accounts
-		  WHERE provider = $1 AND webhook_subscription_id = $2`,
-		provider, subscriptionID)
+		  WHERE provider = $1 AND webhook_subscription_id = $2
+		    AND ($3 = '' OR assigned_worker_name = $3 OR assigned_worker_name IS NULL)
+		  ORDER BY assigned_worker_name IS NULL
+		  LIMIT 1`,
+		provider, subscriptionID, pool)
 	a, err := scanExternalAccountRow(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.ExternalAccount{}, fmt.Errorf(
