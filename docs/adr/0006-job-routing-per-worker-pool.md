@@ -57,8 +57,9 @@ pool:
   `worker_name` against the subject, so a pool cannot publish for or look up another pool's
   accounts. Tokens, blobs and credentials stay provider-scoped: pools of one provider are
   mutually trusted for those. The pre-0.5 provider-scoped subjects stay allowed through 0.5.
-- **Rate-limit budgets are per pool** (`<provider>.<pool>.<window>` in the shared KV), i.e. per
-  provider app.
+- **One pool is one provider app.** Each pool uses its own OAuth app or credentials, so two pools
+  authorizing the same provider account never share or invalidate each other's tokens, and the
+  **rate-limit budget is per pool** (`<provider>.<pool>.<window>` in the shared KV).
 - **Bulk re-parse**: `POST /api/accounts/{id}/reparse-out-of-date` re-parses every source a
   newer parser of its pool can read; the Connections page shows the counts. A worker too old for
   a re-parse hands the job back with back-off and, after ~35 minutes, reports `parser_too_old`,
