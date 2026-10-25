@@ -101,7 +101,7 @@ type CreateEnrollmentResult struct {
 }
 
 // checkWorkerKeyUnique refuses a name whose webhook/control key
-// {name}-{provider} equals another live pool's ("a-b"+"c" vs "a"+"b-c").
+// {name}-{provider} equals another pool's ("a-b"+"c" vs "a"+"b-c").
 func (uc *CreateWorkerEnrollment) checkWorkerKeyUnique(ctx context.Context, in CreateEnrollmentInput) error {
 	if in.Name == "" {
 		return nil
@@ -117,6 +117,21 @@ func (uc *CreateWorkerEnrollment) checkWorkerKeyUnique(ctx context.Context, in C
 		}
 	}
 	return nil
+}
+
+// createDefaults fills the optional enrollment fields.
+func createDefaults(in CreateEnrollmentInput) (pattern string, version int, tpl string) {
+	pattern, version, tpl = in.WorkerNamePattern, in.Version, in.PermissionTemplate
+	if pattern == "" {
+		pattern = "*"
+	}
+	if version <= 0 {
+		version = 1
+	}
+	if tpl == "" {
+		tpl = "standard"
+	}
+	return pattern, version, tpl
 }
 
 // Execute generates a 32-byte cryptographic token, hashes it, and stores
@@ -136,18 +151,7 @@ func (uc *CreateWorkerEnrollment) Execute(
 		return CreateEnrollmentResult{}, err
 	}
 
-	pattern := in.WorkerNamePattern
-	if pattern == "" {
-		pattern = "*"
-	}
-	version := in.Version
-	if version <= 0 {
-		version = 1
-	}
-	tpl := in.PermissionTemplate
-	if tpl == "" {
-		tpl = "standard"
-	}
+	pattern, version, tpl := createDefaults(in)
 
 	now := uc.now()
 

@@ -452,25 +452,8 @@ func providerBudget(ctx context.Context, bus kvBus, provider, app, pool string) 
 	limited := false
 	now := time.Now().UTC()
 	for _, win := range []string{"short", "daily"} {
-		keys := []string{}
-		for _, scope := range []string{app, pool} {
-			if scope != "" {
-				keys = append(keys, provider+"."+scope+"."+win)
-			}
-		}
-		keys = append(keys, provider+"."+win)
-		var entry port.KVEntry
-		var err error = port.ErrKVKeyNotFound
-		for _, key := range keys {
-			if entry, err = kv.Get(ctx, key); err == nil {
-				break
-			}
-		}
-		if err != nil {
-			continue
-		}
-		var st rateLimitKVState
-		if json.Unmarshal(entry.Value, &st) != nil || st.Capacity <= 0 {
+		st, ok := readBudgetState(ctx, kv, budgetKeys(provider, app, pool, win))
+		if !ok {
 			continue
 		}
 		active := now.Before(st.WindowResetAt)
@@ -491,6 +474,32 @@ func providerBudget(ctx context.Context, bus kvBus, provider, app, pool string) 
 		return nil, false
 	}
 	return out, limited
+}
+
+// budgetKeys lists the KV keys of one window, most specific first.
+func budgetKeys(provider, app, pool, win string) []string {
+	keys := []string{}
+	for _, scope := range []string{app, pool} {
+		if scope != "" {
+			keys = append(keys, provider+"."+scope+"."+win)
+		}
+	}
+	return append(keys, provider+"."+win)
+}
+
+// readBudgetState returns the first key's valid state.
+func readBudgetState(ctx context.Context, kv port.KV, keys []string) (rateLimitKVState, bool) {
+	for _, key := range keys {
+		entry, err := kv.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var st rateLimitKVState
+		if json.Unmarshal(entry.Value, &st) == nil && st.Capacity > 0 {
+			return st, true
+		}
+	}
+	return rateLimitKVState{}, false
 }
 
 // rateLimitedNow reports whether either provider window is exhausted and not

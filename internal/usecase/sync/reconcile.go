@@ -206,39 +206,45 @@ func (uc *ReconcileExternalAccount) reconcilePublishAll(ctx context.Context, tar
 	// batch, not per account.
 	exhausted := map[string]bool{}
 	for _, a := range targets {
-		worker, err := uc.router.AccountWorker(ctx, a)
-		if errors.Is(err, domain.ErrNoWorker) {
-			res.AccountsSkipped++ // no pool yet: nothing could take the job
-			continue
-		}
-		if err != nil {
+		switch err := uc.publishTarget(ctx, a, reason, force, exhausted); {
+		case err == nil:
+			res.AccountsScheduled++
+		case errors.Is(err, errSkipped):
+			res.AccountsSkipped++
+		default:
 			res.Errors = append(res.Errors, ReconcileError{AccountID: a.ID, Err: err})
-			continue
 		}
-		// One budget per provider app, i.e. per connection.
-		key := a.Provider + "/" + worker
-		if a.ConnectionID != nil {
-			key += "/" + a.ConnectionID.String()
-		}
-		if !force && uc.budgetExhausted != nil {
-			if _, seen := exhausted[key]; !seen {
-				exhausted[key] = uc.budgetExhausted(ctx, a, worker)
-			}
-			if exhausted[key] {
-				res.AccountsSkipped++
-				continue
-			}
-		}
-		if err := uc.publishOne(ctx, a, worker, reason); err != nil {
-			res.Errors = append(res.Errors, ReconcileError{
-				AccountID: a.ID,
-				Err:       err,
-			})
-			continue
-		}
-		res.AccountsScheduled++
 	}
 	return res
+}
+
+// errSkipped: nothing to publish for this account right now (no pool yet, or
+// the budget is spent).
+var errSkipped = errors.New("reconcile: skipped")
+
+// publishTarget routes, budget-gates and publishes one account's reconcile.
+func (uc *ReconcileExternalAccount) publishTarget(ctx context.Context, a domain.ExternalAccount, reason string, force bool, exhausted map[string]bool) error {
+	worker, err := uc.router.AccountWorker(ctx, a)
+	if errors.Is(err, domain.ErrNoWorker) {
+		return errSkipped // no pool yet: nothing could take the job
+	}
+	if err != nil {
+		return err
+	}
+	// One budget per provider app, i.e. per connection.
+	key := a.Provider + "/" + worker
+	if a.ConnectionID != nil {
+		key += "/" + a.ConnectionID.String()
+	}
+	if !force && uc.budgetExhausted != nil {
+		if _, seen := exhausted[key]; !seen {
+			exhausted[key] = uc.budgetExhausted(ctx, a, worker)
+		}
+		if exhausted[key] {
+			return errSkipped
+		}
+	}
+	return uc.publishOne(ctx, a, worker, reason)
 }
 
 // reconcileJobBody is the wire shape of the reconcile job. Encoded as

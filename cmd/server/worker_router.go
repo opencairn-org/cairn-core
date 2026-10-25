@@ -8,8 +8,8 @@ import (
 )
 
 // presenceWorkerRouter implements port.WorkerRouter (docs/adr/0006): the
-// account's assigned pool, else the provider's only live release-compatible
-// pool, which then becomes the assignment.
+// account's assigned pool, else the provider's only known pool, which then
+// becomes the assignment.
 type presenceWorkerRouter struct {
 	app    *App
 	logger *slog.Logger
@@ -32,17 +32,6 @@ func (r presenceWorkerRouter) AccountWorker(ctx context.Context, a domain.Extern
 		}
 	}
 	return name, nil
-}
-
-// livePoolNames lists the release-compatible pools online for provider.
-func livePoolNames(workers []liveWorker, provider string) []string {
-	var out []string
-	for _, w := range workers {
-		if w.compatible && w.provider == provider && w.name != "" {
-			out = append(out, w.name)
-		}
-	}
-	return out
 }
 
 // accountJobSubject routes an account-scoped job to the account's pool.

@@ -132,24 +132,29 @@ func (h *adminAPIHandlers) listPools(w http.ResponseWriter, r *http.Request) {
 		}
 		live := currentWorkers(r.Context(), h.app, h.logger)
 		for _, p := range pools {
-			online := 0
-			for _, l := range live {
-				if l.provider == p.Provider && l.name == p.Name {
-					online++
-				}
-			}
-			var retired any
-			if p.RetiredAt != nil {
-				retired = p.RetiredAt.UTC()
-			}
-			out = append(out, map[string]any{
-				"provider": p.Provider, "name": p.Name, "package": p.Package,
-				"first_seen_at": p.FirstSeenAt.UTC(), "last_seen_at": p.LastSeenAt.UTC(),
-				"retired_at": retired, "online_instances": online,
-			})
+			out = append(out, poolJSON(p, live))
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"pools": out})
+}
+
+// poolJSON renders one registry row with its live instance count.
+func poolJSON(p domain.WorkerPool, live []liveWorker) map[string]any {
+	online := 0
+	for _, l := range live {
+		if l.provider == p.Provider && l.name == p.Name {
+			online++
+		}
+	}
+	var retired any
+	if p.RetiredAt != nil {
+		retired = p.RetiredAt.UTC()
+	}
+	return map[string]any{
+		"provider": p.Provider, "name": p.Name, "package": p.Package,
+		"first_seen_at": p.FirstSeenAt.UTC(), "last_seen_at": p.LastSeenAt.UTC(),
+		"retired_at": retired, "online_instances": online,
+	}
 }
 
 func (h *adminAPIHandlers) retirePool(w http.ResponseWriter, r *http.Request) {

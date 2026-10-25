@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/postgres"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -182,8 +183,8 @@ func (h syncHandlers) accountRow(ctx context.Context, a domain.ExternalAccount, 
 	}
 }
 
-// setWorker serves PUT /api/accounts/{id}/worker {worker}: pins the account
-// to a live pool of its provider; "" unpins (the only pool is used).
+// setWorker serves PUT /api/accounts/{id}/worker {worker, confirm}: pins the
+// account to a known pool of its provider; "" unpins (the only pool is used).
 func (h syncHandlers) setWorker(w http.ResponseWriter, r *http.Request) {
 	a, ok := h.ownAccount(r)
 	if !ok {
@@ -233,12 +234,8 @@ func (h syncHandlers) setWorker(w http.ResponseWriter, r *http.Request) {
 // activities are then flagged pool_changed for a re-fetch by the new pool.
 func (h syncHandlers) reassignCheck(ctx context.Context, a domain.ExternalAccount, target string, confirm bool) (status int, msg string, changesPackage bool) {
 	if target == "" {
-		if accts, err := h.app.ExternalAccounts.ListAccountsForUser(ctx, a.UserID); err == nil {
-			for _, o := range accts {
-				if o.ID != a.ID && o.Provider == a.Provider && o.ProviderAccountID != "" && o.ProviderAccountID == a.ProviderAccountID {
-					return http.StatusConflict, "this provider account has another connection; connect it for the importer you want instead of unpinning", false
-				}
-			}
+		if h.hasSiblingConnection(ctx, a) {
+			return http.StatusConflict, "this provider account has another connection; connect it for the importer you want instead of unpinning", false
 		}
 		return 0, "", false
 	}
@@ -253,15 +250,40 @@ func (h syncHandlers) reassignCheck(ctx context.Context, a domain.ExternalAccoun
 	if err != nil {
 		return http.StatusInternalServerError, "could not inspect this connection's imports", false
 	}
-	for _, sw := range workers {
-		if sw.Name != target && sw.Package != pool.Package {
-			if !confirm {
-				return http.StatusConflict, "confirm: this connection's activities were imported by " + sw.Name + " (" + sw.Package + "). Moving to " + target + " keeps them, but they need a re-fetch by " + target + " to be updated by it. Continue?", false
-			}
-			return 0, "", true
+	other, changes := otherPackageImporter(workers, target, pool.Package)
+	if !changes {
+		return 0, "", false
+	}
+	if !confirm {
+		return http.StatusConflict, "confirm: this connection's activities were imported by " + other.Name + " (" + other.Package + "). Moving to " + target + " keeps them, but they need a re-fetch by " + target + " to be updated by it. Continue?", false
+	}
+	return 0, "", true
+}
+
+// hasSiblingConnection: the same provider account is connected again (on
+// another pool).
+func (h syncHandlers) hasSiblingConnection(ctx context.Context, a domain.ExternalAccount) bool {
+	accts, err := h.app.ExternalAccounts.ListAccountsForUser(ctx, a.UserID)
+	if err != nil {
+		return false
+	}
+	for _, o := range accts {
+		if o.ID != a.ID && o.Provider == a.Provider && o.ProviderAccountID != "" && o.ProviderAccountID == a.ProviderAccountID {
+			return true
 		}
 	}
-	return 0, "", false
+	return false
+}
+
+// otherPackageImporter returns the first importer of the connection's sources
+// whose package differs from the target pool's.
+func otherPackageImporter(workers []postgres.SourceWorker, target, pkg string) (postgres.SourceWorker, bool) {
+	for _, sw := range workers {
+		if sw.Name != target && sw.Package != pkg {
+			return sw, true
+		}
+	}
+	return postgres.SourceWorker{}, false
 }
 
 // reparseOutOfDate serves POST /api/accounts/{id}/reparse-out-of-date: queues

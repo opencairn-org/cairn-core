@@ -160,29 +160,7 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ev *workerv1.WorkerEvent) error {
 	switch ev.GetType() {
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_ACTIVITY:
-		// A pool may only import for its own accounts and re-parse its own
-		// package's sources (docs/adr/0006).
-		if err := checkResultAccount(ctx, app, b.job, jr, ev.GetActivity()); err != nil {
-			failQueueItem(ctx, app, log, ev.GetActivity().GetRef(), err)
-			return nil
-		}
-		if _, err := ingestActivityEvent(ctx, app, log, jr, ev.GetActivity()); err != nil {
-			// Terminal (bad data) → fail the queue item + ACK; retrying the
-			// same payload can't help, and leaving it in_progress would
-			// deadlock the account's capacity-gated queue. Postgres
-			// integrity/data violations are equally deterministic for a
-			// given payload — without this they NAK-loop into the DLQ and
-			// the item wedges as a masked "stale: no result" (live case:
-			// duplicate stream timestamps, 5 wasted provider re-fetches
-			// per activity).
-			if domain.IsActivityValidationError(err) || isDeterministicDBError(err) {
-				failQueueItem(ctx, app, log, ev.GetActivity().GetRef(), err)
-				return nil
-			}
-			// Transient (DB blip) → NAK; JetStream redelivers. Re-processing
-			// is safe — ingest dedups on (provider, external_id).
-			return err
-		}
+		return processActivityEvent(ctx, app, log, jr, b, ev.GetActivity())
 
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_SEGMENT:
 		// Non-fatal: a bad segment must not fail the durable activity ingest.
@@ -394,6 +372,34 @@ func ingestGearEvent(ctx context.Context, app *App, g *workerv1.ImportedGear) er
 		ExternalID:        ref.GetExternalId(),
 	}
 	_, err = app.Gear.ImportFromProvider(ctx, domain.UserID(uid), key, protoconv.GearImportFromProto(g.GetPayload()))
+	return err
+}
+
+// processActivityEvent ingests one activity; a returned error NAKs the message.
+func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ia *workerv1.ImportedActivity) error {
+	// A pool may only import for its own accounts and re-parse its own
+	// package's sources (docs/adr/0006).
+	if err := checkResultAccount(ctx, app, b.job, jr, ia); err != nil {
+		failQueueItem(ctx, app, log, ia.GetRef(), err)
+		return nil
+	}
+	_, err := ingestActivityEvent(ctx, app, log, jr, ia)
+	if err == nil {
+		return nil
+	}
+	// Terminal (bad data) → fail the queue item + ACK; retrying the same
+	// payload can't help, and leaving it in_progress would deadlock the
+	// account's capacity-gated queue. Postgres integrity/data violations are
+	// equally deterministic for a given payload — without this they NAK-loop
+	// into the DLQ and the item wedges as a masked "stale: no result" (live
+	// case: duplicate stream timestamps, 5 wasted provider re-fetches per
+	// activity).
+	if domain.IsActivityValidationError(err) || isDeterministicDBError(err) {
+		failQueueItem(ctx, app, log, ia.GetRef(), err)
+		return nil
+	}
+	// Transient (DB blip) → NAK; JetStream redelivers. Re-processing is
+	// safe — ingest dedups on (provider, external_id).
 	return err
 }
 

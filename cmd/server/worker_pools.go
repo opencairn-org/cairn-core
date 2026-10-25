@@ -39,28 +39,40 @@ func knownPools(ctx context.Context, app *App, logger *slog.Logger, provider str
 			byName[p.Name] = &poolInfo{name: p.Name, pkg: p.Package}
 		}
 	}
-	for _, w := range currentWorkers(ctx, app, logger) {
-		if w.provider != provider || w.name == "" {
-			continue
-		}
-		p, ok := byName[w.name]
-		if !ok {
-			if app.WorkerPools != nil {
-				if reg, err := app.WorkerPools.Get(ctx, provider, w.name); err == nil && reg.RetiredAt != nil {
-					continue // retired: online but not offered
-				}
-			}
-			p = &poolInfo{name: w.name, pkg: w.pkg}
-			byName[w.name] = p
-		}
-		p.online, p.compatible, p.parser, p.release = true, w.compatible, w.version, w.release
-	}
+	overlayPresence(ctx, app, logger, provider, byName)
 	out := make([]poolInfo, 0, len(byName))
 	for _, p := range byName {
 		out = append(out, *p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].name < out[j].name })
 	return out
+}
+
+// overlayPresence marks the pools with a live instance and adds pools seen
+// only in presence (their manifest not processed yet), unless retired.
+func overlayPresence(ctx context.Context, app *App, logger *slog.Logger, provider string, byName map[string]*poolInfo) {
+	for _, w := range currentWorkers(ctx, app, logger) {
+		if w.provider != provider || w.name == "" {
+			continue
+		}
+		p, ok := byName[w.name]
+		if !ok {
+			if isRetired(ctx, app, provider, w.name) {
+				continue // online but not offered
+			}
+			p = &poolInfo{name: w.name, pkg: w.pkg}
+			byName[w.name] = p
+		}
+		p.online, p.compatible, p.parser, p.release = true, w.compatible, w.version, w.release
+	}
+}
+
+func isRetired(ctx context.Context, app *App, provider, name string) bool {
+	if app.WorkerPools == nil {
+		return false
+	}
+	reg, err := app.WorkerPools.Get(ctx, provider, name)
+	return err == nil && reg.RetiredAt != nil
 }
 
 func knownPoolNames(ctx context.Context, app *App, logger *slog.Logger, provider string) []string {

@@ -18,7 +18,7 @@ var (
 
 // ResolveAccountWorker picks the named pool an account's jobs go to
 // (docs/adr/0006). An assignment wins, online or not (the job waits in the
-// queue). Without one, the provider's only live pool is used and should be
+// queue). Without one, the provider's only known pool is used and should be
 // persisted as the assignment.
 func ResolveAccountWorker(assigned string, live []string) (name string, persist bool, err error) {
 	if assigned != "" {
@@ -37,7 +37,7 @@ func ResolveAccountWorker(assigned string, live []string) (name string, persist 
 // ResolveConnectPool picks the pool a new or re-made connection is created
 // for (docs/adr/0006): the user's explicit choice (must be live), else the
 // pool this connection already used for the account, else the provider's
-// only live pool. No live pool leaves it unassigned (the router assigns it
+// only known pool. No known pool leaves it unassigned (the router assigns it
 // later); several without a choice is ambiguous.
 func ResolveConnectPool(requested, existing string, live []string) (string, error) {
 	names := slices.Compact(slices.Sorted(slices.Values(live)))
