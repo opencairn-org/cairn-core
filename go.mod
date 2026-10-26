@@ -27,7 +27,7 @@ require (
 	//   jwt/v2     : JWT minting + verification for NATS account/user JWTs
 	//
 	// Versions are the latest stable as of May 2026.
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.55.0
 	github.com/nats-io/nkeys v0.4.16
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/spf13/cobra v1.10.2
