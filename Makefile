@@ -42,7 +42,7 @@ GREMLINS_VERSION      ?= v0.6.0
 # Mutation test efficacy floor for the pure domain package (58.8% today).
 MUTATION_MIN ?= 55
 # renovate: datasource=go depName=github.com/fleetlint/fleetlint
-FLEETLINT_VERSION     ?= v0.8.1
+FLEETLINT_VERSION     ?= v0.9.0
 # Proto toolchain; keep in step with docker/Dockerfile.build-base.
 # renovate: datasource=go depName=github.com/bufbuild/buf
 BUF_VERSION           ?= v1.75.0
