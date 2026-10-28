@@ -127,6 +127,8 @@ type App struct {
 	RecomputeActivity        *activity.RecomputeActivityFromSources
 	IngestActivity           *activity.IngestActivityFromWorker
 	ReclusterBucket          *matchuc.ReclusterBucket
+	SourceActions            *activity.SourceActions
+	SourceLinks              *matchuc.SourceLinks
 	FieldOverrides           port.FieldOverrideRepo
 	ClassOverrides           port.ClassificationOverrideRepo
 	Attachments              port.AttachmentRepo
@@ -343,6 +345,9 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		dmatch.DefaultOptions(),
 		logger,
 	)
+	// The owner-facing source actions, shared by REST and Connect.
+	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
+	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
 	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
 		app.Activities,
 		app.Streams,

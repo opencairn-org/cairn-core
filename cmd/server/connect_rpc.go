@@ -34,6 +34,13 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
 		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
+	// Source actions, uploads and re-imports share their implementation with
+	// the REST handlers so the two surfaces stay in parity.
+	activitySvc.SourceActions = app.SourceActions
+	activitySvc.SourceLinks = app.SourceLinks
+	activitySvc.Reimporter = newSourceReimporter(app, logger)
+	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
+	activitySvc.Blobs = app.BlobStore
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
 	cairnv1connect.RegisterNotificationServiceHandler(server, connectadapter.NewNotificationServer(app.Notifications))

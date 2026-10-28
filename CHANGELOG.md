@@ -7,6 +7,28 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Connect `ActivityService` now implements `ListActivitySources`,
+  `DeleteActivity`, `DetachSource` (incl. `keep_as_new_activity` = split),
+  `LinkSourceToActivity`, `ReimportSource` (`prefer_local_reparse` = re-parse
+  from the archive), `ListRecords`, `PresignActivityUpload` and
+  `UploadActivity`. They call the same use cases as the REST handlers
+  (`/sources/{id}/detach|reimport`, `/split`, `/merge`, `/upload`,
+  `/api/records`), so the two surfaces behave identically. Still
+  unimplemented: `StreamActivityEvents`, the source-preview trio and custom
+  best efforts.
+- `DELETE /api/activities/{id}` soft-deletes an activity (every source
+  detached and denylisted, remote followers told). Before, the only way was
+  detaching the sources one by one.
+- `PresignActivityUpload` + `UploadActivity` give native clients a two-step
+  upload via object storage (`uploads/<user>/<id>.<ext>`, 15 min PUT URL);
+  needs the S3 endpoint to be reachable by the client, which the REST
+  multipart upload does not.
+
+### Fixed
+- Connect streaming RPCs went through the session, scope and admin
+  interceptors unauthenticated (the chain only wrapped unary calls). No
+  streaming RPC was implemented, so nothing was exposed; the chain now covers
+  every stream type.
 - A v* tag now also publishes the GitHub release: the tag's CHANGELOG.md
   section as notes plus the image digest and verify commands, with an SPDX
   SBOM of that digest (syft) attached. Before, the release object was created

@@ -30,6 +30,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
+	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 )
 
 // ActivityServer implements cairnv1connect.ActivityServiceHandler. The
@@ -59,6 +60,18 @@ type ActivityServer struct {
 	// Gear backs the gear_id edit (ownership check, type default on reset)
 	// and the gear names on the wire. Nil → gear edits rejected.
 	Gear *gearuc.Service
+
+	// SourceActions and SourceLinks back DeleteActivity, DetachSource and
+	// LinkSourceToActivity; the REST handlers call the same use cases.
+	SourceActions *activity.SourceActions
+	SourceLinks   *matchuc.SourceLinks
+
+	// Reimporter dispatches ReimportSource; Uploads ingests UploadActivity;
+	// Blobs mints PresignActivityUpload URLs and reads the uploaded object.
+	// Each nil → the RPC answers Unavailable.
+	Reimporter port.SourceReimporter
+	Uploads    port.UploadIngester
+	Blobs      port.BlobStore
 }
 
 // Compile-time interface check.

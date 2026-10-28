@@ -42,13 +42,12 @@ func notFoundErr(err error) error {
 	return connectError(connectrpc.CodeInternal, err)
 }
 
-// unaryInterceptor adapts fn to a server interceptor; streams pass through untouched, as in v1.
-func unaryInterceptor(fn func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error) connectrpc.ServerInterceptor {
+// serverInterceptor adapts fn to a server interceptor for every stream type.
+// Streams used to pass through untouched, which left any streaming RPC
+// unauthenticated and unscoped; the auth chain must see them too.
+func serverInterceptor(fn func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error) connectrpc.ServerInterceptor {
 	return func(next connectrpc.ServerFunc) connectrpc.ServerFunc {
 		return func(ctx context.Context, spec connectrpc.Spec, stream connectrpc.ServerStream) error {
-			if spec.StreamType != connectrpc.StreamTypeUnary {
-				return next(ctx, spec, stream)
-			}
 			return fn(ctx, spec, func(ctx context.Context) error { return next(ctx, spec, stream) })
 		}
 	}
@@ -99,7 +98,7 @@ const (
 // the user id in the context. Touches last-seen/last-used best-effort. `pats`
 // may be nil (PAT auth then disabled).
 func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthServerRepo, sessionCookieName string) connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		if authed, ok := connectAuthenticate(ctx, requestHeader(ctx), sessions, pats, oauth, sessionCookieName); ok {
 			return next(authed)
 		}
@@ -161,7 +160,7 @@ func connectAuthSessionCookie(ctx context.Context, h *connectrpc.Header, session
 //
 // Mount AFTER SessionInterceptor so scopes are already in ctx.
 func ScopeInterceptor() connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error {
 		scopes, isOAuth := ctx.Value(ctxKeyScopes).([]string)
 		if !isOAuth {
 			return next(ctx) // cookie/PAT: unrestricted
@@ -218,7 +217,7 @@ func userIDFromHandlerCtx(ctx context.Context) (domain.UserID, error) {
 // shows up on traces — admin endpoints are low-volume so the join is
 // fine for now.
 func RequireAdminInterceptor(users port.UserRepo) connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		v := ctx.Value(ctxKeyUserID)
 		if v == nil {
 			return connectrpc.NewError(connectrpc.CodeUnauthenticated, "authentication required")

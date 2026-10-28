@@ -307,7 +307,7 @@ func (h syncHandlers) reparseOutOfDate(w http.ResponseWriter, r *http.Request) {
 			skipped++
 			continue
 		}
-		if err := dispatchReparse(r.Context(), h.app, h.logger, a.UserID, s); err != nil {
+		if _, err := newSourceReimporter(h.app, h.logger).Reparse(r.Context(), a.UserID, s); err != nil {
 			h.logger.Warn("bulk re-parse: dispatch failed", "source_id", s.ID, "error", err)
 			skipped++
 			continue

@@ -651,6 +651,12 @@ func TestAPI_EndToEnd(t *testing.T) {
 	}
 	alice.do(http.MethodPost, "/api/activities/"+actID+"/sources/"+srcID+"/reimport", map[string]any{"mode": "replace"}, http.StatusServiceUnavailable)
 	alice.do(http.MethodPost, "/api/activities/"+actID+"/sources/"+srcID+"/detach", map[string]any{"reason": "duplicate"})
+	// DELETE soft-deletes through the shared use case: gone from reads, a
+	// second delete is 404, and another user's activity is invisible.
+	alice.do(http.MethodDelete, "/api/activities/"+act2, nil)
+	alice.do(http.MethodGet, "/api/activities/"+act2+"/manage", nil, http.StatusNotFound)
+	alice.do(http.MethodDelete, "/api/activities/"+act2, nil, http.StatusNotFound)
+	bob.do(http.MethodDelete, "/api/activities/"+actID, nil, http.StatusNotFound)
 
 	itestConnections(t, alice)
 

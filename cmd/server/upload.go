@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,6 +23,7 @@ import (
 	cairnv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // mountUploadEndpoint registers the drag-and-drop file import:
@@ -41,7 +44,7 @@ func mountUploadEndpoint(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 // uploadMaxFileBytes caps the uploaded file; the body cap adds slack for multipart framing.
 const (
-	uploadMaxFileBytes = 64 << 20
+	uploadMaxFileBytes = port.MaxUploadBytes
 	uploadMaxBodyBytes = uploadMaxFileBytes + 1<<20
 )
 
@@ -51,23 +54,7 @@ type uploadAPI struct {
 	logger *slog.Logger
 }
 
-// quotaExceeded writes a 403 when the user is over the activity quota.
-func (h *uploadAPI) quotaExceeded(w http.ResponseWriter, r *http.Request, userID domain.UserID) bool {
-	if h.app.Quotas == nil {
-		return false
-	}
-	st := activityQuotaStatus(r.Context(), h.app, userID)
-	if !st.OverLimit {
-		return false
-	}
-	w.Header().Set("Content-Type", "application/json")
-	writeJSON(w, http.StatusForbidden, map[string]any{
-		"error":            "activity quota reached",
-		"activities_used":  st.Used,
-		"activities_limit": st.Limit,
-	})
-	return true
-}
+var _ port.UploadIngester = (*uploadAPI)(nil)
 
 // readFile reads the multipart "file" field or writes a 400.
 func (h *uploadAPI) readFile(w http.ResponseWriter, r *http.Request) ([]byte, string, bool) {
@@ -93,49 +80,55 @@ func (h *uploadAPI) readFile(w http.ResponseWriter, r *http.Request) ([]byte, st
 
 // archiveRaw stores the original file (best-effort — the activity is already
 // ingested). Server-side Put because the server holds the bytes; the
-// raw_blob_id lets the user download the original later.
-func (h *uploadAPI) archiveRaw(r *http.Request, userID domain.UserID, sourceID domain.SourceID, filename string, raw []byte) {
+// raw_blob_id lets the user download the original later. A presigned upload
+// already lives under in.RawBlobKey, so only the reference is recorded.
+func (h *uploadAPI) archiveRaw(ctx context.Context, in port.UploadInput, sourceID domain.SourceID) {
 	app := h.app
 	if app.BlobStore == nil {
 		return
 	}
-	ext := ""
-	if i := strings.LastIndex(filename, "."); i >= 0 {
-		ext = strings.ToLower(filename[i:])
+	ct := uploadContentType(uploadExt(in.Filename))
+	key := in.RawBlobKey
+	if key == "" {
+		key = fmt.Sprintf("raw/%s/%s%s", in.UserID.String(), sourceID.String(), uploadExt(in.Filename))
+		if err := app.BlobStore.Put(ctx, key, in.Raw, ct); err != nil {
+			h.logger.Warn("archive raw upload failed", "source_id", sourceID, "error", err)
+			return
+		}
 	}
-	ct := uploadContentType(ext)
-	key := fmt.Sprintf("raw/%s/%s%s", userID.String(), sourceID.String(), ext)
-	if err := app.BlobStore.Put(r.Context(), key, raw, ct); err != nil {
-		h.logger.Warn("archive raw upload failed", "source_id", sourceID, "error", err)
-	} else if err := app.Activities.SetSourceRawBlob(r.Context(), sourceID, key, ct, int64(len(raw))); err != nil {
+	if err := app.Activities.SetSourceRawBlob(ctx, sourceID, key, ct, int64(len(in.Raw))); err != nil {
 		h.logger.Warn("record raw blob ref failed", "source_id", sourceID, "error", err)
 	}
 }
 
-func (h *uploadAPI) handle(w http.ResponseWriter, r *http.Request) {
-	userID, ok := resolveSessionUser(r, h.app)
-	if !ok {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return
+// uploadExt returns the lower-cased extension (with dot) of a filename.
+func uploadExt(filename string) string {
+	if i := strings.LastIndex(filename, "."); i >= 0 {
+		return strings.ToLower(filename[i:])
 	}
+	return ""
+}
 
-	// Enforce the per-user activity quota before doing any parsing work.
-	if h.quotaExceeded(w, r, userID) {
-		return
+// IngestUpload parses the file and runs it through the worker ingest path
+// (provider = "upload", external_id = the content hash so a re-upload dedups
+// and refreshes), then archives the original. Quota and parse failures are
+// ActionErrors.
+func (h *uploadAPI) IngestUpload(ctx context.Context, in port.UploadInput) (port.UploadResult, error) {
+	if h.app.Quotas != nil && activityQuotaStatus(ctx, h.app, in.UserID).OverLimit {
+		return port.UploadResult{}, port.NewActionError(port.ActionErrorQuota, "activity quota reached")
 	}
-
-	raw, filename, ok := h.readFile(w, r)
-	if !ok {
-		return
+	if len(in.Raw) == 0 {
+		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "empty file")
 	}
-
-	payload, stream, err := parseUpload(filename, raw)
+	if len(in.Raw) > port.MaxUploadBytes {
+		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "file exceeds the upload limit")
+	}
+	payload, stream, err := parseUpload(in.Filename, in.Raw)
 	if err != nil {
-		http.Error(w, "parse failed: "+err.Error(), http.StatusBadRequest)
-		return
+		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "parse failed: "+err.Error())
 	}
 
-	sum := sha256.Sum256(raw)
+	sum := sha256.Sum256(in.Raw)
 	extID := hex.EncodeToString(sum[:16])
 
 	jr := &workerv1.JobResult{
@@ -144,7 +137,7 @@ func (h *uploadAPI) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	ev := &workerv1.ImportedActivity{
 		Ref: &workerv1.ExternalRef{
-			UserId:     userID.String(),
+			UserId:     in.UserID.String(),
 			Provider:   "upload",
 			ExternalId: extID,
 		},
@@ -152,19 +145,44 @@ func (h *uploadAPI) handle(w http.ResponseWriter, r *http.Request) {
 		Stream:  stream,
 	}
 
-	out, err := ingestActivityEvent(r.Context(), h.app, h.logger, jr, ev)
+	out, err := ingestActivityEvent(ctx, h.app, h.logger, jr, ev)
 	if err != nil {
-		h.logger.Error("upload ingest failed", "user_id", userID, "file", filename, "error", err)
-		http.Error(w, "ingest failed: "+err.Error(), http.StatusInternalServerError)
+		h.logger.Error("upload ingest failed", "user_id", in.UserID, "file", in.Filename, "error", err)
+		return port.UploadResult{}, fmt.Errorf("ingest: %w", err)
+	}
+	h.archiveRaw(ctx, in, out.SourceID)
+	return port.UploadResult{ActivityID: out.ActivityID, SourceID: out.SourceID, Action: string(out.Action)}, nil
+}
+
+func (h *uploadAPI) handle(w http.ResponseWriter, r *http.Request) {
+	userID, ok := resolveSessionUser(r, h.app)
+	if !ok {
+		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-
-	h.archiveRaw(r, userID, out.SourceID, filename, raw)
-
+	raw, filename, ok := h.readFile(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.IngestUpload(r.Context(), port.UploadInput{UserID: userID, Filename: filename, Raw: raw})
+	if err != nil {
+		var ae *port.ActionError
+		if errors.As(err, &ae) && ae.Kind == port.ActionErrorQuota {
+			st := activityQuotaStatus(r.Context(), h.app, userID)
+			writeJSON(w, http.StatusForbidden, map[string]any{
+				"error":            "activity quota reached",
+				"activities_used":  st.Used,
+				"activities_limit": st.Limit,
+			})
+			return
+		}
+		writeActionError(w, err, "ingest failed: "+err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"activity_id": out.ActivityID.String(),
 		"source_id":   out.SourceID.String(),
-		"action":      string(out.Action),
+		"action":      out.Action,
 		"filename":    filename,
 	})
 }
