@@ -7,6 +7,21 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `StatsService.GetStats`, `GetTrainingLoad`, `GetBestEffortHistory` and
+  `GetHeatmap` (tracks as encoded polylines), the counterparts of
+  `/api/stats`, `/api/analysis`, `/api/best-efforts/history` and
+  `/api/activities/heatmap`.
+- `SegmentService` is mounted: `ListMySegments` (the segments landing page),
+  `GetSegment` (with the caller's efforts as `top_efforts`) and
+  `ListMySegmentEfforts`. Native segment authoring and instance leaderboards
+  stay planned (no REST counterpart yet either).
+- `MetricsService` is mounted: `ListMetrics` (one key at a time),
+  `ListHealthSeries` (`/api/health`), `ListAthleteMetrics`,
+  `UpsertAthleteMetric` and `DeleteAthleteMetric` (`/api/athlete/metrics`).
+- `SettingsService` is mounted over what core stores today: `GetSettings`,
+  `UpdateSettings` (field mask `merge_policy_by_activity_type`) and
+  `ResetSettingsSection` (merge policies), the counterparts of
+  `/api/settings/merge-policy`.
 - Per-activity detail RPCs on `ActivityService`: `ListLaps`,
   `GetActivityZones` (time in HR/power zones + aerobic decoupling),
   `ListActivitySegmentEfforts`, `ListSimilarActivities`, `GetMergedStream`,

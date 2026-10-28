@@ -137,6 +137,9 @@ type App struct {
 	Searches           *view.Searches
 	Feeds              *view.Feeds
 	Details            *view.Details
+	Stats              *view.Stats
+	SegmentViews       *view.Segments
+	HealthViews        *view.Health
 	AttachmentVariants *attachmentuc.Variants
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
@@ -645,6 +648,17 @@ func wireAppViews(app *App, logger *slog.Logger) {
 		fedFeed = app.FederationFeed
 	}
 	app.Feeds = view.NewFeeds(app.Activities, app.Users, app.Visibility2, fedFeed, app.FederationEnabled)
+	var metrics port.MetricRepo
+	if app.Metrics != nil {
+		metrics = app.Metrics
+	}
+	var bestEfforts port.BestEffortRepo
+	if app.BestEfforts != nil {
+		bestEfforts = app.BestEfforts
+	}
+	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
+	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
+	app.HealthViews = view.NewHealth(app.Health, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
 }

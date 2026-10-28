@@ -125,6 +125,14 @@ type SegmentRepo interface {
 		offset int,
 	) ([]domain.SegmentEffort, error)
 
+	// UserSegmentStats is the viewer's headline block: distinct segments
+	// with efforts, efforts, records, external vs native.
+	UserSegmentStats(ctx context.Context, userID domain.UserID) (domain.UserSegmentStats, error)
+
+	// ListUserSegmentsByEffortCount pages the viewer's segments, most
+	// attempted first; activityType "" = any.
+	ListUserSegmentsByEffortCount(ctx context.Context, userID domain.UserID, activityType string, limit, offset int) ([]domain.UserSegmentListItem, error)
+
 	// -------------------------------------------------------------------
 	// Rank denormalization
 	// -------------------------------------------------------------------

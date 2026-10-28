@@ -29,4 +29,8 @@ type BestEffortRepo interface {
 	// metric, window) across every activity and provider — the cross-provider PR
 	// table (brief §11). Computed on read, so it's always current.
 	ListPersonalRecords(ctx context.Context, userID domain.UserID) ([]domain.PersonalRecord, error)
+
+	// ListBestEffortHistory returns every effort of the user in one bucket
+	// (activity type, metric, window), chronological, for the progression view.
+	ListBestEffortHistory(ctx context.Context, userID domain.UserID, activityType, metric, windowKind string, windowValue int) ([]domain.BestEffortHistoryItem, error)
 }

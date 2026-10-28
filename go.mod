@@ -50,6 +50,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
 	github.com/tormoder/fit v0.15.0
+	github.com/twpayne/go-polyline v1.1.2
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/image v0.47.0
 	golang.org/x/mod v0.42.0

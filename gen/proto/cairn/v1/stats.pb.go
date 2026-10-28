@@ -13,6 +13,7 @@ package cairnv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,6 +25,55 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type GetHeatmapRequest_Resolution int32
+
+const (
+	GetHeatmapRequest_RESOLUTION_UNSPECIFIED GetHeatmapRequest_Resolution = 0 // 30 s
+	GetHeatmapRequest_RESOLUTION_30S         GetHeatmapRequest_Resolution = 1
+	GetHeatmapRequest_RESOLUTION_5S          GetHeatmapRequest_Resolution = 2
+)
+
+// Enum value maps for GetHeatmapRequest_Resolution.
+var (
+	GetHeatmapRequest_Resolution_name = map[int32]string{
+		0: "RESOLUTION_UNSPECIFIED",
+		1: "RESOLUTION_30S",
+		2: "RESOLUTION_5S",
+	}
+	GetHeatmapRequest_Resolution_value = map[string]int32{
+		"RESOLUTION_UNSPECIFIED": 0,
+		"RESOLUTION_30S":         1,
+		"RESOLUTION_5S":          2,
+	}
+)
+
+func (x GetHeatmapRequest_Resolution) Enum() *GetHeatmapRequest_Resolution {
+	p := new(GetHeatmapRequest_Resolution)
+	*p = x
+	return p
+}
+
+func (x GetHeatmapRequest_Resolution) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetHeatmapRequest_Resolution) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_stats_proto_enumTypes[0].Descriptor()
+}
+
+func (GetHeatmapRequest_Resolution) Type() protoreflect.EnumType {
+	return &file_cairn_v1_stats_proto_enumTypes[0]
+}
+
+func (x GetHeatmapRequest_Resolution) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetHeatmapRequest_Resolution.Descriptor instead.
+func (GetHeatmapRequest_Resolution) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{11, 0}
+}
 
 type GetOverviewRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -154,11 +204,801 @@ func (x *GetOverviewResponse) GetLastWeekRange() *TimeRange {
 	return nil
 }
 
+type GetStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatsRequest) Reset() {
+	*x = GetStatsRequest{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatsRequest) ProtoMessage() {}
+
+func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetStatsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{2}
+}
+
+type YearStat struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Year           int32                  `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
+	Count          int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	DistanceM      float64                `protobuf:"fixed64,3,opt,name=distance_m,json=distanceM,proto3" json:"distance_m,omitempty"`
+	MovingS        float64                `protobuf:"fixed64,4,opt,name=moving_s,json=movingS,proto3" json:"moving_s,omitempty"`
+	ElevationGainM float64                `protobuf:"fixed64,5,opt,name=elevation_gain_m,json=elevationGainM,proto3" json:"elevation_gain_m,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *YearStat) Reset() {
+	*x = YearStat{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *YearStat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*YearStat) ProtoMessage() {}
+
+func (x *YearStat) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use YearStat.ProtoReflect.Descriptor instead.
+func (*YearStat) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *YearStat) GetYear() int32 {
+	if x != nil {
+		return x.Year
+	}
+	return 0
+}
+
+func (x *YearStat) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *YearStat) GetDistanceM() float64 {
+	if x != nil {
+		return x.DistanceM
+	}
+	return 0
+}
+
+func (x *YearStat) GetMovingS() float64 {
+	if x != nil {
+		return x.MovingS
+	}
+	return 0
+}
+
+func (x *YearStat) GetElevationGainM() float64 {
+	if x != nil {
+		return x.ElevationGainM
+	}
+	return 0
+}
+
+type GetStatsResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Totals       *Totals                `protobuf:"bytes,1,opt,name=totals,proto3" json:"totals,omitempty"`
+	BySport      []*Facet               `protobuf:"bytes,2,rep,name=by_sport,json=bySport,proto3" json:"by_sport,omitempty"`
+	ByDiscipline []*Facet               `protobuf:"bytes,3,rep,name=by_discipline,json=byDiscipline,proto3" json:"by_discipline,omitempty"`
+	ByYear       []*YearStat            `protobuf:"bytes,4,rep,name=by_year,json=byYear,proto3" json:"by_year,omitempty"`
+	// Longest by distance / by elapsed time; unset without activities.
+	LongestDistance *Activity `protobuf:"bytes,5,opt,name=longest_distance,json=longestDistance,proto3" json:"longest_distance,omitempty"`
+	LongestDuration *Activity `protobuf:"bytes,6,opt,name=longest_duration,json=longestDuration,proto3" json:"longest_duration,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetStatsResponse) Reset() {
+	*x = GetStatsResponse{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatsResponse) ProtoMessage() {}
+
+func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetStatsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetStatsResponse) GetTotals() *Totals {
+	if x != nil {
+		return x.Totals
+	}
+	return nil
+}
+
+func (x *GetStatsResponse) GetBySport() []*Facet {
+	if x != nil {
+		return x.BySport
+	}
+	return nil
+}
+
+func (x *GetStatsResponse) GetByDiscipline() []*Facet {
+	if x != nil {
+		return x.ByDiscipline
+	}
+	return nil
+}
+
+func (x *GetStatsResponse) GetByYear() []*YearStat {
+	if x != nil {
+		return x.ByYear
+	}
+	return nil
+}
+
+func (x *GetStatsResponse) GetLongestDistance() *Activity {
+	if x != nil {
+		return x.LongestDistance
+	}
+	return nil
+}
+
+func (x *GetStatsResponse) GetLongestDuration() *Activity {
+	if x != nil {
+		return x.LongestDuration
+	}
+	return nil
+}
+
+type GetTrainingLoadRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Days back from today; default 180, max 3650.
+	Days          int32 `protobuf:"varint,1,opt,name=days,proto3" json:"days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTrainingLoadRequest) Reset() {
+	*x = GetTrainingLoadRequest{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTrainingLoadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTrainingLoadRequest) ProtoMessage() {}
+
+func (x *GetTrainingLoadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTrainingLoadRequest.ProtoReflect.Descriptor instead.
+func (*GetTrainingLoadRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetTrainingLoadRequest) GetDays() int32 {
+	if x != nil {
+		return x.Days
+	}
+	return 0
+}
+
+type TrainingLoadDay struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// YYYY-MM-DD, UTC.
+	Date          string  `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
+	Ctl           float64 `protobuf:"fixed64,2,opt,name=ctl,proto3" json:"ctl,omitempty"`
+	Atl           float64 `protobuf:"fixed64,3,opt,name=atl,proto3" json:"atl,omitempty"`
+	Tsb           float64 `protobuf:"fixed64,4,opt,name=tsb,proto3" json:"tsb,omitempty"`
+	Tss           float64 `protobuf:"fixed64,5,opt,name=tss,proto3" json:"tss,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TrainingLoadDay) Reset() {
+	*x = TrainingLoadDay{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrainingLoadDay) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrainingLoadDay) ProtoMessage() {}
+
+func (x *TrainingLoadDay) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrainingLoadDay.ProtoReflect.Descriptor instead.
+func (*TrainingLoadDay) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TrainingLoadDay) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *TrainingLoadDay) GetCtl() float64 {
+	if x != nil {
+		return x.Ctl
+	}
+	return 0
+}
+
+func (x *TrainingLoadDay) GetAtl() float64 {
+	if x != nil {
+		return x.Atl
+	}
+	return 0
+}
+
+func (x *TrainingLoadDay) GetTsb() float64 {
+	if x != nil {
+		return x.Tsb
+	}
+	return 0
+}
+
+func (x *TrainingLoadDay) GetTss() float64 {
+	if x != nil {
+		return x.Tss
+	}
+	return 0
+}
+
+type GetTrainingLoadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Days          []*TrainingLoadDay     `protobuf:"bytes,1,rep,name=days,proto3" json:"days,omitempty"`
+	CurrentCtl    float64                `protobuf:"fixed64,2,opt,name=current_ctl,json=currentCtl,proto3" json:"current_ctl,omitempty"`
+	CurrentAtl    float64                `protobuf:"fixed64,3,opt,name=current_atl,json=currentAtl,proto3" json:"current_atl,omitempty"`
+	CurrentTsb    float64                `protobuf:"fixed64,4,opt,name=current_tsb,json=currentTsb,proto3" json:"current_tsb,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTrainingLoadResponse) Reset() {
+	*x = GetTrainingLoadResponse{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTrainingLoadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTrainingLoadResponse) ProtoMessage() {}
+
+func (x *GetTrainingLoadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTrainingLoadResponse.ProtoReflect.Descriptor instead.
+func (*GetTrainingLoadResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetTrainingLoadResponse) GetDays() []*TrainingLoadDay {
+	if x != nil {
+		return x.Days
+	}
+	return nil
+}
+
+func (x *GetTrainingLoadResponse) GetCurrentCtl() float64 {
+	if x != nil {
+		return x.CurrentCtl
+	}
+	return 0
+}
+
+func (x *GetTrainingLoadResponse) GetCurrentAtl() float64 {
+	if x != nil {
+		return x.CurrentAtl
+	}
+	return 0
+}
+
+func (x *GetTrainingLoadResponse) GetCurrentTsb() float64 {
+	if x != nil {
+		return x.CurrentTsb
+	}
+	return 0
+}
+
+type GetBestEffortHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          ActivityType           `protobuf:"varint,1,opt,name=type,proto3,enum=cairn.v1.ActivityType" json:"type,omitempty"`
+	Metric        BestEffortMetric       `protobuf:"varint,2,opt,name=metric,proto3,enum=cairn.v1.BestEffortMetric" json:"metric,omitempty"`
+	WindowKind    BestEffortWindowKind   `protobuf:"varint,3,opt,name=window_kind,json=windowKind,proto3,enum=cairn.v1.BestEffortWindowKind" json:"window_kind,omitempty"`
+	WindowValue   int32                  `protobuf:"varint,4,opt,name=window_value,json=windowValue,proto3" json:"window_value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBestEffortHistoryRequest) Reset() {
+	*x = GetBestEffortHistoryRequest{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBestEffortHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBestEffortHistoryRequest) ProtoMessage() {}
+
+func (x *GetBestEffortHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBestEffortHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetBestEffortHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetBestEffortHistoryRequest) GetType() ActivityType {
+	if x != nil {
+		return x.Type
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *GetBestEffortHistoryRequest) GetMetric() BestEffortMetric {
+	if x != nil {
+		return x.Metric
+	}
+	return BestEffortMetric_BEST_EFFORT_METRIC_UNSPECIFIED
+}
+
+func (x *GetBestEffortHistoryRequest) GetWindowKind() BestEffortWindowKind {
+	if x != nil {
+		return x.WindowKind
+	}
+	return BestEffortWindowKind_BEST_EFFORT_WINDOW_KIND_UNSPECIFIED
+}
+
+func (x *GetBestEffortHistoryRequest) GetWindowValue() int32 {
+	if x != nil {
+		return x.WindowValue
+	}
+	return 0
+}
+
+type BestEffortHistoryItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	StartTime     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	AchievedValue float64                `protobuf:"fixed64,4,opt,name=achieved_value,json=achievedValue,proto3" json:"achieved_value,omitempty"`
+	IsBest        bool                   `protobuf:"varint,5,opt,name=is_best,json=isBest,proto3" json:"is_best,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BestEffortHistoryItem) Reset() {
+	*x = BestEffortHistoryItem{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BestEffortHistoryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BestEffortHistoryItem) ProtoMessage() {}
+
+func (x *BestEffortHistoryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BestEffortHistoryItem.ProtoReflect.Descriptor instead.
+func (*BestEffortHistoryItem) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *BestEffortHistoryItem) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *BestEffortHistoryItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *BestEffortHistoryItem) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *BestEffortHistoryItem) GetAchievedValue() float64 {
+	if x != nil {
+		return x.AchievedValue
+	}
+	return 0
+}
+
+func (x *BestEffortHistoryItem) GetIsBest() bool {
+	if x != nil {
+		return x.IsBest
+	}
+	return false
+}
+
+type GetBestEffortHistoryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The all-time best: the minimum for pace, the maximum otherwise.
+	Best          float64                  `protobuf:"fixed64,1,opt,name=best,proto3" json:"best,omitempty"`
+	Count         int32                    `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	Items         []*BestEffortHistoryItem `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBestEffortHistoryResponse) Reset() {
+	*x = GetBestEffortHistoryResponse{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBestEffortHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBestEffortHistoryResponse) ProtoMessage() {}
+
+func (x *GetBestEffortHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBestEffortHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetBestEffortHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetBestEffortHistoryResponse) GetBest() float64 {
+	if x != nil {
+		return x.Best
+	}
+	return 0
+}
+
+func (x *GetBestEffortHistoryResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *GetBestEffortHistoryResponse) GetItems() []*BestEffortHistoryItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type GetHeatmapRequest struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Filter        *ActivityFilter              `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	Resolution    GetHeatmapRequest_Resolution `protobuf:"varint,2,opt,name=resolution,proto3,enum=cairn.v1.GetHeatmapRequest_Resolution" json:"resolution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHeatmapRequest) Reset() {
+	*x = GetHeatmapRequest{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHeatmapRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHeatmapRequest) ProtoMessage() {}
+
+func (x *GetHeatmapRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHeatmapRequest.ProtoReflect.Descriptor instead.
+func (*GetHeatmapRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetHeatmapRequest) GetFilter() *ActivityFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *GetHeatmapRequest) GetResolution() GetHeatmapRequest_Resolution {
+	if x != nil {
+		return x.Resolution
+	}
+	return GetHeatmapRequest_RESOLUTION_UNSPECIFIED
+}
+
+type HeatmapTrack struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	Type          ActivityType           `protobuf:"varint,2,opt,name=type,proto3,enum=cairn.v1.ActivityType" json:"type,omitempty"`
+	Discipline    string                 `protobuf:"bytes,3,opt,name=discipline,proto3" json:"discipline,omitempty"`
+	Polyline      *EncodedPolyline       `protobuf:"bytes,4,opt,name=polyline,proto3" json:"polyline,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeatmapTrack) Reset() {
+	*x = HeatmapTrack{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeatmapTrack) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeatmapTrack) ProtoMessage() {}
+
+func (x *HeatmapTrack) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeatmapTrack.ProtoReflect.Descriptor instead.
+func (*HeatmapTrack) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *HeatmapTrack) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *HeatmapTrack) GetType() ActivityType {
+	if x != nil {
+		return x.Type
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *HeatmapTrack) GetDiscipline() string {
+	if x != nil {
+		return x.Discipline
+	}
+	return ""
+}
+
+func (x *HeatmapTrack) GetPolyline() *EncodedPolyline {
+	if x != nil {
+		return x.Polyline
+	}
+	return nil
+}
+
+type GetHeatmapResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Activities matching the filter; with_track of them had a GPS track.
+	Matched   int32 `protobuf:"varint,1,opt,name=matched,proto3" json:"matched,omitempty"`
+	WithTrack int32 `protobuf:"varint,2,opt,name=with_track,json=withTrack,proto3" json:"with_track,omitempty"`
+	// The newest 5000 matching activities were considered; more exist.
+	Truncated     bool            `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Facets        *ActivityFacets `protobuf:"bytes,4,opt,name=facets,proto3" json:"facets,omitempty"`
+	Tracks        []*HeatmapTrack `protobuf:"bytes,5,rep,name=tracks,proto3" json:"tracks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHeatmapResponse) Reset() {
+	*x = GetHeatmapResponse{}
+	mi := &file_cairn_v1_stats_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHeatmapResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHeatmapResponse) ProtoMessage() {}
+
+func (x *GetHeatmapResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_stats_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHeatmapResponse.ProtoReflect.Descriptor instead.
+func (*GetHeatmapResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_stats_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetHeatmapResponse) GetMatched() int32 {
+	if x != nil {
+		return x.Matched
+	}
+	return 0
+}
+
+func (x *GetHeatmapResponse) GetWithTrack() int32 {
+	if x != nil {
+		return x.WithTrack
+	}
+	return 0
+}
+
+func (x *GetHeatmapResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *GetHeatmapResponse) GetFacets() *ActivityFacets {
+	if x != nil {
+		return x.Facets
+	}
+	return nil
+}
+
+func (x *GetHeatmapResponse) GetTracks() []*HeatmapTrack {
+	if x != nil {
+		return x.Tracks
+	}
+	return nil
+}
+
 var File_cairn_v1_stats_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_stats_proto_rawDesc = "" +
 	"\n" +
-	"\x14cairn/v1/stats.proto\x12\bcairn.v1\x1a\x17cairn/v1/activity.proto\x1a\x15cairn/v1/common.proto\"\x14\n" +
+	"\x14cairn/v1/stats.proto\x12\bcairn.v1\x1a\x17cairn/v1/activity.proto\x1a\x15cairn/v1/common.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x14\n" +
 	"\x12GetOverviewRequest\"\xef\x02\n" +
 	"\x13GetOverviewResponse\x12(\n" +
 	"\x06totals\x18\x01 \x01(\v2\x10.cairn.v1.TotalsR\x06totals\x12*\n" +
@@ -167,9 +1007,88 @@ const file_cairn_v1_stats_proto_rawDesc = "" +
 	"\tthis_week\x18\x04 \x01(\v2\x10.cairn.v1.TotalsR\bthisWeek\x12-\n" +
 	"\tlast_week\x18\x05 \x01(\v2\x10.cairn.v1.TotalsR\blastWeek\x12;\n" +
 	"\x0fthis_week_range\x18\x06 \x01(\v2\x13.cairn.v1.TimeRangeR\rthisWeekRange\x12;\n" +
-	"\x0flast_week_range\x18\a \x01(\v2\x13.cairn.v1.TimeRangeR\rlastWeekRange2_\n" +
+	"\x0flast_week_range\x18\a \x01(\v2\x13.cairn.v1.TimeRangeR\rlastWeekRange\"\x11\n" +
+	"\x0fGetStatsRequest\"\x98\x01\n" +
+	"\bYearStat\x12\x12\n" +
+	"\x04year\x18\x01 \x01(\x05R\x04year\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1d\n" +
+	"\n" +
+	"distance_m\x18\x03 \x01(\x01R\tdistanceM\x12\x19\n" +
+	"\bmoving_s\x18\x04 \x01(\x01R\amovingS\x12(\n" +
+	"\x10elevation_gain_m\x18\x05 \x01(\x01R\x0eelevationGainM\"\xc9\x02\n" +
+	"\x10GetStatsResponse\x12(\n" +
+	"\x06totals\x18\x01 \x01(\v2\x10.cairn.v1.TotalsR\x06totals\x12*\n" +
+	"\bby_sport\x18\x02 \x03(\v2\x0f.cairn.v1.FacetR\abySport\x124\n" +
+	"\rby_discipline\x18\x03 \x03(\v2\x0f.cairn.v1.FacetR\fbyDiscipline\x12+\n" +
+	"\aby_year\x18\x04 \x03(\v2\x12.cairn.v1.YearStatR\x06byYear\x12=\n" +
+	"\x10longest_distance\x18\x05 \x01(\v2\x12.cairn.v1.ActivityR\x0flongestDistance\x12=\n" +
+	"\x10longest_duration\x18\x06 \x01(\v2\x12.cairn.v1.ActivityR\x0flongestDuration\",\n" +
+	"\x16GetTrainingLoadRequest\x12\x12\n" +
+	"\x04days\x18\x01 \x01(\x05R\x04days\"m\n" +
+	"\x0fTrainingLoadDay\x12\x12\n" +
+	"\x04date\x18\x01 \x01(\tR\x04date\x12\x10\n" +
+	"\x03ctl\x18\x02 \x01(\x01R\x03ctl\x12\x10\n" +
+	"\x03atl\x18\x03 \x01(\x01R\x03atl\x12\x10\n" +
+	"\x03tsb\x18\x04 \x01(\x01R\x03tsb\x12\x10\n" +
+	"\x03tss\x18\x05 \x01(\x01R\x03tss\"\xab\x01\n" +
+	"\x17GetTrainingLoadResponse\x12-\n" +
+	"\x04days\x18\x01 \x03(\v2\x19.cairn.v1.TrainingLoadDayR\x04days\x12\x1f\n" +
+	"\vcurrent_ctl\x18\x02 \x01(\x01R\n" +
+	"currentCtl\x12\x1f\n" +
+	"\vcurrent_atl\x18\x03 \x01(\x01R\n" +
+	"currentAtl\x12\x1f\n" +
+	"\vcurrent_tsb\x18\x04 \x01(\x01R\n" +
+	"currentTsb\"\xe1\x01\n" +
+	"\x1bGetBestEffortHistoryRequest\x12*\n" +
+	"\x04type\x18\x01 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x122\n" +
+	"\x06metric\x18\x02 \x01(\x0e2\x1a.cairn.v1.BestEffortMetricR\x06metric\x12?\n" +
+	"\vwindow_kind\x18\x03 \x01(\x0e2\x1e.cairn.v1.BestEffortWindowKindR\n" +
+	"windowKind\x12!\n" +
+	"\fwindow_value\x18\x04 \x01(\x05R\vwindowValue\"\xc9\x01\n" +
+	"\x15BestEffortHistoryItem\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x129\n" +
+	"\n" +
+	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12%\n" +
+	"\x0eachieved_value\x18\x04 \x01(\x01R\rachievedValue\x12\x17\n" +
+	"\ais_best\x18\x05 \x01(\bR\x06isBest\"\x7f\n" +
+	"\x1cGetBestEffortHistoryResponse\x12\x12\n" +
+	"\x04best\x18\x01 \x01(\x01R\x04best\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\x125\n" +
+	"\x05items\x18\x03 \x03(\v2\x1f.cairn.v1.BestEffortHistoryItemR\x05items\"\xde\x01\n" +
+	"\x11GetHeatmapRequest\x120\n" +
+	"\x06filter\x18\x01 \x01(\v2\x18.cairn.v1.ActivityFilterR\x06filter\x12F\n" +
+	"\n" +
+	"resolution\x18\x02 \x01(\x0e2&.cairn.v1.GetHeatmapRequest.ResolutionR\n" +
+	"resolution\"O\n" +
+	"\n" +
+	"Resolution\x12\x1a\n" +
+	"\x16RESOLUTION_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eRESOLUTION_30S\x10\x01\x12\x11\n" +
+	"\rRESOLUTION_5S\x10\x02\"\xb2\x01\n" +
+	"\fHeatmapTrack\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\x12*\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x12\x1e\n" +
+	"\n" +
+	"discipline\x18\x03 \x01(\tR\n" +
+	"discipline\x125\n" +
+	"\bpolyline\x18\x04 \x01(\v2\x19.cairn.v1.EncodedPolylineR\bpolyline\"\xcd\x01\n" +
+	"\x12GetHeatmapResponse\x12\x18\n" +
+	"\amatched\x18\x01 \x01(\x05R\amatched\x12\x1d\n" +
+	"\n" +
+	"with_track\x18\x02 \x01(\x05R\twithTrack\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x120\n" +
+	"\x06facets\x18\x04 \x01(\v2\x18.cairn.v1.ActivityFacetsR\x06facets\x12.\n" +
+	"\x06tracks\x18\x05 \x03(\v2\x16.cairn.v1.HeatmapTrackR\x06tracks2\xbe\x03\n" +
 	"\fStatsService\x12O\n" +
-	"\vGetOverview\x12\x1c.cairn.v1.GetOverviewRequest\x1a\x1d.cairn.v1.GetOverviewResponse\"\x03\x90\x02\x01B\x9b\x01\n" +
+	"\vGetOverview\x12\x1c.cairn.v1.GetOverviewRequest\x1a\x1d.cairn.v1.GetOverviewResponse\"\x03\x90\x02\x01\x12F\n" +
+	"\bGetStats\x12\x19.cairn.v1.GetStatsRequest\x1a\x1a.cairn.v1.GetStatsResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fGetTrainingLoad\x12 .cairn.v1.GetTrainingLoadRequest\x1a!.cairn.v1.GetTrainingLoadResponse\"\x03\x90\x02\x01\x12j\n" +
+	"\x14GetBestEffortHistory\x12%.cairn.v1.GetBestEffortHistoryRequest\x1a&.cairn.v1.GetBestEffortHistoryResponse\"\x03\x90\x02\x01\x12L\n" +
+	"\n" +
+	"GetHeatmap\x12\x1b.cairn.v1.GetHeatmapRequest\x1a\x1c.cairn.v1.GetHeatmapResponse\"\x03\x90\x02\x01B\x9b\x01\n" +
 	"\fcom.cairn.v1B\n" +
 	"StatsProtoP\x01Z>github.com/opencairn-org/cairn-core/gen/proto/cairn/v1;cairnv1\xa2\x02\x03CXX\xaa\x02\bCairn.V1\xca\x02\bCairn\\V1\xe2\x02\x14Cairn\\V1\\GPBMetadata\xea\x02\tCairn::V1b\x06proto3"
 
@@ -185,30 +1104,77 @@ func file_cairn_v1_stats_proto_rawDescGZIP() []byte {
 	return file_cairn_v1_stats_proto_rawDescData
 }
 
-var file_cairn_v1_stats_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_cairn_v1_stats_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_cairn_v1_stats_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_cairn_v1_stats_proto_goTypes = []any{
-	(*GetOverviewRequest)(nil),  // 0: cairn.v1.GetOverviewRequest
-	(*GetOverviewResponse)(nil), // 1: cairn.v1.GetOverviewResponse
-	(*Totals)(nil),              // 2: cairn.v1.Totals
-	(*Facet)(nil),               // 3: cairn.v1.Facet
-	(*Activity)(nil),            // 4: cairn.v1.Activity
-	(*TimeRange)(nil),           // 5: cairn.v1.TimeRange
+	(GetHeatmapRequest_Resolution)(0),    // 0: cairn.v1.GetHeatmapRequest.Resolution
+	(*GetOverviewRequest)(nil),           // 1: cairn.v1.GetOverviewRequest
+	(*GetOverviewResponse)(nil),          // 2: cairn.v1.GetOverviewResponse
+	(*GetStatsRequest)(nil),              // 3: cairn.v1.GetStatsRequest
+	(*YearStat)(nil),                     // 4: cairn.v1.YearStat
+	(*GetStatsResponse)(nil),             // 5: cairn.v1.GetStatsResponse
+	(*GetTrainingLoadRequest)(nil),       // 6: cairn.v1.GetTrainingLoadRequest
+	(*TrainingLoadDay)(nil),              // 7: cairn.v1.TrainingLoadDay
+	(*GetTrainingLoadResponse)(nil),      // 8: cairn.v1.GetTrainingLoadResponse
+	(*GetBestEffortHistoryRequest)(nil),  // 9: cairn.v1.GetBestEffortHistoryRequest
+	(*BestEffortHistoryItem)(nil),        // 10: cairn.v1.BestEffortHistoryItem
+	(*GetBestEffortHistoryResponse)(nil), // 11: cairn.v1.GetBestEffortHistoryResponse
+	(*GetHeatmapRequest)(nil),            // 12: cairn.v1.GetHeatmapRequest
+	(*HeatmapTrack)(nil),                 // 13: cairn.v1.HeatmapTrack
+	(*GetHeatmapResponse)(nil),           // 14: cairn.v1.GetHeatmapResponse
+	(*Totals)(nil),                       // 15: cairn.v1.Totals
+	(*Facet)(nil),                        // 16: cairn.v1.Facet
+	(*Activity)(nil),                     // 17: cairn.v1.Activity
+	(*TimeRange)(nil),                    // 18: cairn.v1.TimeRange
+	(ActivityType)(0),                    // 19: cairn.v1.ActivityType
+	(BestEffortMetric)(0),                // 20: cairn.v1.BestEffortMetric
+	(BestEffortWindowKind)(0),            // 21: cairn.v1.BestEffortWindowKind
+	(*timestamppb.Timestamp)(nil),        // 22: google.protobuf.Timestamp
+	(*ActivityFilter)(nil),               // 23: cairn.v1.ActivityFilter
+	(*EncodedPolyline)(nil),              // 24: cairn.v1.EncodedPolyline
+	(*ActivityFacets)(nil),               // 25: cairn.v1.ActivityFacets
 }
 var file_cairn_v1_stats_proto_depIdxs = []int32{
-	2, // 0: cairn.v1.GetOverviewResponse.totals:type_name -> cairn.v1.Totals
-	3, // 1: cairn.v1.GetOverviewResponse.by_sport:type_name -> cairn.v1.Facet
-	4, // 2: cairn.v1.GetOverviewResponse.recent:type_name -> cairn.v1.Activity
-	2, // 3: cairn.v1.GetOverviewResponse.this_week:type_name -> cairn.v1.Totals
-	2, // 4: cairn.v1.GetOverviewResponse.last_week:type_name -> cairn.v1.Totals
-	5, // 5: cairn.v1.GetOverviewResponse.this_week_range:type_name -> cairn.v1.TimeRange
-	5, // 6: cairn.v1.GetOverviewResponse.last_week_range:type_name -> cairn.v1.TimeRange
-	0, // 7: cairn.v1.StatsService.GetOverview:input_type -> cairn.v1.GetOverviewRequest
-	1, // 8: cairn.v1.StatsService.GetOverview:output_type -> cairn.v1.GetOverviewResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	15, // 0: cairn.v1.GetOverviewResponse.totals:type_name -> cairn.v1.Totals
+	16, // 1: cairn.v1.GetOverviewResponse.by_sport:type_name -> cairn.v1.Facet
+	17, // 2: cairn.v1.GetOverviewResponse.recent:type_name -> cairn.v1.Activity
+	15, // 3: cairn.v1.GetOverviewResponse.this_week:type_name -> cairn.v1.Totals
+	15, // 4: cairn.v1.GetOverviewResponse.last_week:type_name -> cairn.v1.Totals
+	18, // 5: cairn.v1.GetOverviewResponse.this_week_range:type_name -> cairn.v1.TimeRange
+	18, // 6: cairn.v1.GetOverviewResponse.last_week_range:type_name -> cairn.v1.TimeRange
+	15, // 7: cairn.v1.GetStatsResponse.totals:type_name -> cairn.v1.Totals
+	16, // 8: cairn.v1.GetStatsResponse.by_sport:type_name -> cairn.v1.Facet
+	16, // 9: cairn.v1.GetStatsResponse.by_discipline:type_name -> cairn.v1.Facet
+	4,  // 10: cairn.v1.GetStatsResponse.by_year:type_name -> cairn.v1.YearStat
+	17, // 11: cairn.v1.GetStatsResponse.longest_distance:type_name -> cairn.v1.Activity
+	17, // 12: cairn.v1.GetStatsResponse.longest_duration:type_name -> cairn.v1.Activity
+	7,  // 13: cairn.v1.GetTrainingLoadResponse.days:type_name -> cairn.v1.TrainingLoadDay
+	19, // 14: cairn.v1.GetBestEffortHistoryRequest.type:type_name -> cairn.v1.ActivityType
+	20, // 15: cairn.v1.GetBestEffortHistoryRequest.metric:type_name -> cairn.v1.BestEffortMetric
+	21, // 16: cairn.v1.GetBestEffortHistoryRequest.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	22, // 17: cairn.v1.BestEffortHistoryItem.start_time:type_name -> google.protobuf.Timestamp
+	10, // 18: cairn.v1.GetBestEffortHistoryResponse.items:type_name -> cairn.v1.BestEffortHistoryItem
+	23, // 19: cairn.v1.GetHeatmapRequest.filter:type_name -> cairn.v1.ActivityFilter
+	0,  // 20: cairn.v1.GetHeatmapRequest.resolution:type_name -> cairn.v1.GetHeatmapRequest.Resolution
+	19, // 21: cairn.v1.HeatmapTrack.type:type_name -> cairn.v1.ActivityType
+	24, // 22: cairn.v1.HeatmapTrack.polyline:type_name -> cairn.v1.EncodedPolyline
+	25, // 23: cairn.v1.GetHeatmapResponse.facets:type_name -> cairn.v1.ActivityFacets
+	13, // 24: cairn.v1.GetHeatmapResponse.tracks:type_name -> cairn.v1.HeatmapTrack
+	1,  // 25: cairn.v1.StatsService.GetOverview:input_type -> cairn.v1.GetOverviewRequest
+	3,  // 26: cairn.v1.StatsService.GetStats:input_type -> cairn.v1.GetStatsRequest
+	6,  // 27: cairn.v1.StatsService.GetTrainingLoad:input_type -> cairn.v1.GetTrainingLoadRequest
+	9,  // 28: cairn.v1.StatsService.GetBestEffortHistory:input_type -> cairn.v1.GetBestEffortHistoryRequest
+	12, // 29: cairn.v1.StatsService.GetHeatmap:input_type -> cairn.v1.GetHeatmapRequest
+	2,  // 30: cairn.v1.StatsService.GetOverview:output_type -> cairn.v1.GetOverviewResponse
+	5,  // 31: cairn.v1.StatsService.GetStats:output_type -> cairn.v1.GetStatsResponse
+	8,  // 32: cairn.v1.StatsService.GetTrainingLoad:output_type -> cairn.v1.GetTrainingLoadResponse
+	11, // 33: cairn.v1.StatsService.GetBestEffortHistory:output_type -> cairn.v1.GetBestEffortHistoryResponse
+	14, // 34: cairn.v1.StatsService.GetHeatmap:output_type -> cairn.v1.GetHeatmapResponse
+	30, // [30:35] is the sub-list for method output_type
+	25, // [25:30] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_stats_proto_init() }
@@ -223,13 +1189,14 @@ func file_cairn_v1_stats_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_stats_proto_rawDesc), len(file_cairn_v1_stats_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_cairn_v1_stats_proto_goTypes,
 		DependencyIndexes: file_cairn_v1_stats_proto_depIdxs,
+		EnumInfos:         file_cairn_v1_stats_proto_enumTypes,
 		MessageInfos:      file_cairn_v1_stats_proto_msgTypes,
 	}.Build()
 	File_cairn_v1_stats_proto = out.File

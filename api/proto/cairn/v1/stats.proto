@@ -7,6 +7,7 @@ package cairn.v1;
 
 import "cairn/v1/activity.proto";
 import "cairn/v1/common.proto";
+import "google/protobuf/timestamp.proto";
 
 service StatsService {
   // The landing dashboard: lifetime totals, a per-sport breakdown, the six
@@ -14,6 +15,34 @@ service StatsService {
   // start) with their ranges so a client can link into the list.
   // Scope: activities:read.
   rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Lifetime totals, per-sport and per-discipline split, per-year
+  // breakdown and the longest activities (GET /api/stats).
+  // Scope: activities:read.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Daily training load (CTL = fitness, ATL = fatigue, TSB = form, TSS)
+  // over the last days (GET /api/analysis).
+  // Scope: activities:read.
+  rpc GetTrainingLoad(GetTrainingLoadRequest) returns (GetTrainingLoadResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The progression of one best-effort bucket (metric + window) across the
+  // caller's activities (GET /api/best-efforts/history).
+  // Scope: activities:read.
+  rpc GetBestEffortHistory(GetBestEffortHistoryRequest) returns (GetBestEffortHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Every GPS track of the caller's activities matching the filter, as
+  // encoded polylines, for the combined map (GET /api/activities/heatmap).
+  // Scope: activities:read.
+  rpc GetHeatmap(GetHeatmapRequest) returns (GetHeatmapResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -28,4 +57,86 @@ message GetOverviewResponse {
   Totals last_week = 5;
   TimeRange this_week_range = 6;
   TimeRange last_week_range = 7;
+}
+
+message GetStatsRequest {}
+message YearStat {
+  int32 year = 1;
+  int32 count = 2;
+  double distance_m = 3;
+  double moving_s = 4;
+  double elevation_gain_m = 5;
+}
+message GetStatsResponse {
+  Totals totals = 1;
+  repeated Facet by_sport = 2;
+  repeated Facet by_discipline = 3;
+  repeated YearStat by_year = 4;
+  // Longest by distance / by elapsed time; unset without activities.
+  Activity longest_distance = 5;
+  Activity longest_duration = 6;
+}
+
+message GetTrainingLoadRequest {
+  // Days back from today; default 180, max 3650.
+  int32 days = 1;
+}
+message TrainingLoadDay {
+  // YYYY-MM-DD, UTC.
+  string date = 1;
+  double ctl = 2;
+  double atl = 3;
+  double tsb = 4;
+  double tss = 5;
+}
+message GetTrainingLoadResponse {
+  repeated TrainingLoadDay days = 1;
+  double current_ctl = 2;
+  double current_atl = 3;
+  double current_tsb = 4;
+}
+
+message GetBestEffortHistoryRequest {
+  ActivityType type = 1;
+  BestEffortMetric metric = 2;
+  BestEffortWindowKind window_kind = 3;
+  int32 window_value = 4;
+}
+message BestEffortHistoryItem {
+  string activity_id = 1;
+  string title = 2;
+  google.protobuf.Timestamp start_time = 3;
+  double achieved_value = 4;
+  bool is_best = 5;
+}
+message GetBestEffortHistoryResponse {
+  // The all-time best: the minimum for pace, the maximum otherwise.
+  double best = 1;
+  int32 count = 2;
+  repeated BestEffortHistoryItem items = 3;
+}
+
+message GetHeatmapRequest {
+  ActivityFilter filter = 1;
+  enum Resolution {
+    RESOLUTION_UNSPECIFIED = 0; // 30 s
+    RESOLUTION_30S = 1;
+    RESOLUTION_5S = 2;
+  }
+  Resolution resolution = 2;
+}
+message HeatmapTrack {
+  string activity_id = 1;
+  ActivityType type = 2;
+  string discipline = 3;
+  EncodedPolyline polyline = 4;
+}
+message GetHeatmapResponse {
+  // Activities matching the filter; with_track of them had a GPS track.
+  int32 matched = 1;
+  int32 with_track = 2;
+  // The newest 5000 matching activities were considered; more exist.
+  bool truncated = 3;
+  ActivityFacets facets = 4;
+  repeated HeatmapTrack tracks = 5;
 }

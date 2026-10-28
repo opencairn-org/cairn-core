@@ -15,6 +15,7 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // mountConnectRPC registers every cairn.v1.* Connect-RPC service the
@@ -58,29 +59,14 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
 	cairnv1connect.RegisterNotificationServiceHandler(server, connectadapter.NewNotificationServer(app.Notifications))
-	authSvc := connectadapter.NewAuthServer(app.Users, app.OIDCProviders)
-	authSvc.Instance = instanceInfo(app)
-	authSvc.Sessions = app.Sessions
-	authSvc.Activities = app.Activities
-	if app.Quotas != nil {
-		authSvc.Quotas = app.Quotas
-	}
-	authSvc.QuotaMaxActivities = app.QuotaMaxActivities
-	if app.RedeemInvite != nil {
-		authSvc.Invites = app.RedeemInvite
-	}
-	if app.Email != nil {
-		authSvc.VerifyEmail = func(ctx context.Context, u domain.User) error {
-			return sendVerificationEmail(ctx, app, logger, strings.TrimRight(app.PublicBaseURL, "/"), u)
-		}
-	}
-	cairnv1connect.RegisterAuthServiceHandler(server, authSvc)
-	cairnv1connect.RegisterStatsServiceHandler(server, connectadapter.NewStatsServer(app.Overviews, app.Content, app.Gear, mapImageETag))
+	cairnv1connect.RegisterAuthServiceHandler(server, newAuthServer(app, logger))
+	registerReadServices(server, app)
 	cairnv1connect.RegisterSocialServiceHandler(server, connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag))
 	connecthttp.Mount(streamSafeMux{mux}, server)
 	logger.Info("connect-rpc services mounted", "services", []string{
 		cairnv1connect.ActivityServiceName, cairnv1connect.NotificationServiceName, cairnv1connect.AuthServiceName,
 		cairnv1connect.GearServiceName, cairnv1connect.StatsServiceName, cairnv1connect.SocialServiceName,
+		cairnv1connect.SegmentServiceName, cairnv1connect.MetricsServiceName, cairnv1connect.SettingsServiceName,
 	})
 
 	// AdminService chains the session resolver with a role-check
@@ -151,4 +137,49 @@ func instanceInfo(app *App) connectadapter.InstanceInfo {
 		info.BuildTime = t
 	}
 	return info
+}
+
+// newAuthServer wires the AuthService with its instance, session, quota and
+// registration dependencies.
+func newAuthServer(app *App, logger *slog.Logger) *connectadapter.AuthServer {
+	authSvc := connectadapter.NewAuthServer(app.Users, app.OIDCProviders)
+	authSvc.Instance = instanceInfo(app)
+	authSvc.Sessions = app.Sessions
+	authSvc.Activities = app.Activities
+	if app.Quotas != nil {
+		authSvc.Quotas = app.Quotas
+	}
+	authSvc.QuotaMaxActivities = app.QuotaMaxActivities
+	if app.RedeemInvite != nil {
+		authSvc.Invites = app.RedeemInvite
+	}
+	if app.Email != nil {
+		authSvc.VerifyEmail = func(ctx context.Context, u domain.User) error {
+			return sendVerificationEmail(ctx, app, logger, strings.TrimRight(app.PublicBaseURL, "/"), u)
+		}
+	}
+	return authSvc
+}
+
+// registerReadServices mounts the aggregate and reference services (stats,
+// segments, metrics, settings); nil repos stay nil interfaces.
+func registerReadServices(server *connectrpc.Server, app *App) {
+	statsSvc := connectadapter.NewStatsServer(app.Overviews, app.Content, app.Gear, mapImageETag)
+	statsSvc.Stats = app.Stats
+	cairnv1connect.RegisterStatsServiceHandler(server, statsSvc)
+	cairnv1connect.RegisterSegmentServiceHandler(server, connectadapter.NewSegmentServer(app.SegmentViews))
+	var metricsRepo port.MetricRepo
+	if app.Metrics != nil {
+		metricsRepo = app.Metrics
+	}
+	var athlete port.AthleteProfileRepo
+	if app.AthleteProfiles != nil {
+		athlete = app.AthleteProfiles
+	}
+	cairnv1connect.RegisterMetricsServiceHandler(server, connectadapter.NewMetricsServer(metricsRepo, app.HealthViews, athlete))
+	var settings port.UserSettingsRepo
+	if app.UserSettings != nil {
+		settings = app.UserSettings
+	}
+	cairnv1connect.RegisterSettingsServiceHandler(server, connectadapter.NewSettingsServer(settings))
 }

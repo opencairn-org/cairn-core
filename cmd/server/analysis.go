@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
@@ -24,81 +23,37 @@ func mountAnalysis(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			return
 		}
 		days, _ := strconv.Atoi(r.URL.Query().Get("days"))
-		if days <= 0 || days > 3650 {
-			days = 180
-		}
-		end := time.Now().UTC().Add(24 * time.Hour)
-		start := end.AddDate(0, 0, -days)
-
-		metrics, err := app.Metrics.ListMetricsForUser(r.Context(), userID, "", start, end)
+		series, err := app.Stats.TrainingLoad(r.Context(), userID, days)
 		if err != nil {
-			http.Error(w, "analysis failed", http.StatusInternalServerError)
+			writeActionError(w, err, "analysis failed")
 			return
 		}
-
-		writeJSON(w, http.StatusOK, analysisSeriesJSON(metrics))
+		writeJSON(w, http.StatusOK, analysisSeriesJSON(series))
 	})
 
 	logger.Info("analysis endpoint mounted")
 }
 
-// analysisPoint is one day of training-load values.
-type analysisPoint struct{ ctl, atl, tsb, tss float64 }
-
-// analysisSeriesJSON buckets training-load metrics per day into parallel series.
-func analysisSeriesJSON(metrics []domain.Metric) map[string]any {
-	byDay := map[string]*analysisPoint{}
-	var order []string
-	for _, mtr := range metrics {
-		d := mtr.Timestamp.UTC().Format("2006-01-02")
-		p, ok := byDay[d]
-		if !ok {
-			p = &analysisPoint{}
-			byDay[d] = p
-			order = append(order, d)
-		}
-		v := 0.0
-		if mtr.ValueNumeric != nil {
-			v = *mtr.ValueNumeric
-		}
-		switch mtr.Key {
-		case domain.MetricKeyTrainingLoadCTL:
-			p.ctl = v
-		case domain.MetricKeyTrainingLoadATL:
-			p.atl = v
-		case domain.MetricKeyTrainingLoadTSB:
-			p.tsb = v
-		case "training_load.tss":
-			p.tss = v
-		}
+// analysisSeriesJSON renders the per-day series as parallel arrays.
+func analysisSeriesJSON(series []domain.TrainingLoadDay) map[string]any {
+	dates := make([]string, 0, len(series))
+	ctl := make([]float64, 0, len(series))
+	atl := make([]float64, 0, len(series))
+	tsb := make([]float64, 0, len(series))
+	tss := make([]float64, 0, len(series))
+	for _, d := range series {
+		dates = append(dates, d.Date)
+		ctl = append(ctl, d.CTL)
+		atl = append(atl, d.ATL)
+		tsb = append(tsb, d.TSB)
+		tss = append(tss, d.TSS)
 	}
-
-	dates := make([]string, 0, len(order))
-	ctl := make([]float64, 0, len(order))
-	atl := make([]float64, 0, len(order))
-	tsb := make([]float64, 0, len(order))
-	tss := make([]float64, 0, len(order))
-	for _, d := range order {
-		p := byDay[d]
-		dates = append(dates, d)
-		ctl = append(ctl, round1(p.ctl))
-		atl = append(atl, round1(p.atl))
-		tsb = append(tsb, round1(p.tsb))
-		tss = append(tss, round1(p.tss))
-	}
-
 	current := map[string]any{"ctl": 0.0, "atl": 0.0, "tsb": 0.0}
-	if n := len(order); n > 0 {
-		p := byDay[order[n-1]]
-		current = map[string]any{"ctl": round1(p.ctl), "atl": round1(p.atl), "tsb": round1(p.tsb)}
+	if n := len(series); n > 0 {
+		current = map[string]any{"ctl": series[n-1].CTL, "atl": series[n-1].ATL, "tsb": series[n-1].TSB}
 	}
-
 	return map[string]any{
 		"dates": dates, "ctl": ctl, "atl": atl, "tsb": tsb, "tss": tss,
 		"current": current,
 	}
-}
-
-func round1(v float64) float64 {
-	return float64(int(v*10+0.5)) / 10
 }

@@ -1,13 +1,13 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // mountSegmentDetail exposes a single segment with the viewer's full effort
@@ -41,45 +41,29 @@ func segmentDetailHandler(app *App) http.HandlerFunc {
 			http.Error(w, "bad id", http.StatusBadRequest)
 			return
 		}
-		segID := domain.SegmentID(id)
-
-		seg, err := app.Segments.GetSegment(r.Context(), segID)
+		seg, efforts, err := app.SegmentViews.Detail(r.Context(), userID, domain.SegmentID(id))
 		if err != nil {
-			http.Error(w, "not found", http.StatusNotFound)
+			if errors.Is(err, domain.ErrNotFound) {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			writeActionError(w, err, "load failed")
 			return
 		}
-
-		// The viewer's own efforts on this segment, newest first for the list;
-		// the chart re-sorts chronologically client-side.
-		efforts, err := app.Segments.ListEffortsForSegment(r.Context(), segID, userID, port.LeaderboardScopePersonalOnly, 1000, 0)
-		if err != nil {
-			http.Error(w, "load failed", http.StatusInternalServerError)
-			return
-		}
-		// Visibility: a viewer sees a segment they've actually ridden, or one
-		// they own (native). Otherwise it's not theirs to see.
-		owns := seg.OwnerUserID != nil && *seg.OwnerUserID == userID
-		if len(efforts) == 0 && !owns {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
-
-		out := segmentDetailEffortsJSON(efforts)
-		climb := segmentClimbJSON(seg)
 		writeJSON(w, http.StatusOK, map[string]any{
 			"segment": map[string]any{
 				"id":                 seg.ID.String(),
 				"name":               seg.Name,
 				"distance_m":         seg.DistanceM,
 				"activity_type":      string(seg.ActivityType),
-				"climb_category":     climb,
+				"climb_category":     segmentClimbJSON(seg),
 				"polyline":           seg.Polyline,
 				"polyline_precision": seg.PolylinePrecision,
 				"elevation_gain_m":   seg.ElevationGainM,
 				"avg_grade":          seg.AvgGrade,
 				"max_grade":          seg.MaxGrade,
 			},
-			"efforts": out,
+			"efforts": segmentDetailEffortsJSON(efforts),
 		})
 	}
 }

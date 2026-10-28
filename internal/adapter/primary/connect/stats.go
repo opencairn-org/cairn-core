@@ -21,6 +21,7 @@ type StatsServer struct {
 	cairnv1connect.UnimplementedStatsServiceHandler
 
 	Overviews *view.Overviews
+	Stats     *view.Stats
 	Content   port.ContentSigner
 	Gear      *gearuc.Service
 	MapETag   func(domain.Activity) string

@@ -5,19 +5,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
-
-var validEffortMetrics = map[string]bool{
-	"pace": true, "speed": true, "power": true, "heart_rate": true, "vam": true,
-}
 
 // mountBestEffortHistory exposes the progression of one best-effort bucket
 // (metric + window) across all the user's activities — the data behind the
 // best-effort detail page (e.g. "Power 20 min" over time).
 //
-//	GET /api/best-efforts/history?metric=&window_kind=&window_value=
-//	  → { metric, window_kind, window_value, best, items:[{activity_id,title,start_time,achieved_value,is_best}] }
+//	GET /api/best-efforts/history?type=&metric=&window_kind=&window_value=
+//	  → { type, metric, window_kind, window_value, best, count, items:[{activity_id,title,start_time,achieved_value,is_best}] }
 func mountBestEffortHistory(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	if app.BestEfforts == nil {
 		return
@@ -30,68 +26,38 @@ func mountBestEffortHistory(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			return
 		}
 		q := r.URL.Query()
-		activityType := q.Get("type")
-		metric := q.Get("metric")
-		windowKind := q.Get("window_kind")
+		activityType, metric, windowKind := q.Get("type"), q.Get("metric"), q.Get("window_kind")
 		windowValue, _ := strconv.Atoi(q.Get("window_value"))
-		if activityType == "" || !validEffortMetrics[metric] || (windowKind != "distance" && windowKind != "duration") || windowValue <= 0 {
-			http.Error(w, "type, metric, window_kind (distance|duration) and window_value are required", http.StatusBadRequest)
-			return
-		}
-
-		items, err := app.BestEfforts.ListBestEffortHistory(r.Context(), userID, activityType, metric, windowKind, windowValue)
+		h, err := app.Stats.BestEffortHistory(r.Context(), userID, activityType, metric, windowKind, windowValue)
 		if err != nil {
 			logger.Error("best-effort history failed", "user", userID, "error", err)
-			http.Error(w, "load failed", http.StatusInternalServerError)
+			writeActionError(w, err, "load failed")
 			return
 		}
-
-		best := bestEffortHistoryBest(items, metric)
-		out := bestEffortHistoryItemsJSON(items, best)
-
 		writeJSON(w, http.StatusOK, map[string]any{
 			"type":         activityType,
 			"metric":       metric,
 			"window_kind":  windowKind,
 			"window_value": windowValue,
-			"best":         best,
-			"count":        len(items),
-			"items":        out,
+			"best":         h.Best,
+			"count":        len(h.Items),
+			"items":        bestEffortHistoryItemsJSON(h),
 		})
 	})
 
 	logger.Info("best-effort history endpoint mounted")
 }
 
-// bestEffortHistoryBest returns the all-time best: min for pace, max otherwise.
-func bestEffortHistoryBest(items []domain.BestEffortHistoryItem, metric string) float64 {
-	best := 0.0
-	for i, it := range items {
-		if i == 0 {
-			best = it.AchievedValue
-			continue
-		}
-		if metric == "pace" {
-			if it.AchievedValue < best {
-				best = it.AchievedValue
-			}
-		} else if it.AchievedValue > best {
-			best = it.AchievedValue
-		}
-	}
-	return best
-}
-
 // bestEffortHistoryItemsJSON renders the history items, flagging the best.
-func bestEffortHistoryItemsJSON(items []domain.BestEffortHistoryItem, best float64) []map[string]any {
-	out := make([]map[string]any, 0, len(items))
-	for _, it := range items {
+func bestEffortHistoryItemsJSON(h view.BestEffortHistory) []map[string]any {
+	out := make([]map[string]any, 0, len(h.Items))
+	for _, it := range h.Items {
 		out = append(out, map[string]any{
 			"activity_id":    it.ActivityID.String(),
 			"title":          it.Title,
 			"start_time":     it.StartTime.UTC(),
 			"achieved_value": it.AchievedValue,
-			"is_best":        len(items) > 0 && it.AchievedValue == best,
+			"is_best":        it.AchievedValue == h.Best,
 		})
 	}
 	return out

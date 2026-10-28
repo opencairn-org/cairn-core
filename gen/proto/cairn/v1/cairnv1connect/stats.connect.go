@@ -30,6 +30,16 @@ const (
 const (
 	// StatsServiceGetOverviewProcedure is the procedure name of the StatsService's GetOverview RPC.
 	StatsServiceGetOverviewProcedure = "/cairn.v1.StatsService/GetOverview"
+	// StatsServiceGetStatsProcedure is the procedure name of the StatsService's GetStats RPC.
+	StatsServiceGetStatsProcedure = "/cairn.v1.StatsService/GetStats"
+	// StatsServiceGetTrainingLoadProcedure is the procedure name of the StatsService's GetTrainingLoad
+	// RPC.
+	StatsServiceGetTrainingLoadProcedure = "/cairn.v1.StatsService/GetTrainingLoad"
+	// StatsServiceGetBestEffortHistoryProcedure is the procedure name of the StatsService's
+	// GetBestEffortHistory RPC.
+	StatsServiceGetBestEffortHistoryProcedure = "/cairn.v1.StatsService/GetBestEffortHistory"
+	// StatsServiceGetHeatmapProcedure is the procedure name of the StatsService's GetHeatmap RPC.
+	StatsServiceGetHeatmapProcedure = "/cairn.v1.StatsService/GetHeatmap"
 )
 
 var (
@@ -38,6 +48,38 @@ var (
 			StreamType:       connect.StreamTypeUnary,
 			Schema:           v1.File_cairn_v1_stats_proto.Services().ByName("StatsService").Methods().ByName("GetOverview"),
 			Procedure:        StatsServiceGetOverviewProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	statsServiceGetStatsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_stats_proto.Services().ByName("StatsService").Methods().ByName("GetStats"),
+			Procedure:        StatsServiceGetStatsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	statsServiceGetTrainingLoadSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_stats_proto.Services().ByName("StatsService").Methods().ByName("GetTrainingLoad"),
+			Procedure:        StatsServiceGetTrainingLoadProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	statsServiceGetBestEffortHistorySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_stats_proto.Services().ByName("StatsService").Methods().ByName("GetBestEffortHistory"),
+			Procedure:        StatsServiceGetBestEffortHistoryProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	statsServiceGetHeatmapSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_stats_proto.Services().ByName("StatsService").Methods().ByName("GetHeatmap"),
+			Procedure:        StatsServiceGetHeatmapProcedure,
 			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
@@ -50,6 +92,22 @@ type StatsServiceClient interface {
 	// start) with their ranges so a client can link into the list.
 	// Scope: activities:read.
 	GetOverview(context.Context, *v1.GetOverviewRequest) (*v1.GetOverviewResponse, error)
+	// Lifetime totals, per-sport and per-discipline split, per-year
+	// breakdown and the longest activities (GET /api/stats).
+	// Scope: activities:read.
+	GetStats(context.Context, *v1.GetStatsRequest) (*v1.GetStatsResponse, error)
+	// Daily training load (CTL = fitness, ATL = fatigue, TSB = form, TSS)
+	// over the last days (GET /api/analysis).
+	// Scope: activities:read.
+	GetTrainingLoad(context.Context, *v1.GetTrainingLoadRequest) (*v1.GetTrainingLoadResponse, error)
+	// The progression of one best-effort bucket (metric + window) across the
+	// caller's activities (GET /api/best-efforts/history).
+	// Scope: activities:read.
+	GetBestEffortHistory(context.Context, *v1.GetBestEffortHistoryRequest) (*v1.GetBestEffortHistoryResponse, error)
+	// Every GPS track of the caller's activities matching the filter, as
+	// encoded polylines, for the combined map (GET /api/activities/heatmap).
+	// Scope: activities:read.
+	GetHeatmap(context.Context, *v1.GetHeatmapRequest) (*v1.GetHeatmapResponse, error)
 }
 
 // NewStatsServiceClient constructs a client for the cairn.v1.StatsService service. Multiple service
@@ -65,6 +123,22 @@ type StatsServiceHandler interface {
 	// start) with their ranges so a client can link into the list.
 	// Scope: activities:read.
 	GetOverview(context.Context, *v1.GetOverviewRequest) (*v1.GetOverviewResponse, error)
+	// Lifetime totals, per-sport and per-discipline split, per-year
+	// breakdown and the longest activities (GET /api/stats).
+	// Scope: activities:read.
+	GetStats(context.Context, *v1.GetStatsRequest) (*v1.GetStatsResponse, error)
+	// Daily training load (CTL = fitness, ATL = fatigue, TSB = form, TSS)
+	// over the last days (GET /api/analysis).
+	// Scope: activities:read.
+	GetTrainingLoad(context.Context, *v1.GetTrainingLoadRequest) (*v1.GetTrainingLoadResponse, error)
+	// The progression of one best-effort bucket (metric + window) across the
+	// caller's activities (GET /api/best-efforts/history).
+	// Scope: activities:read.
+	GetBestEffortHistory(context.Context, *v1.GetBestEffortHistoryRequest) (*v1.GetBestEffortHistoryResponse, error)
+	// Every GPS track of the caller's activities matching the filter, as
+	// encoded polylines, for the combined map (GET /api/activities/heatmap).
+	// Scope: activities:read.
+	GetHeatmap(context.Context, *v1.GetHeatmapRequest) (*v1.GetHeatmapResponse, error)
 }
 
 // RegisterStatsServiceHandler registers svc as the cairn.v1.StatsService implementation on server.
@@ -72,6 +146,10 @@ func RegisterStatsServiceHandler(server *connect.Server, svc StatsServiceHandler
 	adapter := statsServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: statsServiceGetOverviewSpec(), Handler: adapter.getOverview},
+		connect.Method{Spec: statsServiceGetStatsSpec(), Handler: adapter.getStats},
+		connect.Method{Spec: statsServiceGetTrainingLoadSpec(), Handler: adapter.getTrainingLoad},
+		connect.Method{Spec: statsServiceGetBestEffortHistorySpec(), Handler: adapter.getBestEffortHistory},
+		connect.Method{Spec: statsServiceGetHeatmapSpec(), Handler: adapter.getHeatmap},
 	)
 }
 
@@ -80,6 +158,22 @@ type UnimplementedStatsServiceHandler struct{}
 
 func (UnimplementedStatsServiceHandler) GetOverview(context.Context, *v1.GetOverviewRequest) (*v1.GetOverviewResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.StatsService.GetOverview is not implemented")
+}
+
+func (UnimplementedStatsServiceHandler) GetStats(context.Context, *v1.GetStatsRequest) (*v1.GetStatsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.StatsService.GetStats is not implemented")
+}
+
+func (UnimplementedStatsServiceHandler) GetTrainingLoad(context.Context, *v1.GetTrainingLoadRequest) (*v1.GetTrainingLoadResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.StatsService.GetTrainingLoad is not implemented")
+}
+
+func (UnimplementedStatsServiceHandler) GetBestEffortHistory(context.Context, *v1.GetBestEffortHistoryRequest) (*v1.GetBestEffortHistoryResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.StatsService.GetBestEffortHistory is not implemented")
+}
+
+func (UnimplementedStatsServiceHandler) GetHeatmap(context.Context, *v1.GetHeatmapRequest) (*v1.GetHeatmapResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.StatsService.GetHeatmap is not implemented")
 }
 
 type statsServiceClient struct {
@@ -94,6 +188,38 @@ func (c *statsServiceClient) GetOverview(ctx context.Context, req *v1.GetOvervie
 	return &res, nil
 }
 
+func (c *statsServiceClient) GetStats(ctx context.Context, req *v1.GetStatsRequest) (*v1.GetStatsResponse, error) {
+	var res v1.GetStatsResponse
+	if err := c.client.CallUnary(ctx, statsServiceGetStatsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *statsServiceClient) GetTrainingLoad(ctx context.Context, req *v1.GetTrainingLoadRequest) (*v1.GetTrainingLoadResponse, error) {
+	var res v1.GetTrainingLoadResponse
+	if err := c.client.CallUnary(ctx, statsServiceGetTrainingLoadSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *statsServiceClient) GetBestEffortHistory(ctx context.Context, req *v1.GetBestEffortHistoryRequest) (*v1.GetBestEffortHistoryResponse, error) {
+	var res v1.GetBestEffortHistoryResponse
+	if err := c.client.CallUnary(ctx, statsServiceGetBestEffortHistorySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *statsServiceClient) GetHeatmap(ctx context.Context, req *v1.GetHeatmapRequest) (*v1.GetHeatmapResponse, error) {
+	var res v1.GetHeatmapResponse
+	if err := c.client.CallUnary(ctx, statsServiceGetHeatmapSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 type statsServiceHandler struct{ svc StatsServiceHandler }
 
 func (h statsServiceHandler) getOverview(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
@@ -102,6 +228,54 @@ func (h statsServiceHandler) getOverview(ctx context.Context, _ connect.Spec, st
 		return err
 	}
 	res, err := h.svc.GetOverview(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h statsServiceHandler) getStats(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetStatsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetStats(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h statsServiceHandler) getTrainingLoad(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetTrainingLoadRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetTrainingLoad(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h statsServiceHandler) getBestEffortHistory(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetBestEffortHistoryRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetBestEffortHistory(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h statsServiceHandler) getHeatmap(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetHeatmapRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetHeatmap(ctx, &req)
 	if err != nil {
 		return err
 	}
