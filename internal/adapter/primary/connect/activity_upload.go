@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -22,8 +21,6 @@ import (
 // response already carries the activity id and job_id stays empty.
 // ---------------------------------------------------------------------------
 
-const presignUploadExpiry = 15 * time.Minute
-
 // uploadContentTypes maps the accepted extensions to the archived content type.
 var uploadContentTypes = map[string]string{
 	"fit": "application/vnd.ant.fit",
@@ -38,8 +35,8 @@ func uploadKeyPrefix(userID domain.UserID) string {
 }
 
 func (s *ActivityServer) PresignActivityUpload(ctx context.Context, req *v1.PresignActivityUploadRequest) (*v1.PresignActivityUploadResponse, error) {
-	if s.Blobs == nil {
-		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "object storage is not configured; use UploadActivity via the REST upload instead")
+	if s.Blobs == nil || s.Content == nil {
+		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "object storage is not configured; use the REST upload instead")
 	}
 	userID, err := userIDFromHandlerCtx(ctx)
 	if err != nil {
@@ -57,14 +54,11 @@ func (s *ActivityServer) PresignActivityUpload(ctx context.Context, req *v1.Pres
 		return nil, connectrpc.NewError(connectrpc.CodeInvalidArgument, fmt.Sprintf("size_hint_bytes must be between 0 and %d", port.MaxUploadBytes))
 	}
 	key := uploadKeyPrefix(userID) + uuid.NewString() + "." + ext
-	signed, err := s.Blobs.PresignUpload(ctx, key, port.PresignUploadOpts{
-		ContentType:      ct,
-		ContentLengthMin: 1,
-		ContentLengthMax: port.MaxUploadBytes,
-		Expiry:           presignUploadExpiry,
-	})
+	// A public presigned PUT when the store has a client-reachable endpoint,
+	// else the server's own signed PUT route: either way the client just PUTs.
+	signed, err := s.Content.Upload(ctx, key, ct, port.MaxUploadBytes)
 	if err != nil {
-		return nil, connectError(connectrpc.CodeUnavailable, fmt.Errorf("presign upload: %w", err))
+		return nil, actionErr(err)
 	}
 	return &v1.PresignActivityUploadResponse{
 		BlobId:          key,

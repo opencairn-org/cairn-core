@@ -47,6 +47,12 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	activitySvc.Reimporter = newSourceReimporter(app, logger)
 	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
 	activitySvc.Blobs = app.BlobStore
+	// Binary content and visibility-gated reads share the REST machinery.
+	activitySvc.Content = app.Content
+	activitySvc.Attachments = app.Attachments
+	activitySvc.Visibility = app.Visibility2
+	activitySvc.Exports = app.Exports
+	activitySvc.MapETag = mapImageETag
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
 	cairnv1connect.RegisterNotificationServiceHandler(server, connectadapter.NewNotificationServer(app.Notifications))

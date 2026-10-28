@@ -23,6 +23,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
+	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
@@ -35,6 +36,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // App is the constructed dependency graph the HTTP server uses.
@@ -124,11 +126,17 @@ type App struct {
 	Email port.EmailSender
 
 	// Use cases
-	RecomputeActivity        *activity.RecomputeActivityFromSources
-	IngestActivity           *activity.IngestActivityFromWorker
-	ReclusterBucket          *matchuc.ReclusterBucket
-	SourceActions            *activity.SourceActions
-	SourceLinks              *matchuc.SourceLinks
+	RecomputeActivity  *activity.RecomputeActivityFromSources
+	IngestActivity     *activity.IngestActivityFromWorker
+	ReclusterBucket    *matchuc.ReclusterBucket
+	SourceActions      *activity.SourceActions
+	SourceLinks        *matchuc.SourceLinks
+	Visibility2        *view.Visibility // shared visibility resolver (REST + Connect)
+	Exports            *view.Exports
+	AttachmentVariants *attachmentuc.Variants
+	// Content mints the signed URLs binary content is delivered under; set by
+	// mountContent (needs the HTTP config).
+	Content                  port.ContentSigner
 	FieldOverrides           port.FieldOverrideRepo
 	ClassOverrides           port.ClassificationOverrideRepo
 	Attachments              port.AttachmentRepo
@@ -246,6 +254,8 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	if err := wireAppBlobStore(ctx, app, cfg, logger); err != nil {
 		return nil, err
 	}
+	// After the blob store: variants need it (nil → nothing is derived).
+	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
 	return app, nil
 }
@@ -348,6 +358,8 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		dmatch.DefaultOptions(),
 		logger,
 	)
+	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
+	app.Exports = view.NewExports(app.Streams)
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)

@@ -178,6 +178,14 @@ message Activity {
   GearSetBy gear_set_by = 31;
   // Denormalised for list rendering; empty when no gear is attached.
   string gear_name = 32;
+
+  // Static course image (PNG), set when the activity has a renderable GPS
+  // track. Rendered on demand and cached; non-owners get the privacy-zone
+  // trimmed variant. See ContentUrl for caching rules.
+  ContentUrl map_image = 33;
+  // Changes when the course image would render differently (track or style
+  // version); cache the image under id + this value.
+  string map_image_etag = 34;
 }
 
 enum Privacy {
@@ -637,6 +645,36 @@ service ActivityService {
   // Scope: activities:write.
   rpc UploadActivity(UploadActivityRequest) returns (UploadActivityResponse);
 
+  // ---- Photos, course image, exports ----
+
+  // Photos of an activity with signed URLs per variant. Owner, or a viewer
+  // the owner shares photos with (visibility category "photos").
+  // Scope: activities:read.
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Signed URL of the static course image, trimmed by the owner's privacy
+  // zones for non-owners. NotFound when the activity has no GPS track or the
+  // map is not shared with the caller.
+  // Scope: activities:read.
+  rpc GetActivityMapImage(GetActivityMapImageRequest) returns (GetActivityMapImageResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Which export features the activity carries (gps, heart_rate, …), so a
+  // client can offer the exclude toggles. Owner only.
+  // Scope: activities:read.
+  rpc GetExportOptions(GetExportOptionsRequest) returns (GetExportOptionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+  // GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+  // read verb) although it mints a URL.
+  // Scope: activities:read.
+  rpc ExportActivity(ExportActivityRequest) returns (ExportActivityResponse);
+
   // Best efforts and records.
   // Scope: activities:read.
   rpc ListBestEfforts(ListBestEffortsRequest) returns (ListBestEffortsResponse);
@@ -890,6 +928,73 @@ message UploadActivityResponse {
   // Empty until the job completes. Use StreamActivityEvents to await
   // ACTIVITY_EVENT_TYPE_ACTIVITY_CREATED with the resulting activity_id.
   string activity_id = 2;
+}
+
+// ---- Photos, course image, exports ----
+
+message Attachment {
+  // Stable id; cache variants under it.
+  string id = 1;
+  string activity_id = 2;
+  // Signed URLs. original is always set; medium is unset when the original
+  // is already within the medium bound (use original); thumb and blurhash
+  // are unset until the variants were derived (older rows, backfill pending).
+  ContentUrl original = 3;
+  ContentUrl medium = 4;
+  ContentUrl thumb = 5;
+  // Pixel size of the original (0 when unknown).
+  int32 width = 6;
+  int32 height = 7;
+  // Blurhash placeholder of the photo; empty when not derived yet.
+  string blurhash = 8;
+  string caption = 9;
+  string content_type = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message ListAttachmentsRequest {
+  string activity_id = 1;
+}
+message ListAttachmentsResponse {
+  repeated Attachment attachments = 1;
+}
+
+message GetActivityMapImageRequest {
+  string activity_id = 1;
+}
+message GetActivityMapImageResponse {
+  ContentUrl image = 1;
+  // Cache key for the image, see Activity.map_image_etag.
+  string etag = 2;
+}
+
+message GetExportOptionsRequest {
+  string activity_id = 1;
+}
+message GetExportOptionsResponse {
+  // Feature → present, e.g. {"gps": true, "heart_rate": false}. Keys are
+  // the tokens ExportActivityRequest.exclude accepts.
+  map<string, bool> available = 1;
+}
+
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_GPX = 1;
+  EXPORT_FORMAT_TCX = 2;
+  EXPORT_FORMAT_FIT = 3;
+}
+
+message ExportActivityRequest {
+  string activity_id = 1;
+  ExportFormat format = 2;
+  // Export features to drop; tokens from GetExportOptionsResponse.available.
+  repeated string exclude = 3;
+}
+message ExportActivityResponse {
+  ContentUrl file = 1;
+  // Suggested filename, e.g. "2026-10-28-morning-ride.gpx".
+  string filename = 2;
+  string content_type = 3;
 }
 
 // ---- Best efforts and records ----

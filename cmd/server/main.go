@@ -53,6 +53,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newRotateKeyCmd())
 	root.AddCommand(newGenSecretsCmd())
+	root.AddCommand(newAttachmentsCmd())
 	return root
 }
 

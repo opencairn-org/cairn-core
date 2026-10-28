@@ -169,6 +169,15 @@ message EncodedPolyline {
   int32 precision = 2;
 }
 
+// A short-lived URL for binary content (photo, static map, export). Fetched
+// with a plain GET and no credentials; a bearer credential for that one
+// object, so clients must not share or persist it beyond expires_at. Cache on
+// the stable id next to it, never on the URL (it changes on every call).
+message ContentUrl {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
 // A bounding box for spatial queries.
 message BoundingBox {
   double min_latitude = 1;

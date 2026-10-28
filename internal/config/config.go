@@ -205,6 +205,13 @@ type StorageConfig struct {
 	// to clients and workers.
 	PresignTTL time.Duration `env:"PRESIGN_TTL, default=15m"`
 
+	// PublicEndpoint is the object-store origin clients (browsers, native
+	// apps) can reach, used only to presign URLs handed to them; Endpoint
+	// stays the cluster-internal address workers and the server use. Empty
+	// (the default) means the server serves such content itself through
+	// signed /content/{token} URLs, which works on every deployment.
+	PublicEndpoint string `env:"PUBLIC_ENDPOINT"`
+
 	// TransferExpiryDays is the lifecycle backstop for claim-checked result
 	// payloads under transfer/ — the server deletes them right after ingest,
 	// this rule reaps orphans (crashed ingest, envelope never delivered).

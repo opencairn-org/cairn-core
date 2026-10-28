@@ -518,6 +518,62 @@ func (x *EncodedPolyline) GetPrecision() int32 {
 	return 0
 }
 
+// A short-lived URL for binary content (photo, static map, export). Fetched
+// with a plain GET and no credentials; a bearer credential for that one
+// object, so clients must not share or persist it beyond expires_at. Cache on
+// the stable id next to it, never on the URL (it changes on every call).
+type ContentUrl struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContentUrl) Reset() {
+	*x = ContentUrl{}
+	mi := &file_cairn_v1_common_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentUrl) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentUrl) ProtoMessage() {}
+
+func (x *ContentUrl) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_common_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentUrl.ProtoReflect.Descriptor instead.
+func (*ContentUrl) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ContentUrl) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *ContentUrl) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
 // A bounding box for spatial queries.
 type BoundingBox struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -531,7 +587,7 @@ type BoundingBox struct {
 
 func (x *BoundingBox) Reset() {
 	*x = BoundingBox{}
-	mi := &file_cairn_v1_common_proto_msgTypes[7]
+	mi := &file_cairn_v1_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +599,7 @@ func (x *BoundingBox) String() string {
 func (*BoundingBox) ProtoMessage() {}
 
 func (x *BoundingBox) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_common_proto_msgTypes[7]
+	mi := &file_cairn_v1_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +612,7 @@ func (x *BoundingBox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoundingBox.ProtoReflect.Descriptor instead.
 func (*BoundingBox) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_common_proto_rawDescGZIP(), []int{7}
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BoundingBox) GetMinLatitude() float64 {
@@ -625,7 +681,12 @@ const file_cairn_v1_common_proto_rawDesc = "" +
 	"\f_elevation_m\"I\n" +
 	"\x0fEncodedPolyline\x12\x18\n" +
 	"\aencoded\x18\x01 \x01(\tR\aencoded\x12\x1c\n" +
-	"\tprecision\x18\x02 \x01(\x05R\tprecision\"\x9d\x01\n" +
+	"\tprecision\x18\x02 \x01(\x05R\tprecision\"Y\n" +
+	"\n" +
+	"ContentUrl\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9d\x01\n" +
 	"\vBoundingBox\x12!\n" +
 	"\fmin_latitude\x18\x01 \x01(\x01R\vminLatitude\x12#\n" +
 	"\rmin_longitude\x18\x02 \x01(\x01R\fminLongitude\x12!\n" +
@@ -656,7 +717,7 @@ func file_cairn_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_cairn_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_cairn_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_cairn_v1_common_proto_goTypes = []any{
 	(ErrorClass)(0),                    // 0: cairn.v1.ErrorClass
 	(*PageRequest)(nil),                // 1: cairn.v1.PageRequest
@@ -666,22 +727,24 @@ var file_cairn_v1_common_proto_goTypes = []any{
 	(*ProviderIdConventionMarker)(nil), // 5: cairn.v1.ProviderIdConventionMarker
 	(*GeoPoint)(nil),                   // 6: cairn.v1.GeoPoint
 	(*EncodedPolyline)(nil),            // 7: cairn.v1.EncodedPolyline
-	(*BoundingBox)(nil),                // 8: cairn.v1.BoundingBox
-	nil,                                // 9: cairn.v1.ErrorDetail.I18nParamsEntry
-	nil,                                // 10: cairn.v1.ErrorDetail.FieldErrorsEntry
-	(*timestamppb.Timestamp)(nil),      // 11: google.protobuf.Timestamp
+	(*ContentUrl)(nil),                 // 8: cairn.v1.ContentUrl
+	(*BoundingBox)(nil),                // 9: cairn.v1.BoundingBox
+	nil,                                // 10: cairn.v1.ErrorDetail.I18nParamsEntry
+	nil,                                // 11: cairn.v1.ErrorDetail.FieldErrorsEntry
+	(*timestamppb.Timestamp)(nil),      // 12: google.protobuf.Timestamp
 }
 var file_cairn_v1_common_proto_depIdxs = []int32{
-	11, // 0: cairn.v1.TimeRange.from:type_name -> google.protobuf.Timestamp
-	11, // 1: cairn.v1.TimeRange.to:type_name -> google.protobuf.Timestamp
+	12, // 0: cairn.v1.TimeRange.from:type_name -> google.protobuf.Timestamp
+	12, // 1: cairn.v1.TimeRange.to:type_name -> google.protobuf.Timestamp
 	0,  // 2: cairn.v1.ErrorDetail.class:type_name -> cairn.v1.ErrorClass
-	9,  // 3: cairn.v1.ErrorDetail.i18n_params:type_name -> cairn.v1.ErrorDetail.I18nParamsEntry
-	10, // 4: cairn.v1.ErrorDetail.field_errors:type_name -> cairn.v1.ErrorDetail.FieldErrorsEntry
-	5,  // [5:5] is the sub-list for method output_type
-	5,  // [5:5] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	10, // 3: cairn.v1.ErrorDetail.i18n_params:type_name -> cairn.v1.ErrorDetail.I18nParamsEntry
+	11, // 4: cairn.v1.ErrorDetail.field_errors:type_name -> cairn.v1.ErrorDetail.FieldErrorsEntry
+	12, // 5: cairn.v1.ContentUrl.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_common_proto_init() }
@@ -696,7 +759,7 @@ func file_cairn_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_common_proto_rawDesc), len(file_cairn_v1_common_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

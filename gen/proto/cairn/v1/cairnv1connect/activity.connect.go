@@ -83,6 +83,18 @@ const (
 	// ActivityServiceUploadActivityProcedure is the procedure name of the ActivityService's
 	// UploadActivity RPC.
 	ActivityServiceUploadActivityProcedure = "/cairn.v1.ActivityService/UploadActivity"
+	// ActivityServiceListAttachmentsProcedure is the procedure name of the ActivityService's
+	// ListAttachments RPC.
+	ActivityServiceListAttachmentsProcedure = "/cairn.v1.ActivityService/ListAttachments"
+	// ActivityServiceGetActivityMapImageProcedure is the procedure name of the ActivityService's
+	// GetActivityMapImage RPC.
+	ActivityServiceGetActivityMapImageProcedure = "/cairn.v1.ActivityService/GetActivityMapImage"
+	// ActivityServiceGetExportOptionsProcedure is the procedure name of the ActivityService's
+	// GetExportOptions RPC.
+	ActivityServiceGetExportOptionsProcedure = "/cairn.v1.ActivityService/GetExportOptions"
+	// ActivityServiceExportActivityProcedure is the procedure name of the ActivityService's
+	// ExportActivity RPC.
+	ActivityServiceExportActivityProcedure = "/cairn.v1.ActivityService/ExportActivity"
 	// ActivityServiceListBestEffortsProcedure is the procedure name of the ActivityService's
 	// ListBestEfforts RPC.
 	ActivityServiceListBestEffortsProcedure = "/cairn.v1.ActivityService/ListBestEfforts"
@@ -203,6 +215,37 @@ var (
 			Procedure:  ActivityServiceUploadActivityProcedure,
 		}
 	})
+	activityServiceListAttachmentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListAttachments"),
+			Procedure:        ActivityServiceListAttachmentsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityMapImageSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityMapImage"),
+			Procedure:        ActivityServiceGetActivityMapImageProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetExportOptionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetExportOptions"),
+			Procedure:        ActivityServiceGetExportOptionsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceExportActivitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ExportActivity"),
+			Procedure:  ActivityServiceExportActivityProcedure,
+		}
+	})
 	activityServiceListBestEffortsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -293,6 +336,24 @@ type ActivityServiceClient interface {
 	// afterwards. UI surfaces progress via StreamActivityEvents.
 	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Photos of an activity with signed URLs per variant. Owner, or a viewer
+	// the owner shares photos with (visibility category "photos").
+	// Scope: activities:read.
+	ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error)
+	// Signed URL of the static course image, trimmed by the owner's privacy
+	// zones for non-owners. NotFound when the activity has no GPS track or the
+	// map is not shared with the caller.
+	// Scope: activities:read.
+	GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error)
+	// Which export features the activity carries (gps, heart_rate, …), so a
+	// client can offer the exclude toggles. Owner only.
+	// Scope: activities:read.
+	GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error)
+	// Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+	// GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+	// read verb) although it mints a URL.
+	// Scope: activities:read.
+	ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error)
 	// Best efforts and records.
 	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
@@ -394,6 +455,24 @@ type ActivityServiceHandler interface {
 	// afterwards. UI surfaces progress via StreamActivityEvents.
 	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Photos of an activity with signed URLs per variant. Owner, or a viewer
+	// the owner shares photos with (visibility category "photos").
+	// Scope: activities:read.
+	ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error)
+	// Signed URL of the static course image, trimmed by the owner's privacy
+	// zones for non-owners. NotFound when the activity has no GPS track or the
+	// map is not shared with the caller.
+	// Scope: activities:read.
+	GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error)
+	// Which export features the activity carries (gps, heart_rate, …), so a
+	// client can offer the exclude toggles. Owner only.
+	// Scope: activities:read.
+	GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error)
+	// Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+	// GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+	// read verb) although it mints a URL.
+	// Scope: activities:read.
+	ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error)
 	// Best efforts and records.
 	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
@@ -428,6 +507,10 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceGetActivityStreamSpec(), Handler: adapter.getActivityStream},
 		connect.Method{Spec: activityServicePresignActivityUploadSpec(), Handler: adapter.presignActivityUpload},
 		connect.Method{Spec: activityServiceUploadActivitySpec(), Handler: adapter.uploadActivity},
+		connect.Method{Spec: activityServiceListAttachmentsSpec(), Handler: adapter.listAttachments},
+		connect.Method{Spec: activityServiceGetActivityMapImageSpec(), Handler: adapter.getActivityMapImage},
+		connect.Method{Spec: activityServiceGetExportOptionsSpec(), Handler: adapter.getExportOptions},
+		connect.Method{Spec: activityServiceExportActivitySpec(), Handler: adapter.exportActivity},
 		connect.Method{Spec: activityServiceListBestEffortsSpec(), Handler: adapter.listBestEfforts},
 		connect.Method{Spec: activityServiceListRecordsSpec(), Handler: adapter.listRecords},
 		connect.Method{Spec: activityServiceCreateCustomBestEffortSpec(), Handler: adapter.createCustomBestEffort},
@@ -512,6 +595,22 @@ func (UnimplementedActivityServiceHandler) PresignActivityUpload(context.Context
 
 func (UnimplementedActivityServiceHandler) UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.UploadActivity is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListAttachments is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityMapImage is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetExportOptions is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ExportActivity is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error) {
@@ -649,6 +748,38 @@ func (c *activityServiceClient) PresignActivityUpload(ctx context.Context, req *
 func (c *activityServiceClient) UploadActivity(ctx context.Context, req *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error) {
 	var res v1.UploadActivityResponse
 	if err := c.client.CallUnary(ctx, activityServiceUploadActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListAttachments(ctx context.Context, req *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error) {
+	var res v1.ListAttachmentsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListAttachmentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityMapImage(ctx context.Context, req *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error) {
+	var res v1.GetActivityMapImageResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityMapImageSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetExportOptions(ctx context.Context, req *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error) {
+	var res v1.GetExportOptionsResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetExportOptionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ExportActivity(ctx context.Context, req *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error) {
+	var res v1.ExportActivityResponse
+	if err := c.client.CallUnary(ctx, activityServiceExportActivitySpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -858,6 +989,54 @@ func (h activityServiceHandler) uploadActivity(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.UploadActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listAttachments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAttachmentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListAttachments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityMapImage(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityMapImageRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityMapImage(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getExportOptions(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetExportOptionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetExportOptions(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) exportActivity(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ExportActivityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ExportActivity(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -227,6 +227,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 		_, _ = fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("GET /readyz", serveReadyzHandler(pool, app))
+	// Signed binary-content delivery; sets app.Content, which the REST and
+	// Connect handlers below use to hand out photo/map/export URLs.
+	mountContent(mux, app, cfg, logger)
 	// Operator-only maintenance endpoints, session+admin-gated under /api/admin/*
 	// (NATS account-key bootstrap/rotate, dead-letter inspect/replay, geocode
 	// backfill). The legacy token-gated /admin/* smoketest surface was removed —

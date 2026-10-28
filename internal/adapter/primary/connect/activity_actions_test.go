@@ -77,6 +77,27 @@ func (f *fakeBlobs) Get(_ context.Context, key string) ([]byte, string, error) {
 	return b, "application/octet-stream", nil
 }
 
+// fakeContent signs deterministic URLs.
+type fakeContent struct{ uploads []string }
+
+func (f *fakeContent) Blob(_ context.Context, key, _, _ string) (port.ContentURL, error) {
+	return port.ContentURL{URL: "https://c.test/blob/" + key, ExpiresAt: actNow.Add(time.Minute)}, nil
+}
+func (f *fakeContent) MapImage(_ context.Context, id domain.ActivityID, trimmed bool) (port.ContentURL, error) {
+	v := "full"
+	if trimmed {
+		v = "trimmed"
+	}
+	return port.ContentURL{URL: "https://c.test/map/" + id.String() + "/" + v, ExpiresAt: actNow.Add(time.Minute)}, nil
+}
+func (f *fakeContent) Export(_ context.Context, id domain.ActivityID, format string, _ []string) (port.ContentURL, error) {
+	return port.ContentURL{URL: "https://c.test/export/" + id.String() + "." + format, ExpiresAt: actNow.Add(time.Minute)}, nil
+}
+func (f *fakeContent) Upload(_ context.Context, key, ct string, _ int64) (port.PresignedURL, error) {
+	f.uploads = append(f.uploads, key)
+	return port.PresignedURL{URL: "https://c.test/put/" + key, Method: "PUT", RequiredHeaders: map[string]string{"Content-Type": ct}, ExpiresAt: actNow.Add(time.Minute)}, nil
+}
+
 // fakeIngester seeds a singleton activity + source for the upload, as the
 // real pipeline does, and records the input.
 type fakeIngester struct {
@@ -123,6 +144,7 @@ func newActFixture(t *testing.T) *actFixture {
 	f.srv.Reimporter = f.reimp
 	f.srv.Blobs = f.blobs
 	f.srv.Uploads = f.ing
+	f.srv.Content = &fakeContent{}
 	f.ctx = context.WithValue(t.Context(), ctxKeyUserID, f.user)
 	return f
 }
@@ -379,7 +401,7 @@ func TestPresignActivityUpload(t *testing.T) {
 	if len(res.GetBlobId()) <= len(prefix) || res.GetBlobId()[:len(prefix)] != prefix || res.GetBlobId()[len(res.GetBlobId())-4:] != ".fit" {
 		t.Fatalf("blob id %q", res.GetBlobId())
 	}
-	if res.GetUploadUrl() != "https://s3.test/"+res.GetBlobId() || res.GetRequiredHeaders()["Content-Type"] != "application/vnd.ant.fit" || res.GetExpiresAt() == nil {
+	if res.GetUploadUrl() != "https://c.test/put/"+res.GetBlobId() || res.GetRequiredHeaders()["Content-Type"] != "application/vnd.ant.fit" || res.GetExpiresAt() == nil {
 		t.Fatalf("response %v", res)
 	}
 	f.srv.Blobs = nil

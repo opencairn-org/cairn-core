@@ -31,6 +31,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // ActivityServer implements cairnv1connect.ActivityServiceHandler. The
@@ -72,6 +73,16 @@ type ActivityServer struct {
 	Reimporter port.SourceReimporter
 	Uploads    port.UploadIngester
 	Blobs      port.BlobStore
+
+	// Content signs photo/map/export URLs; Attachments lists photos;
+	// Visibility gates non-owner reads; Exports renders interchange files;
+	// MapETag derives Activity.map_image_etag. Nil → the RPC is Unavailable
+	// (or the field stays empty).
+	Content     port.ContentSigner
+	Attachments port.AttachmentRepo
+	Visibility  *view.Visibility
+	Exports     *view.Exports
+	MapETag     func(domain.Activity) string
 }
 
 // Compile-time interface check.
@@ -189,7 +200,7 @@ func (s *ActivityServer) ListActivities(
 			}
 			sources = srcs
 		}
-		out.Activities = append(out.Activities, withGear(activityToProto(a, sources), a, names))
+		out.Activities = append(out.Activities, s.withMapImage(ctx, withGear(activityToProto(a, sources), a, names), a, false))
 	}
 
 	// Reverse to start-time-DESC unless the caller asked otherwise. The
@@ -244,7 +255,7 @@ func (s *ActivityServer) GetActivity(
 	}
 
 	return &v1.GetActivityResponse{
-		Activity: withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)), activity, false),
 	}, nil
 }
 
@@ -311,7 +322,7 @@ func (s *ActivityServer) UpdateActivity(
 	}
 
 	return &v1.UpdateActivityResponse{
-		Activity: withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)), updated, false),
 	}, nil
 }
 

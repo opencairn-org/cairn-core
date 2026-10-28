@@ -7,6 +7,21 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Signed binary-content URLs. Photos, static course images and exports are
+  handed out as short-lived `ContentUrl`s a client fetches with a plain GET:
+  `ActivityService.ListAttachments` (original/medium/thumb + blurhash),
+  `GetActivityMapImage`, `GetExportOptions`, `ExportActivity` (rendered on
+  GET), and `Activity.map_image` + `map_image_etag` on every activity with a
+  track. Stored objects are presigned on `CAIRN_STORAGE_PUBLIC_ENDPOINT` when
+  set; otherwise, and always for rendered content, the URL points at the new
+  `GET /content/{token}` route (HMAC-signed claims, 15 min). `PUT
+  /content/{token}` is the upload counterpart `PresignActivityUpload` uses
+  when no public endpoint exists, so the two-step upload works everywhere.
+  REST `/api/activities/{id}/attachments` now also carries `urls` per
+  variant and `blurhash`.
+- Photo variants: uploads and worker-mirrored photos get a 320 px thumb and
+  a 1280 px medium JPEG plus a blurhash (migration 00068; pure Go, cgo-free).
+  `cairn attachments backfill-variants` derives them for existing photos.
 - Cleartext HTTP/2 (h2c, prior knowledge) next to HTTP/1.1, so native Connect
   and gRPC clients multiplex and stream over one connection without a TLS
   proxy in front. Streaming RPCs are exempt from the server-wide

@@ -671,6 +671,11 @@ func ingestActivityAttachments(ctx context.Context, app *App, log *slog.Logger, 
 	}
 	if err := app.Attachments.ReplaceForSource(ctx, out.ActivityID, out.SourceID, atts); err != nil {
 		log.Warn("persist attachments failed", "source_id", out.SourceID, "error", err)
+		return
+	}
+	// The worker stored the originals; derive the display variants here.
+	if app.AttachmentVariants != nil {
+		app.AttachmentVariants.EnsureForActivity(ctx, out.ActivityID)
 	}
 }
 

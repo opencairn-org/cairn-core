@@ -181,26 +181,11 @@ func (h activityMapImageHandlers) serve(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	variant := "full"
-	if trim {
-		variant = "trimmed"
-	}
-	cacheKey := mapImageCacheKey(actID, variant)
-
-	// Serve from the S3 cache when present.
-	if h.app.BlobStore != nil {
-		if data, _, err := h.app.BlobStore.Get(r.Context(), cacheKey); err == nil && len(data) > 0 {
-			serveMapPNG(w, r, data)
-			return
-		}
-	}
-
-	imgBytes, rendered := renderActivityMap(r.Context(), h.app, act, trim, h.fetchTile, h.logger)
+	imgBytes, rendered := loadOrRenderMap(r.Context(), h.app, act, trim, h.fetchTile, h.logger)
 	if !rendered {
 		http.NotFound(w, r) // no renderable GPS track
 		return
 	}
-	h.cacheStore(r.Context(), actID, cacheKey, imgBytes)
 	serveMapPNG(w, r, imgBytes)
 }
 

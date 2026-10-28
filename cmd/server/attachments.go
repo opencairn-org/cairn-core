@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -128,16 +130,44 @@ func (h *attachmentsHandlers) list(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(atts))
 	for _, a := range atts {
-		out = append(out, map[string]any{
+		item := map[string]any{
 			"id":           a.ID.String(),
 			"url":          fmt.Sprintf("/api/activities/%s/attachments/%s/raw", activityID.String(), a.ID.String()),
 			"caption":      a.Caption,
 			"content_type": a.ContentType,
 			"width":        a.Width,
 			"height":       a.Height,
-		})
+			"blurhash":     a.Blurhash,
+		}
+		// Signed per-variant URLs (same mechanism as the Connect Attachment
+		// message); "url" stays for the web until it migrates.
+		if urls := attachmentContentURLs(r.Context(), h.app, a); len(urls) > 0 {
+			item["urls"] = urls
+		}
+		out = append(out, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"attachments": out})
+}
+
+// attachmentContentURLs signs the original and the derived variants that exist.
+func attachmentContentURLs(ctx context.Context, app *App, a domain.Attachment) map[string]any {
+	if app.Content == nil {
+		return nil
+	}
+	out := map[string]any{}
+	for name, key := range map[string]string{"original": a.BlobID, "medium": a.MediumBlobID, "thumb": a.ThumbBlobID} {
+		if key == "" {
+			continue
+		}
+		ct := "image/jpeg"
+		if name == "original" {
+			ct = a.ContentType
+		}
+		if u, err := app.Content.Blob(ctx, key, ct, ""); err == nil {
+			out[name] = map[string]any{"url": u.URL, "expires_at": u.ExpiresAt.UTC().Format(time.RFC3339)}
+		}
+	}
+	return out
 }
 
 func (h *attachmentsHandlers) raw(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +249,12 @@ func (h *attachmentsHandlers) upload(w http.ResponseWriter, r *http.Request) {
 		ContentType: ct,
 		Caption:     strings.TrimSpace(r.FormValue("caption")),
 	}
+	// Variants are best-effort: an undecodable image is still stored as is.
+	if derived, err := h.app.AttachmentVariants.Derive(r.Context(), att, raw); err == nil {
+		att = derived
+	} else {
+		h.logger.Warn("attachment upload: variants failed", "key", key, "error", err)
+	}
 	if err := h.app.Attachments.Add(r.Context(), att); err != nil {
 		http.Error(w, "save failed", http.StatusInternalServerError)
 		return
@@ -231,7 +267,7 @@ func (h *attachmentsHandlers) remove(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	attID, _, ok := h.ownedAttachment(w, r, activityID)
+	attID, att, ok := h.ownedAttachment(w, r, activityID)
 	if !ok {
 		return
 	}
@@ -240,9 +276,14 @@ func (h *attachmentsHandlers) remove(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
-	if h.app.BlobStore != nil && blobID != "" {
-		if err := h.app.BlobStore.Delete(r.Context(), blobID); err != nil {
-			h.logger.Warn("attachment delete: blob drop failed", "blob_id", blobID, "error", err)
+	if h.app.BlobStore != nil {
+		for _, key := range []string{blobID, att.ThumbBlobID, att.MediumBlobID} {
+			if key == "" {
+				continue
+			}
+			if err := h.app.BlobStore.Delete(r.Context(), key); err != nil {
+				h.logger.Warn("attachment delete: blob drop failed", "blob_id", key, "error", err)
+			}
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
