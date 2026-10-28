@@ -60,7 +60,8 @@ type App struct {
 	BestEfforts            *postgres.BestEffortRepo
 	Segments               *postgres.SegmentRepo
 	Metrics                *postgres.MetricRepo
-	Notifications          *postgres.NotificationRepo
+	Notifications          port.NotificationRepo // postgres repo wrapped by notification.BroadcastRepo
+	NotificationHub        *notification.Hub
 	NotificationPrefs      *postgres.NotificationPreferenceRepo
 	WebhookEndpoints       *postgres.WebhookEndpointRepo
 	QuietHours             *postgres.QuietHoursRepo
@@ -140,6 +141,7 @@ type App struct {
 	Stats              *view.Stats
 	SegmentViews       *view.Segments
 	HealthViews        *view.Health
+	Accounts           *view.Accounts
 	AttachmentVariants *attachmentuc.Variants
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
@@ -277,7 +279,8 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.BestEfforts = postgres.NewBestEffortRepo(pool)
 	app.Segments = postgres.NewSegmentRepo(pool)
 	app.Metrics = postgres.NewMetricRepo(pool)
-	app.Notifications = postgres.NewNotificationRepo(pool)
+	app.NotificationHub = notification.NewHub()
+	app.Notifications = notification.NewBroadcastRepo(postgres.NewNotificationRepo(pool), app.NotificationHub)
 	app.Follows = postgres.NewFollowRepo(pool)
 	app.Visibility = postgres.NewVisibilityRepo(pool)
 	app.ShareLinks = postgres.NewShareLinkRepo(pool)
@@ -659,6 +662,19 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
 	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
 	app.HealthViews = view.NewHealth(app.Health, nil)
+	var queue port.ImportQueueRepo
+	if app.ImportQueue != nil {
+		queue = app.ImportQueue
+	}
+	var events port.ImportEventRepo
+	if app.ImportEvents != nil {
+		events = app.ImportEvents
+	}
+	var conns port.UserProviderConfigRepo
+	if app.UserProviderConfigs != nil {
+		conns = app.UserProviderConfigs
+	}
+	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
 }

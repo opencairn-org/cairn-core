@@ -243,6 +243,9 @@ type NotificationServiceClient interface {
 	// Live server-stream of new notifications for the current user.
 	// The UI subscribes once on login and renders a toast / badge for each
 	// event. Resumes from the last seen id on reconnect via since_event_id.
+	// Events created after the stream opened, as saved; an event with an empty
+	// id is a heartbeat (every 30 s while idle). ListNotifications backfills;
+	// since_event_id is accepted but does not replay.
 	// Scope: notifications:read.
 	StreamNotifications(context.Context, *v1.StreamNotificationsRequest) (NotificationServiceStreamNotificationsClientStream, error)
 	// Historical list with filtering and paging.
@@ -325,6 +328,9 @@ type NotificationServiceHandler interface {
 	// Live server-stream of new notifications for the current user.
 	// The UI subscribes once on login and renders a toast / badge for each
 	// event. Resumes from the last seen id on reconnect via since_event_id.
+	// Events created after the stream opened, as saved; an event with an empty
+	// id is a heartbeat (every 30 s while idle). ListNotifications backfills;
+	// since_event_id is accepted but does not replay.
 	// Scope: notifications:read.
 	StreamNotifications(context.Context, *v1.StreamNotificationsRequest, NotificationServiceStreamNotificationsServerStream) error
 	// Historical list with filtering and paging.

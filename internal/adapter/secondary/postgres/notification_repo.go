@@ -107,6 +107,17 @@ func timeOrZero(t *time.Time) time.Time {
 }
 
 // ListNotificationsForUser returns notifications ordered by created_at DESC.
+func (r *NotificationRepo) CountUnreadForUser(ctx context.Context, userID domain.UserID) (int, error) {
+	db := dbtx(ctx, r.pool)
+	var n int
+	if err := db.QueryRow(ctx,
+		`SELECT count(*) FROM notification_events WHERE user_id = $1 AND NOT read`, userID.UUID(),
+	).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count unread notifications: %w", err)
+	}
+	return n, nil
+}
+
 func (r *NotificationRepo) ListNotificationsForUser(
 	ctx context.Context,
 	userID domain.UserID,

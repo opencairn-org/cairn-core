@@ -7,6 +7,17 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `NotificationService.CountUnreadNotifications` and `StreamNotifications`
+  (server stream of new events with a 30 s heartbeat; fed by an in-process
+  hub every notification producer publishes to).
+- `ExternalAccountService` is mounted: `ListExternalAccounts` with the sync
+  status of each account (imported/provider totals, watermark, discovering,
+  rate limits and live budget, queue counts, pools, out-of-date sources),
+  `ListAvailableProviders`, new `ListConnections`, `ListSyncHistory` and
+  `ListQueueItems`, and the account toggles `UpdateExternalAccountConfig`
+  (poll interval, label), `SetExternalAccountEnabled` (auto import) and
+  `TriggerSync` (full discovery). Linking an account stays the browser OAuth
+  flow on REST.
 - `StatsService.GetStats`, `GetTrainingLoad`, `GetBestEffortHistory` and
   `GetHeatmap` (tracks as encoded polylines), the counterparts of
   `/api/stats`, `/api/analysis`, `/api/best-efforts/history` and

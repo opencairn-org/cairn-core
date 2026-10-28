@@ -58,7 +58,11 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	activitySvc.MapETag = mapImageETag
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
-	cairnv1connect.RegisterNotificationServiceHandler(server, connectadapter.NewNotificationServer(app.Notifications))
+	notifSvc := connectadapter.NewNotificationServer(app.Notifications)
+	notifSvc.Hub = app.NotificationHub
+	cairnv1connect.RegisterNotificationServiceHandler(server, notifSvc)
+	cairnv1connect.RegisterExternalAccountServiceHandler(server, connectadapter.NewExternalAccountServer(
+		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())))
 	cairnv1connect.RegisterAuthServiceHandler(server, newAuthServer(app, logger))
 	registerReadServices(server, app)
 	cairnv1connect.RegisterSocialServiceHandler(server, connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag))
@@ -67,6 +71,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		cairnv1connect.ActivityServiceName, cairnv1connect.NotificationServiceName, cairnv1connect.AuthServiceName,
 		cairnv1connect.GearServiceName, cairnv1connect.StatsServiceName, cairnv1connect.SocialServiceName,
 		cairnv1connect.SegmentServiceName, cairnv1connect.MetricsServiceName, cairnv1connect.SettingsServiceName,
+		cairnv1connect.ExternalAccountServiceName,
 	})
 
 	// AdminService chains the session resolver with a role-check

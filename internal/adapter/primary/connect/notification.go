@@ -11,6 +11,7 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	notificationuc "github.com/opencairn-org/cairn-core/internal/usecase/notification"
 )
 
 // NotificationServer implements cairnv1connect.NotificationServiceHandler.
@@ -21,6 +22,9 @@ type NotificationServer struct {
 	cairnv1connect.UnimplementedNotificationServiceHandler
 
 	Notifications port.NotificationRepo
+
+	// Hub feeds StreamNotifications; nil → the stream is Unavailable.
+	Hub *notificationuc.Hub
 }
 
 var _ cairnv1connect.NotificationServiceHandler = (*NotificationServer)(nil)

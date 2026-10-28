@@ -31,6 +31,7 @@ syntax = "proto3";
 package cairn.v1;
 
 import "google/protobuf/timestamp.proto";
+import "cairn/v1/common.proto";
 
 // ----------------------------------------------------------------------------
 // User
@@ -581,6 +582,61 @@ message ExternalAccount {
   google.protobuf.Timestamp updated_at = 18;
   optional google.protobuf.Timestamp last_sync_at = 19;
   optional google.protobuf.Timestamp last_successful_sync_at = 20;
+
+  // ---- Sync status (the GET /api/accounts row) ----
+
+  // Activities imported from this account so far.
+  int32 imported = 21;
+  // The provider-side total from the last discovery; 0 = never discovered.
+  int32 provider_total = 22;
+  // Newest activity start the reconciler has seen; unset until the first import.
+  optional google.protobuf.Timestamp watermark = 23;
+  // A full discovery is running in the background.
+  bool discovering = 24;
+  // The provider budget is exhausted (worker-reported or live budget).
+  bool rate_limited = 25;
+  // Per-connection reconcile interval; 0 = instance default.
+  int32 poll_interval_seconds = 26;
+  bool auto_import_enabled = 27;
+  // Import queue counts by status.
+  QueueCounts queue = 28;
+  // The pools this account could be assigned to (docs/adr/0006).
+  repeated WorkerPoolInfo worker_pools = 29;
+  // Sources a newer parser could re-parse (see ReimportSource).
+  int32 out_of_date = 30;
+  // The connection (provider app credentials) the account was linked through.
+  optional string connection_id = 31;
+  // Live API budget of the provider app, when the bus reports one.
+  RateLimitBudget rate_limit_budget = 32;
+}
+
+message QueueCounts {
+  int32 pending = 1;
+  int32 in_progress = 2;
+  int32 done = 3;
+  int32 failed = 4;
+  int32 skipped = 5;
+}
+
+message WorkerPoolInfo {
+  string name = 1;
+  string package = 2;
+  string parser_version = 3;
+  string release = 4;
+  bool online = 5;
+  // Release-compatible with this core (true when offline: unknown).
+  bool compatible = 6;
+}
+
+message RateLimitWindow {
+  int32 used = 1;
+  int32 limit = 2;
+  google.protobuf.Timestamp resets_at = 3;
+}
+
+message RateLimitBudget {
+  RateLimitWindow short = 1;
+  RateLimitWindow daily = 2;
 }
 
 // Metadata about a config value, without the value itself for secrets.
@@ -631,36 +687,66 @@ service ExternalAccountService {
   // Scope: connections:read.
   rpc ListAvailableProviders(ListAvailableProvidersRequest) returns (ListAvailableProvidersResponse);
 
+  // The user's provider connections (app credentials) and the providers
+  // with their worker pools (GET /api/connections).
+  // Scope: connections:read.
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Import history of an account, newest first (GET /api/accounts/{id}/history).
+  // Scope: connections:read.
+  rpc ListSyncHistory(ListSyncHistoryRequest) returns (ListSyncHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Import queue items of an account (GET /api/accounts/{id}/queue/items).
+  // Scope: connections:read.
+  rpc ListQueueItems(ListQueueItemsRequest) returns (ListQueueItemsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Create a new external account with the user-supplied config. Returns
   // either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
   // or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+  // Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
   // Scope: connections:write.
   rpc CreateExternalAccount(CreateExternalAccountRequest) returns (CreateExternalAccountResponse);
 
   // Update an external account's config (e.g. fill in a newly required field).
+  // Only config["poll_interval_seconds"] and display_label are editable
+  // today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+  // PUT /api/accounts/{id}/worker for now (InvalidArgument here).
   // Scope: connections:write.
   rpc UpdateExternalAccountConfig(UpdateExternalAccountConfigRequest) returns (UpdateExternalAccountConfigResponse);
 
   // Re-authorize an account whose OAuth tokens went invalid.
+  // Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
   // Scope: connections:write.
   rpc StartExternalAccountReauthorize(StartExternalAccountReauthorizeRequest) returns (StartExternalAccountReauthorizeResponse);
 
   // Enable / disable an account without deleting it.
+  // enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
   // Scope: connections:write.
   rpc SetExternalAccountEnabled(SetExternalAccountEnabledRequest) returns (SetExternalAccountEnabledResponse);
 
   // Delete: unregisters webhook subscription, removes credentials,
   // and detaches sources from activities (activities themselves remain
   // visible with the source marked detached).
+  // Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
   // Scope: connections:write.
   rpc DeleteExternalAccount(DeleteExternalAccountRequest) returns (DeleteExternalAccountResponse);
 
   // Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
   // job at high priority).
+  // Starts a full background discovery of the account (POST
+  // /api/accounts/{id}/sync/start); progress shows in the queue counts and
+  // the discovering flag. since is ignored (the discovery walks everything).
   // Scope: connections:write.
   rpc TriggerSync(TriggerSyncRequest) returns (TriggerSyncResponse);
 
   // Rotate the webhook signing token. Queues unregister + register jobs.
+  // Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
   // Scope: connections:write.
   rpc RotateWebhookToken(RotateWebhookTokenRequest) returns (RotateWebhookTokenResponse);
 }
@@ -668,6 +754,83 @@ service ExternalAccountService {
 message ListExternalAccountsRequest {}
 message ListExternalAccountsResponse {
   repeated ExternalAccount accounts = 1;
+  // Instance-wide reconcile cadence, what poll_interval_seconds = 0 means.
+  int32 default_poll_interval_seconds = 2;
+}
+
+// ---- Connections, sync history and queue (GET /api/connections, /api/accounts/{id}/history|queue/items) ----
+
+message ListConnectionsRequest {}
+message Connection {
+  string id = 1;
+  string provider = 2;
+  string display_name = 3;
+  string label = 4;
+  string client_id = 5;
+  bool has_secret = 6;
+  // The provider links accounts through an OAuth authorize round-trip.
+  bool oauth = 7;
+}
+message ProviderInfo {
+  string provider = 1;
+  string display_name = 2;
+  bool oauth = 3;
+  repeated WorkerPoolInfo worker_pools = 4;
+}
+message ListConnectionsResponse {
+  repeated Connection connections = 1;
+  repeated ProviderInfo providers = 2;
+}
+
+message ListSyncHistoryRequest {
+  string account_id = 1;
+  // limit default 50, max 200.
+  PageRequest page = 2;
+}
+message SyncEvent {
+  // sync_started | activity_imported | activity_updated | failed
+  string kind = 1;
+  int32 count = 2;
+  string detail = 3;
+  string external_id = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  // The imported activity, when the event names one that is in.
+  string activity_id = 6;
+  // The original on the provider's site, when the provider has a page.
+  string external_url = 7;
+  // failed | completed | ongoing
+  string status = 8;
+}
+message ListSyncHistoryResponse {
+  repeated SyncEvent events = 1;
+  PageResponse page = 2;
+}
+
+message ListQueueItemsRequest {
+  string account_id = 1;
+  // Statuses to include (pending, in_progress, done, failed, skipped);
+  // default pending, in_progress and failed.
+  repeated string statuses = 2;
+  // limit default 100, max 500.
+  PageRequest page = 3;
+}
+message QueueItem {
+  string id = 1;
+  string item_type = 2;
+  string external_id = 3;
+  string status = 4;
+  int32 priority = 5;
+  int32 attempts = 6;
+  string last_error = 7;
+  google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp item_time = 9;
+  optional google.protobuf.Timestamp started_at = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  string external_url = 12;
+}
+message ListQueueItemsResponse {
+  repeated QueueItem items = 1;
+  PageResponse page = 2;
 }
 
 message ListAvailableProvidersRequest {}

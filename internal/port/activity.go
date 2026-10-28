@@ -188,6 +188,10 @@ type ActivityRepo interface {
 	// already-present items" path.
 	ExistingExternalIDs(ctx context.Context, provider string, accountID domain.ExternalAccountID) (map[string]struct{}, error)
 
+	// CountSourcesOutOfDate counts the account's sources flagged
+	// update_available, by reason (newer_parser, pool_changed, …).
+	CountSourcesOutOfDate(ctx context.Context, accountID domain.ExternalAccountID) (map[string]int, error)
+
 	// ListSourcesForActivity returns every non-detached source attached
 	// to the activity. The order is deterministic: ImportedAt DESC so the
 	// merge engine receives input in the expected sort order.

@@ -84,18 +84,6 @@ func knownPoolNames(ctx context.Context, app *App, logger *slog.Logger, provider
 	return out
 }
 
-// workerPoolsJSON renders a provider's known pools for the UI pickers.
-func workerPoolsJSON(ctx context.Context, app *App, logger *slog.Logger, provider string) []map[string]any {
-	out := []map[string]any{}
-	for _, p := range knownPools(ctx, app, logger, provider) {
-		out = append(out, map[string]any{
-			"name": p.name, "package": p.pkg, "parser_version": p.parser, "release": p.release,
-			"online": p.online, "compatible": !p.online || p.compatible,
-		})
-	}
-	return out
-}
-
 // checkResultPool verifies a result against its pool (docs/adr/0006): a
 // pool-scoped subject must carry that pool's name, and the name must stay
 // bound to one package. A passing result registers or refreshes the pool.

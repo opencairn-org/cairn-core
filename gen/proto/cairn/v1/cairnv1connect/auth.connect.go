@@ -115,6 +115,15 @@ const (
 	// ExternalAccountServiceListAvailableProvidersProcedure is the procedure name of the
 	// ExternalAccountService's ListAvailableProviders RPC.
 	ExternalAccountServiceListAvailableProvidersProcedure = "/cairn.v1.ExternalAccountService/ListAvailableProviders"
+	// ExternalAccountServiceListConnectionsProcedure is the procedure name of the
+	// ExternalAccountService's ListConnections RPC.
+	ExternalAccountServiceListConnectionsProcedure = "/cairn.v1.ExternalAccountService/ListConnections"
+	// ExternalAccountServiceListSyncHistoryProcedure is the procedure name of the
+	// ExternalAccountService's ListSyncHistory RPC.
+	ExternalAccountServiceListSyncHistoryProcedure = "/cairn.v1.ExternalAccountService/ListSyncHistory"
+	// ExternalAccountServiceListQueueItemsProcedure is the procedure name of the
+	// ExternalAccountService's ListQueueItems RPC.
+	ExternalAccountServiceListQueueItemsProcedure = "/cairn.v1.ExternalAccountService/ListQueueItems"
 	// ExternalAccountServiceCreateExternalAccountProcedure is the procedure name of the
 	// ExternalAccountService's CreateExternalAccount RPC.
 	ExternalAccountServiceCreateExternalAccountProcedure = "/cairn.v1.ExternalAccountService/CreateExternalAccount"
@@ -1048,6 +1057,30 @@ var (
 			Procedure:  ExternalAccountServiceListAvailableProvidersProcedure,
 		}
 	})
+	externalAccountServiceListConnectionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListConnections"),
+			Procedure:        ExternalAccountServiceListConnectionsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	externalAccountServiceListSyncHistorySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListSyncHistory"),
+			Procedure:        ExternalAccountServiceListSyncHistoryProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	externalAccountServiceListQueueItemsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListQueueItems"),
+			Procedure:        ExternalAccountServiceListQueueItemsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	externalAccountServiceCreateExternalAccountSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -1109,30 +1142,51 @@ type ExternalAccountServiceClient interface {
 	// and auth method so the UI can render a dynamic form.
 	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
+	// The user's provider connections (app credentials) and the providers
+	// with their worker pools (GET /api/connections).
+	// Scope: connections:read.
+	ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error)
+	// Import history of an account, newest first (GET /api/accounts/{id}/history).
+	// Scope: connections:read.
+	ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error)
+	// Import queue items of an account (GET /api/accounts/{id}/queue/items).
+	// Scope: connections:read.
+	ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
 	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Only config["poll_interval_seconds"] and display_label are editable
+	// today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+	// PUT /api/accounts/{id}/worker for now (InvalidArgument here).
 	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
 	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
 	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
 	// Delete: unregisters webhook subscription, removes credentials,
 	// and detaches sources from activities (activities themselves remain
 	// visible with the source marked detached).
+	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
 	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Starts a full background discovery of the account (POST
+	// /api/accounts/{id}/sync/start); progress shows in the queue counts and
+	// the discovering flag. since is ignored (the discovery walks everything).
 	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
 	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
 	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
@@ -1154,30 +1208,51 @@ type ExternalAccountServiceHandler interface {
 	// and auth method so the UI can render a dynamic form.
 	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
+	// The user's provider connections (app credentials) and the providers
+	// with their worker pools (GET /api/connections).
+	// Scope: connections:read.
+	ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error)
+	// Import history of an account, newest first (GET /api/accounts/{id}/history).
+	// Scope: connections:read.
+	ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error)
+	// Import queue items of an account (GET /api/accounts/{id}/queue/items).
+	// Scope: connections:read.
+	ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
 	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Only config["poll_interval_seconds"] and display_label are editable
+	// today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+	// PUT /api/accounts/{id}/worker for now (InvalidArgument here).
 	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
 	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
 	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
 	// Delete: unregisters webhook subscription, removes credentials,
 	// and detaches sources from activities (activities themselves remain
 	// visible with the source marked detached).
+	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
 	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Starts a full background discovery of the account (POST
+	// /api/accounts/{id}/sync/start); progress shows in the queue counts and
+	// the discovering flag. since is ignored (the discovery walks everything).
 	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
 	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
 	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
@@ -1189,6 +1264,9 @@ func RegisterExternalAccountServiceHandler(server *connect.Server, svc ExternalA
 	server.Register(
 		connect.Method{Spec: externalAccountServiceListExternalAccountsSpec(), Handler: adapter.listExternalAccounts},
 		connect.Method{Spec: externalAccountServiceListAvailableProvidersSpec(), Handler: adapter.listAvailableProviders},
+		connect.Method{Spec: externalAccountServiceListConnectionsSpec(), Handler: adapter.listConnections},
+		connect.Method{Spec: externalAccountServiceListSyncHistorySpec(), Handler: adapter.listSyncHistory},
+		connect.Method{Spec: externalAccountServiceListQueueItemsSpec(), Handler: adapter.listQueueItems},
 		connect.Method{Spec: externalAccountServiceCreateExternalAccountSpec(), Handler: adapter.createExternalAccount},
 		connect.Method{Spec: externalAccountServiceUpdateExternalAccountConfigSpec(), Handler: adapter.updateExternalAccountConfig},
 		connect.Method{Spec: externalAccountServiceStartExternalAccountReauthorizeSpec(), Handler: adapter.startExternalAccountReauthorize},
@@ -1208,6 +1286,18 @@ func (UnimplementedExternalAccountServiceHandler) ListExternalAccounts(context.C
 
 func (UnimplementedExternalAccountServiceHandler) ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListAvailableProviders is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListConnections is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListSyncHistory is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListQueueItems is not implemented")
 }
 
 func (UnimplementedExternalAccountServiceHandler) CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error) {
@@ -1253,6 +1343,30 @@ func (c *externalAccountServiceClient) ListExternalAccounts(ctx context.Context,
 func (c *externalAccountServiceClient) ListAvailableProviders(ctx context.Context, req *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
 	var res v1.ListAvailableProvidersResponse
 	if err := c.client.CallUnary(ctx, externalAccountServiceListAvailableProvidersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListConnections(ctx context.Context, req *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error) {
+	var res v1.ListConnectionsResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListConnectionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListSyncHistory(ctx context.Context, req *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error) {
+	var res v1.ListSyncHistoryResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListSyncHistorySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListQueueItems(ctx context.Context, req *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error) {
+	var res v1.ListQueueItemsResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListQueueItemsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1334,6 +1448,42 @@ func (h externalAccountServiceHandler) listAvailableProviders(ctx context.Contex
 		return err
 	}
 	res, err := h.svc.ListAvailableProviders(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listConnections(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListConnectionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListConnections(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listSyncHistory(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSyncHistoryRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSyncHistory(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listQueueItems(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListQueueItemsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListQueueItems(ctx, &req)
 	if err != nil {
 		return err
 	}
