@@ -53,6 +53,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	activitySvc.Visibility = app.Visibility2
 	activitySvc.Exports = app.Exports
 	activitySvc.Searches = app.Searches
+	activitySvc.Details = app.Details
 	activitySvc.MapETag = mapImageETag
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))

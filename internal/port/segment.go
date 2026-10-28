@@ -99,6 +99,11 @@ type SegmentRepo interface {
 	// of the activity. Used by the activity detail page.
 	ListEffortsForActivity(ctx context.Context, id domain.ActivityID) ([]domain.SegmentEffort, error)
 
+	// FindSimilarActivities returns the user's other activities over the same
+	// route (shared segment efforts) as activityID, which starts near
+	// (lat, lng) with the given distance and type.
+	FindSimilarActivities(ctx context.Context, activityID domain.ActivityID, userID domain.UserID, lat, lng, distanceM float64, activityType string) ([]domain.SimilarActivity, error)
+
 	// -------------------------------------------------------------------
 	// Leaderboard reads (denormalized via rank columns)
 	// -------------------------------------------------------------------

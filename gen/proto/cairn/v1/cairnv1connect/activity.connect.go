@@ -86,6 +86,31 @@ const (
 	// ActivityServiceUploadActivityProcedure is the procedure name of the ActivityService's
 	// UploadActivity RPC.
 	ActivityServiceUploadActivityProcedure = "/cairn.v1.ActivityService/UploadActivity"
+	// ActivityServiceListLapsProcedure is the procedure name of the ActivityService's ListLaps RPC.
+	ActivityServiceListLapsProcedure = "/cairn.v1.ActivityService/ListLaps"
+	// ActivityServiceGetActivityZonesProcedure is the procedure name of the ActivityService's
+	// GetActivityZones RPC.
+	ActivityServiceGetActivityZonesProcedure = "/cairn.v1.ActivityService/GetActivityZones"
+	// ActivityServiceListActivitySegmentEffortsProcedure is the procedure name of the ActivityService's
+	// ListActivitySegmentEfforts RPC.
+	ActivityServiceListActivitySegmentEffortsProcedure = "/cairn.v1.ActivityService/ListActivitySegmentEfforts"
+	// ActivityServiceListSimilarActivitiesProcedure is the procedure name of the ActivityService's
+	// ListSimilarActivities RPC.
+	ActivityServiceListSimilarActivitiesProcedure = "/cairn.v1.ActivityService/ListSimilarActivities"
+	// ActivityServiceGetMergedStreamProcedure is the procedure name of the ActivityService's
+	// GetMergedStream RPC.
+	ActivityServiceGetMergedStreamProcedure = "/cairn.v1.ActivityService/GetMergedStream"
+	// ActivityServiceListKudosProcedure is the procedure name of the ActivityService's ListKudos RPC.
+	ActivityServiceListKudosProcedure = "/cairn.v1.ActivityService/ListKudos"
+	// ActivityServiceListCommentsProcedure is the procedure name of the ActivityService's ListComments
+	// RPC.
+	ActivityServiceListCommentsProcedure = "/cairn.v1.ActivityService/ListComments"
+	// ActivityServiceGetActivityManageInfoProcedure is the procedure name of the ActivityService's
+	// GetActivityManageInfo RPC.
+	ActivityServiceGetActivityManageInfoProcedure = "/cairn.v1.ActivityService/GetActivityManageInfo"
+	// ActivityServiceGetParsedSourceProcedure is the procedure name of the ActivityService's
+	// GetParsedSource RPC.
+	ActivityServiceGetParsedSourceProcedure = "/cairn.v1.ActivityService/GetParsedSource"
 	// ActivityServiceListAttachmentsProcedure is the procedure name of the ActivityService's
 	// ListAttachments RPC.
 	ActivityServiceListAttachmentsProcedure = "/cairn.v1.ActivityService/ListAttachments"
@@ -226,6 +251,78 @@ var (
 			Procedure:  ActivityServiceUploadActivityProcedure,
 		}
 	})
+	activityServiceListLapsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListLaps"),
+			Procedure:        ActivityServiceListLapsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityZonesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityZones"),
+			Procedure:        ActivityServiceGetActivityZonesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListActivitySegmentEffortsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListActivitySegmentEfforts"),
+			Procedure:        ActivityServiceListActivitySegmentEffortsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListSimilarActivitiesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListSimilarActivities"),
+			Procedure:        ActivityServiceListSimilarActivitiesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetMergedStreamSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetMergedStream"),
+			Procedure:        ActivityServiceGetMergedStreamProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListKudosSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListKudos"),
+			Procedure:        ActivityServiceListKudosProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListCommentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListComments"),
+			Procedure:        ActivityServiceListCommentsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityManageInfoSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityManageInfo"),
+			Procedure:        ActivityServiceGetActivityManageInfoProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetParsedSourceSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetParsedSource"),
+			Procedure:        ActivityServiceGetParsedSourceProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	activityServiceListAttachmentsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType:       connect.StreamTypeUnary,
@@ -353,6 +450,41 @@ type ActivityServiceClient interface {
 	// afterwards. UI surfaces progress via StreamActivityEvents.
 	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Provider-reported laps (splits) of the source that carries the most.
+	// Scope: activities:read.
+	ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error)
+	// Time in heart-rate and power zones against the athlete's thresholds as
+	// of the activity's date, plus aerobic decoupling for steady efforts.
+	// Scope: activities:read.
+	GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error)
+	// Segment efforts of the activity joined to their segments, located on the
+	// stream by time and distance offsets.
+	// Scope: activities:read.
+	ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error)
+	// Other activities over the same route (shared segment efforts) with the
+	// metrics a progression view needs, the reference activity included.
+	// Scope: activities:read.
+	ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error)
+	// The per-channel merged, aligned, resampled stream: best source per
+	// channel across the activity's sources on a common 5 s grid.
+	// Scope: activities:read.
+	GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error)
+	// Kudos on an activity; the caller must be the owner or hold the "social"
+	// visibility category (PermissionDenied otherwise).
+	// Scope: activities:read.
+	ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error)
+	// Comments on an activity, oldest first, federated replies included. Same
+	// gate as ListKudos.
+	// Scope: activities:read.
+	ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error)
+	// The technical manage view: every source (detached included) with its
+	// parser provenance, re-parse eligibility and offered upgrade, and the
+	// per-field merge provenance.
+	// Scope: activities:read.
+	GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error)
+	// A source's normalised payload as stored.
+	// Scope: activities:read.
+	GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error)
 	// Photos of an activity with signed URLs per variant. Owner, or a viewer
 	// the owner shares photos with (visibility category "photos").
 	// Scope: activities:read.
@@ -478,6 +610,41 @@ type ActivityServiceHandler interface {
 	// afterwards. UI surfaces progress via StreamActivityEvents.
 	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Provider-reported laps (splits) of the source that carries the most.
+	// Scope: activities:read.
+	ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error)
+	// Time in heart-rate and power zones against the athlete's thresholds as
+	// of the activity's date, plus aerobic decoupling for steady efforts.
+	// Scope: activities:read.
+	GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error)
+	// Segment efforts of the activity joined to their segments, located on the
+	// stream by time and distance offsets.
+	// Scope: activities:read.
+	ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error)
+	// Other activities over the same route (shared segment efforts) with the
+	// metrics a progression view needs, the reference activity included.
+	// Scope: activities:read.
+	ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error)
+	// The per-channel merged, aligned, resampled stream: best source per
+	// channel across the activity's sources on a common 5 s grid.
+	// Scope: activities:read.
+	GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error)
+	// Kudos on an activity; the caller must be the owner or hold the "social"
+	// visibility category (PermissionDenied otherwise).
+	// Scope: activities:read.
+	ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error)
+	// Comments on an activity, oldest first, federated replies included. Same
+	// gate as ListKudos.
+	// Scope: activities:read.
+	ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error)
+	// The technical manage view: every source (detached included) with its
+	// parser provenance, re-parse eligibility and offered upgrade, and the
+	// per-field merge provenance.
+	// Scope: activities:read.
+	GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error)
+	// A source's normalised payload as stored.
+	// Scope: activities:read.
+	GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error)
 	// Photos of an activity with signed URLs per variant. Owner, or a viewer
 	// the owner shares photos with (visibility category "photos").
 	// Scope: activities:read.
@@ -531,6 +698,15 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceGetActivityStreamSpec(), Handler: adapter.getActivityStream},
 		connect.Method{Spec: activityServicePresignActivityUploadSpec(), Handler: adapter.presignActivityUpload},
 		connect.Method{Spec: activityServiceUploadActivitySpec(), Handler: adapter.uploadActivity},
+		connect.Method{Spec: activityServiceListLapsSpec(), Handler: adapter.listLaps},
+		connect.Method{Spec: activityServiceGetActivityZonesSpec(), Handler: adapter.getActivityZones},
+		connect.Method{Spec: activityServiceListActivitySegmentEffortsSpec(), Handler: adapter.listActivitySegmentEfforts},
+		connect.Method{Spec: activityServiceListSimilarActivitiesSpec(), Handler: adapter.listSimilarActivities},
+		connect.Method{Spec: activityServiceGetMergedStreamSpec(), Handler: adapter.getMergedStream},
+		connect.Method{Spec: activityServiceListKudosSpec(), Handler: adapter.listKudos},
+		connect.Method{Spec: activityServiceListCommentsSpec(), Handler: adapter.listComments},
+		connect.Method{Spec: activityServiceGetActivityManageInfoSpec(), Handler: adapter.getActivityManageInfo},
+		connect.Method{Spec: activityServiceGetParsedSourceSpec(), Handler: adapter.getParsedSource},
 		connect.Method{Spec: activityServiceListAttachmentsSpec(), Handler: adapter.listAttachments},
 		connect.Method{Spec: activityServiceGetActivityMapImageSpec(), Handler: adapter.getActivityMapImage},
 		connect.Method{Spec: activityServiceGetExportOptionsSpec(), Handler: adapter.getExportOptions},
@@ -623,6 +799,42 @@ func (UnimplementedActivityServiceHandler) PresignActivityUpload(context.Context
 
 func (UnimplementedActivityServiceHandler) UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.UploadActivity is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListLaps is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityZones is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListActivitySegmentEfforts is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListSimilarActivities is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetMergedStream is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListKudos is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListComments is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityManageInfo is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetParsedSource is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error) {
@@ -784,6 +996,78 @@ func (c *activityServiceClient) PresignActivityUpload(ctx context.Context, req *
 func (c *activityServiceClient) UploadActivity(ctx context.Context, req *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error) {
 	var res v1.UploadActivityResponse
 	if err := c.client.CallUnary(ctx, activityServiceUploadActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListLaps(ctx context.Context, req *v1.ListLapsRequest) (*v1.ListLapsResponse, error) {
+	var res v1.ListLapsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListLapsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityZones(ctx context.Context, req *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error) {
+	var res v1.GetActivityZonesResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityZonesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListActivitySegmentEfforts(ctx context.Context, req *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error) {
+	var res v1.ListActivitySegmentEffortsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListActivitySegmentEffortsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListSimilarActivities(ctx context.Context, req *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error) {
+	var res v1.ListSimilarActivitiesResponse
+	if err := c.client.CallUnary(ctx, activityServiceListSimilarActivitiesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetMergedStream(ctx context.Context, req *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error) {
+	var res v1.GetMergedStreamResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetMergedStreamSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListKudos(ctx context.Context, req *v1.ListKudosRequest) (*v1.ListKudosResponse, error) {
+	var res v1.ListKudosResponse
+	if err := c.client.CallUnary(ctx, activityServiceListKudosSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListComments(ctx context.Context, req *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error) {
+	var res v1.ListCommentsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListCommentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityManageInfo(ctx context.Context, req *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error) {
+	var res v1.GetActivityManageInfoResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityManageInfoSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetParsedSource(ctx context.Context, req *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error) {
+	var res v1.GetParsedSourceResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetParsedSourceSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1037,6 +1321,114 @@ func (h activityServiceHandler) uploadActivity(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.UploadActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listLaps(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListLapsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListLaps(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityZones(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityZonesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityZones(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listActivitySegmentEfforts(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListActivitySegmentEffortsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListActivitySegmentEfforts(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listSimilarActivities(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSimilarActivitiesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSimilarActivities(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getMergedStream(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetMergedStreamRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetMergedStream(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listKudos(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListKudosRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListKudos(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listComments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListCommentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListComments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityManageInfo(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityManageInfoRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityManageInfo(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getParsedSource(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetParsedSourceRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetParsedSource(ctx, &req)
 	if err != nil {
 		return err
 	}

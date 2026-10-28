@@ -28,7 +28,7 @@ func TestReparseWorker(t *testing.T) {
 		if (c.want == "") == ok || (ok && got.version != c.want) {
 			t.Errorf("%s: got %q/%v, want %q", c.name, got.version, ok, c.want)
 		}
-		if up := sourceUpgrade(c.workers, src); up != c.upgrade {
+		if up := domain.SourceUpgrade(domainWorkers(c.workers), src); up != c.upgrade {
 			t.Errorf("%s: upgrade %q, want %q", c.name, up, c.upgrade)
 		}
 	}

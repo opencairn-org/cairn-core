@@ -386,6 +386,9 @@ message ActivityLap {
   optional int32 avg_cadence = 11;
   optional double elevation_gain_m = 12;
   string label = 13;                  // provider-supplied lap name
+  // Seconds from the activity start to the lap start.
+  int64 start_offset_s = 14;
+  optional double elevation_loss_m = 15;
 }
 
 message StreamSummary {
@@ -656,6 +659,70 @@ service ActivityService {
   // afterwards. UI surfaces progress via StreamActivityEvents.
   // Scope: activities:write.
   rpc UploadActivity(UploadActivityRequest) returns (UploadActivityResponse);
+
+  // ---- Per-activity detail reads (owner only unless noted) ----
+
+  // Provider-reported laps (splits) of the source that carries the most.
+  // Scope: activities:read.
+  rpc ListLaps(ListLapsRequest) returns (ListLapsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Time in heart-rate and power zones against the athlete's thresholds as
+  // of the activity's date, plus aerobic decoupling for steady efforts.
+  // Scope: activities:read.
+  rpc GetActivityZones(GetActivityZonesRequest) returns (GetActivityZonesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Segment efforts of the activity joined to their segments, located on the
+  // stream by time and distance offsets.
+  // Scope: activities:read.
+  rpc ListActivitySegmentEfforts(ListActivitySegmentEffortsRequest) returns (ListActivitySegmentEffortsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Other activities over the same route (shared segment efforts) with the
+  // metrics a progression view needs, the reference activity included.
+  // Scope: activities:read.
+  rpc ListSimilarActivities(ListSimilarActivitiesRequest) returns (ListSimilarActivitiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The per-channel merged, aligned, resampled stream: best source per
+  // channel across the activity's sources on a common 5 s grid.
+  // Scope: activities:read.
+  rpc GetMergedStream(GetMergedStreamRequest) returns (GetMergedStreamResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Kudos on an activity; the caller must be the owner or hold the "social"
+  // visibility category (PermissionDenied otherwise).
+  // Scope: activities:read.
+  rpc ListKudos(ListKudosRequest) returns (ListKudosResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Comments on an activity, oldest first, federated replies included. Same
+  // gate as ListKudos.
+  // Scope: activities:read.
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The technical manage view: every source (detached included) with its
+  // parser provenance, re-parse eligibility and offered upgrade, and the
+  // per-field merge provenance.
+  // Scope: activities:read.
+  rpc GetActivityManageInfo(GetActivityManageInfoRequest) returns (GetActivityManageInfoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // A source's normalised payload as stored.
+  // Scope: activities:read.
+  rpc GetParsedSource(GetParsedSourceRequest) returns (GetParsedSourceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // ---- Photos, course image, exports ----
 
@@ -1006,6 +1073,206 @@ message UploadActivityResponse {
   // Empty until the job completes. Use StreamActivityEvents to await
   // ACTIVITY_EVENT_TYPE_ACTIVITY_CREATED with the resulting activity_id.
   string activity_id = 2;
+}
+
+// ---- Per-activity detail reads ----
+
+message ListLapsRequest {
+  string activity_id = 1;
+}
+message ListLapsResponse {
+  repeated ActivityLap laps = 1;
+  // The source the laps come from; empty when the activity has none.
+  string source_id = 2;
+}
+
+message GetActivityZonesRequest {
+  string activity_id = 1;
+}
+message ZoneBand {
+  string label = 1;
+  // Bounds as a fraction of the reference (1.0 = reference).
+  double low_pct = 2;
+  double high_pct = 3;
+  int32 seconds = 4;
+}
+message ZoneSummary {
+  // "lthr" or "max" for heart rate, "ftp" for power.
+  string basis = 1;
+  double reference = 2;
+  int32 total_seconds = 3;
+  repeated ZoneBand zones = 4;
+}
+message Decoupling {
+  // Cardiac drift in percent, one decimal.
+  double pct = 1;
+  // "power" (rides) or "pace" (runs).
+  string basis = 2;
+  // Below 5 %: the effort was aerobically coupled.
+  bool coupled = 3;
+}
+message GetActivityZonesResponse {
+  // Unset when the activity has no heart-rate samples or no threshold.
+  optional ZoneSummary hr = 1;
+  // Unset when the activity has no power samples or no FTP.
+  optional ZoneSummary power = 2;
+  // Unset unless the effort was long and steady enough to be meaningful.
+  optional Decoupling decoupling = 3;
+}
+
+message ListActivitySegmentEffortsRequest {
+  string activity_id = 1;
+}
+message ActivitySegmentEffort {
+  string segment_id = 1;
+  string segment_name = 2;
+  double segment_distance_m = 3;
+  // Climb category as its stored string ("4" … "1", "hc"); unset when none.
+  optional string climb_category = 4;
+  double elapsed_s = 5;
+  double moving_s = 6;
+  optional int32 avg_heart_rate = 7;
+  optional int32 avg_power = 8;
+  bool is_personal_record = 9;
+  int32 personal_rank = 10;
+  // Position on the source stream: seconds since stream start and
+  // cumulative distance; unset when the stream is unavailable.
+  optional double start_offset_s = 11;
+  optional double end_offset_s = 12;
+  optional double start_distance_m = 13;
+  optional double end_distance_m = 14;
+}
+message ListActivitySegmentEffortsResponse {
+  repeated ActivitySegmentEffort efforts = 1;
+}
+
+message ListSimilarActivitiesRequest {
+  string activity_id = 1;
+}
+message SimilarActivity {
+  string id = 1;
+  bool is_current = 2;
+  string title = 3;
+  ActivityType type = 4;
+  google.protobuf.Timestamp start_time = 5;
+  optional double distance_m = 6;
+  int64 moving_s = 7;
+  int64 elapsed_s = 8;
+  optional int32 avg_heart_rate = 9;
+  optional int32 avg_power = 10;
+  // Moving seconds per km; unset without distance or time.
+  optional double pace_s_per_km = 11;
+  // Segments shared with the reference activity, and that as a fraction of
+  // the reference's segments (0..1).
+  int32 shared_segments = 12;
+  double overlap_pct = 13;
+}
+message ListSimilarActivitiesResponse {
+  // Distinct segments on the reference activity.
+  int32 target_segments = 1;
+  // Chronological, the reference activity included (is_current).
+  repeated SimilarActivity activities = 2;
+  int32 count = 3;
+  int64 best_moving_s = 4;
+  int64 current_moving_s = 5;
+  // 1-based rank of the reference by moving time (faster = better).
+  int32 current_rank = 6;
+  bool is_best = 7;
+}
+
+message GetMergedStreamRequest {
+  string activity_id = 1;
+}
+message MergedChannel {
+  // One value per grid point; NaN where no source had a value.
+  repeated double values = 1;
+  // The source the channel's values come from.
+  string source_id = 2;
+}
+message GetMergedStreamResponse {
+  // Grid timestamps (unix seconds), empty when no source has a stream.
+  repeated int64 grid_unix_s = 1;
+  // Channel name (StreamChannel enum string, lower case) → values.
+  map<string, MergedChannel> channels = 2;
+}
+
+message ListKudosRequest {
+  string activity_id = 1;
+}
+message ListKudosResponse {
+  int32 count = 1;
+  // The caller gave kudos.
+  bool has_kudos = 2;
+  // Local users first, then federated actors (remote = true); capped.
+  repeated UserCard kudosers = 3;
+}
+
+message ListCommentsRequest {
+  string activity_id = 1;
+}
+message Comment {
+  // A local comment id, or the ActivityPub id of a federated reply.
+  string id = 1;
+  string body = 2;
+  google.protobuf.Timestamp created_at = 3;
+  UserCard author = 4;
+}
+message ListCommentsResponse {
+  // Oldest first.
+  repeated Comment comments = 1;
+}
+
+message GetActivityManageInfoRequest {
+  string activity_id = 1;
+}
+message SourceInsight {
+  ActivitySource source = 1;
+  string worker_release = 2;
+  // Parser N.M, or the raw version when it is not one; dataset "" then.
+  string parser_version = 3;
+  string dataset_version = 4;
+  // Parser version of the live worker that would re-parse; empty when none.
+  string reparse_with = 5;
+  // "" | "new_parser" | "new_dataset": what the live workers offer.
+  string upgrade = 6;
+  string worker_package = 7;
+  bool reparse_eligible = 8;
+  bool has_blob = 9;
+  string raw_content_type = 10;
+  int64 raw_size_bytes = 11;
+  bool has_stream = 12;
+  int32 lap_count = 13;
+  string status_reason = 14;
+  string reimport_reason = 15;
+  optional google.protobuf.Timestamp last_reimported_at = 16;
+  bool is_primary = 17;
+  // Labels of the field groups this source won in the merge.
+  repeated string won_field_groups = 18;
+}
+message FieldProvenance {
+  // Field group key and its label.
+  string field = 1;
+  string field_label = 2;
+  string source_id = 3;
+  string provider = 4;
+  // "rule" (merge policy) or "manual" (user pin).
+  string decided_by = 5;
+  google.protobuf.Timestamp synced_at = 6;
+}
+message GetActivityManageInfoResponse {
+  google.protobuf.Timestamp merged_at = 1;
+  string primary_source_id = 2;
+  // Every source, detached ones included.
+  repeated SourceInsight sources = 3;
+  repeated FieldProvenance provenance = 4;
+}
+
+message GetParsedSourceRequest {
+  string activity_id = 1;
+  string source_id = 2;
+}
+message GetParsedSourceResponse {
+  ActivitySourcePayload payload = 1;
 }
 
 // ---- Photos, course image, exports ----

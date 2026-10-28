@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"sort"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,36 +15,6 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
 )
-
-// fieldGroupLabels maps the merge engine's field-group keys to user-facing
-// labels for the activity-manage provenance view. Unknown keys fall back to
-// the raw key (forward-compatible if a new group is added before this map).
-var fieldGroupLabels = map[domain.FieldGroup]string{
-	domain.FieldGroupClassification: "Type & flags",
-	domain.FieldGroupTime:           "Time",
-	domain.FieldGroupDuration:       "Duration",
-	domain.FieldGroupTitle:          "Title",
-	domain.FieldGroupDescription:    "Description",
-	domain.FieldGroupDistance:       "Distance",
-	domain.FieldGroupElevation:      "Elevation",
-	domain.FieldGroupSpeed:          "Speed",
-	domain.FieldGroupHeartRate:      "Heart rate",
-	domain.FieldGroupPower:          "Power",
-	domain.FieldGroupCadence:        "Cadence",
-	domain.FieldGroupTemperature:    "Temperature",
-	domain.FieldGroupCalories:       "Calories",
-	domain.FieldGroupTrainingLoad:   "Training load",
-	domain.FieldGroupSwim:           "Swim",
-	domain.FieldGroupGPSTrack:       "GPS track",
-	domain.FieldGroupLaps:           "Laps",
-}
-
-func fieldGroupLabel(g domain.FieldGroup) string {
-	if l, ok := fieldGroupLabels[g]; ok {
-		return l
-	}
-	return string(g)
-}
 
 // mountActivityManage wires the user-facing activity "manage" surface: a
 // read-only technical-insights view plus the maintenance actions that run
@@ -92,37 +60,31 @@ func activityManageInsightsHandler(app *App, logger *slog.Logger) http.HandlerFu
 		if !ok {
 			return
 		}
-
-		// All sources incl. detached, for the audit view.
-		sources, err := app.Activities.ListAllSourcesForActivity(r.Context(), act.ID)
+		info, err := app.Details.Manage(r.Context(), act)
 		if err != nil {
 			logger.Error("manage: list sources failed", "activity_id", act.ID, "error", err)
 			http.Error(w, "load failed", http.StatusInternalServerError)
 			return
 		}
-
-		provenance := activityManageProvenance(r.Context(), app, act, sources)
-
 		primary := ""
-		if act.PrimaryStreamSourceID != nil {
-			primary = act.PrimaryStreamSourceID.String()
+		if info.Primary != nil {
+			primary = info.Primary.String()
 		}
-
-		// Live workers decide re-parse eligibility and offered upgrades
-		// (docs/adr/0005).
-		workers := currentWorkers(r.Context(), app, logger)
-
-		// Reverse the merge provenance: source id → the field groups it won.
-		wonBy := map[domain.SourceID][]string{}
-		for g, sid := range act.MergeProvenance {
-			wonBy[sid] = append(wonBy[sid], fieldGroupLabel(g))
+		sources := make([]map[string]any, 0, len(info.Sources))
+		for _, in := range info.Sources {
+			sources = append(sources, activityManageSourceJSON(in))
 		}
-
-		out := make([]map[string]any, 0, len(sources))
-		for _, s := range sources {
-			out = append(out, activityManageSourceJSON(s, workers, primary, wonBy[s.ID]))
+		provenance := make([]map[string]any, 0, len(info.Provenance))
+		for _, p := range info.Provenance {
+			provenance = append(provenance, map[string]any{
+				"field":       string(p.Field),
+				"field_label": p.FieldLabel,
+				"source_id":   p.SourceID.String(),
+				"provider":    p.Provider,
+				"decided_by":  p.DecidedBy,
+				"synced_at":   act.MergedAt.UTC(),
+			})
 		}
-
 		writeJSON(w, http.StatusOK, map[string]any{
 			"activity": map[string]any{
 				"id":           act.ID.String(),
@@ -131,55 +93,18 @@ func activityManageInsightsHandler(app *App, logger *slog.Logger) http.HandlerFu
 				"start_time":   act.StartTime.UTC(),
 				"merged_at":    act.MergedAt.UTC(),
 				"timezone":     act.Timezone,
-				"source_count": len(sources),
+				"source_count": len(info.Sources),
 				"primary":      primary,
 			},
-			"sources":    out,
+			"sources":    sources,
 			"provenance": provenance,
 		})
 	}
 }
 
-// activityManageProvenance builds the per-field provenance with decided_by (rule vs manual pin)
-// + the source's provider, for the source-badge display (brief §10). decided_by is
-// derived from the field_source_overrides table rather than persisted in
-// the provenance column.
-func activityManageProvenance(ctx context.Context, app *App, act domain.Activity, sources []domain.ActivitySource) []map[string]any {
-	manualFields := map[domain.FieldGroup]bool{}
-	if app.FieldOverrides != nil {
-		if pins, perr := app.FieldOverrides.ListForActivity(ctx, act.ID); perr == nil {
-			for _, p := range pins {
-				manualFields[p.FieldKey] = true
-			}
-		}
-	}
-	providerBySource := map[domain.SourceID]string{}
-	for _, s := range sources {
-		providerBySource[s.ID] = s.Provider
-	}
-	provenance := make([]map[string]any, 0, len(act.MergeProvenance))
-	for g, sid := range act.MergeProvenance {
-		decidedBy := "rule"
-		if manualFields[g] {
-			decidedBy = "manual"
-		}
-		provenance = append(provenance, map[string]any{
-			"field":       string(g),
-			"field_label": fieldGroupLabel(g),
-			"source_id":   sid.String(),
-			"provider":    providerBySource[sid],
-			"decided_by":  decidedBy,
-			"synced_at":   act.MergedAt.UTC(),
-		})
-	}
-	sort.Slice(provenance, func(i, j int) bool {
-		return provenance[i]["field"].(string) < provenance[j]["field"].(string)
-	})
-	return provenance
-}
-
 // activityManageSourceJSON renders one source row of the manage view.
-func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, primary string, won []string) map[string]any {
+func activityManageSourceJSON(in domain.SourceInsight) map[string]any {
+	s := in.Source
 	var extAcct string
 	if s.ExternalAccountID != nil {
 		extAcct = s.ExternalAccountID.String()
@@ -187,17 +112,6 @@ func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, pri
 	var lastReimport any
 	if s.LastReimportedAt != nil {
 		lastReimport = s.LastReimportedAt.UTC()
-	}
-	// Re-parse needs an archived blob and a live worker allowed to parse it.
-	rw, canReparse := reparseWorker(workers, s)
-	reparseEligible := s.RawBlobID != "" && canReparse
-	var reparseWith string
-	if reparseEligible {
-		reparseWith = rw.version
-	}
-	parser, dataset := s.SourceWorkerVersion, ""
-	if v, err := domain.ParseParserVersion(s.SourceWorkerVersion); err == nil {
-		parser, dataset = v.String(), strconv.Itoa(v.Dataset)
 	}
 	return map[string]any{
 		"id":                 s.ID.String(),
@@ -207,12 +121,12 @@ func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, pri
 		"worker_name":        s.SourceWorkerName,
 		"worker_version":     s.SourceWorkerVersion,
 		"worker_release":     s.SourceWorkerRelease,
-		"parser_version":     parser,
-		"dataset_version":    dataset,
-		"reparse_with":       reparseWith,
-		"upgrade":            sourceUpgrade(workers, s),
+		"parser_version":     in.ParserVersion,
+		"dataset_version":    in.DatasetVersion,
+		"reparse_with":       in.ReparseWith,
+		"upgrade":            in.Upgrade,
 		"worker_package":     s.SourceWorkerPackage,
-		"reparse_eligible":   reparseEligible,
+		"reparse_eligible":   in.ReparseEligible,
 		"has_blob":           s.RawBlobID != "",
 		"raw_content_type":   s.RawContentType,
 		"raw_size_bytes":     s.RawSizeBytes,
@@ -225,8 +139,8 @@ func activityManageSourceJSON(s domain.ActivitySource, workers []liveWorker, pri
 		"imported_at":        s.ImportedAt.UTC(),
 		"last_reimported_at": lastReimport,
 		"updated_at":         s.UpdatedAt.UTC(),
-		"is_primary":         s.ID.String() == primary,
-		"won_field_groups":   won,
+		"is_primary":         in.IsPrimary,
+		"won_field_groups":   in.WonFieldGroups,
 	}
 }
 
@@ -330,62 +244,37 @@ func scanWorkers(ctx context.Context, app *App, log *slog.Logger) []liveWorker {
 	return out
 }
 
-// reparseWorker returns the newest live, release-compatible worker allowed
-// to re-parse src's archive (docs/adr/0005): same provider and package, same
-// dataset, parser not older than the one that last parsed it. A source with
-// a non-N.M version only matches its exact version.
-func reparseWorker(workers []liveWorker, src domain.ActivitySource) (liveWorker, bool) {
-	if src.SourceWorkerPackage == "" {
-		return liveWorker{}, false // legacy source without package provenance
+// domainWorkers converts the presence records to the domain identity.
+func domainWorkers(ws []liveWorker) []domain.LiveWorker {
+	out := make([]domain.LiveWorker, 0, len(ws))
+	for _, w := range ws {
+		out = append(out, domain.LiveWorker{Name: w.name, Provider: w.provider, Version: w.version, Package: w.pkg, Release: w.release, Compatible: w.compatible})
 	}
-	stored, serr := domain.ParseParserVersion(src.SourceWorkerVersion)
-	var best liveWorker
-	var bestV domain.ParserVersion
-	found := false
-	for _, w := range workers {
-		if !w.compatible || w.provider != src.Provider || w.pkg != src.SourceWorkerPackage {
-			continue
-		}
-		wv, werr := domain.ParseParserVersion(w.version)
-		switch {
-		case serr != nil || werr != nil:
-			if w.version != src.SourceWorkerVersion {
-				continue
-			}
-		case !wv.CanReparse(stored):
-			continue
-		}
-		if !found || wv.Compare(bestV) > 0 {
-			best, bestV, found = w, wv, true
-		}
-	}
-	return best, found
+	return out
 }
 
-// sourceUpgrade says what the live workers offer src beyond its current
-// parse: "new_parser" (re-parse from the archive), "new_dataset" (re-fetch)
-// or "".
-func sourceUpgrade(workers []liveWorker, src domain.ActivitySource) string {
-	stored, err := domain.ParseParserVersion(src.SourceWorkerVersion)
-	if err != nil {
-		return ""
+// reparseWorker is domain.ReparseWorker over the presence records (docs/adr/0005).
+func reparseWorker(workers []liveWorker, src domain.ActivitySource) (liveWorker, bool) {
+	dw, ok := domain.ReparseWorker(domainWorkers(workers), src)
+	if !ok {
+		return liveWorker{}, false
 	}
-	up := domain.UpgradeNone
 	for _, w := range workers {
-		if !w.compatible || w.provider != src.Provider || w.pkg != src.SourceWorkerPackage {
-			continue
-		}
-		if wv, err := domain.ParseParserVersion(w.version); err == nil {
-			up = max(up, wv.UpgradeFor(stored))
+		if w.name == dw.Name && w.version == dw.Version && w.pkg == dw.Package {
+			return w, true
 		}
 	}
-	switch up {
-	case domain.UpgradeNewParser:
-		return "new_parser"
-	case domain.UpgradeNewDataset:
-		return "new_dataset"
-	}
-	return ""
+	return liveWorker{}, false
+}
+
+// workerPresence implements port.WorkerPresence over the presence cache.
+type workerPresence struct {
+	app    *App
+	logger *slog.Logger
+}
+
+func (p workerPresence) LiveWorkers(ctx context.Context) []domain.LiveWorker {
+	return domainWorkers(currentWorkers(ctx, p.app, p.logger))
 }
 
 // recomputeDerivedForActivity re-runs the per-source derived computations

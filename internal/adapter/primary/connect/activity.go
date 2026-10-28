@@ -83,6 +83,7 @@ type ActivityServer struct {
 	Visibility  *view.Visibility
 	Exports     *view.Exports
 	Searches    *view.Searches
+	Details     *view.Details
 	MapETag     func(domain.Activity) string
 }
 

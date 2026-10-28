@@ -7,6 +7,15 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Per-activity detail RPCs on `ActivityService`: `ListLaps`,
+  `GetActivityZones` (time in HR/power zones + aerobic decoupling),
+  `ListActivitySegmentEfforts`, `ListSimilarActivities`, `GetMergedStream`,
+  `ListKudos`, `ListComments`, `GetActivityManageInfo` (source insights and
+  merge provenance) and `GetParsedSource`, the counterparts of the
+  `/api/activities/{id}/…` detail routes. `ActivityLap` gains
+  `start_offset_s` and `elevation_loss_m`. The zone computation, the
+  same-route grouping, the manage insights and the re-parse eligibility
+  rules moved into the domain; REST and Connect render the same results.
 - `ActivityService.SearchActivities`: the faceted, filterable, sortable list
   behind the web feed (`ActivityFilter` with the full filter bar, facets,
   paging), the Connect counterpart of `GET /api/activities/feed`.
