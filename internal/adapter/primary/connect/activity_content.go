@@ -26,17 +26,9 @@ func contentURLToProto(u port.ContentURL) *v1.ContentUrl {
 	return &v1.ContentUrl{Url: u.URL, ExpiresAt: timestamppb.New(u.ExpiresAt)}
 }
 
-// withMapImage adds the signed course-image URL to a wire activity when the
-// activity has a renderable track. trimmed selects the privacy-zone variant.
+// withMapImage adds the signed course-image URL to a wire activity.
 func (s *ActivityServer) withMapImage(ctx context.Context, out *v1.Activity, a domain.Activity, trimmed bool) *v1.Activity {
-	if s.Content == nil || a.PrimaryStreamSourceID == nil || s.MapETag == nil {
-		return out
-	}
-	if u, err := s.Content.MapImage(ctx, a.ID, trimmed); err == nil {
-		out.MapImage = contentURLToProto(u)
-		out.MapImageEtag = s.MapETag(a)
-	}
-	return out
+	return decorateActivity(ctx, out, a, nil, s.Content, s.MapETag, trimmed)
 }
 
 // viewerFor resolves the calling viewer (nil when anonymous) for a

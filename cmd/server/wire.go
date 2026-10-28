@@ -133,6 +133,9 @@ type App struct {
 	SourceLinks        *matchuc.SourceLinks
 	Visibility2        *view.Visibility // shared visibility resolver (REST + Connect)
 	Exports            *view.Exports
+	Overviews          *view.Overviews
+	Searches           *view.Searches
+	Feeds              *view.Feeds
 	AttachmentVariants *attachmentuc.Variants
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
@@ -358,8 +361,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		dmatch.DefaultOptions(),
 		logger,
 	)
-	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
-	app.Exports = view.NewExports(app.Streams)
+	wireAppViews(app)
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
@@ -629,4 +631,17 @@ func wireAppGeocoder(app *App, cfg *config.Config, logger *slog.Logger) {
 	geocoder := geocodeadapter.New(cfg.Geocoder)
 	app.ComputeStartPlace = geocodeuc.NewComputeStartPlace(app.Activities, app.Streams, geocoder, logger)
 	logger.Info("geocoder wired", "url", cfg.Geocoder.URL, "min_interval", cfg.Geocoder.MinInterval)
+}
+
+// wireAppViews builds the read-side use cases REST and Connect both render from.
+func wireAppViews(app *App) {
+	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
+	app.Exports = view.NewExports(app.Streams)
+	app.Overviews = view.NewOverviews(app.Activities, nil)
+	app.Searches = view.NewSearches(app.Activities, app.Gear)
+	var fedFeed port.FederationFeedRepo
+	if app.FederationFeed != nil {
+		fedFeed = app.FederationFeed
+	}
+	app.Feeds = view.NewFeeds(app.Activities, app.Users, app.Visibility2, fedFeed, app.FederationEnabled)
 }

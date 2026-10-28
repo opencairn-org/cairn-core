@@ -178,6 +178,34 @@ message ContentUrl {
   google.protobuf.Timestamp expires_at = 2;
 }
 
+// One bucket of a faceted count, e.g. {value: "run", count: 49}. value is
+// the raw stored enum string.
+message Facet {
+  string value = 1;
+  int32 count = 2;
+}
+
+// Aggregate totals over a set of activities.
+message Totals {
+  int32 count = 1;
+  double distance_m = 2;
+  double moving_s = 3;
+  double elevation_gain_m = 4;
+}
+
+// A user as shown next to content (feed rows, kudos, comments, members).
+message UserCard {
+  string id = 1;
+  // Local login name; for a remote (federated) author the @user@host handle.
+  string username = 2;
+  string display_name = 3;
+  // Signed or public avatar URL; empty when none.
+  string avatar_url = 4;
+  // The author lives on another ActivityPub server; actor is their actor id.
+  bool remote = 5;
+  string actor = 6;
+}
+
 // A bounding box for spatial queries.
 message BoundingBox {
   double min_latitude = 1;

@@ -574,6 +574,217 @@ func (x *ContentUrl) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// One bucket of a faceted count, e.g. {value: "run", count: 49}. value is
+// the raw stored enum string.
+type Facet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Facet) Reset() {
+	*x = Facet{}
+	mi := &file_cairn_v1_common_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Facet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Facet) ProtoMessage() {}
+
+func (x *Facet) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_common_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Facet.ProtoReflect.Descriptor instead.
+func (*Facet) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Facet) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *Facet) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+// Aggregate totals over a set of activities.
+type Totals struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Count          int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	DistanceM      float64                `protobuf:"fixed64,2,opt,name=distance_m,json=distanceM,proto3" json:"distance_m,omitempty"`
+	MovingS        float64                `protobuf:"fixed64,3,opt,name=moving_s,json=movingS,proto3" json:"moving_s,omitempty"`
+	ElevationGainM float64                `protobuf:"fixed64,4,opt,name=elevation_gain_m,json=elevationGainM,proto3" json:"elevation_gain_m,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Totals) Reset() {
+	*x = Totals{}
+	mi := &file_cairn_v1_common_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Totals) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Totals) ProtoMessage() {}
+
+func (x *Totals) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_common_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Totals.ProtoReflect.Descriptor instead.
+func (*Totals) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Totals) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Totals) GetDistanceM() float64 {
+	if x != nil {
+		return x.DistanceM
+	}
+	return 0
+}
+
+func (x *Totals) GetMovingS() float64 {
+	if x != nil {
+		return x.MovingS
+	}
+	return 0
+}
+
+func (x *Totals) GetElevationGainM() float64 {
+	if x != nil {
+		return x.ElevationGainM
+	}
+	return 0
+}
+
+// A user as shown next to content (feed rows, kudos, comments, members).
+type UserCard struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Local login name; for a remote (federated) author the @user@host handle.
+	Username    string `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Signed or public avatar URL; empty when none.
+	AvatarUrl string `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	// The author lives on another ActivityPub server; actor is their actor id.
+	Remote        bool   `protobuf:"varint,5,opt,name=remote,proto3" json:"remote,omitempty"`
+	Actor         string `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserCard) Reset() {
+	*x = UserCard{}
+	mi := &file_cairn_v1_common_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserCard) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserCard) ProtoMessage() {}
+
+func (x *UserCard) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_common_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserCard.ProtoReflect.Descriptor instead.
+func (*UserCard) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *UserCard) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UserCard) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *UserCard) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *UserCard) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *UserCard) GetRemote() bool {
+	if x != nil {
+		return x.Remote
+	}
+	return false
+}
+
+func (x *UserCard) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
 // A bounding box for spatial queries.
 type BoundingBox struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -587,7 +798,7 @@ type BoundingBox struct {
 
 func (x *BoundingBox) Reset() {
 	*x = BoundingBox{}
-	mi := &file_cairn_v1_common_proto_msgTypes[8]
+	mi := &file_cairn_v1_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -599,7 +810,7 @@ func (x *BoundingBox) String() string {
 func (*BoundingBox) ProtoMessage() {}
 
 func (x *BoundingBox) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_common_proto_msgTypes[8]
+	mi := &file_cairn_v1_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -612,7 +823,7 @@ func (x *BoundingBox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoundingBox.ProtoReflect.Descriptor instead.
 func (*BoundingBox) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_common_proto_rawDescGZIP(), []int{8}
+	return file_cairn_v1_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *BoundingBox) GetMinLatitude() float64 {
@@ -686,7 +897,24 @@ const file_cairn_v1_common_proto_rawDesc = "" +
 	"ContentUrl\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9d\x01\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"3\n" +
+	"\x05Facet\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x82\x01\n" +
+	"\x06Totals\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x1d\n" +
+	"\n" +
+	"distance_m\x18\x02 \x01(\x01R\tdistanceM\x12\x19\n" +
+	"\bmoving_s\x18\x03 \x01(\x01R\amovingS\x12(\n" +
+	"\x10elevation_gain_m\x18\x04 \x01(\x01R\x0eelevationGainM\"\xa6\x01\n" +
+	"\bUserCard\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\x12\x16\n" +
+	"\x06remote\x18\x05 \x01(\bR\x06remote\x12\x14\n" +
+	"\x05actor\x18\x06 \x01(\tR\x05actor\"\x9d\x01\n" +
 	"\vBoundingBox\x12!\n" +
 	"\fmin_latitude\x18\x01 \x01(\x01R\vminLatitude\x12#\n" +
 	"\rmin_longitude\x18\x02 \x01(\x01R\fminLongitude\x12!\n" +
@@ -717,7 +945,7 @@ func file_cairn_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_cairn_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_cairn_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_cairn_v1_common_proto_goTypes = []any{
 	(ErrorClass)(0),                    // 0: cairn.v1.ErrorClass
 	(*PageRequest)(nil),                // 1: cairn.v1.PageRequest
@@ -728,18 +956,21 @@ var file_cairn_v1_common_proto_goTypes = []any{
 	(*GeoPoint)(nil),                   // 6: cairn.v1.GeoPoint
 	(*EncodedPolyline)(nil),            // 7: cairn.v1.EncodedPolyline
 	(*ContentUrl)(nil),                 // 8: cairn.v1.ContentUrl
-	(*BoundingBox)(nil),                // 9: cairn.v1.BoundingBox
-	nil,                                // 10: cairn.v1.ErrorDetail.I18nParamsEntry
-	nil,                                // 11: cairn.v1.ErrorDetail.FieldErrorsEntry
-	(*timestamppb.Timestamp)(nil),      // 12: google.protobuf.Timestamp
+	(*Facet)(nil),                      // 9: cairn.v1.Facet
+	(*Totals)(nil),                     // 10: cairn.v1.Totals
+	(*UserCard)(nil),                   // 11: cairn.v1.UserCard
+	(*BoundingBox)(nil),                // 12: cairn.v1.BoundingBox
+	nil,                                // 13: cairn.v1.ErrorDetail.I18nParamsEntry
+	nil,                                // 14: cairn.v1.ErrorDetail.FieldErrorsEntry
+	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
 }
 var file_cairn_v1_common_proto_depIdxs = []int32{
-	12, // 0: cairn.v1.TimeRange.from:type_name -> google.protobuf.Timestamp
-	12, // 1: cairn.v1.TimeRange.to:type_name -> google.protobuf.Timestamp
+	15, // 0: cairn.v1.TimeRange.from:type_name -> google.protobuf.Timestamp
+	15, // 1: cairn.v1.TimeRange.to:type_name -> google.protobuf.Timestamp
 	0,  // 2: cairn.v1.ErrorDetail.class:type_name -> cairn.v1.ErrorClass
-	10, // 3: cairn.v1.ErrorDetail.i18n_params:type_name -> cairn.v1.ErrorDetail.I18nParamsEntry
-	11, // 4: cairn.v1.ErrorDetail.field_errors:type_name -> cairn.v1.ErrorDetail.FieldErrorsEntry
-	12, // 5: cairn.v1.ContentUrl.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 3: cairn.v1.ErrorDetail.i18n_params:type_name -> cairn.v1.ErrorDetail.I18nParamsEntry
+	14, // 4: cairn.v1.ErrorDetail.field_errors:type_name -> cairn.v1.ErrorDetail.FieldErrorsEntry
+	15, // 5: cairn.v1.ContentUrl.expires_at:type_name -> google.protobuf.Timestamp
 	6,  // [6:6] is the sub-list for method output_type
 	6,  // [6:6] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -759,7 +990,7 @@ func file_cairn_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_common_proto_rawDesc), len(file_cairn_v1_common_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

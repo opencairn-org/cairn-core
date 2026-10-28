@@ -186,6 +186,9 @@ message Activity {
   // Changes when the course image would render differently (track or style
   // version); cache the image under id + this value.
   string map_image_etag = 34;
+  // No gear attached and the user has not decided "no gear" either, while
+  // they do own gear: a hint to prompt for it. False when the user has no gear.
+  bool gear_unset = 35;
 }
 
 enum Privacy {
@@ -578,6 +581,15 @@ service ActivityService {
   // Scope: activities:read.
   rpc ListActivities(ListActivitiesRequest) returns (ListActivitiesResponse);
 
+  // The filterable, sortable, faceted activity list (the web feed): every
+  // filter of the filter bar, facets for the selectors and paging. The
+  // replacement for GET /api/activities/feed; ListActivities stays as the
+  // simple time-window list.
+  // Scope: activities:read.
+  rpc SearchActivities(SearchActivitiesRequest) returns (SearchActivitiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Get a single activity by id, including sources.
   // Scope: activities:read.
   rpc GetActivity(GetActivityRequest) returns (GetActivityResponse);
@@ -713,6 +725,72 @@ enum ActivitySort {
   ACTIVITY_SORT_START_TIME_ASC = 2;
   ACTIVITY_SORT_DISTANCE_DESC = 3;
   ACTIVITY_SORT_DURATION_DESC = 4;
+  ACTIVITY_SORT_ELEVATION_DESC = 5;
+  ACTIVITY_SORT_SPEED_DESC = 6;
+}
+
+// The activity filter bar, shared by SearchActivities and the heatmap so the
+// same filter means the same thing everywhere. Empty / unset = any.
+message ActivityFilter {
+  // Activity types to include; at most one is supported today (more →
+  // InvalidArgument), the field is repeated for forward compatibility.
+  repeated ActivityType types = 1;
+  // Disciplines as their raw enum strings ("ride_road"); at most one today.
+  repeated string disciplines = 2;
+  // Half-open start_time range [from, to).
+  TimeRange time_range = 3;
+  // Gear ids the activity must be attached to (any of); max 50.
+  repeated string gear_ids = 4;
+  // Tri-state classification flags.
+  enum Flag {
+    FLAG_UNSPECIFIED = 0; // any
+    FLAG_ONLY = 1;        // must be set
+    FLAG_EXCLUDE = 2;     // must be unset
+  }
+  Flag virtual = 5;
+  Flag ebike = 6;
+  Flag commute = 7;
+  Flag race = 8;
+  // Inclusive numeric ranges in SI units; an activity with no value for the
+  // column never matches a bounded range.
+  optional double distance_min_m = 9;
+  optional double distance_max_m = 10;
+  optional double duration_min_s = 11;  // elapsed
+  optional double duration_max_s = 12;
+  optional double elevation_min_m = 13;
+  optional double elevation_max_m = 14;
+  optional double speed_min_mps = 15;   // average
+  optional double speed_max_mps = 16;
+  optional double hr_min_bpm = 17;      // average
+  optional double hr_max_bpm = 18;
+  optional double power_min_w = 19;     // average
+  optional double power_max_w = 20;
+}
+
+// Facets of a search: only values the user actually has, so a filter UI
+// never offers impossible options. types and disciplines respect every
+// filter except their own dimension; years are unfiltered.
+message ActivityFacets {
+  repeated Facet types = 1;
+  repeated Facet disciplines = 2;
+  repeated Facet years = 3;
+}
+
+message SearchActivitiesRequest {
+  ActivityFilter filter = 1;
+  // ACTIVITY_SORT_START_TIME_DESC when unset.
+  ActivitySort sort = 2;
+  // limit default 50, max 200.
+  PageRequest page = 3;
+}
+message SearchActivitiesResponse {
+  // Without sources; GetActivity has them.
+  repeated Activity activities = 1;
+  ActivityFacets facets = 2;
+  // total: every activity of the user; matched: those matching the filter.
+  int32 total = 3;
+  int32 matched = 4;
+  PageResponse page = 5;
 }
 
 message ListActivitiesResponse {

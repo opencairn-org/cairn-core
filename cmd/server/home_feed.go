@@ -1,26 +1,16 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
-	"net/url"
-	"path"
-	"sort"
 	"time"
 
-	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
-// homeFeedEntry is one feed row with its sort timestamp.
-type homeFeedEntry struct {
-	t time.Time
-	m map[string]any
-}
-
-// mountHomeFeed serves the logged-in landing feed: the user's local
-// following-feed (projected through the visibility choke-point) merged with
-// federated activities received from remote actors they follow, newest first.
+// mountHomeFeed serves the logged-in landing feed: the user's own activities,
+// the local following feed (projected through the visibility choke-point) and
+// federated activities from followed remote actors, newest first.
 func mountHomeFeed(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mux.HandleFunc("GET /api/feed/home", func(w http.ResponseWriter, r *http.Request) {
 		me, ok := resolveSessionUser(r, app)
@@ -28,46 +18,24 @@ func mountHomeFeed(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		limit := parseIntQuery(r, "limit", 30)
-		if limit > 100 {
-			limit = 100
-		}
+		limit := parseIntQuery(r, "limit", view.FeedDefaultLimit)
 		offset := parseIntQuery(r, "offset", 0)
-
-		var entries []homeFeedEntry
-		entries = append(entries, homeFeedOwnEntries(r.Context(), app, me, limit)...)
-		entries = append(entries, homeFeedFollowingEntries(r.Context(), app, me, limit, offset)...)
-
-		// Federated activities received from followed remote actors. Gated on
-		// the instance flag, not just the wired repo: with federation switched
-		// off, items received while it was on must stay dormant too.
-		if app.FederationEnabled && app.FederationFeed != nil {
-			entries = append(entries, homeFeedFederatedEntries(r.Context(), app, me, limit, offset)...)
-		}
-
-		sort.SliceStable(entries, func(i, j int) bool { return entries[i].t.After(entries[j].t) })
-		if len(entries) > limit {
-			entries = entries[:limit]
-		}
-		out := make([]map[string]any, len(entries))
-		for i, e := range entries {
-			out[i] = e.m
+		items := app.Feeds.Home(r.Context(), me, limit, offset)
+		out := make([]map[string]any, 0, len(items))
+		for _, it := range items {
+			out = append(out, feedItemJSON(it))
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"activities": out})
 	})
 	logger.Info("home feed endpoint mounted", "path", "/api/feed/home")
 }
 
-// homeFeedOwnEntries returns the user's OWN activities (full data — they own them).
-func homeFeedOwnEntries(ctx context.Context, app *App, me domain.UserID, limit int) []homeFeedEntry {
-	var entries []homeFeedEntry
-	var meCard map[string]any
-	if u, err := app.Users.GetUser(ctx, me); err == nil {
-		meCard = userCardJSON(u)
-	}
-	own, _ := app.Activities.ListRecentActivitiesForUser(ctx, me, limit)
-	for _, a := range own {
-		entries = append(entries, homeFeedEntry{a.StartTime, map[string]any{
+// feedItemJSON renders one feed row in the REST shape.
+func feedItemJSON(it view.FeedItem) map[string]any {
+	switch {
+	case it.Own != nil:
+		a := it.Own
+		return map[string]any{
 			"source":             "self",
 			"id":                 a.ID.String(),
 			"title":              a.Title,
@@ -78,75 +46,36 @@ func homeFeedOwnEntries(ctx context.Context, app *App, me domain.UserID, limit i
 			"elapsed_duration_s": int64(a.ElapsedDuration.Seconds()),
 			"start_place":        a.StartPlace,
 			"map_image_url":      "/api/activities/" + a.ID.String() + "/map.png",
-			"owner":              meCard,
-		}})
-	}
-	return entries
-}
-
-// homeFeedFollowingEntries returns friends on the same server — the local
-// following feed, projected through the visibility choke-point.
-func homeFeedFollowingEntries(ctx context.Context, app *App, me domain.UserID, limit, offset int) []homeFeedEntry {
-	var entries []homeFeedEntry
-	acts, _ := app.Activities.ListFollowingFeed(ctx, me, limit, offset)
-	viewerPtr := &me
-	owners := map[domain.UserID]map[string]any{}
-	zonesByOwner := map[domain.UserID][]domain.PrivacyZone{}
-	for _, a := range acts {
-		cats := visibilityFor(ctx, app, a.UserID, viewerPtr, a.ID, false)
-		if len(cats) == 0 {
-			continue
+			"owner":              userCardJSON(it.Owner),
 		}
-		owner, cached := owners[a.UserID]
-		if !cached {
-			if u, err := app.Users.GetUser(ctx, a.UserID); err == nil {
-				owner = userCardJSON(u)
-			}
-			owners[a.UserID] = owner
-			zonesByOwner[a.UserID] = ownerPrivacyZones(ctx, app, a.UserID, false)
-		}
-		item := projectActivityJSON(a, cats, zonesByOwner[a.UserID])
-		item["source"] = "following"
-		item["owner"] = owner
-		entries = append(entries, homeFeedEntry{a.StartTime, item})
-	}
-	return entries
-}
-
-// homeFeedFederatedEntries returns activities received from followed remote actors.
-func homeFeedFederatedEntries(ctx context.Context, app *App, me domain.UserID, limit, offset int) []homeFeedEntry {
-	var entries []homeFeedEntry
-	fitems, _ := app.FederationFeed.ListForUser(ctx, me, limit, offset)
-	for _, it := range fitems {
+	case it.Projected != nil:
+		m := projectedJSON(*it.Projected)
+		m["source"] = "following"
+		m["owner"] = userCardJSON(it.Owner)
+		return m
+	case it.Federated != nil:
+		f := it.Federated
 		m := map[string]any{
 			"source":           "federated",
-			"id":               it.ActivityAPID,
-			"title":            it.Name,
-			"type":             it.Sport,
-			"start_time":       it.Published.UTC().Format(time.RFC3339),
-			"summary":          it.Summary,
-			"url":              it.URL,
-			"map_image_url":    it.ImageURL,
-			"distance_m":       it.DistanceM,
-			"elevation_gain_m": it.ElevationM,
+			"id":               f.ActivityAPID,
+			"title":            f.Name,
+			"type":             f.Sport,
+			"start_time":       f.Published.UTC().Format(time.RFC3339),
+			"summary":          f.Summary,
+			"url":              f.URL,
+			"map_image_url":    f.ImageURL,
+			"distance_m":       f.DistanceM,
+			"elevation_gain_m": f.ElevationM,
 			"owner": map[string]any{
-				"display_name": remoteHandle(it.ActorID),
+				"display_name": view.RemoteHandle(f.ActorID),
 				"remote":       true,
-				"actor":        it.ActorID,
+				"actor":        f.ActorID,
 			},
 		}
-		if it.DurationS != nil {
-			m["elapsed_duration_s"] = *it.DurationS
+		if f.DurationS != nil {
+			m["elapsed_duration_s"] = *f.DurationS
 		}
-		entries = append(entries, homeFeedEntry{it.Published, m})
+		return m
 	}
-	return entries
-}
-
-// remoteHandle renders an actor URL as @user@host for display.
-func remoteHandle(actorID string) string {
-	if u, err := url.Parse(actorID); err == nil && u.Host != "" {
-		return "@" + path.Base(u.Path) + "@" + u.Host
-	}
-	return actorID
+	return map[string]any{}
 }

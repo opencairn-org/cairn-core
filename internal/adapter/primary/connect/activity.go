@@ -82,6 +82,7 @@ type ActivityServer struct {
 	Attachments port.AttachmentRepo
 	Visibility  *view.Visibility
 	Exports     *view.Exports
+	Searches    *view.Searches
 	MapETag     func(domain.Activity) string
 }
 
@@ -110,27 +111,9 @@ func NewActivityServer(
 	}
 }
 
-// gearNames resolves the names of the gear attached to the given activities
-// (one query) for Activity.gear_name. Empty when gear is not wired or the
-// lookup fails: names are a display hint.
+// gearNames resolves the names of the gear attached to the given activities.
 func (s *ActivityServer) gearNames(ctx context.Context, activities ...domain.Activity) map[domain.GearID]string {
-	if s.Gear == nil {
-		return nil
-	}
-	var ids []domain.GearID
-	for _, a := range activities {
-		if a.GearID != nil {
-			ids = append(ids, *a.GearID)
-		}
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	names, err := s.Gear.Names(ctx, ids)
-	if err != nil {
-		return nil
-	}
-	return names
+	return gearNamesOf(ctx, s.Gear, activities...)
 }
 
 // withGear fills the gear fields of a wire activity.

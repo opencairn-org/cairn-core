@@ -19,7 +19,7 @@ Every family has a read and a write scope. A read RPC accepts `family:read` or
 | `segments` | SegmentService |
 | `training` | MetricsService: training load, best-effort history, health and athlete metrics |
 | `profile` | SettingsService and the AuthService profile/preferences RPCs |
-| `social` | follows, feed, kudos, comments, clubs (REST today, SocialService later) |
+| `social` | SocialService: home feed; follows, kudos, comments, clubs |
 
 The default grant for a dynamically registered client is every `:read` scope
 (`domain.ReadOnlyScopes`). `scopes_supported` in the authorization-server
@@ -38,12 +38,13 @@ follow that rule.
 | any valid credential | `AuthService.GetCurrentUser`, `GetQuota` |
 | cookie session only (OAuth tokens refused) | `AuthService.Logout`, `ChangePassword`, `ListSessions`, `RevokeSession`, `CreatePersonalAccessToken`, `ListPersonalAccessTokens`, `RevokePersonalAccessToken`; every `AdminService` RPC |
 | `profile:read` / `profile:write` | `AuthService.ListLinkedIdentities` / `UpdateProfile`, `UpdateUserPreferences`, `StartOIDCLink`, `UnlinkOIDCIdentity`; `SettingsService` |
-| `activities:read` / `activities:write` | `ActivityService` reads / writes |
+| `activities:read` / `activities:write` | `ActivityService` reads / writes; `StatsService` (reads) |
 | `gear:read` / `gear:write` | `GearService` reads / writes |
 | `notifications:read` / `notifications:write` | `NotificationService` reads / writes |
 | `connections:read` / `connections:write` | `ExternalAccountService` reads / writes |
 | `segments:read` / `segments:write` | `SegmentService` reads / writes |
 | `training:read` / `training:write` | `MetricsService` reads / writes |
+| `social:read` / `social:write` | `SocialService` reads / writes |
 
 A service without a family is closed to OAuth tokens until it gets one.
 

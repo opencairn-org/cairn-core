@@ -134,6 +134,10 @@ type ActivityRepo interface {
 	// elevation gain (m). Used by the overview dashboard.
 	ActivityTotals(ctx context.Context, userID domain.UserID) (ActivityTotalsResult, error)
 
+	// ActivityTotalsForRange returns totals for activities whose start_time
+	// falls in [start, end) — the dashboard's this/last week.
+	ActivityTotalsForRange(ctx context.Context, userID domain.UserID, start, end time.Time) (ActivityTotalsResult, error)
+
 	// ActivityYearStats returns per-calendar-year totals (newest year first).
 	ActivityYearStats(ctx context.Context, userID domain.UserID) ([]ActivityYearStat, error)
 

@@ -1,0 +1,102 @@
+// Reads across users: the home feed today; following feed, clubs, profiles,
+// shared and projected activities next. Non-owner activities are projected
+// through the visibility model (ProjectedActivity), never served in full.
+syntax = "proto3";
+
+package cairn.v1;
+
+import "cairn/v1/activity.proto";
+import "cairn/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+service SocialService {
+  // The logged-in landing feed: the caller's own activities, the local
+  // following feed (projected) and federated activities from followed remote
+  // actors, merged newest first.
+  // Scope: social:read.
+  rpc ListHomeFeed(ListHomeFeedRequest) returns (ListHomeFeedResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// An activity as a non-owner may see it. The summary tier is always present;
+// every richer field only when its visibility category is granted, which
+// visible_categories lists (domain order).
+message ProjectedActivity {
+  string id = 1;
+  string title = 2;
+  ActivityType type = 3;
+  string discipline = 4;
+  google.protobuf.Timestamp start_time = 5;
+  string timezone = 6;
+  int64 elapsed_duration_s = 7;
+  int64 moving_duration_s = 8;
+  optional double distance_m = 9;
+  optional double elevation_gain_m = 10;
+  // Category "summary".
+  string description = 11;
+  optional double tss = 12;
+  optional int32 calories = 13;
+  // Category "location". start_location_redacted: the start lies inside one
+  // of the owner's privacy zones, so place and coordinates are withheld even
+  // though the category is granted.
+  string start_place = 14;
+  optional GeoPoint start = 15;
+  bool start_location_redacted = 16;
+  // Categories "hr", "power", "pace_speed".
+  optional int32 avg_hr = 17;
+  optional int32 max_hr = 18;
+  optional int32 avg_power = 19;
+  optional int32 max_power = 20;
+  optional int32 normalized_power = 21;
+  optional double avg_speed_mps = 22;
+  optional double max_speed_mps = 23;
+  // Category "map": the privacy-zone trimmed course image. Category
+  // "photos": has_photos says ListAttachments will answer.
+  ContentUrl map_image = 24;
+  bool has_photos = 25;
+  repeated string visible_categories = 26;
+}
+
+// An activity received from a followed remote ActivityPub actor.
+message FederatedActivity {
+  // The remote object id (a URL).
+  string id = 1;
+  string title = 2;
+  // Free-form sport name as the remote server sent it.
+  string sport = 3;
+  google.protobuf.Timestamp start_time = 4;
+  string summary = 5;
+  // The remote page of the activity.
+  string url = 6;
+  // The remote image, as sent (not signed by this server).
+  ContentUrl map_image = 7;
+  optional double distance_m = 8;
+  optional double elevation_gain_m = 9;
+  optional int64 elapsed_duration_s = 10;
+}
+
+message FeedItem {
+  enum Source {
+    SOURCE_UNSPECIFIED = 0;
+    SOURCE_SELF = 1;
+    SOURCE_FOLLOWING = 2;
+    SOURCE_FEDERATED = 3;
+  }
+  Source source = 1;
+  UserCard owner = 2;
+  oneof item {
+    Activity own = 3;
+    ProjectedActivity projected = 4;
+    FederatedActivity federated = 5;
+  }
+}
+
+message ListHomeFeedRequest {
+  // limit default 30, max 100.
+  PageRequest page = 1;
+}
+message ListHomeFeedResponse {
+  repeated FeedItem items = 1;
+  PageResponse page = 2;
+}

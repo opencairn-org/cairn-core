@@ -41,6 +41,9 @@ const (
 	// ActivityServiceListActivitiesProcedure is the procedure name of the ActivityService's
 	// ListActivities RPC.
 	ActivityServiceListActivitiesProcedure = "/cairn.v1.ActivityService/ListActivities"
+	// ActivityServiceSearchActivitiesProcedure is the procedure name of the ActivityService's
+	// SearchActivities RPC.
+	ActivityServiceSearchActivitiesProcedure = "/cairn.v1.ActivityService/SearchActivities"
 	// ActivityServiceGetActivityProcedure is the procedure name of the ActivityService's GetActivity
 	// RPC.
 	ActivityServiceGetActivityProcedure = "/cairn.v1.ActivityService/GetActivity"
@@ -115,6 +118,14 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListActivities"),
 			Procedure:  ActivityServiceListActivitiesProcedure,
+		}
+	})
+	activityServiceSearchActivitiesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("SearchActivities"),
+			Procedure:        ActivityServiceSearchActivitiesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	activityServiceGetActivitySpec = sync.OnceValue(func() connect.Spec {
@@ -282,6 +293,12 @@ type ActivityServiceClient interface {
 	// type, discipline, tag, and source-provider.
 	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
+	// The filterable, sortable, faceted activity list (the web feed): every
+	// filter of the filter bar, facets for the selectors and paging. The
+	// replacement for GET /api/activities/feed; ListActivities stays as the
+	// simple time-window list.
+	// Scope: activities:read.
+	SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error)
 	// Get a single activity by id, including sources.
 	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
@@ -401,6 +418,12 @@ type ActivityServiceHandler interface {
 	// type, discipline, tag, and source-provider.
 	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
+	// The filterable, sortable, faceted activity list (the web feed): every
+	// filter of the filter bar, facets for the selectors and paging. The
+	// replacement for GET /api/activities/feed; ListActivities stays as the
+	// simple time-window list.
+	// Scope: activities:read.
+	SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error)
 	// Get a single activity by id, including sources.
 	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
@@ -493,6 +516,7 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 	adapter := activityServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: activityServiceListActivitiesSpec(), Handler: adapter.listActivities},
+		connect.Method{Spec: activityServiceSearchActivitiesSpec(), Handler: adapter.searchActivities},
 		connect.Method{Spec: activityServiceGetActivitySpec(), Handler: adapter.getActivity},
 		connect.Method{Spec: activityServiceUpdateActivitySpec(), Handler: adapter.updateActivity},
 		connect.Method{Spec: activityServiceDeleteActivitySpec(), Handler: adapter.deleteActivity},
@@ -539,6 +563,10 @@ type UnimplementedActivityServiceHandler struct{}
 
 func (UnimplementedActivityServiceHandler) ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListActivities is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.SearchActivities is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error) {
@@ -636,6 +664,14 @@ type activityServiceClient struct {
 func (c *activityServiceClient) ListActivities(ctx context.Context, req *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error) {
 	var res v1.ListActivitiesResponse
 	if err := c.client.CallUnary(ctx, activityServiceListActivitiesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) SearchActivities(ctx context.Context, req *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error) {
+	var res v1.SearchActivitiesResponse
+	if err := c.client.CallUnary(ctx, activityServiceSearchActivitiesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -825,6 +861,18 @@ func (h activityServiceHandler) listActivities(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.ListActivities(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) searchActivities(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SearchActivitiesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SearchActivities(ctx, &req)
 	if err != nil {
 		return err
 	}

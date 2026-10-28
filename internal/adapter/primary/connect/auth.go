@@ -205,6 +205,8 @@ var scopeFamilies = map[string]string{
 	"cairn.v1.MetricsService":         "training",
 	"cairn.v1.SettingsService":        "profile",
 	"cairn.v1.AuthService":            "profile",
+	"cairn.v1.StatsService":           "activities",
+	"cairn.v1.SocialService":          "social",
 }
 
 // scopeOverrides lists the procedures whose policy is not the service family.

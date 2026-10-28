@@ -1,0 +1,31 @@
+// Aggregates over a user's activities: the dashboard overview today,
+// lifetime stats, training load, best-effort history and the heatmap next.
+// Every RPC is owner-scoped (the caller's own data).
+syntax = "proto3";
+
+package cairn.v1;
+
+import "cairn/v1/activity.proto";
+import "cairn/v1/common.proto";
+
+service StatsService {
+  // The landing dashboard: lifetime totals, a per-sport breakdown, the six
+  // newest activities and the current and previous week (UTC, Monday
+  // start) with their ranges so a client can link into the list.
+  // Scope: activities:read.
+  rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetOverviewRequest {}
+message GetOverviewResponse {
+  Totals totals = 1;
+  repeated Facet by_sport = 2;
+  // Newest activities, without sources.
+  repeated Activity recent = 3;
+  Totals this_week = 4;
+  Totals last_week = 5;
+  TimeRange this_week_range = 6;
+  TimeRange last_week_range = 7;
+}

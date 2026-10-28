@@ -7,6 +7,17 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `ActivityService.SearchActivities`: the faceted, filterable, sortable list
+  behind the web feed (`ActivityFilter` with the full filter bar, facets,
+  paging), the Connect counterpart of `GET /api/activities/feed`.
+  `ActivitySort` gains `ELEVATION_DESC` and `SPEED_DESC`; `Activity` gains
+  `gear_unset`.
+- New `StatsService.GetOverview` (dashboard totals, per-sport breakdown,
+  newest activities, this/last week with ranges) and `SocialService.ListHomeFeed`
+  (own, following and federated rows, projected per the visibility model),
+  the counterparts of `GET /api/overview` and `GET /api/feed/home`. Shared
+  messages `Facet`, `Totals`, `UserCard`, `ProjectedActivity`, `FeedItem`.
+  The REST handlers now render from the same use cases (`usecase/view`).
 - Signed binary-content URLs. Photos, static course images and exports are
   handed out as short-lived `ContentUrl`s a client fetches with a plain GET:
   `ActivityService.ListAttachments` (original/medium/thumb + blurhash),

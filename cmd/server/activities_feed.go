@@ -10,6 +10,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // activities_feed exposes a faceted, filterable, sortable activity feed as a
@@ -198,77 +199,50 @@ func activitiesFeedHandler(app *App, logger *slog.Logger) http.HandlerFunc {
 		filter.Limit = limit
 		filter.Offset = offset
 
-		types, disciplines, total, err := app.Activities.ActivityFacets(r.Context(), userID, filter)
+		res, err := app.Searches.Search(r.Context(), userID, filter)
 		if err != nil {
-			logger.Error("activity facets failed", "error", err)
-			http.Error(w, "facets failed", http.StatusInternalServerError)
-			return
-		}
-		acts, matched, err := app.Activities.ListActivitiesFiltered(r.Context(), userID, filter)
-		if err != nil {
-			logger.Error("filtered activities failed", "error", err)
+			logger.Error("activity search failed", "error", err)
 			http.Error(w, "list failed", http.StatusInternalServerError)
 			return
 		}
-
-		// Years are deliberately unfiltered: the year selector should always
-		// offer every year that has data, not shrink with the active filter.
-		yearStats, _ := app.Activities.ActivityYearStats(r.Context(), userID)
-		years := make([]feedFacet, 0, len(yearStats))
-		for _, y := range yearStats {
+		years := make([]feedFacet, 0, len(res.Years))
+		for _, y := range res.Years {
 			years = append(years, feedFacet{Value: strconv.Itoa(y.Year), Count: y.Count})
 		}
-
-		out := activitiesFeedItems(acts)
-		// The "gear not set" prompt only makes sense once the user has gear.
-		if gear, gerr := feedHasGear(r, app, userID); gerr != nil || !gear {
-			for i := range out {
-				out[i].GearUnset = false
-			}
+		out := make([]feedActivity, 0, len(res.Activities))
+		for _, a := range res.Activities {
+			out = append(out, feedActivityOf(a, res.GearPrompt))
 		}
-
 		writeJSON(w, http.StatusOK, map[string]any{
-			"total":   total,
-			"matched": matched,
+			"total":   res.Total,
+			"matched": res.Matched,
 			"facets": map[string]any{
-				"types":       toFeedFacets(types),
-				"disciplines": toFeedFacets(disciplines),
+				"types":       toFeedFacets(res.Types),
+				"disciplines": toFeedFacets(res.Disciplines),
 				"years":       years,
 			},
 			"activities": out,
 			"offset":     offset,
 			"limit":      limit,
-			"has_more":   offset+len(out) < matched,
+			"has_more":   offset+len(out) < res.Matched,
 		})
 	}
 }
 
-func feedHasGear(r *http.Request, app *App, userID domain.UserID) (bool, error) {
-	if app.Gear == nil {
-		return false, nil
+// feedActivityOf projects an activity into the feed's row shape.
+func feedActivityOf(a domain.Activity, gearPrompt bool) feedActivity {
+	return feedActivity{
+		ID:               a.ID.String(),
+		Title:            a.Title,
+		Type:             string(a.Type),
+		Discipline:       string(a.Discipline),
+		StartTime:        a.StartTime.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		Timezone:         a.Timezone,
+		ElapsedDurationS: int64(a.ElapsedDuration.Seconds()),
+		DistanceM:        a.Summary.DistanceM,
+		ElevationGainM:   a.Summary.ElevationGainM,
+		TSS:              a.Summary.TSS,
+		StartPlace:       a.StartPlace,
+		GearUnset:        view.GearUnset(a, gearPrompt),
 	}
-	gear, err := app.Gear.List(r.Context(), userID, false)
-	return len(gear) > 0, err
-}
-
-// activitiesFeedItems projects activities into the feed's row shape.
-func activitiesFeedItems(acts []domain.Activity) []feedActivity {
-	out := make([]feedActivity, 0, len(acts))
-	for _, a := range acts {
-		out = append(out, feedActivity{
-			ID:               a.ID.String(),
-			Title:            a.Title,
-			Type:             string(a.Type),
-			Discipline:       string(a.Discipline),
-			StartTime:        a.StartTime.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			Timezone:         a.Timezone,
-			ElapsedDurationS: int64(a.ElapsedDuration.Seconds()),
-			DistanceM:        a.Summary.DistanceM,
-			ElevationGainM:   a.Summary.ElevationGainM,
-			TSS:              a.Summary.TSS,
-			StartPlace:       a.StartPlace,
-			GearUnset:        a.GearID == nil && a.GearSetBy != domain.GearSetByUser,
-		})
-	}
-	return out
 }

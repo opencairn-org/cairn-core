@@ -2,6 +2,7 @@ package inmem
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ type ActivityRepo struct {
 	MatchState  map[domain.ActivityID]string
 	// ReimportStatus records SetSourceReimportStatus calls per source.
 	ReimportStatus map[domain.SourceID]domain.ReimportStatus
+	// Following: viewer → followed users, for ListFollowingFeed.
+	Following map[domain.UserID]map[domain.UserID]bool
 }
 
 // NewActivityRepo returns an empty repo.
@@ -35,6 +38,7 @@ func NewActivityRepo() *ActivityRepo {
 		Redirects:      map[domain.ActivityID]domain.ActivityID{},
 		MatchState:     map[domain.ActivityID]string{},
 		ReimportStatus: map[domain.SourceID]domain.ReimportStatus{},
+		Following:      map[domain.UserID]map[domain.UserID]bool{},
 	}
 }
 
@@ -74,6 +78,42 @@ func (r *ActivityRepo) ActivityTotals(_ context.Context, userID domain.UserID) (
 		if a.UserID == userID && a.DeletedAt == nil {
 			out.Count++
 		}
+	}
+	return out, nil
+}
+
+func (r *ActivityRepo) ActivityTotalsForRange(_ context.Context, userID domain.UserID, start, end time.Time) (port.ActivityTotalsResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out port.ActivityTotalsResult
+	for _, a := range r.Activities {
+		if a.UserID != userID || a.DeletedAt != nil || a.StartTime.Before(start) || !a.StartTime.Before(end) {
+			continue
+		}
+		out.Count++
+		if a.Summary.DistanceM != nil {
+			out.DistanceM += *a.Summary.DistanceM
+		}
+		if a.Summary.ElevationGainM != nil {
+			out.ElevationGainM += *a.Summary.ElevationGainM
+		}
+		out.MovingS += a.MovingDuration.Seconds()
+	}
+	return out, nil
+}
+
+func (r *ActivityRepo) ListRecentActivitiesForUser(_ context.Context, userID domain.UserID, limit int) ([]domain.Activity, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []domain.Activity
+	for _, a := range r.Activities {
+		if a.UserID == userID && a.DeletedAt == nil {
+			out = append(out, a)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].StartTime.After(out[j].StartTime) })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
 	}
 	return out, nil
 }
@@ -266,4 +306,142 @@ func (d *SourceDenylist) IsDenied(_ context.Context, userID domain.UserID, provi
 		}
 	}
 	return false, nil
+}
+
+// live returns the user's non-deleted activities, newest first.
+func (r *ActivityRepo) live(userID domain.UserID) []domain.Activity {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []domain.Activity
+	for _, a := range r.Activities {
+		if a.UserID == userID && a.DeletedAt == nil {
+			out = append(out, a)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].StartTime.After(out[j].StartTime) })
+	return out
+}
+
+// matches applies the filter dimensions the fake supports: type, discipline,
+// time range and gear.
+func matches(a domain.Activity, f port.ActivityListFilter, ignoreType, ignoreDiscipline bool) bool {
+	if !ignoreType && f.Type != "" && string(a.Type) != f.Type {
+		return false
+	}
+	if !ignoreDiscipline && f.Discipline != "" && string(a.Discipline) != f.Discipline {
+		return false
+	}
+	if !f.From.IsZero() && a.StartTime.Before(f.From) {
+		return false
+	}
+	if !f.To.IsZero() && !a.StartTime.Before(f.To) {
+		return false
+	}
+	return matchesGear(a, f.GearIDs)
+}
+
+func matchesGear(a domain.Activity, ids []domain.GearID) bool {
+	if len(ids) == 0 {
+		return true
+	}
+	if a.GearID == nil {
+		return false
+	}
+	for _, g := range ids {
+		if g == *a.GearID {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *ActivityRepo) ActivityFacets(_ context.Context, userID domain.UserID, f port.ActivityListFilter) ([]port.ActivityFacet, []port.ActivityFacet, int, error) {
+	all := r.live(userID)
+	types, discs := map[string]int{}, map[string]int{}
+	for _, a := range all {
+		if matches(a, f, true, false) {
+			types[string(a.Type)]++
+		}
+		if matches(a, f, false, true) && a.Discipline != "" {
+			discs[string(a.Discipline)]++
+		}
+	}
+	return facetList(types), facetList(discs), len(all), nil
+}
+
+func facetList(m map[string]int) []port.ActivityFacet {
+	out := make([]port.ActivityFacet, 0, len(m))
+	for v, c := range m {
+		out = append(out, port.ActivityFacet{Value: v, Count: c})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Value < out[j].Value })
+	return out
+}
+
+func (r *ActivityRepo) ListActivitiesFiltered(_ context.Context, userID domain.UserID, f port.ActivityListFilter) ([]domain.Activity, int, error) {
+	var hits []domain.Activity
+	for _, a := range r.live(userID) {
+		if matches(a, f, false, false) {
+			hits = append(hits, a)
+		}
+	}
+	if f.Sort == "date_asc" {
+		sort.Slice(hits, func(i, j int) bool { return hits[i].StartTime.Before(hits[j].StartTime) })
+	}
+	matched := len(hits)
+	if f.Offset > 0 {
+		if f.Offset >= len(hits) {
+			hits = nil
+		} else {
+			hits = hits[f.Offset:]
+		}
+	}
+	if f.Limit > 0 && len(hits) > f.Limit {
+		hits = hits[:f.Limit]
+	}
+	return hits, matched, nil
+}
+
+func (r *ActivityRepo) ActivityYearStats(_ context.Context, userID domain.UserID) ([]port.ActivityYearStat, error) {
+	years := map[int]*port.ActivityYearStat{}
+	for _, a := range r.live(userID) {
+		y := a.StartTime.UTC().Year()
+		if years[y] == nil {
+			years[y] = &port.ActivityYearStat{Year: y}
+		}
+		years[y].Count++
+	}
+	out := make([]port.ActivityYearStat, 0, len(years))
+	for _, y := range years {
+		out = append(out, *y)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Year > out[j].Year })
+	return out, nil
+}
+
+// Following lists who each user follows, for ListFollowingFeed.
+func (r *ActivityRepo) ListFollowingFeed(_ context.Context, viewerID domain.UserID, limit, offset int) ([]domain.Activity, error) {
+	r.mu.Lock()
+	followed := r.Following[viewerID]
+	var out []domain.Activity
+	for _, a := range r.Activities {
+		if a.DeletedAt != nil || a.UserID == viewerID || a.Privacy == domain.PrivacyPrivate {
+			continue
+		}
+		if followed[a.UserID] {
+			out = append(out, a)
+		}
+	}
+	r.mu.Unlock()
+	sort.Slice(out, func(i, j int) bool { return out[i].StartTime.After(out[j].StartTime) })
+	if offset > 0 {
+		if offset >= len(out) {
+			return nil, nil
+		}
+		out = out[offset:]
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }

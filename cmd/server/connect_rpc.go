@@ -52,6 +52,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	activitySvc.Attachments = app.Attachments
 	activitySvc.Visibility = app.Visibility2
 	activitySvc.Exports = app.Exports
+	activitySvc.Searches = app.Searches
 	activitySvc.MapETag = mapImageETag
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
@@ -73,10 +74,12 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		}
 	}
 	cairnv1connect.RegisterAuthServiceHandler(server, authSvc)
+	cairnv1connect.RegisterStatsServiceHandler(server, connectadapter.NewStatsServer(app.Overviews, app.Content, app.Gear, mapImageETag))
+	cairnv1connect.RegisterSocialServiceHandler(server, connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag))
 	connecthttp.Mount(streamSafeMux{mux}, server)
 	logger.Info("connect-rpc services mounted", "services", []string{
 		cairnv1connect.ActivityServiceName, cairnv1connect.NotificationServiceName, cairnv1connect.AuthServiceName,
-		cairnv1connect.GearServiceName,
+		cairnv1connect.GearServiceName, cairnv1connect.StatsServiceName, cairnv1connect.SocialServiceName,
 	})
 
 	// AdminService chains the session resolver with a role-check
@@ -100,7 +103,7 @@ var streamingProcedures = func() map[string]bool {
 	for _, fd := range []protoreflect.FileDescriptor{
 		cairnv1.File_cairn_v1_activity_proto, cairnv1.File_cairn_v1_admin_proto, cairnv1.File_cairn_v1_auth_proto,
 		cairnv1.File_cairn_v1_gear_proto, cairnv1.File_cairn_v1_metrics_proto, cairnv1.File_cairn_v1_notification_proto,
-		cairnv1.File_cairn_v1_segment_proto,
+		cairnv1.File_cairn_v1_segment_proto, cairnv1.File_cairn_v1_stats_proto, cairnv1.File_cairn_v1_social_proto,
 	} {
 		svcs := fd.Services()
 		for i := range svcs.Len() {
