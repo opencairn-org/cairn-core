@@ -16,14 +16,10 @@ import (
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
 //
-// Only GetCurrentUser + GetLoginMethods are wired today — every other
-// RPC falls through to the embedded Unimplemented base and returns
-// CodeUnimplemented.
-//
-// Password / WebAuthn / OAuth-link RPCs land in subsequent passes; the
-// OIDC sign-in itself runs through the REST handler in cmd/server/oidc.go
-// rather than this service because Connect-RPC's call model doesn't
-// fit cleanly with a redirect-based OAuth flow.
+// Browser flows (password login, OIDC start/link, passkeys) stay on the REST
+// handlers because they are redirect- and cookie-driven; the proto comments
+// on those RPCs say so and they return CodeUnimplemented. Everything else
+// falls through to the embedded Unimplemented base until implemented.
 type AuthServer struct {
 	cairnv1connect.UnimplementedAuthServiceHandler
 
@@ -31,6 +27,20 @@ type AuthServer struct {
 	// OIDCProviders are the env-configured (CAIRN_OIDC_*) providers. Immutable
 	// at runtime — there is no client database. Empty means OIDC is disabled.
 	OIDCProviders []domain.OIDCProvider
+
+	// Instance backs GetInstanceInfo.
+	Instance InstanceInfo
+	// Sessions backs Logout; nil → Unavailable.
+	Sessions port.SessionRepo
+	// Activities + Quotas + QuotaMaxActivities back GetQuota (same rule as
+	// GET /api/quota: per-user override, else the instance default, 0 = unlimited).
+	Activities         port.ActivityRepo
+	Quotas             port.QuotaRepo
+	QuotaMaxActivities int
+	// Invites backs Register; VerifyEmail (optional) mails a verification link
+	// for a self-entered address.
+	Invites     InviteRedeemer
+	VerifyEmail func(ctx context.Context, u domain.User) error
 }
 
 var _ cairnv1connect.AuthServiceHandler = (*AuthServer)(nil)

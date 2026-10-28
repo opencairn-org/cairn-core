@@ -348,60 +348,90 @@ type AdminServiceClient interface {
 	// OIDC providers are configured entirely via CAIRN_OIDC_* env vars; there
 	// is no client database and no create/update/delete. This RPC lets the
 	// admin UI display the active configuration.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOIDCClients(context.Context, *v1.ListOIDCClientsRequest) (*v1.ListOIDCClientsResponse, error)
 	// ---- Instance settings ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetInstanceSettings(context.Context, *v1.GetInstanceSettingsRequest) (*v1.GetInstanceSettingsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateInstanceSettings(context.Context, *v1.UpdateInstanceSettingsRequest) (*v1.UpdateInstanceSettingsResponse, error)
 	// Send a synthetic email through the configured SMTP/SES/Resend/Mailgun
 	// adapter to verify outbound delivery.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SendTestEmail(context.Context, *v1.SendTestEmailRequest) (*v1.SendTestEmailResponse, error)
 	// ---- Users ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ChangeUserRole(context.Context, *v1.ChangeUserRoleRequest) (*v1.ChangeUserRoleResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 	// Hard-delete with cascade. Two-step: caller must pass confirm_username
 	// matching the user's username to proceed. Audit-logged at HIGH severity.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Force-reset a user's password to a temporary value, returned once.
 	// The user is required to change it on next login.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResetUserPassword(context.Context, *v1.ResetUserPasswordRequest) (*v1.ResetUserPasswordResponse, error)
 	// Revoke all sessions and PATs for a user.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeUserCredentials(context.Context, *v1.RevokeUserCredentialsRequest) (*v1.RevokeUserCredentialsResponse, error)
 	// ---- Invites ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListInvites(context.Context, *v1.ListInvitesRequest) (*v1.ListInvitesResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateInvite(context.Context, *v1.CreateInviteRequest) (*v1.CreateInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeInvite(context.Context, *v1.RevokeInviteRequest) (*v1.RevokeInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResendInvite(context.Context, *v1.ResendInviteRequest) (*v1.ResendInviteResponse, error)
 	// ---- Audit log ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListAuditEntries(context.Context, *v1.ListAuditEntriesRequest) (*v1.ListAuditEntriesResponse, error)
 	// ---- Job queue introspection ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListJobs(context.Context, *v1.ListJobsRequest) (*v1.ListJobsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetJob(context.Context, *v1.GetJobRequest) (*v1.GetJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetryJob(context.Context, *v1.RetryJobRequest) (*v1.RetryJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CancelJob(context.Context, *v1.CancelJobRequest) (*v1.CancelJobResponse, error)
 	// List jobs that exhausted retries and went to the dead-letter queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListDeadLetterJobs(context.Context, *v1.ListDeadLetterJobsRequest) (*v1.ListDeadLetterJobsResponse, error)
 	// Re-enqueue a DLQ job at the head of its provider queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RequeueDeadLetterJob(context.Context, *v1.RequeueDeadLetterJobRequest) (*v1.RequeueDeadLetterJobResponse, error)
 	// ---- Sources / orphans ----
 	// List activity sources whose worker is currently offline or deregistered.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOrphanedSources(context.Context, *v1.ListOrphanedSourcesRequest) (*v1.ListOrphanedSourcesResponse, error)
 	// ---- Webhook signing tokens (per external account) ----
 	// Webhook tokens are stored on each ExternalAccount; this endpoint lists
 	// and bulk-rotates them across the instance (useful when a token leaks).
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWebhookSigningTokens(context.Context, *v1.ListWebhookSigningTokensRequest) (*v1.ListWebhookSigningTokensResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	BulkRotateWebhookSigningTokens(context.Context, *v1.BulkRotateWebhookSigningTokensRequest) (*v1.BulkRotateWebhookSigningTokensResponse, error)
 	// ---- System health ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
 	// Stream of admin-relevant events (worker register/deregister, conflicts,
 	// health degradations). Used by the admin dashboard's live activity view.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest) (AdminServiceStreamAdminEventsClientStream, error)
 	// ---- Maintenance ----
 	// Trigger expensive recomputations. Queued as background jobs; returns
 	// the job_id for progress observation.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
 }
 
@@ -438,60 +468,90 @@ type AdminServiceHandler interface {
 	// OIDC providers are configured entirely via CAIRN_OIDC_* env vars; there
 	// is no client database and no create/update/delete. This RPC lets the
 	// admin UI display the active configuration.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOIDCClients(context.Context, *v1.ListOIDCClientsRequest) (*v1.ListOIDCClientsResponse, error)
 	// ---- Instance settings ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetInstanceSettings(context.Context, *v1.GetInstanceSettingsRequest) (*v1.GetInstanceSettingsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateInstanceSettings(context.Context, *v1.UpdateInstanceSettingsRequest) (*v1.UpdateInstanceSettingsResponse, error)
 	// Send a synthetic email through the configured SMTP/SES/Resend/Mailgun
 	// adapter to verify outbound delivery.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SendTestEmail(context.Context, *v1.SendTestEmailRequest) (*v1.SendTestEmailResponse, error)
 	// ---- Users ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ChangeUserRole(context.Context, *v1.ChangeUserRoleRequest) (*v1.ChangeUserRoleResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 	// Hard-delete with cascade. Two-step: caller must pass confirm_username
 	// matching the user's username to proceed. Audit-logged at HIGH severity.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Force-reset a user's password to a temporary value, returned once.
 	// The user is required to change it on next login.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResetUserPassword(context.Context, *v1.ResetUserPasswordRequest) (*v1.ResetUserPasswordResponse, error)
 	// Revoke all sessions and PATs for a user.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeUserCredentials(context.Context, *v1.RevokeUserCredentialsRequest) (*v1.RevokeUserCredentialsResponse, error)
 	// ---- Invites ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListInvites(context.Context, *v1.ListInvitesRequest) (*v1.ListInvitesResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateInvite(context.Context, *v1.CreateInviteRequest) (*v1.CreateInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeInvite(context.Context, *v1.RevokeInviteRequest) (*v1.RevokeInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResendInvite(context.Context, *v1.ResendInviteRequest) (*v1.ResendInviteResponse, error)
 	// ---- Audit log ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListAuditEntries(context.Context, *v1.ListAuditEntriesRequest) (*v1.ListAuditEntriesResponse, error)
 	// ---- Job queue introspection ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListJobs(context.Context, *v1.ListJobsRequest) (*v1.ListJobsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetJob(context.Context, *v1.GetJobRequest) (*v1.GetJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetryJob(context.Context, *v1.RetryJobRequest) (*v1.RetryJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CancelJob(context.Context, *v1.CancelJobRequest) (*v1.CancelJobResponse, error)
 	// List jobs that exhausted retries and went to the dead-letter queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListDeadLetterJobs(context.Context, *v1.ListDeadLetterJobsRequest) (*v1.ListDeadLetterJobsResponse, error)
 	// Re-enqueue a DLQ job at the head of its provider queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RequeueDeadLetterJob(context.Context, *v1.RequeueDeadLetterJobRequest) (*v1.RequeueDeadLetterJobResponse, error)
 	// ---- Sources / orphans ----
 	// List activity sources whose worker is currently offline or deregistered.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOrphanedSources(context.Context, *v1.ListOrphanedSourcesRequest) (*v1.ListOrphanedSourcesResponse, error)
 	// ---- Webhook signing tokens (per external account) ----
 	// Webhook tokens are stored on each ExternalAccount; this endpoint lists
 	// and bulk-rotates them across the instance (useful when a token leaks).
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWebhookSigningTokens(context.Context, *v1.ListWebhookSigningTokensRequest) (*v1.ListWebhookSigningTokensResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	BulkRotateWebhookSigningTokens(context.Context, *v1.BulkRotateWebhookSigningTokensRequest) (*v1.BulkRotateWebhookSigningTokensResponse, error)
 	// ---- System health ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
 	// Stream of admin-relevant events (worker register/deregister, conflicts,
 	// health degradations). Used by the admin dashboard's live activity view.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest, AdminServiceStreamAdminEventsServerStream) error
 	// ---- Maintenance ----
 	// Trigger expensive recomputations. Queued as background jobs; returns
 	// the job_id for progress observation.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
 }
 

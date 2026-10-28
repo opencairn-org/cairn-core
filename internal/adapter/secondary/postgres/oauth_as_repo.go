@@ -32,10 +32,11 @@ func (r *OAuthServerRepo) CreateClient(ctx context.Context, c domain.OAuthClient
 	}
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO oauth_clients
-			(client_id, secret_hash, name, redirect_uris, grant_types, scopes, token_auth, is_dynamic, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+			(client_id, secret_hash, name, redirect_uris, grant_types, scopes, token_auth, is_dynamic, created_by,
+			 software_id, software_version)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		c.ClientID, c.SecretHash, c.Name, c.RedirectURIs, c.GrantTypes, c.Scopes,
-		c.TokenEndpointAuthMethod, c.IsDynamic, createdBy)
+		c.TokenEndpointAuthMethod, c.IsDynamic, createdBy, c.SoftwareID, c.SoftwareVersion)
 	if err != nil {
 		return fmt.Errorf("create oauth client: %w", err)
 	}
@@ -44,14 +45,16 @@ func (r *OAuthServerRepo) CreateClient(ctx context.Context, c domain.OAuthClient
 
 func (r *OAuthServerRepo) GetClient(ctx context.Context, clientID string) (domain.OAuthClient, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT client_id, secret_hash, name, redirect_uris, grant_types, scopes, token_auth, is_dynamic, created_by, created_at
+		SELECT client_id, secret_hash, name, redirect_uris, grant_types, scopes, token_auth, is_dynamic, created_by, created_at,
+		       software_id, software_version
 		FROM oauth_clients WHERE client_id = $1`, clientID)
 	var (
 		c         domain.OAuthClient
 		createdBy *uuid.UUID
 	)
 	err := row.Scan(&c.ClientID, &c.SecretHash, &c.Name, &c.RedirectURIs, &c.GrantTypes,
-		&c.Scopes, &c.TokenEndpointAuthMethod, &c.IsDynamic, &createdBy, &c.CreatedAt)
+		&c.Scopes, &c.TokenEndpointAuthMethod, &c.IsDynamic, &createdBy, &c.CreatedAt,
+		&c.SoftwareID, &c.SoftwareVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.OAuthClient{}, fmt.Errorf("oauth client: %w", domain.ErrNotFound)
 	}

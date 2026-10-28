@@ -154,25 +154,32 @@ message Metric {
 
 service MetricsService {
   // List metrics with filtering. Default sort newest first.
+  // Scope: training:read.
   rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
 
   // Get the latest value for each requested key. Optimized for the
   // dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+  // Scope: training:read.
   rpc GetLatestMetrics(GetLatestMetricsRequest) returns (GetLatestMetricsResponse);
 
   // Time-series query for charting. Server applies downsampling for long
   // ranges; clients indicate desired bucket size.
+  // Scope: training:write.
   rpc QueryMetricSeries(QueryMetricSeriesRequest) returns (QueryMetricSeriesResponse);
 
   // Manual entry / edit.
+  // Scope: training:write.
   rpc UpsertMetric(UpsertMetricRequest) returns (UpsertMetricResponse);
+  // Scope: training:write.
   rpc DeleteMetric(DeleteMetricRequest) returns (DeleteMetricResponse);
 
   // Bulk manual entry (CSV import etc).
+  // Scope: training:write.
   rpc BulkUpsertMetrics(BulkUpsertMetricsRequest) returns (BulkUpsertMetricsResponse);
 
   // Get the current training-context the domain assembles for the user:
   // settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+  // Scope: training:read.
   rpc GetUserContext(GetUserContextRequest) returns (GetUserContextResponse);
 }
 
@@ -446,14 +453,17 @@ message BestEffortWindowSet {
 // ----------------------------------------------------------------------------
 
 service SettingsService {
+  // Scope: profile:read.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
 
   // Merge-update — only fields in field_mask are touched. Map updates
   // are replace-by-key semantics: passing an entry replaces that key's
   // value entirely; omitting a key leaves the existing value.
+  // Scope: profile:write.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 
   // Reset to defaults — useful from the settings UI.
+  // Scope: profile:write.
   rpc ResetSettingsSection(ResetSettingsSectionRequest) returns (ResetSettingsSectionResponse);
 }
 

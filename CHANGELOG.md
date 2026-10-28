@@ -7,6 +7,42 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Cleartext HTTP/2 (h2c, prior knowledge) next to HTTP/1.1, so native Connect
+  and gRPC clients multiplex and stream over one connection without a TLS
+  proxy in front. Streaming RPCs are exempt from the server-wide
+  `CAIRN_HTTP_WRITE_TIMEOUT`; unary calls keep it.
+- `AuthService.GetInstanceInfo` (public): release, commit, build time,
+  federation/OAuth flags, signup policy and the scope catalog, for a client's
+  server picker. `AuthService.GetQuota` (same numbers as `GET /api/quota`),
+  `Logout` (cookie session; `all_devices` revokes every session) and
+  `Register` (invite-based, mirrors `POST /auth/invite/redeem`; no session is
+  issued, the client signs in afterwards).
+- OAuth 2.1 loopback redirects per RFC 8252 §7.3: a registered
+  `http://127.0.0.1/...` or `http://[::1]/...` redirect matches any port, and
+  the authorization code goes to the port the app actually bound. `localhost`
+  and custom schemes still match exactly.
+- Dynamic client registration stores `software_id` and `software_version`
+  (migration 00067) and echoes them, so an authorized-apps view can name the
+  application behind a client.
+- Scope catalog completed: every family now has `:read` and `:write`
+  (`profile:write`, `segments:write`, `training:write`, `gear:read/write`,
+  `notifications:read/write`, `connections:read/write`). The read-only default
+  grant includes the new read scopes. `docs/api-scopes.md` maps every RPC to
+  its scope and each `rpc` carries a `// Scope:` comment.
+
+### Changed
+- OAuth tokens are now checked per scope family on Connect: an
+  `ActivityService` read needs `activities:read`, `GearService` needs
+  `gear:*`, `NotificationService` `notifications:*`, and so on; session-bound
+  RPCs (sessions, personal access tokens, `Logout`, `ChangePassword`,
+  everything on `AdminService`) refuse OAuth tokens. Before, any read-only
+  token could call every read RPC. Tokens issued before this release keep
+  working for the families they hold; re-authorize to pick up new scopes.
+  REST keeps the coarse read/write rule.
+- Declared RPCs without backing code say so in their proto comment and keep
+  returning `Unimplemented`: `StreamActivityEvents`, the source-preview trio,
+  custom best efforts, `Complete2FA`; browser-only flows (`LoginPassword`,
+  `StartOIDCLogin`, `StartOIDCLink`) point at their REST routes.
 - Connect `ActivityService` now implements `ListActivitySources`,
   `DeleteActivity`, `DetachSource` (incl. `keep_as_new_activity` = split),
   `LinkSourceToActivity`, `ReimportSource` (`prefer_local_reparse` = re-parse

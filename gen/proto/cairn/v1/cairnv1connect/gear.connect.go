@@ -151,17 +151,29 @@ var (
 
 // GearServiceClient is a client for the cairn.v1.GearService service.
 type GearServiceClient interface {
+	// Scope: gear:read.
 	ListGear(context.Context, *v1.ListGearRequest) (*v1.ListGearResponse, error)
+	// Scope: gear:read.
 	GetGear(context.Context, *v1.GetGearRequest) (*v1.GetGearResponse, error)
+	// Scope: gear:write.
 	CreateGear(context.Context, *v1.CreateGearRequest) (*v1.CreateGearResponse, error)
+	// Scope: gear:write.
 	UpdateGear(context.Context, *v1.UpdateGearRequest) (*v1.UpdateGearResponse, error)
+	// Scope: gear:write.
 	DeleteGear(context.Context, *v1.DeleteGearRequest) (*v1.DeleteGearResponse, error)
+	// Scope: gear:write.
 	MergeGear(context.Context, *v1.MergeGearRequest) (*v1.MergeGearResponse, error)
+	// Scope: gear:write.
 	LinkGearRef(context.Context, *v1.LinkGearRefRequest) (*v1.LinkGearRefResponse, error)
+	// Scope: gear:read.
 	ListPendingGearRefs(context.Context, *v1.ListPendingGearRefsRequest) (*v1.ListPendingGearRefsResponse, error)
+	// Scope: gear:write.
 	CreateGearFromRef(context.Context, *v1.CreateGearFromRefRequest) (*v1.CreateGearFromRefResponse, error)
+	// Scope: gear:write.
 	SetGearDefault(context.Context, *v1.SetGearDefaultRequest) (*v1.SetGearDefaultResponse, error)
+	// Scope: gear:write.
 	ClearGearDefault(context.Context, *v1.ClearGearDefaultRequest) (*v1.ClearGearDefaultResponse, error)
+	// Scope: gear:read.
 	ListGearDefaults(context.Context, *v1.ListGearDefaultsRequest) (*v1.ListGearDefaultsResponse, error)
 }
 
@@ -173,17 +185,29 @@ func NewGearServiceClient(client *connect.Client) GearServiceClient {
 
 // GearServiceHandler is an implementation of the cairn.v1.GearService service.
 type GearServiceHandler interface {
+	// Scope: gear:read.
 	ListGear(context.Context, *v1.ListGearRequest) (*v1.ListGearResponse, error)
+	// Scope: gear:read.
 	GetGear(context.Context, *v1.GetGearRequest) (*v1.GetGearResponse, error)
+	// Scope: gear:write.
 	CreateGear(context.Context, *v1.CreateGearRequest) (*v1.CreateGearResponse, error)
+	// Scope: gear:write.
 	UpdateGear(context.Context, *v1.UpdateGearRequest) (*v1.UpdateGearResponse, error)
+	// Scope: gear:write.
 	DeleteGear(context.Context, *v1.DeleteGearRequest) (*v1.DeleteGearResponse, error)
+	// Scope: gear:write.
 	MergeGear(context.Context, *v1.MergeGearRequest) (*v1.MergeGearResponse, error)
+	// Scope: gear:write.
 	LinkGearRef(context.Context, *v1.LinkGearRefRequest) (*v1.LinkGearRefResponse, error)
+	// Scope: gear:read.
 	ListPendingGearRefs(context.Context, *v1.ListPendingGearRefsRequest) (*v1.ListPendingGearRefsResponse, error)
+	// Scope: gear:write.
 	CreateGearFromRef(context.Context, *v1.CreateGearFromRefRequest) (*v1.CreateGearFromRefResponse, error)
+	// Scope: gear:write.
 	SetGearDefault(context.Context, *v1.SetGearDefaultRequest) (*v1.SetGearDefaultResponse, error)
+	// Scope: gear:write.
 	ClearGearDefault(context.Context, *v1.ClearGearDefaultRequest) (*v1.ClearGearDefaultResponse, error)
+	// Scope: gear:read.
 	ListGearDefaults(context.Context, *v1.ListGearDefaultsRequest) (*v1.ListGearDefaultsResponse, error)
 }
 

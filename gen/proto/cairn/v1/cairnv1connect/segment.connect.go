@@ -166,30 +166,41 @@ var (
 type SegmentServiceClient interface {
 	// List segments visible to the caller (their own private + their starred
 	// Strava mirrors + instance-shared).
+	// Scope: segments:read.
 	ListSegments(context.Context, *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error)
+	// Scope: segments:read.
 	GetSegment(context.Context, *v1.GetSegmentRequest) (*v1.GetSegmentResponse, error)
 	// Create a Cairn-native segment (source="cairn").
+	// Scope: segments:write.
 	CreateSegment(context.Context, *v1.CreateSegmentRequest) (*v1.CreateSegmentResponse, error)
 	// Update a Cairn-native segment. Strava-mirrored segments are read-only
 	// except for the starred flag (which propagates back to Strava via a job).
+	// Scope: segments:write.
 	UpdateSegment(context.Context, *v1.UpdateSegmentRequest) (*v1.UpdateSegmentResponse, error)
+	// Scope: segments:write.
 	DeleteSegment(context.Context, *v1.DeleteSegmentRequest) (*v1.DeleteSegmentResponse, error)
 	// Spatial search — used by the map view "show segments in this area".
+	// Scope: segments:read.
 	SearchSegmentsInBoundingBox(context.Context, *v1.SearchSegmentsInBoundingBoxRequest) (*v1.SearchSegmentsInBoundingBoxResponse, error)
 	// List efforts against a segment, with paging. For SCOPE_INSTANCE, all
 	// users' efforts; for SCOPE_PRIVATE, owner-only.
+	// Scope: segments:read.
 	ListSegmentEfforts(context.Context, *v1.ListSegmentEffortsRequest) (*v1.ListSegmentEffortsResponse, error)
 	// List the calling user's efforts on a segment ordered by elapsed time
 	// ascending — the "my history" view.
+	// Scope: segments:read.
 	ListMySegmentEfforts(context.Context, *v1.ListMySegmentEffortsRequest) (*v1.ListMySegmentEffortsResponse, error)
 	// Leaderboard for instance-scoped segments.
+	// Scope: segments:read.
 	GetSegmentLeaderboard(context.Context, *v1.GetSegmentLeaderboardRequest) (*v1.GetSegmentLeaderboardResponse, error)
 	// Re-run matching for a single activity against all eligible segments.
 	// Useful after creating a new segment that overlaps existing rides.
+	// Scope: segments:write.
 	RematchActivity(context.Context, *v1.RematchActivityRequest) (*v1.RematchActivityResponse, error)
 	// Re-run matching for all of the caller's activities against a single
 	// segment. Used after creating a Cairn-native segment to backfill
 	// historical efforts. Queued as a background job.
+	// Scope: segments:write.
 	RematchSegment(context.Context, *v1.RematchSegmentRequest) (*v1.RematchSegmentResponse, error)
 }
 
@@ -203,30 +214,41 @@ func NewSegmentServiceClient(client *connect.Client) SegmentServiceClient {
 type SegmentServiceHandler interface {
 	// List segments visible to the caller (their own private + their starred
 	// Strava mirrors + instance-shared).
+	// Scope: segments:read.
 	ListSegments(context.Context, *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error)
+	// Scope: segments:read.
 	GetSegment(context.Context, *v1.GetSegmentRequest) (*v1.GetSegmentResponse, error)
 	// Create a Cairn-native segment (source="cairn").
+	// Scope: segments:write.
 	CreateSegment(context.Context, *v1.CreateSegmentRequest) (*v1.CreateSegmentResponse, error)
 	// Update a Cairn-native segment. Strava-mirrored segments are read-only
 	// except for the starred flag (which propagates back to Strava via a job).
+	// Scope: segments:write.
 	UpdateSegment(context.Context, *v1.UpdateSegmentRequest) (*v1.UpdateSegmentResponse, error)
+	// Scope: segments:write.
 	DeleteSegment(context.Context, *v1.DeleteSegmentRequest) (*v1.DeleteSegmentResponse, error)
 	// Spatial search — used by the map view "show segments in this area".
+	// Scope: segments:read.
 	SearchSegmentsInBoundingBox(context.Context, *v1.SearchSegmentsInBoundingBoxRequest) (*v1.SearchSegmentsInBoundingBoxResponse, error)
 	// List efforts against a segment, with paging. For SCOPE_INSTANCE, all
 	// users' efforts; for SCOPE_PRIVATE, owner-only.
+	// Scope: segments:read.
 	ListSegmentEfforts(context.Context, *v1.ListSegmentEffortsRequest) (*v1.ListSegmentEffortsResponse, error)
 	// List the calling user's efforts on a segment ordered by elapsed time
 	// ascending — the "my history" view.
+	// Scope: segments:read.
 	ListMySegmentEfforts(context.Context, *v1.ListMySegmentEffortsRequest) (*v1.ListMySegmentEffortsResponse, error)
 	// Leaderboard for instance-scoped segments.
+	// Scope: segments:read.
 	GetSegmentLeaderboard(context.Context, *v1.GetSegmentLeaderboardRequest) (*v1.GetSegmentLeaderboardResponse, error)
 	// Re-run matching for a single activity against all eligible segments.
 	// Useful after creating a new segment that overlaps existing rides.
+	// Scope: segments:write.
 	RematchActivity(context.Context, *v1.RematchActivityRequest) (*v1.RematchActivityResponse, error)
 	// Re-run matching for all of the caller's activities against a single
 	// segment. Used after creating a Cairn-native segment to backfill
 	// historical efforts. Queued as a background job.
+	// Scope: segments:write.
 	RematchSegment(context.Context, *v1.RematchSegmentRequest) (*v1.RematchSegmentResponse, error)
 }
 

@@ -50,70 +50,100 @@ service AdminService {
   // OIDC providers are configured entirely via CAIRN_OIDC_* env vars; there
   // is no client database and no create/update/delete. This RPC lets the
   // admin UI display the active configuration.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListOIDCClients(ListOIDCClientsRequest) returns (ListOIDCClientsResponse);
 
   // ---- Instance settings ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc GetInstanceSettings(GetInstanceSettingsRequest) returns (GetInstanceSettingsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc UpdateInstanceSettings(UpdateInstanceSettingsRequest) returns (UpdateInstanceSettingsResponse);
   // Send a synthetic email through the configured SMTP/SES/Resend/Mailgun
   // adapter to verify outbound delivery.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc SendTestEmail(SendTestEmailRequest) returns (SendTestEmailResponse);
 
   // ---- Users ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ChangeUserRole(ChangeUserRoleRequest) returns (ChangeUserRoleResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc SetUserStatus(SetUserStatusRequest) returns (SetUserStatusResponse);
   // Hard-delete with cascade. Two-step: caller must pass confirm_username
   // matching the user's username to proceed. Audit-logged at HIGH severity.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Force-reset a user's password to a temporary value, returned once.
   // The user is required to change it on next login.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ResetUserPassword(ResetUserPasswordRequest) returns (ResetUserPasswordResponse);
   // Revoke all sessions and PATs for a user.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc RevokeUserCredentials(RevokeUserCredentialsRequest) returns (RevokeUserCredentialsResponse);
 
   // ---- Invites ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ResendInvite(ResendInviteRequest) returns (ResendInviteResponse);
 
   // ---- Audit log ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListAuditEntries(ListAuditEntriesRequest) returns (ListAuditEntriesResponse);
 
   // ---- Job queue introspection ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
   // List jobs that exhausted retries and went to the dead-letter queue.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListDeadLetterJobs(ListDeadLetterJobsRequest) returns (ListDeadLetterJobsResponse);
   // Re-enqueue a DLQ job at the head of its provider queue.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc RequeueDeadLetterJob(RequeueDeadLetterJobRequest) returns (RequeueDeadLetterJobResponse);
 
   // ---- Sources / orphans ----
   // List activity sources whose worker is currently offline or deregistered.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListOrphanedSources(ListOrphanedSourcesRequest) returns (ListOrphanedSourcesResponse);
 
   // ---- Webhook signing tokens (per external account) ----
   // Webhook tokens are stored on each ExternalAccount; this endpoint lists
   // and bulk-rotates them across the instance (useful when a token leaks).
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListWebhookSigningTokens(ListWebhookSigningTokensRequest) returns (ListWebhookSigningTokensResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc BulkRotateWebhookSigningTokens(BulkRotateWebhookSigningTokensRequest) returns (BulkRotateWebhookSigningTokensResponse);
 
   // ---- System health ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc GetSystemHealth(GetSystemHealthRequest) returns (GetSystemHealthResponse);
 
   // Stream of admin-relevant events (worker register/deregister, conflicts,
   // health degradations). Used by the admin dashboard's live activity view.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc StreamAdminEvents(StreamAdminEventsRequest) returns (stream AdminEvent);
 
   // ---- Maintenance ----
   // Trigger expensive recomputations. Queued as background jobs; returns
   // the job_id for progress observation.
+  // Scope: admin cookie session only (OAuth tokens are refused).
   rpc TriggerMaintenance(TriggerMaintenanceRequest) returns (TriggerMaintenanceResponse);
 }
 

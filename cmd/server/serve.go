@@ -407,13 +407,23 @@ func serveNewHTTPServer(ctx context.Context, cfg *config.Config, mux *http.Serve
 	}
 	httpLimiter := newIPRateLimiter(perMin, nil)
 
+	// HTTP/1.1 plus cleartext HTTP/2 (h2c, prior knowledge): native Connect
+	// and gRPC clients multiplex and stream over one connection without a
+	// TLS-terminating proxy in front. Browsers never negotiate h2c, so the
+	// SPA path is unchanged. TLS still comes from the reverse proxy.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	return &http.Server{
-		Addr:         cfg.HTTP.Addr,
-		Handler:      metricsMiddleware(securityHeaders(rateLimitMiddleware(httpLimiter, mux))),
-		ReadTimeout:  cfg.HTTP.ReadTimeout,
-		WriteTimeout: cfg.HTTP.WriteTimeout,
-		IdleTimeout:  cfg.HTTP.IdleTimeout,
-		BaseContext:  func(net.Listener) context.Context { return ctx },
+		Addr:              cfg.HTTP.Addr,
+		Handler:           metricsMiddleware(securityHeaders(rateLimitMiddleware(httpLimiter, mux))),
+		Protocols:         protocols,
+		ReadTimeout:       cfg.HTTP.ReadTimeout,
+		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
+		WriteTimeout:      cfg.HTTP.WriteTimeout,
+		IdleTimeout:       cfg.HTTP.IdleTimeout,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
 }
 

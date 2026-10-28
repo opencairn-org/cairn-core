@@ -384,6 +384,22 @@ type registrationRequest struct {
 	GrantTypes              []string `json:"grant_types"`
 	Scope                   string   `json:"scope"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	// SoftwareID / SoftwareVersion (RFC 7591 §2) name the application; stored
+	// verbatim (capped) so the user can recognise the app later.
+	SoftwareID      string `json:"software_id"`
+	SoftwareVersion string `json:"software_version"`
+}
+
+// registrationFieldMax caps free-text registration metadata.
+const registrationFieldMax = 200
+
+// clipField trims s and caps it at registrationFieldMax runes.
+func clipField(s string) string {
+	s = strings.TrimSpace(s)
+	if r := []rune(s); len(r) > registrationFieldMax {
+		return string(r[:registrationFieldMax])
+	}
+	return s
 }
 
 // withDefaults fills unset registration fields.
@@ -401,7 +417,7 @@ func (req registrationRequest) withDefaults() (authMethod string, grants, scopes
 	if req.Scope != "" {
 		scopes = domain.FilterRequestedScopes(domain.ParseScopes(req.Scope), domain.SupportedScopes)
 	}
-	name = req.ClientName
+	name = clipField(req.ClientName)
 	if name == "" {
 		name = "Dynamic client"
 	}
@@ -435,6 +451,8 @@ func (s *oauthServer) register(w http.ResponseWriter, r *http.Request) {
 		Scopes:                  scopes,
 		TokenEndpointAuthMethod: authMethod,
 		IsDynamic:               true,
+		SoftwareID:              clipField(req.SoftwareID),
+		SoftwareVersion:         clipField(req.SoftwareVersion),
 	}
 	resp := map[string]any{
 		"client_id":                  clientID,
@@ -443,6 +461,12 @@ func (s *oauthServer) register(w http.ResponseWriter, r *http.Request) {
 		"grant_types":                grants,
 		"scope":                      domain.JoinScopes(scopes),
 		"token_endpoint_auth_method": authMethod,
+	}
+	if client.SoftwareID != "" {
+		resp["software_id"] = client.SoftwareID
+	}
+	if client.SoftwareVersion != "" {
+		resp["software_version"] = client.SoftwareVersion
 	}
 	if authMethod != "none" {
 		secret := randString(40)

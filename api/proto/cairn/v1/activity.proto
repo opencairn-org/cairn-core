@@ -567,42 +567,59 @@ message CustomBestEffort {
 service ActivityService {
   // List activities for the calling user. Supports filtering by time range,
   // type, discipline, tag, and source-provider.
+  // Scope: activities:read.
   rpc ListActivities(ListActivitiesRequest) returns (ListActivitiesResponse);
 
   // Get a single activity by id, including sources.
+  // Scope: activities:read.
   rpc GetActivity(GetActivityRequest) returns (GetActivityResponse);
 
   // Update user-editable fields (title, description, tags, type override).
   // Does NOT touch source data — only the merged Activity overrides.
+  // Scope: activities:write.
   rpc UpdateActivity(UpdateActivityRequest) returns (UpdateActivityResponse);
 
   // Soft-delete an activity. Sources are detached, raw blobs retained per
   // S3 lifecycle policy.
+  // Scope: activities:write.
   rpc DeleteActivity(DeleteActivityRequest) returns (DeleteActivityResponse);
 
   // Server-streaming feed of activity-related events for the caller. Used
   // by the UI for live import progress, new-PR toasts, etc.
+  // Planned, not implemented (returns Unimplemented): core has no per-user
+  // event fan-out yet; poll ListActivities meanwhile.
+  // Scope: activities:read.
   rpc StreamActivityEvents(StreamActivityEventsRequest) returns (stream ActivityEvent);
 
   // Source management — attach/detach/reorder sources, trigger reimports.
+  // Scope: activities:read.
   rpc ListActivitySources(ListActivitySourcesRequest) returns (ListActivitySourcesResponse);
 
   // Trigger a reimport of one source. Returns a job id; observe progress
   // via StreamActivityEvents or via the job status endpoints in admin.proto.
+  // Scope: activities:write.
   rpc ReimportSource(ReimportSourceRequest) returns (ReimportSourceResponse);
 
   // Dry-run reimport: fetches fresh source data, computes the merge it would
   // produce, returns the diff WITHOUT committing. The preview is stored
   // with a TTL (default 1h) and can be either committed or discarded.
+  // Planned, not implemented (all three return Unimplemented): needs a preview
+  // store and a result-router branch; ReimportSource commits directly today.
+  // Scope: activities:write.
   rpc PreviewSourceReimport(PreviewSourceReimportRequest) returns (PreviewSourceReimportResponse);
+  // Scope: activities:write.
   rpc CommitSourcePreview(CommitSourcePreviewRequest) returns (CommitSourcePreviewResponse);
+  // Scope: activities:write.
   rpc DiscardSourcePreview(DiscardSourcePreviewRequest) returns (DiscardSourcePreviewResponse);
 
   // Manual source-linking when dedup misses or mistakes.
+  // Scope: activities:write.
   rpc LinkSourceToActivity(LinkSourceToActivityRequest) returns (LinkSourceToActivityResponse);
+  // Scope: activities:write.
   rpc DetachSource(DetachSourceRequest) returns (DetachSourceResponse);
 
   // Streams — full fidelity or downsampled.
+  // Scope: activities:read.
   rpc GetActivityStream(GetActivityStreamRequest) returns (GetActivityStreamResponse);
 
 
@@ -611,17 +628,26 @@ service ActivityService {
   // The client uploads the FIT/GPX/TCX file directly to S3, then calls
   // UploadActivity with the returned blob_id. Separating presign from
   // upload keeps large bodies off the Core entirely.
+  // Scope: activities:write.
   rpc PresignActivityUpload(PresignActivityUploadRequest) returns (PresignActivityUploadResponse);
 
   // Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
   // generic-fit-parser worker processes the upload, dedup happens
   // afterwards. UI surfaces progress via StreamActivityEvents.
+  // Scope: activities:write.
   rpc UploadActivity(UploadActivityRequest) returns (UploadActivityResponse);
 
   // Best efforts and records.
+  // Scope: activities:read.
   rpc ListBestEfforts(ListBestEffortsRequest) returns (ListBestEffortsResponse);
+  // Scope: activities:read.
   rpc ListRecords(ListRecordsRequest) returns (ListRecordsResponse);
+  // User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
+  // (both return Unimplemented): the best-effort compute only knows the fixed
+  // window set.
+  // Scope: activities:write.
   rpc CreateCustomBestEffort(CreateCustomBestEffortRequest) returns (CreateCustomBestEffortResponse);
+  // Scope: activities:write.
   rpc DeleteCustomBestEffort(DeleteCustomBestEffortRequest) returns (DeleteCustomBestEffortResponse);
 }
 

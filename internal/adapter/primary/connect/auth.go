@@ -83,6 +83,9 @@ const (
 	// with an OAuth access token. Absent for cookie/PAT auth, which carry the
 	// user's full access (nil scopes == unrestricted).
 	ctxKeyScopes
+	// ctxKeySessionID holds the domain.SessionID of a cookie session, so
+	// session-bound RPCs (Logout, ListSessions) know which row is "this one".
+	ctxKeySessionID
 )
 
 // patTokenPrefix marks a personal access token; oauthTokenPrefix marks an
@@ -147,16 +150,25 @@ func connectAuthSessionCookie(ctx context.Context, h *connectrpc.Header, session
 	hash := sha256.Sum256([]byte(token))
 	if sess, err := sessions.GetByTokenHash(ctx, hash[:]); err == nil && sess.IsActive(time.Now().UTC()) {
 		_ = sessions.TouchLastSeen(ctx, sess.ID)
-		return context.WithValue(ctx, ctxKeyUserID, sess.UserID), true
+		ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
+		return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
 	}
 	return ctx, false
 }
 
+// sessionIDFromHandlerCtx returns the cookie session behind the call, if any.
+func sessionIDFromHandlerCtx(ctx context.Context) (domain.SessionID, bool) {
+	id, ok := ctx.Value(ctxKeySessionID).(domain.SessionID)
+	return id, ok
+}
+
 // ScopeInterceptor enforces OAuth scopes on the Connect API. It only applies to
 // callers authenticated via an OAuth access token (cookie/PAT auth carries the
-// user's full access and is unaffected). A mutating procedure requires the
-// token to hold at least one write scope; otherwise the call is denied. This
-// keeps read-only tokens — the default for agents — truly read-only.
+// user's full access and is unaffected). Each service maps to a scope family;
+// a read needs family:read (or :write), a mutation needs family:write. A few
+// procedures are public or open to any valid token, and session-bound ones
+// (sessions, PATs, admin) are closed to OAuth tokens altogether. The table is
+// published in docs/api-scopes.md and as a "Scope:" comment on every rpc.
 //
 // Mount AFTER SessionInterceptor so scopes are already in ctx.
 func ScopeInterceptor() connectrpc.ServerInterceptor {
@@ -165,12 +177,85 @@ func ScopeInterceptor() connectrpc.ServerInterceptor {
 		if !isOAuth {
 			return next(ctx) // cookie/PAT: unrestricted
 		}
-		if isMutatingProcedure(spec.Procedure) && !hasAnyWriteScope(scopes) {
-			return connectrpc.NewError(connectrpc.CodePermissionDenied,
-				"this OAuth token lacks a write scope for this operation")
+		if err := scopeCheck(spec.Procedure, scopes); err != nil {
+			return err
 		}
 		return next(ctx)
 	})
+}
+
+// scopePolicy says who may call a procedure when the caller is an OAuth token.
+type scopePolicy int
+
+const (
+	scopeFamily      scopePolicy = iota // family:read / family:write by method verb
+	scopePublic                         // no credential needed
+	scopeAnyToken                       // any valid token, no particular scope
+	scopeSessionOnly                    // cookie session only; OAuth tokens refused
+)
+
+// scopeFamilies maps a service to its scope family; services absent here fall
+// back to scopeSessionOnly (closed to OAuth until a family is assigned).
+var scopeFamilies = map[string]string{
+	"cairn.v1.ActivityService":        "activities",
+	"cairn.v1.GearService":            "gear",
+	"cairn.v1.NotificationService":    "notifications",
+	"cairn.v1.ExternalAccountService": "connections",
+	"cairn.v1.SegmentService":         "segments",
+	"cairn.v1.MetricsService":         "training",
+	"cairn.v1.SettingsService":        "profile",
+	"cairn.v1.AuthService":            "profile",
+}
+
+// scopeOverrides lists the procedures whose policy is not the service family.
+var scopeOverrides = map[string]scopePolicy{
+	"/cairn.v1.AuthService/GetLoginMethods":           scopePublic,
+	"/cairn.v1.AuthService/GetInstanceInfo":           scopePublic,
+	"/cairn.v1.AuthService/LoginPassword":             scopePublic,
+	"/cairn.v1.AuthService/Complete2FA":               scopePublic,
+	"/cairn.v1.AuthService/Register":                  scopePublic,
+	"/cairn.v1.AuthService/RequestPasswordReset":      scopePublic,
+	"/cairn.v1.AuthService/ConfirmPasswordReset":      scopePublic,
+	"/cairn.v1.AuthService/StartOIDCLogin":            scopePublic,
+	"/cairn.v1.AuthService/GetCurrentUser":            scopeAnyToken,
+	"/cairn.v1.AuthService/GetQuota":                  scopeAnyToken,
+	"/cairn.v1.AuthService/Logout":                    scopeSessionOnly,
+	"/cairn.v1.AuthService/ChangePassword":            scopeSessionOnly,
+	"/cairn.v1.AuthService/ListSessions":              scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokeSession":             scopeSessionOnly,
+	"/cairn.v1.AuthService/CreatePersonalAccessToken": scopeSessionOnly,
+	"/cairn.v1.AuthService/ListPersonalAccessTokens":  scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokePersonalAccessToken": scopeSessionOnly,
+}
+
+// scopeCheck applies the policy of procedure to an OAuth token's scopes.
+func scopeCheck(procedure string, scopes []string) error {
+	if p, ok := scopeOverrides[procedure]; ok {
+		switch p {
+		case scopePublic, scopeAnyToken:
+			return nil
+		case scopeSessionOnly:
+			return connectrpc.NewError(connectrpc.CodePermissionDenied, "this operation is not available to OAuth tokens")
+		case scopeFamily:
+		}
+	}
+	service := procedure
+	if i := strings.LastIndexByte(procedure, '/'); i >= 0 {
+		service = strings.TrimPrefix(procedure[:i], "/")
+	}
+	family, ok := scopeFamilies[service]
+	if !ok {
+		return connectrpc.NewError(connectrpc.CodePermissionDenied, "this operation is not available to OAuth tokens")
+	}
+	write := isMutatingProcedure(procedure)
+	if !domain.ScopesGrant(scopes, family, write) {
+		need := family + ":read"
+		if write {
+			need = family + ":write"
+		}
+		return connectrpc.NewError(connectrpc.CodePermissionDenied, "this OAuth token lacks the "+need+" scope")
+	}
+	return nil
 }
 
 // isMutatingProcedure classifies a Connect procedure ("/svc/Method") as a

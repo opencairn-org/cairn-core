@@ -1,14 +1,20 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
+	cairnv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
+	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
 // mountConnectRPC registers every cairn.v1.* Connect-RPC service the
@@ -44,8 +50,24 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	cairnv1connect.RegisterActivityServiceHandler(server, activitySvc)
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
 	cairnv1connect.RegisterNotificationServiceHandler(server, connectadapter.NewNotificationServer(app.Notifications))
-	cairnv1connect.RegisterAuthServiceHandler(server, connectadapter.NewAuthServer(app.Users, app.OIDCProviders))
-	connecthttp.Mount(mux, server)
+	authSvc := connectadapter.NewAuthServer(app.Users, app.OIDCProviders)
+	authSvc.Instance = instanceInfo(app)
+	authSvc.Sessions = app.Sessions
+	authSvc.Activities = app.Activities
+	if app.Quotas != nil {
+		authSvc.Quotas = app.Quotas
+	}
+	authSvc.QuotaMaxActivities = app.QuotaMaxActivities
+	if app.RedeemInvite != nil {
+		authSvc.Invites = app.RedeemInvite
+	}
+	if app.Email != nil {
+		authSvc.VerifyEmail = func(ctx context.Context, u domain.User) error {
+			return sendVerificationEmail(ctx, app, logger, strings.TrimRight(app.PublicBaseURL, "/"), u)
+		}
+	}
+	cairnv1connect.RegisterAuthServiceHandler(server, authSvc)
+	connecthttp.Mount(streamSafeMux{mux}, server)
 	logger.Info("connect-rpc services mounted", "services", []string{
 		cairnv1connect.ActivityServiceName, cairnv1connect.NotificationServiceName, cairnv1connect.AuthServiceName,
 		cairnv1connect.GearServiceName,
@@ -60,6 +82,63 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		connectadapter.RequireAdminInterceptor(app.Users),
 	)
 	cairnv1connect.RegisterAdminServiceHandler(adminServer, connectadapter.NewAdminServer(app.Users, app.OIDCProviders))
-	connecthttp.Mount(mux, adminServer)
+	connecthttp.Mount(streamSafeMux{mux}, adminServer)
 	logger.Info("connect-rpc services mounted", "services", []string{cairnv1connect.AdminServiceName})
+}
+
+// streamingProcedures lists every cairn.v1 RPC with a streaming side, keyed
+// by Connect path ("/pkg.Service/Method"), read from the proto descriptors so
+// a new stream RPC is covered without a hand-kept list.
+var streamingProcedures = func() map[string]bool {
+	out := map[string]bool{}
+	for _, fd := range []protoreflect.FileDescriptor{
+		cairnv1.File_cairn_v1_activity_proto, cairnv1.File_cairn_v1_admin_proto, cairnv1.File_cairn_v1_auth_proto,
+		cairnv1.File_cairn_v1_gear_proto, cairnv1.File_cairn_v1_metrics_proto, cairnv1.File_cairn_v1_notification_proto,
+		cairnv1.File_cairn_v1_segment_proto,
+	} {
+		svcs := fd.Services()
+		for i := range svcs.Len() {
+			svc := svcs.Get(i)
+			ms := svc.Methods()
+			for j := range ms.Len() {
+				m := ms.Get(j)
+				if m.IsStreamingServer() || m.IsStreamingClient() {
+					out["/"+string(svc.FullName())+"/"+string(m.Name())] = true
+				}
+			}
+		}
+	}
+	return out
+}()
+
+// streamSafeMux registers Connect handlers on the real mux with the
+// server-wide WriteTimeout lifted for streaming RPCs: a server stream outlives
+// any sane write deadline (the client holds it open for live updates), while
+// unary calls keep the timeout as a backstop. Per-request deadlines still come
+// from Connect-Timeout-Ms.
+type streamSafeMux struct{ mux *http.ServeMux }
+
+func (m streamSafeMux) Handle(pattern string, h http.Handler) {
+	m.mux.Handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if streamingProcedures[r.URL.Path] {
+			_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+		}
+		h.ServeHTTP(w, r)
+	}))
+}
+
+// instanceInfo assembles GetInstanceInfo from the build metadata and config.
+func instanceInfo(app *App) connectadapter.InstanceInfo {
+	version, commit, built := buildInfo()
+	info := connectadapter.InstanceInfo{
+		Version:           version,
+		Commit:            commit,
+		FederationEnabled: app.FederationEnabled,
+		OAuthEnabled:      app.OAuthEnabled,
+		RegistrationOpen:  false, // invite-only; GetLoginMethods says requires_invite
+	}
+	if t, err := time.Parse(time.RFC3339, built); err == nil {
+		info.BuildTime = t
+	}
+	return info
 }

@@ -58,6 +58,9 @@ const (
 	// AuthServiceGetLoginMethodsProcedure is the procedure name of the AuthService's GetLoginMethods
 	// RPC.
 	AuthServiceGetLoginMethodsProcedure = "/cairn.v1.AuthService/GetLoginMethods"
+	// AuthServiceGetInstanceInfoProcedure is the procedure name of the AuthService's GetInstanceInfo
+	// RPC.
+	AuthServiceGetInstanceInfoProcedure = "/cairn.v1.AuthService/GetInstanceInfo"
 	// AuthServiceLoginPasswordProcedure is the procedure name of the AuthService's LoginPassword RPC.
 	AuthServiceLoginPasswordProcedure = "/cairn.v1.AuthService/LoginPassword"
 	// AuthServiceComplete2FAProcedure is the procedure name of the AuthService's Complete2FA RPC.
@@ -86,6 +89,8 @@ const (
 	AuthServiceLogoutProcedure = "/cairn.v1.AuthService/Logout"
 	// AuthServiceGetCurrentUserProcedure is the procedure name of the AuthService's GetCurrentUser RPC.
 	AuthServiceGetCurrentUserProcedure = "/cairn.v1.AuthService/GetCurrentUser"
+	// AuthServiceGetQuotaProcedure is the procedure name of the AuthService's GetQuota RPC.
+	AuthServiceGetQuotaProcedure = "/cairn.v1.AuthService/GetQuota"
 	// AuthServiceUpdateProfileProcedure is the procedure name of the AuthService's UpdateProfile RPC.
 	AuthServiceUpdateProfileProcedure = "/cairn.v1.AuthService/UpdateProfile"
 	// AuthServiceUpdateUserPreferencesProcedure is the procedure name of the AuthService's
@@ -139,6 +144,14 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetLoginMethods"),
 			Procedure:  AuthServiceGetLoginMethodsProcedure,
+		}
+	})
+	authServiceGetInstanceInfoSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetInstanceInfo"),
+			Procedure:        AuthServiceGetInstanceInfoProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	authServiceLoginPasswordSpec = sync.OnceValue(func() connect.Spec {
@@ -225,6 +238,14 @@ var (
 			Procedure:  AuthServiceGetCurrentUserProcedure,
 		}
 	})
+	authServiceGetQuotaSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetQuota"),
+			Procedure:        AuthServiceGetQuotaProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	authServiceUpdateProfileSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -280,38 +301,81 @@ var (
 type AuthServiceClient interface {
 	// List enabled login methods for the login screen, including OIDC clients.
 	// Public; no auth required.
+	// Scope: none (public).
 	GetLoginMethods(context.Context, *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error)
+	// Instance identity and feature flags for a client's server picker:
+	// release, commit, build time, federation/OAuth availability, signup
+	// policy and the scope catalog. Public; no auth required.
+	// Scope: none (public).
+	GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error)
 	// Username + password. Returns a session token or a 2FA challenge if
 	// the account has WebAuthn enabled as a second factor.
+	// Not implemented (returns Unimplemented): the browser signs in through
+	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
+	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
 	// Complete a 2FA challenge after LoginPassword.
+	// Planned, not implemented (returns Unimplemented): the instance has no
+	// second-factor step after a password login yet (passkeys are a first factor).
+	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
-	// Register a new local user. May require invite code per instance policy.
+	// Register a new local user. The instance is invite-only, so invite_code is
+	// required; the account is created and the caller then signs in (OAuth for
+	// native clients, cookie login for the browser). No session is returned.
+	// Scope: none (public).
 	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
 	// Change password (requires current password).
+	// Scope: cookie session only.
 	ChangePassword(context.Context, *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error)
 	// Initiate password reset (sends email if SMTP configured).
+	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
 	// Complete password reset using a token from the email.
+	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
 	// The state cookie is set on the response automatically.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start.
+	// Scope: none (public).
 	StartOIDCLogin(context.Context, *v1.StartOIDCLoginRequest) (*v1.StartOIDCLoginResponse, error)
 	// Link an additional OIDC identity to the currently authenticated user.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start while signed in.
+	// Scope: profile:write.
 	StartOIDCLink(context.Context, *v1.StartOIDCLinkRequest) (*v1.StartOIDCLinkResponse, error)
 	// Unlink an OIDC identity. Cannot unlink the last credential.
+	// Scope: profile:write.
 	UnlinkOIDCIdentity(context.Context, *v1.UnlinkOIDCIdentityRequest) (*v1.UnlinkOIDCIdentityResponse, error)
+	// Scope: profile:read.
 	ListLinkedIdentities(context.Context, *v1.ListLinkedIdentitiesRequest) (*v1.ListLinkedIdentitiesResponse, error)
+	// Revoke the calling cookie session (or every session of the user with
+	// all_devices). Bearer callers (PAT, OAuth) have no session: OAuth tokens
+	// are revoked at POST /oauth/revoke, PATs via RevokePersonalAccessToken.
+	// Scope: cookie session only.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// Scope: any valid credential.
 	GetCurrentUser(context.Context, *v1.GetCurrentUserRequest) (*v1.GetCurrentUserResponse, error)
+	// The caller's activity quota: used, limit (0 = unlimited) and whether new
+	// imports are refused. Any valid credential.
+	// Scope: any valid credential.
+	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies
 	// site-wide on every client (web + mobile); clients re-read on change.
+	// Scope: profile:write.
 	UpdateUserPreferences(context.Context, *v1.UpdateUserPreferencesRequest) (*v1.UpdateUserPreferencesResponse, error)
+	// Scope: cookie session only.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// Scope: cookie session only.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// Scope: cookie session only.
 	CreatePersonalAccessToken(context.Context, *v1.CreatePersonalAccessTokenRequest) (*v1.CreatePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
+	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
 }
 
@@ -325,38 +389,81 @@ func NewAuthServiceClient(client *connect.Client) AuthServiceClient {
 type AuthServiceHandler interface {
 	// List enabled login methods for the login screen, including OIDC clients.
 	// Public; no auth required.
+	// Scope: none (public).
 	GetLoginMethods(context.Context, *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error)
+	// Instance identity and feature flags for a client's server picker:
+	// release, commit, build time, federation/OAuth availability, signup
+	// policy and the scope catalog. Public; no auth required.
+	// Scope: none (public).
+	GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error)
 	// Username + password. Returns a session token or a 2FA challenge if
 	// the account has WebAuthn enabled as a second factor.
+	// Not implemented (returns Unimplemented): the browser signs in through
+	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
+	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
 	// Complete a 2FA challenge after LoginPassword.
+	// Planned, not implemented (returns Unimplemented): the instance has no
+	// second-factor step after a password login yet (passkeys are a first factor).
+	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
-	// Register a new local user. May require invite code per instance policy.
+	// Register a new local user. The instance is invite-only, so invite_code is
+	// required; the account is created and the caller then signs in (OAuth for
+	// native clients, cookie login for the browser). No session is returned.
+	// Scope: none (public).
 	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
 	// Change password (requires current password).
+	// Scope: cookie session only.
 	ChangePassword(context.Context, *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error)
 	// Initiate password reset (sends email if SMTP configured).
+	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
 	// Complete password reset using a token from the email.
+	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
 	// The state cookie is set on the response automatically.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start.
+	// Scope: none (public).
 	StartOIDCLogin(context.Context, *v1.StartOIDCLoginRequest) (*v1.StartOIDCLoginResponse, error)
 	// Link an additional OIDC identity to the currently authenticated user.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start while signed in.
+	// Scope: profile:write.
 	StartOIDCLink(context.Context, *v1.StartOIDCLinkRequest) (*v1.StartOIDCLinkResponse, error)
 	// Unlink an OIDC identity. Cannot unlink the last credential.
+	// Scope: profile:write.
 	UnlinkOIDCIdentity(context.Context, *v1.UnlinkOIDCIdentityRequest) (*v1.UnlinkOIDCIdentityResponse, error)
+	// Scope: profile:read.
 	ListLinkedIdentities(context.Context, *v1.ListLinkedIdentitiesRequest) (*v1.ListLinkedIdentitiesResponse, error)
+	// Revoke the calling cookie session (or every session of the user with
+	// all_devices). Bearer callers (PAT, OAuth) have no session: OAuth tokens
+	// are revoked at POST /oauth/revoke, PATs via RevokePersonalAccessToken.
+	// Scope: cookie session only.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// Scope: any valid credential.
 	GetCurrentUser(context.Context, *v1.GetCurrentUserRequest) (*v1.GetCurrentUserResponse, error)
+	// The caller's activity quota: used, limit (0 = unlimited) and whether new
+	// imports are refused. Any valid credential.
+	// Scope: any valid credential.
+	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies
 	// site-wide on every client (web + mobile); clients re-read on change.
+	// Scope: profile:write.
 	UpdateUserPreferences(context.Context, *v1.UpdateUserPreferencesRequest) (*v1.UpdateUserPreferencesResponse, error)
+	// Scope: cookie session only.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// Scope: cookie session only.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// Scope: cookie session only.
 	CreatePersonalAccessToken(context.Context, *v1.CreatePersonalAccessTokenRequest) (*v1.CreatePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
+	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
 }
 
@@ -365,6 +472,7 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 	adapter := authServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: authServiceGetLoginMethodsSpec(), Handler: adapter.getLoginMethods},
+		connect.Method{Spec: authServiceGetInstanceInfoSpec(), Handler: adapter.getInstanceInfo},
 		connect.Method{Spec: authServiceLoginPasswordSpec(), Handler: adapter.loginPassword},
 		connect.Method{Spec: authServiceComplete2FASpec(), Handler: adapter.complete2FA},
 		connect.Method{Spec: authServiceRegisterSpec(), Handler: adapter.register},
@@ -377,6 +485,7 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceListLinkedIdentitiesSpec(), Handler: adapter.listLinkedIdentities},
 		connect.Method{Spec: authServiceLogoutSpec(), Handler: adapter.logout},
 		connect.Method{Spec: authServiceGetCurrentUserSpec(), Handler: adapter.getCurrentUser},
+		connect.Method{Spec: authServiceGetQuotaSpec(), Handler: adapter.getQuota},
 		connect.Method{Spec: authServiceUpdateProfileSpec(), Handler: adapter.updateProfile},
 		connect.Method{Spec: authServiceUpdateUserPreferencesSpec(), Handler: adapter.updateUserPreferences},
 		connect.Method{Spec: authServiceListSessionsSpec(), Handler: adapter.listSessions},
@@ -392,6 +501,10 @@ type UnimplementedAuthServiceHandler struct{}
 
 func (UnimplementedAuthServiceHandler) GetLoginMethods(context.Context, *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetLoginMethods is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetInstanceInfo is not implemented")
 }
 
 func (UnimplementedAuthServiceHandler) LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error) {
@@ -442,6 +555,10 @@ func (UnimplementedAuthServiceHandler) GetCurrentUser(context.Context, *v1.GetCu
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetCurrentUser is not implemented")
 }
 
+func (UnimplementedAuthServiceHandler) GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetQuota is not implemented")
+}
+
 func (UnimplementedAuthServiceHandler) UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.UpdateProfile is not implemented")
 }
@@ -477,6 +594,14 @@ type authServiceClient struct {
 func (c *authServiceClient) GetLoginMethods(ctx context.Context, req *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error) {
 	var res v1.GetLoginMethodsResponse
 	if err := c.client.CallUnary(ctx, authServiceGetLoginMethodsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) GetInstanceInfo(ctx context.Context, req *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error) {
+	var res v1.GetInstanceInfoResponse
+	if err := c.client.CallUnary(ctx, authServiceGetInstanceInfoSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -578,6 +703,14 @@ func (c *authServiceClient) GetCurrentUser(ctx context.Context, req *v1.GetCurre
 	return &res, nil
 }
 
+func (c *authServiceClient) GetQuota(ctx context.Context, req *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error) {
+	var res v1.GetQuotaResponse
+	if err := c.client.CallUnary(ctx, authServiceGetQuotaSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *authServiceClient) UpdateProfile(ctx context.Context, req *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error) {
 	var res v1.UpdateProfileResponse
 	if err := c.client.CallUnary(ctx, authServiceUpdateProfileSpec(), req, &res); err != nil {
@@ -642,6 +775,18 @@ func (h authServiceHandler) getLoginMethods(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.GetLoginMethods(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) getInstanceInfo(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetInstanceInfoRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetInstanceInfo(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -786,6 +931,18 @@ func (h authServiceHandler) getCurrentUser(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.GetCurrentUser(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) getQuota(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetQuotaRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetQuota(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -945,29 +1102,38 @@ var (
 // ExternalAccountServiceClient is a client for the cairn.v1.ExternalAccountService service.
 type ExternalAccountServiceClient interface {
 	// List all external accounts for the current user, with status.
+	// Scope: connections:read.
 	ListExternalAccounts(context.Context, *v1.ListExternalAccountsRequest) (*v1.ListExternalAccountsResponse, error)
 	// List providers available for "Add account": only those with at least
 	// one registered, healthy worker. Returns the manifest's config_fields
 	// and auth method so the UI can render a dynamic form.
+	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
 	// Delete: unregisters webhook subscription, removes credentials,
 	// and detaches sources from activities (activities themselves remain
 	// visible with the source marked detached).
+	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
 	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
 
@@ -981,29 +1147,38 @@ func NewExternalAccountServiceClient(client *connect.Client) ExternalAccountServ
 // service.
 type ExternalAccountServiceHandler interface {
 	// List all external accounts for the current user, with status.
+	// Scope: connections:read.
 	ListExternalAccounts(context.Context, *v1.ListExternalAccountsRequest) (*v1.ListExternalAccountsResponse, error)
 	// List providers available for "Add account": only those with at least
 	// one registered, healthy worker. Returns the manifest's config_fields
 	// and auth method so the UI can render a dynamic form.
+	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
 	// Delete: unregisters webhook subscription, removes credentials,
 	// and detaches sources from activities (activities themselves remain
 	// visible with the source marked detached).
+	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
 	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
 

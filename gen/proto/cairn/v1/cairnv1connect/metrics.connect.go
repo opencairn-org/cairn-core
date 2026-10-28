@@ -129,20 +129,27 @@ var (
 // MetricsServiceClient is a client for the cairn.v1.MetricsService service.
 type MetricsServiceClient interface {
 	// List metrics with filtering. Default sort newest first.
+	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
 	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
 	// ranges; clients indicate desired bucket size.
+	// Scope: training:write.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
 	// Manual entry / edit.
+	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
+	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
 	// Bulk manual entry (CSV import etc).
+	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
 	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
 }
 
@@ -155,20 +162,27 @@ func NewMetricsServiceClient(client *connect.Client) MetricsServiceClient {
 // MetricsServiceHandler is an implementation of the cairn.v1.MetricsService service.
 type MetricsServiceHandler interface {
 	// List metrics with filtering. Default sort newest first.
+	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
 	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
 	// ranges; clients indicate desired bucket size.
+	// Scope: training:write.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
 	// Manual entry / edit.
+	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
+	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
 	// Bulk manual entry (CSV import etc).
+	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
 	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
 }
 
@@ -390,12 +404,15 @@ var (
 
 // SettingsServiceClient is a client for the cairn.v1.SettingsService service.
 type SettingsServiceClient interface {
+	// Scope: profile:read.
 	GetSettings(context.Context, *v1.GetSettingsRequest) (*v1.GetSettingsResponse, error)
 	// Merge-update — only fields in field_mask are touched. Map updates
 	// are replace-by-key semantics: passing an entry replaces that key's
 	// value entirely; omitting a key leaves the existing value.
+	// Scope: profile:write.
 	UpdateSettings(context.Context, *v1.UpdateSettingsRequest) (*v1.UpdateSettingsResponse, error)
 	// Reset to defaults — useful from the settings UI.
+	// Scope: profile:write.
 	ResetSettingsSection(context.Context, *v1.ResetSettingsSectionRequest) (*v1.ResetSettingsSectionResponse, error)
 }
 
@@ -407,12 +424,15 @@ func NewSettingsServiceClient(client *connect.Client) SettingsServiceClient {
 
 // SettingsServiceHandler is an implementation of the cairn.v1.SettingsService service.
 type SettingsServiceHandler interface {
+	// Scope: profile:read.
 	GetSettings(context.Context, *v1.GetSettingsRequest) (*v1.GetSettingsResponse, error)
 	// Merge-update — only fields in field_mask are touched. Map updates
 	// are replace-by-key semantics: passing an entry replaces that key's
 	// value entirely; omitting a key leaves the existing value.
+	// Scope: profile:write.
 	UpdateSettings(context.Context, *v1.UpdateSettingsRequest) (*v1.UpdateSettingsResponse, error)
 	// Reset to defaults — useful from the settings UI.
+	// Scope: profile:write.
 	ResetSettingsSection(context.Context, *v1.ResetSettingsSectionRequest) (*v1.ResetSettingsSectionResponse, error)
 }
 

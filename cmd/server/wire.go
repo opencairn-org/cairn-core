@@ -182,6 +182,8 @@ type App struct {
 	// publish step can short-circuit when federation is off.
 	PublicBaseURL     string
 	FederationEnabled bool
+	// OAuthEnabled mirrors CAIRN_AUTH_OAUTH_ENABLED for GetInstanceInfo.
+	OAuthEnabled bool
 }
 
 func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger *slog.Logger) (*App, error) {
@@ -189,6 +191,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		QuotaMaxActivities:  cfg.Quota.MaxActivitiesPerUser,
 		DefaultPollInterval: cfg.Scheduler.PollingInterval,
 		PublicBaseURL:       cfg.HTTP.PublicBaseURL,
+		OAuthEnabled:        cfg.Auth.OAuthEnabled,
 		FederationEnabled:   cfg.Federation.Enabled,
 	}
 	wireAppCoreRepos(app, pool, cfg)

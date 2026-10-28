@@ -237,47 +237,73 @@ var (
 type ActivityServiceClient interface {
 	// List activities for the calling user. Supports filtering by time range,
 	// type, discipline, tag, and source-provider.
+	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
 	// Get a single activity by id, including sources.
+	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
 	// Update user-editable fields (title, description, tags, type override).
 	// Does NOT touch source data — only the merged Activity overrides.
+	// Scope: activities:write.
 	UpdateActivity(context.Context, *v1.UpdateActivityRequest) (*v1.UpdateActivityResponse, error)
 	// Soft-delete an activity. Sources are detached, raw blobs retained per
 	// S3 lifecycle policy.
+	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
 	// Server-streaming feed of activity-related events for the caller. Used
 	// by the UI for live import progress, new-PR toasts, etc.
+	// Planned, not implemented (returns Unimplemented): core has no per-user
+	// event fan-out yet; poll ListActivities meanwhile.
+	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest) (ActivityServiceStreamActivityEventsClientStream, error)
 	// Source management — attach/detach/reorder sources, trigger reimports.
+	// Scope: activities:read.
 	ListActivitySources(context.Context, *v1.ListActivitySourcesRequest) (*v1.ListActivitySourcesResponse, error)
 	// Trigger a reimport of one source. Returns a job id; observe progress
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
+	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
 	// Dry-run reimport: fetches fresh source data, computes the merge it would
 	// produce, returns the diff WITHOUT committing. The preview is stored
 	// with a TTL (default 1h) and can be either committed or discarded.
+	// Planned, not implemented (all three return Unimplemented): needs a preview
+	// store and a result-router branch; ReimportSource commits directly today.
+	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
+	// Scope: activities:write.
 	DiscardSourcePreview(context.Context, *v1.DiscardSourcePreviewRequest) (*v1.DiscardSourcePreviewResponse, error)
 	// Manual source-linking when dedup misses or mistakes.
+	// Scope: activities:write.
 	LinkSourceToActivity(context.Context, *v1.LinkSourceToActivityRequest) (*v1.LinkSourceToActivityResponse, error)
+	// Scope: activities:write.
 	DetachSource(context.Context, *v1.DetachSourceRequest) (*v1.DetachSourceResponse, error)
 	// Streams — full fidelity or downsampled.
+	// Scope: activities:read.
 	GetActivityStream(context.Context, *v1.GetActivityStreamRequest) (*v1.GetActivityStreamResponse, error)
 	// Step 1 of a manual file upload: get a pre-signed S3 PUT URL.
 	// The client uploads the FIT/GPX/TCX file directly to S3, then calls
 	// UploadActivity with the returned blob_id. Separating presign from
 	// upload keeps large bodies off the Core entirely.
+	// Scope: activities:write.
 	PresignActivityUpload(context.Context, *v1.PresignActivityUploadRequest) (*v1.PresignActivityUploadResponse, error)
 	// Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
 	// generic-fit-parser worker processes the upload, dedup happens
 	// afterwards. UI surfaces progress via StreamActivityEvents.
+	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
 	// Best efforts and records.
+	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
+	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
+	// User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
+	// (both return Unimplemented): the best-effort compute only knows the fixed
+	// window set.
+	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
 
@@ -312,47 +338,73 @@ func (s ActivityServiceStreamActivityEventsClientStream) Close() error {
 type ActivityServiceHandler interface {
 	// List activities for the calling user. Supports filtering by time range,
 	// type, discipline, tag, and source-provider.
+	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
 	// Get a single activity by id, including sources.
+	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
 	// Update user-editable fields (title, description, tags, type override).
 	// Does NOT touch source data — only the merged Activity overrides.
+	// Scope: activities:write.
 	UpdateActivity(context.Context, *v1.UpdateActivityRequest) (*v1.UpdateActivityResponse, error)
 	// Soft-delete an activity. Sources are detached, raw blobs retained per
 	// S3 lifecycle policy.
+	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
 	// Server-streaming feed of activity-related events for the caller. Used
 	// by the UI for live import progress, new-PR toasts, etc.
+	// Planned, not implemented (returns Unimplemented): core has no per-user
+	// event fan-out yet; poll ListActivities meanwhile.
+	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest, ActivityServiceStreamActivityEventsServerStream) error
 	// Source management — attach/detach/reorder sources, trigger reimports.
+	// Scope: activities:read.
 	ListActivitySources(context.Context, *v1.ListActivitySourcesRequest) (*v1.ListActivitySourcesResponse, error)
 	// Trigger a reimport of one source. Returns a job id; observe progress
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
+	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
 	// Dry-run reimport: fetches fresh source data, computes the merge it would
 	// produce, returns the diff WITHOUT committing. The preview is stored
 	// with a TTL (default 1h) and can be either committed or discarded.
+	// Planned, not implemented (all three return Unimplemented): needs a preview
+	// store and a result-router branch; ReimportSource commits directly today.
+	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
+	// Scope: activities:write.
 	DiscardSourcePreview(context.Context, *v1.DiscardSourcePreviewRequest) (*v1.DiscardSourcePreviewResponse, error)
 	// Manual source-linking when dedup misses or mistakes.
+	// Scope: activities:write.
 	LinkSourceToActivity(context.Context, *v1.LinkSourceToActivityRequest) (*v1.LinkSourceToActivityResponse, error)
+	// Scope: activities:write.
 	DetachSource(context.Context, *v1.DetachSourceRequest) (*v1.DetachSourceResponse, error)
 	// Streams — full fidelity or downsampled.
+	// Scope: activities:read.
 	GetActivityStream(context.Context, *v1.GetActivityStreamRequest) (*v1.GetActivityStreamResponse, error)
 	// Step 1 of a manual file upload: get a pre-signed S3 PUT URL.
 	// The client uploads the FIT/GPX/TCX file directly to S3, then calls
 	// UploadActivity with the returned blob_id. Separating presign from
 	// upload keeps large bodies off the Core entirely.
+	// Scope: activities:write.
 	PresignActivityUpload(context.Context, *v1.PresignActivityUploadRequest) (*v1.PresignActivityUploadResponse, error)
 	// Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
 	// generic-fit-parser worker processes the upload, dedup happens
 	// afterwards. UI surfaces progress via StreamActivityEvents.
+	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
 	// Best efforts and records.
+	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
+	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
+	// User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
+	// (both return Unimplemented): the best-effort compute only knows the fixed
+	// window set.
+	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
 
