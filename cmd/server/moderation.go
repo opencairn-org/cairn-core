@@ -224,8 +224,13 @@ func (h *moderationAPI) setRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid role", http.StatusBadRequest)
 		return
 	}
-	if err := h.app.Users.UpdateUserRole(r.Context(), target, role); err != nil {
-		http.Error(w, "update failed", http.StatusInternalServerError)
+	admin, _ := resolveAdminUser(r, h.app)
+	if h.app.UserAdmin == nil {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err := h.app.UserAdmin.ChangeRole(r.Context(), restActor(r, admin), target, role); err != nil {
+		writeActionError(w, err, "update failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"role": string(role)})

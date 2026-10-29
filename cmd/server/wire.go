@@ -26,6 +26,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
@@ -39,6 +40,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
+	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
@@ -162,6 +164,10 @@ type App struct {
 	// SecondFactor runs the passkey-after-password step (nil when passkeys are off).
 	SecondFactor    *authuc.SecondFactor
 	LoginChallenges *postgres.LoginChallengeRepo
+	// AuditLog records and lists the audit trail; UserAdmin is admin user management.
+	AuditLog  *audit.Recorder
+	AuditRepo *postgres.AuditRepo
+	UserAdmin *useradmin.Users
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
 	Content                  port.ContentSigner
@@ -505,6 +511,7 @@ func wireAppAccountUseCases(app *App, pool *pgxpool.Pool) {
 	app.CreateUser = admin.NewCreateUser(app.Users, app.PasswordHasher, nil, nil)
 	app.BootstrapAdmin = admin.NewBootstrapAdmin(app.Users, app.CreateUser)
 	app.Invites = postgres.NewInviteRepo(pool)
+	app.AuditRepo = postgres.NewAuditRepo(pool)
 	app.CreateInvite = invite.NewCreateInvite(app.Invites, nil)
 	app.RedeemInvite = invite.NewRedeemInvite(app.Invites, app.CreateUser, nil)
 	app.PATs = postgres.NewPATRepo(pool)
@@ -765,6 +772,37 @@ func wireAccount(app *App) {
 	if app.Passkeys != nil && app.LoginChallenges != nil && app.Users != nil {
 		app.SecondFactor = &authuc.SecondFactor{Challenges: app.LoginChallenges, Users: app.Users, Passkeys: app.Passkeys}
 	}
+	wireAdmin(app)
+}
+
+// wireAdmin builds the audit recorder and the admin user management.
+func wireAdmin(app *App) {
+	if app.AuditRepo != nil {
+		app.AuditLog = &audit.Recorder{Repo: app.AuditRepo, Log: slog.Default()}
+	}
+	if app.Users == nil {
+		return
+	}
+	ua := &useradmin.Users{Users: app.Users, Activities: app.Activities, Create: app.CreateUser, Invites: app.CreateInvite, Audit: app.AuditLog}
+	if app.Sessions != nil {
+		ua.Sessions = app.Sessions
+	}
+	if app.PATs != nil {
+		ua.PATs = app.PATs
+	}
+	if app.Passkeys != nil {
+		ua.Passkeys = app.Passkeys
+	}
+	if app.LinkedIdentities != nil {
+		ua.Identities = app.LinkedIdentities
+	}
+	if app.ExternalAccounts != nil {
+		ua.ExternalAccounts = app.ExternalAccounts
+	}
+	if app.PasswordHasher != nil {
+		ua.Hasher = app.PasswordHasher
+	}
+	app.UserAdmin = ua
 }
 
 // wireBestEfforts builds the best-effort compute and the custom-window use case.

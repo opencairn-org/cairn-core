@@ -495,6 +495,33 @@ func TestAPI_EndToEnd(t *testing.T) {
 		adm.do(http.MethodGet, p, nil)
 		bob.do(http.MethodGet, p, nil, http.StatusForbidden, http.StatusUnauthorized, http.StatusServiceUnavailable)
 	}
+	// Admin user management + audit log (REST and RPC twins).
+	created := adm.post("/api/admin/users", map[string]any{"username": "dana", "email": "dana@example.com", "display_name": "Dana", "role": "user"}, http.StatusCreated)
+	dana, _ := created["user"].(map[string]any)
+	danaID := str(dana, "id")
+	if danaID == "" || created["invite"] == nil {
+		t.Fatalf("create user without password must mint an invite: %v", created)
+	}
+	adm.do(http.MethodGet, "/api/admin/users?limit=5", nil, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/users/"+danaID, nil, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID, map[string]any{"display_name": "Caroline", "timezone": "Europe/Berlin"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID+"/status", map[string]any{"status": "suspended", "reason": "test"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID+"/status", map[string]any{"status": "active"}, http.StatusOK)
+	adm.do(http.MethodPost, "/api/admin/users/"+danaID+"/reset-password", nil, http.StatusOK)
+	adm.do(http.MethodPost, "/api/admin/users/"+danaID+"/revoke-credentials", map[string]any{"sessions": true}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetUser", map[string]any{"id": danaID}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ChangeUserRole", map[string]any{"id": danaID, "role": "USER_ROLE_ADMIN"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListAuditEntries", map[string]any{"resourceId": danaID}, http.StatusOK)
+	bob.rpc("/cairn.v1.AdminService/GetUser", map[string]any{"id": danaID}, http.StatusForbidden, http.StatusUnauthorized)
+	adm.do(http.MethodDelete, "/api/admin/users/"+danaID+"?confirm_username=wrong", nil, http.StatusBadRequest)
+	adm.do(http.MethodDelete, "/api/admin/users/"+danaID+"?confirm_username=dana&hard=true", nil, http.StatusOK)
+	var trail struct {
+		Entries []map[string]any `json:"entries"`
+	}
+	_ = json.Unmarshal(adm.do(http.MethodGet, "/api/admin/audit?resource_id="+danaID, nil, http.StatusOK), &trail)
+	if len(trail.Entries) < 5 {
+		t.Fatalf("audit trail for dana = %d entries", len(trail.Entries))
+	}
 	adm.do(http.MethodPost, "/api/admin/reports/"+str(rep, "id")+"/resolve", map[string]any{"status": "resolved"})
 	adm.do(http.MethodPost, "/api/admin/activities/"+bobAct+"/hide", map[string]any{"hidden": true})
 	adm.do(http.MethodPost, "/api/admin/federation/blocks", map[string]any{"domain": "evil.example", "reason": "spam"})

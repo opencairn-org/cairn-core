@@ -40,6 +40,14 @@ type StartPlaceCandidate struct {
 
 // ActivityListFilter narrows and sorts the activity feed. Empty filter fields
 // match everything; nil pointers mean "any".
+// UserFootprint is what an admin sees next to a user: how much they own.
+type UserFootprint struct {
+	Activities       int
+	ExternalAccounts int
+	StorageBytes     int64
+	LastActivityAt   *time.Time
+}
+
 type ActivityListFilter struct {
 	Type       string // activities.type, "" = any
 	Discipline string // activities.discipline, "" = any
@@ -133,6 +141,10 @@ type ActivityRepo interface {
 	// activities: count, total distance (m), total moving time (s), total
 	// elevation gain (m). Used by the overview dashboard.
 	ActivityTotals(ctx context.Context, userID domain.UserID) (ActivityTotalsResult, error)
+
+	// UserFootprints returns per-user admin counters for the given users
+	// (missing users map to a zero footprint).
+	UserFootprints(ctx context.Context, userIDs []domain.UserID) (map[domain.UserID]UserFootprint, error)
 
 	// ActivityTotalsForRange returns totals for activities whose start_time
 	// falls in [start, end) — the dashboard's this/last week.

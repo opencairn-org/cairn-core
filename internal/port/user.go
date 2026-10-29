@@ -117,6 +117,15 @@ type UserRepo interface {
 	// an empty hash to disable password login.
 	UpdatePassword(ctx context.Context, id domain.UserID, encodedHash string) error
 
+	// UpdateEmail sets the address (and its verified flag); ErrEmailTaken on a clash.
+	UpdateEmail(ctx context.Context, id domain.UserID, email string, verified bool) error
+
+	// SetMustChangePassword flags (or clears) the forced change on next login.
+	SetMustChangePassword(ctx context.Context, id domain.UserID, must bool) error
+
+	// HardDeleteUser removes the users row; dependent rows cascade.
+	HardDeleteUser(ctx context.Context, id domain.UserID) error
+
 	// SetPasskeySecondFactor sets users.passkey_second_factor.
 	SetPasskeySecondFactor(ctx context.Context, id domain.UserID, enabled bool) error
 

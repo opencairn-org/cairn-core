@@ -394,6 +394,48 @@ func (r *UserRepo) SetPasskeySecondFactor(ctx context.Context, id domain.UserID,
 	return nil
 }
 
+func (r *UserRepo) UpdateEmail(ctx context.Context, id domain.UserID, email string, verified bool) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE users SET email = $1, email_verified = $2, updated_at = now() WHERE id = $3 AND status != 'deleted'`,
+		email, verified, id.UUID())
+	if err != nil {
+		if isUniqueViolation(err) {
+			return port.ErrEmailTaken
+		}
+		return fmt.Errorf("update email: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("update email %s: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *UserRepo) SetMustChangePassword(ctx context.Context, id domain.UserID, must bool) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE users SET must_change_password = $1 WHERE id = $2 AND status != 'deleted'`, must, id.UUID())
+	if err != nil {
+		return fmt.Errorf("set must_change_password: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("set must_change_password %s: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
+func (r *UserRepo) HardDeleteUser(ctx context.Context, id domain.UserID) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx, `DELETE FROM users WHERE id = $1`, id.UUID())
+	if err != nil {
+		return fmt.Errorf("hard delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("hard delete user %s: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
 func (r *UserRepo) UpdateEmailVerified(ctx context.Context, id domain.UserID, verified bool) error {
 	db := dbtx(ctx, r.pool)
 	tag, err := db.Exec(ctx,

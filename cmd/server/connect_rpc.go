@@ -76,7 +76,10 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		connectadapter.ScopeInterceptor(),
 		connectadapter.RequireAdminInterceptor(app.Users),
 	)
-	cairnv1connect.RegisterAdminServiceHandler(adminServer, connectadapter.NewAdminServer(app.Users, app.OIDCProviders))
+	adminSvc := connectadapter.NewAdminServer(app.Users, app.OIDCProviders)
+	adminSvc.UserAdmin = app.UserAdmin
+	adminSvc.Audit = app.AuditLog
+	cairnv1connect.RegisterAdminServiceHandler(adminServer, adminSvc)
 	connecthttp.Mount(streamSafeMux{mux}, adminServer)
 	logger.Info("connect-rpc services mounted", "services", []string{cairnv1connect.AdminServiceName})
 }

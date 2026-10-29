@@ -5,17 +5,17 @@ import (
 	"fmt"
 
 	connectrpc "connectrpc.com/connect/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
+	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 )
 
 // AdminServer implements cairnv1connect.AdminServiceHandler.
-//
-// Implemented today: ListUsers, ListOIDCClients (read-only). Every other RPC
-// falls through to the Unimplemented base and returns CodeUnimplemented.
 //
 // OIDC providers are configured via CAIRN_OIDC_* env vars, so the admin
 // surface is read-only — there is no create/update/delete.
@@ -27,10 +27,12 @@ import (
 type AdminServer struct {
 	cairnv1connect.UnimplementedAdminServiceHandler
 
-	Users port.UserRepo
-	// OIDCProviders is the env-configured (CAIRN_OIDC_*) provider list,
-	// surfaced read-only by ListOIDCClients.
+	Users         port.UserRepo
 	OIDCProviders []domain.OIDCProvider
+
+	// UserAdmin backs the user RPCs; Audit the audit log (nil → Unavailable).
+	UserAdmin *useradmin.Users
+	Audit     *audit.Recorder
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)
@@ -66,12 +68,26 @@ func (s *AdminServer) ListUsers(
 		Users: make([]*v1.AdminUserSummary, 0, len(users)),
 		Page:  &v1.PageResponse{NextCursor: nextCursor, Total: -1},
 	}
+	footprints := map[domain.UserID]port.UserFootprint{}
+	if s.UserAdmin != nil {
+		ids := make([]domain.UserID, 0, len(users))
+		for _, u := range users {
+			ids = append(ids, u.ID)
+		}
+		footprints, _ = s.UserAdmin.Footprints(ctx, ids)
+	}
 	for _, u := range users {
 		// activity_count / external_account_count / storage_bytes_used
 		// require dedicated counting queries which the v1 admin page
 		// doesn't strictly need. Returning zero is honest — the proto
 		// allows it.
-		out.Users = append(out.Users, &v1.AdminUserSummary{User: userToProto(u)})
+		fp := footprints[u.ID]
+		row := &v1.AdminUserSummary{User: userToProto(u), ActivityCount: connectClampInt32(fp.Activities),
+			ExternalAccountCount: connectClampInt32(fp.ExternalAccounts), StorageBytesUsed: fp.StorageBytes}
+		if fp.LastActivityAt != nil {
+			row.LastActivityAt = timestamppb.New(*fp.LastActivityAt)
+		}
+		out.Users = append(out.Users, row)
 	}
 	return out, nil
 }

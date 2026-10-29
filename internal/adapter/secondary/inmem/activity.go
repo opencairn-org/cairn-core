@@ -450,3 +450,18 @@ func (r *ActivityRepo) ListFollowingFeed(_ context.Context, viewerID domain.User
 func (r *ActivityRepo) ListActivitiesNeedingReview(context.Context, domain.UserID) ([]domain.ActivityReviewItem, error) {
 	return nil, nil
 }
+
+// UserFootprints counts the fake's activities per user.
+func (r *ActivityRepo) UserFootprints(_ context.Context, userIDs []domain.UserID) (map[domain.UserID]port.UserFootprint, error) {
+	out := map[domain.UserID]port.UserFootprint{}
+	for _, uid := range userIDs {
+		fp := port.UserFootprint{}
+		for _, a := range r.Activities {
+			if a.UserID == uid && !a.IsDeleted() {
+				fp.Activities++
+			}
+		}
+		out[uid] = fp
+	}
+	return out, nil
+}
