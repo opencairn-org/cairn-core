@@ -181,6 +181,8 @@ type App struct {
 	// PasswordChange enforces must_change_password at password sign-in.
 	PasswordChange  *authuc.PasswordChangeRequired
 	LoginChallenges *postgres.LoginChallengeRepo
+	// LoginGuard throttles password sign-in failures and raises auth-flood events.
+	LoginGuard *authuc.LoginGuard
 	// AuditLog records and lists the audit trail; UserAdmin is admin user management.
 	AuditLog  *audit.Recorder
 	AuditRepo *postgres.AuditRepo
@@ -442,7 +444,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default uuid.NewV7
 		dmatch.DefaultOptions(),
 		logger,
-	)
+	).WithEvents(app.AdminEvents)
 	wireAppViews(app, logger)
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
@@ -830,6 +832,7 @@ func wireAdmin(app *App) {
 	if app.AuditRepo != nil {
 		app.AuditLog = &audit.Recorder{Repo: app.AuditRepo, Log: slog.Default()}
 	}
+	app.LoginGuard = &authuc.LoginGuard{Audit: app.AuditLog, Events: app.AdminEvents}
 	if app.Users == nil {
 		return
 	}

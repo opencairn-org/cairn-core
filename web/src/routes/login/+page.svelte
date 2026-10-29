@@ -93,6 +93,7 @@
 	// The password + OIDC endpoints bounce back to /login?error=<code> on failure.
 	const errorMessages: Record<string, string> = {
 		invalid_credentials: 'Incorrect username/email or password.',
+		too_many_attempts: 'Too many failed attempts. Try again in a few minutes.',
 		missing_credentials: 'Enter your username/email and password.',
 		account_inactive: 'This account is not active.',
 		server_error: 'Something went wrong — please try again.',

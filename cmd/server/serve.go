@@ -650,6 +650,11 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 		app.Maintenance.Start(ctx)
 	}
 
+	// Health watcher: raises an admin event when the instance leaves "healthy".
+	if app.SystemHealth != nil && app.AdminEvents != nil {
+		go runHealthWatcher(ctx, logger, app)
+	}
+
 	// Start-location backfiller: reverse-geocodes activities missing a
 	// start_place. Self-paced by the geocoder's policy limiter (1 req/s for
 	// OSM). Gated on the geocoder being wired (CAIRN_GEOCODER_ENABLED).
@@ -990,6 +995,8 @@ type workerPresenceWatcher struct {
 	primed bool
 	// worker name → consecutive ticks absent (see workerPresenceManifestReapAfterTicks).
 	manifestAbsent map[string]int
+	// provider/name of live workers already reported as degraded.
+	degraded map[string]bool
 }
 
 // tick scans presence, notifies offline transitions and reaps stale manifests.
@@ -1017,6 +1024,7 @@ func (w *workerPresenceWatcher) tick(ctx context.Context) {
 			publishAdminEvent(w.app, domain.NewAdminEvent(domain.AdminEventWorkerRegistered, domain.AuditInfo, "admin.worker_registered").AboutWorker(name).With("worker_key", key))
 		}
 	}
+	w.noteDegraded(ctx)
 	// Manifest keys are worker names ({name}); presence values are the
 	// same names. Reap manifests whose worker is no longer live.
 	liveNames := make(map[string]struct{}, len(live))

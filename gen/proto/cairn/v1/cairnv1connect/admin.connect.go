@@ -639,9 +639,13 @@ type AdminServiceClient interface {
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
 	// Stream of admin-relevant events. Core currently emits worker
-	// registered/offline (presence watcher), worker deregistered (enrollment
-	// revoked), job dead-lettered, user created and user suspended; the other
-	// types are reserved. An empty event every 30 s is the heartbeat.
+	// registered/offline/degraded (presence watcher; degraded = release
+	// incompatible with the core), worker deregistered (enrollment revoked),
+	// provider conflict (two sources of one provider matched the same workout
+	// and were kept apart), job dead-lettered, user created, user suspended,
+	// auth flood (password failures locked an identifier or address) and
+	// system health degraded (the health probe left "healthy"). An empty
+	// event every 30 s is the heartbeat.
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest) (AdminServiceStreamAdminEventsClientStream, error)
 	// ---- Maintenance ----
@@ -821,9 +825,13 @@ type AdminServiceHandler interface {
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
 	// Stream of admin-relevant events. Core currently emits worker
-	// registered/offline (presence watcher), worker deregistered (enrollment
-	// revoked), job dead-lettered, user created and user suspended; the other
-	// types are reserved. An empty event every 30 s is the heartbeat.
+	// registered/offline/degraded (presence watcher; degraded = release
+	// incompatible with the core), worker deregistered (enrollment revoked),
+	// provider conflict (two sources of one provider matched the same workout
+	// and were kept apart), job dead-lettered, user created, user suspended,
+	// auth flood (password failures locked an identifier or address) and
+	// system health degraded (the health probe left "healthy"). An empty
+	// event every 30 s is the heartbeat.
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest, AdminServiceStreamAdminEventsServerStream) error
 	// ---- Maintenance ----

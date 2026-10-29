@@ -51,9 +51,8 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 			return
 		}
 
-		user, errCode := passwordAuthVerify(r.Context(), app, logger, identifier, password)
-		if errCode != "" {
-			redirectLoginError(w, r, errCode)
+		user, ok := passwordAuthGate(w, r, app, logger, identifier, password)
+		if !ok {
 			return
 		}
 		if redirectPasswordChange(w, r, app, logger, user, dest) || redirectSecondFactor(w, r, app, logger, user, dest) {
@@ -90,6 +89,26 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 		logger.Info("password login succeeded", "user_id", user.ID, "username", user.Username)
 		http.Redirect(w, r, dest, http.StatusSeeOther) //nolint:gosec // G710: dest is constrained to a local path by safeRedirect
 	}
+}
+
+// passwordAuthGate runs the login guard around the credential check and
+// writes the redirect on refusal; ok is true when the user may sign in.
+func passwordAuthGate(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, identifier, password string) (domain.User, bool) {
+	ip := hostOnly(clientIP(r))
+	if !app.LoginGuard.Allow(identifier, ip) {
+		redirectLoginError(w, r, "too_many_attempts")
+		return domain.User{}, false
+	}
+	user, errCode := passwordAuthVerify(r.Context(), app, logger, identifier, password)
+	if errCode == "invalid_credentials" || errCode == "account_inactive" {
+		app.LoginGuard.Failure(r.Context(), identifier, ip)
+	}
+	if errCode != "" {
+		redirectLoginError(w, r, errCode)
+		return domain.User{}, false
+	}
+	app.LoginGuard.Success(identifier)
+	return user, true
 }
 
 // passwordAuthVerify checks the credentials; a non-empty result is the login error code.
