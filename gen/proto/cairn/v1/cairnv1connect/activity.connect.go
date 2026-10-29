@@ -407,10 +407,12 @@ type ActivityServiceClient interface {
 	// S3 lifecycle policy.
 	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
-	// Server-streaming feed of activity-related events for the caller. Used
-	// by the UI for live import progress, new-PR toasts, etc.
-	// Planned, not implemented (returns Unimplemented): core has no per-user
-	// event fan-out yet; poll ListActivities meanwhile.
+	// Server-streaming feed of activity-related events for the caller: import
+	// and reimport outcomes, created/updated/deleted activities, attached and
+	// detached sources, new personal records. Every 30 s an event with
+	// ACTIVITY_EVENT_TYPE_UNSPECIFIED and only `ts` set is a heartbeat.
+	// Events are live-only (nothing is replayed on connect); IMPORT_PROGRESS
+	// is not emitted yet.
 	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest) (ActivityServiceStreamActivityEventsClientStream, error)
 	// Source management — attach/detach/reorder sources, trigger reimports.
@@ -567,10 +569,12 @@ type ActivityServiceHandler interface {
 	// S3 lifecycle policy.
 	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
-	// Server-streaming feed of activity-related events for the caller. Used
-	// by the UI for live import progress, new-PR toasts, etc.
-	// Planned, not implemented (returns Unimplemented): core has no per-user
-	// event fan-out yet; poll ListActivities meanwhile.
+	// Server-streaming feed of activity-related events for the caller: import
+	// and reimport outcomes, created/updated/deleted activities, attached and
+	// detached sources, new personal records. Every 30 s an event with
+	// ACTIVITY_EVENT_TYPE_UNSPECIFIED and only `ts` set is a heartbeat.
+	// Events are live-only (nothing is replayed on connect); IMPORT_PROGRESS
+	// is not emitted yet.
 	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest, ActivityServiceStreamActivityEventsServerStream) error
 	// Source management — attach/detach/reorder sources, trigger reimports.

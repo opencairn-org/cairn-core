@@ -145,6 +145,10 @@ func (h *uploadAPI) IngestUpload(ctx context.Context, in port.UploadInput) (port
 		Stream:  stream,
 	}
 
+	if h.app.ActivityEvents != nil {
+		h.app.ActivityEvents.Publish(domain.NewActivityEvent(domain.ActivityEventImportStarted, in.UserID, "activity.import_started").
+			With("provider", "upload").With("filename", in.Filename))
+	}
 	out, err := ingestActivityEvent(ctx, h.app, h.logger, jr, ev)
 	if err != nil {
 		h.logger.Error("upload ingest failed", "user_id", in.UserID, "file", in.Filename, "error", err)

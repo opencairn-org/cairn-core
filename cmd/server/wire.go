@@ -32,6 +32,7 @@ import (
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	geocodeuc "github.com/opencairn-org/cairn-core/internal/usecase/geocode"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
+	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
@@ -147,6 +148,8 @@ type App struct {
 	ClubViews          *view.Clubs
 	ProfileViews       *view.Profiles
 	AttachmentVariants *attachmentuc.Variants
+	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
+	ActivityEvents *livefeed.Hub[domain.UserID, domain.ActivityEvent]
 	// Self-service account use cases, shared by /api and AuthService.
 	AccountTokens *account.Tokens
 	SessionMgmt   *account.Sessions
@@ -291,6 +294,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.Segments = postgres.NewSegmentRepo(pool)
 	app.Metrics = postgres.NewMetricRepo(pool)
 	app.NotificationHub = notification.NewHub()
+	app.ActivityEvents = livefeed.New(func(e domain.ActivityEvent) domain.UserID { return e.UserID })
 	app.Notifications = notification.NewBroadcastRepo(postgres.NewNotificationRepo(pool), app.NotificationHub)
 	app.Follows = postgres.NewFollowRepo(pool)
 	app.Visibility = postgres.NewVisibilityRepo(pool)
@@ -383,6 +387,8 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
+	app.SourceActions.Events = app.ActivityEvents
+	app.SourceLinks.Events = app.ActivityEvents
 	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
 		app.Activities,
 		app.Streams,
@@ -454,6 +460,7 @@ func wireAppNotifications(app *App, pool *pgxpool.Pool, cfg *config.Config, secr
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)
+	app.DispatchPR.Events = app.ActivityEvents
 	app.NotifyAccountNeedsReauth = notification.NewNotifyAccountNeedsReauth(
 		app.ExternalAccounts,
 		app.Notifications,

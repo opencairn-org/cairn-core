@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -255,10 +256,43 @@ func applyWorkerFailure(ctx context.Context, app *App, log *slog.Logger, subject
 	}
 	if job, provider, _, ok := domain.ResultSubjectPool(subject); ok && job == "parse_blob" {
 		markReparseFailed(ctx, app, log, provider, ref, we.GetCode(), reason)
+		publishFailure(app, ref, domain.ActivityEventReimportFailed, "activity.reimport_failed", reason)
 		return
 	}
 	if err := app.ImportQueue.MarkFailedByExternalID(ctx, domain.ExternalAccountID(eu), domain.ImportItemActivity, ref.GetExternalId(), reason); err != nil {
 		log.Warn("mark queue item failed", "external_id", ref.GetExternalId(), "error", err)
+	}
+	publishFailure(app, ref, domain.ActivityEventImportFailed, "activity.import_failed", reason)
+}
+
+// publishFailure emits a live failure event for the user named in the ref.
+func publishFailure(app *App, ref *workerv1.ExternalRef, t domain.ActivityEventType, key, reason string) {
+	if app.ActivityEvents == nil {
+		return
+	}
+	uid, err := uuid.Parse(ref.GetUserId())
+	if err != nil {
+		return
+	}
+	app.ActivityEvents.Publish(domain.NewActivityEvent(t, domain.UserID(uid), key).
+		With("provider", ref.GetProvider()).With("external_id", ref.GetExternalId()).With("reason", reason))
+}
+
+// publishIngestOutcome emits the live events of a successful ingest: the
+// import or reimport completion plus a created event for a new activity.
+func publishIngestOutcome(app *App, provider string, out activity.IngestResult) {
+	if app.ActivityEvents == nil {
+		return
+	}
+	uid := out.Activity.UserID
+	done := domain.NewActivityEvent(domain.ActivityEventImportCompleted, uid, "activity.import_completed")
+	if out.Action == activity.IngestActionReimportedExisting {
+		done = domain.NewActivityEvent(domain.ActivityEventReimportCompleted, uid, "activity.reimport_completed")
+	}
+	app.ActivityEvents.Publish(done.For(out.ActivityID, out.SourceID).With("provider", provider).With("title", out.Activity.Title))
+	if out.Action == activity.IngestActionImportedNew {
+		app.ActivityEvents.Publish(domain.NewActivityEvent(domain.ActivityEventActivityCreated, uid, "activity.created").
+			For(out.ActivityID, out.SourceID).With("title", out.Activity.Title))
 	}
 }
 
@@ -583,6 +617,7 @@ func ingestActivityEvent(
 	ingestActivityRecluster(ctx, app, log, in.UserID, payload.StartTime)
 	log.Info("ingest succeeded",
 		"activity_id", out.ActivityID, "source_id", out.SourceID, "action", out.Action)
+	publishIngestOutcome(app, in.Provider, out)
 
 	ingestActivityAttachments(ctx, app, log, ia, out, in.UserID)
 	if extAcct != nil {
@@ -753,11 +788,13 @@ func runFollowUpsSourceDerived(ctx context.Context, app *App, log *slog.Logger, 
 		}
 	}
 	if app.ComputeBestEfforts != nil {
-		if _, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{
+		res, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{
 			ActivitySourceID: out.SourceID,
-		}); err != nil {
+		})
+		if err != nil {
 			log.Warn("best-effort compute failed", "source_id", out.SourceID, "error", err)
 		}
+		publishNewRecords(app, out, res.NewRecords)
 	}
 	if app.MatchSegments != nil {
 		if _, err := app.MatchSegments.Execute(ctx, segment.Input{
@@ -803,5 +840,19 @@ func runFollowUpsUserDerived(ctx context.Context, app *App, log *slog.Logger, ou
 	if out.Action == activity.IngestActionImportedNew &&
 		time.Since(out.Activity.StartTime) <= federationPublishMaxAge {
 		publishActivityCreate(ctx, app, log, out.Activity)
+	}
+}
+
+// publishNewRecords emits one live event per all-time record the source now holds.
+func publishNewRecords(app *App, out activity.IngestResult, records []domain.PersonalRecord) {
+	if app.ActivityEvents == nil {
+		return
+	}
+	for _, r := range records {
+		app.ActivityEvents.Publish(domain.NewActivityEvent(domain.ActivityEventNewPR, out.Activity.UserID, "activity.new_pr").
+			For(out.ActivityID, out.SourceID).
+			With("activity_type", string(r.ActivityType)).With("metric", string(r.Metric)).
+			With("window_kind", string(r.WindowKind)).With("window_value", strconv.Itoa(r.WindowValue)).
+			With("value", strconv.FormatFloat(r.AchievedValue, 'f', 2, 64)))
 	}
 }

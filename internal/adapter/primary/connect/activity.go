@@ -74,6 +74,10 @@ type ActivityServer struct {
 	Uploads    port.UploadIngester
 	Blobs      port.BlobStore
 
+	// Events is the live feed behind StreamActivityEvents; UpdateActivity
+	// publishes to it. Nil → the stream answers Unavailable.
+	Events *ActivityEventHub
+
 	// Content signs photo/map/export URLs; Attachments lists photos;
 	// Visibility gates non-owner reads; Exports renders interchange files;
 	// MapETag derives Activity.map_image_etag. Nil → the RPC is Unavailable
@@ -297,6 +301,9 @@ func (s *ActivityServer) UpdateActivity(
 
 	if e.privacyTouched {
 		s.activityUpdateFederate(ctx, prevPrivacy, updated)
+	}
+	if s.Events != nil {
+		s.Events.Publish(domain.NewActivityEvent(domain.ActivityEventActivityUpdated, updated.UserID, "activity.updated").For(updated.ID, domain.SourceID{}))
 	}
 
 	sources, err := s.Activities.ListSourcesForActivity(ctx, activityID)

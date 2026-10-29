@@ -34,6 +34,8 @@ const (
 type SourceLinks struct {
 	activities port.ActivityRepo
 	recluster  *ReclusterBucket
+	// Events receives live events for the owner's open streams (optional).
+	Events port.ActivityEventSink
 }
 
 // NewSourceLinks wires the use case.
@@ -58,7 +60,12 @@ func (uc *SourceLinks) Link(ctx context.Context, userID domain.UserID, sourceID 
 	if err := uc.constrainAndRecluster(ctx, userID, src, []domain.ActivitySource{anchor}, domain.ConstraintMustLink, ReasonUserMerge); err != nil {
 		return domain.Activity{}, err
 	}
-	return uc.activityOfSource(ctx, sourceID)
+	act, err := uc.activityOfSource(ctx, sourceID)
+	if err == nil && uc.Events != nil {
+		uc.Events.Publish(domain.NewActivityEvent(domain.ActivityEventSourceAttached, userID, "activity.source_attached").
+			For(act.ID, sourceID).With("provider", src.Provider))
+	}
+	return act, err
 }
 
 // LinkActivities joins two of the caller's activities (must-link between a

@@ -54,25 +54,9 @@ func (s *NotificationServer) streamNotifications(ctx context.Context, req *v1.St
 	events, cancel := s.Hub.Subscribe(userID)
 	defer cancel()
 	keep := streamFilter(req)
-	ticker := time.NewTicker(streamHeartbeat)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			if err := stream.Send(&v1.NotificationEvent{UserId: userID.String()}); err != nil {
-				return err
-			}
-		case batch, ok := <-events:
-			if !ok {
-				return nil
-			}
-			if err := forwardBatch(stream, batch, keep); err != nil {
-				return err
-			}
-		}
-	}
+	return pumpStream(ctx, events,
+		func() error { return stream.Send(&v1.NotificationEvent{UserId: userID.String()}) },
+		func(batch []domain.Notification) error { return forwardBatch(stream, batch, keep) })
 }
 
 // forwardBatch sends the events of one batch that pass the filter.

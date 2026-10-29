@@ -357,6 +357,7 @@ func (ri *sourceReimporter) Refetch(ctx context.Context, userID domain.UserID, s
 	}
 
 	jobID := "refetch:" + src.ID.String()
+	ri.publishStarted(userID, src, jobID, "refetch")
 	body, _ := json.Marshal(map[string]any{
 		"job_id":        jobID,
 		"account_id":    src.ExternalAccountID.String(),
@@ -410,6 +411,7 @@ func (ri *sourceReimporter) Reparse(ctx context.Context, userID domain.UserID, s
 		acctID = src.ExternalAccountID.String()
 	}
 	jobID := "reparse:" + src.ID.String()
+	ri.publishStarted(userID, src, jobID, "reparse")
 	job := map[string]any{
 		"job_id":     jobID,
 		"source_id":  src.ID.String(),
@@ -447,4 +449,13 @@ func minParserVersion(src domain.ActivitySource) string {
 		return v.String()
 	}
 	return src.SourceWorkerVersion
+}
+
+// publishStarted emits the live reimport-started event.
+func (ri *sourceReimporter) publishStarted(userID domain.UserID, src domain.ActivitySource, jobID, mode string) {
+	if ri.app.ActivityEvents == nil {
+		return
+	}
+	ri.app.ActivityEvents.Publish(domain.NewActivityEvent(domain.ActivityEventReimportStarted, userID, "activity.reimport_started").
+		For(src.ActivityID, src.ID).With("provider", src.Provider).With("job_id", jobID).With("mode", mode))
 }

@@ -45,6 +45,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// the REST handlers so the two surfaces stay in parity.
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
+	activitySvc.Events = app.ActivityEvents
 	activitySvc.Reimporter = newSourceReimporter(app, logger)
 	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
 	activitySvc.Blobs = app.BlobStore

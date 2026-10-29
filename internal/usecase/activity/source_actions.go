@@ -28,7 +28,9 @@ type SourceActions struct {
 	denylist   port.SourceDenylistRepo // optional; nil → detaches are not durable against re-push
 	recompute  *RecomputeActivityFromSources
 	federation port.FederationPublisher // optional; nil → no remote retraction
-	now        func() time.Time
+	// Events receives live events for the owner's open streams (optional).
+	Events port.ActivityEventSink
+	now    func() time.Time
 }
 
 // NewSourceActions wires the use case; denylist and federation may be nil.
@@ -100,7 +102,13 @@ func (uc *SourceActions) Detach(ctx context.Context, userID domain.UserID, activ
 		return DetachResult{}, fmt.Errorf("detach source: %w", err)
 	}
 	uc.deny(ctx, userID, src, reason)
-	return uc.remerge(ctx, act), nil
+	res := uc.remerge(ctx, act)
+	uc.publish(domain.NewActivityEvent(domain.ActivityEventSourceDetached, userID, "activity.source_detached").
+		For(activityID, sourceID).With("provider", src.Provider))
+	if res.SoftDeleted {
+		uc.publish(domain.NewActivityEvent(domain.ActivityEventActivityDeleted, userID, "activity.deleted").For(activityID, domain.SourceID{}))
+	}
+	return res, nil
 }
 
 // Delete soft-deletes an activity by detaching every contributing source. The
@@ -129,7 +137,15 @@ func (uc *SourceActions) Delete(ctx context.Context, userID domain.UserID, activ
 	if !res.SoftDeleted {
 		return errors.New("delete activity: recompute left the activity alive")
 	}
+	uc.publish(domain.NewActivityEvent(domain.ActivityEventActivityDeleted, userID, "activity.deleted").For(activityID, domain.SourceID{}))
 	return nil
+}
+
+// publish hands an event to the sink when one is wired.
+func (uc *SourceActions) publish(ev domain.ActivityEvent) {
+	if uc.Events != nil {
+		uc.Events.Publish(ev)
+	}
 }
 
 // deny records the source identity on the user's denylist; best-effort.
