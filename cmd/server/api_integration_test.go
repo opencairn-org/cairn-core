@@ -570,6 +570,11 @@ func TestAPI_EndToEnd(t *testing.T) {
 	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{}, http.StatusBadRequest)
 	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{"provider": "strava", "olderThan": "86400s"}, http.StatusOK)
 	bob.rpc("/cairn.v1.AdminService/ListWebhookSigningTokens", map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
+	adm.rpc("/cairn.v1.AdminService/TriggerMaintenance", map[string]any{"operation": "MAINTENANCE_OPERATION_PURGE_SOFT_DELETED", "confirmPhrase": "nope"}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/TriggerMaintenance", map[string]any{"operation": "MAINTENANCE_OPERATION_PURGE_SOFT_DELETED", "confirmPhrase": "PURGE_SOFT_DELETED"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListMaintenanceJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/CancelMaintenanceJob", map[string]any{"jobId": "missing"}, http.StatusNotFound)
+	bob.rpc("/cairn.v1.AdminService/ListMaintenanceJobs", map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)

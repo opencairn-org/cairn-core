@@ -38,6 +38,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
+	"github.com/opencairn-org/cairn-core/internal/usecase/maintenance"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
@@ -191,6 +192,8 @@ type App struct {
 	Ops                  *instance.Ops
 	// WebhookTokens lists and rotates the per-account webhook signing secrets.
 	WebhookTokens *webhooks.Tokens
+	// Maintenance runs the admin-triggered instance-wide recomputations.
+	Maintenance *maintenance.Runner
 	// EmailAdapter / StorageAdapter name the operator's choices (env).
 	EmailAdapter, EmailFrom string
 	StorageAdapter          string
@@ -324,6 +327,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	// After the blob store: variants need it (nil → nothing is derived).
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
+	wireMaintenance(app, pool)
 	return app, nil
 }
 
@@ -959,4 +963,44 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 	if app.Gear != nil {
 		app.Ops.Gear = app.Gear
 	}
+}
+
+// wireMaintenance builds the maintenance runner over the use-cases wired
+// above; it runs last so every optional stage is already in place. The
+// blob collector only touches the raw-upload and attachment key families,
+// whose rows store the full object key.
+func wireMaintenance(app *App, pool *pgxpool.Pool) {
+	r := &maintenance.Runner{Repo: postgres.NewMaintenanceRepo(pool), Audit: app.AuditLog, BlobPrefixes: []string{"raw/", "attachments/"}}
+	if app.BlobStore != nil {
+		r.Blobs = app.BlobStore
+		if lister, ok := app.BlobStore.(port.BlobLister); ok {
+			r.BlobList = lister
+		}
+	}
+	if app.MatchSegments != nil {
+		r.MatchSegments = func(ctx context.Context, id domain.SourceID) error {
+			_, err := app.MatchSegments.Execute(ctx, segment.Input{ActivitySourceID: id})
+			return err
+		}
+	}
+	if app.ComputeBestEfforts != nil {
+		r.ComputeBestEfforts = func(ctx context.Context, id domain.SourceID) error {
+			_, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{ActivitySourceID: id})
+			return err
+		}
+	}
+	if app.RecomputeActivity != nil {
+		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := app.RecomputeActivity.Execute(ctx, id)
+			return err
+		}
+	}
+	if app.ComputeTrainingLoad != nil {
+		r.TrainingLoad = func(ctx context.Context, id domain.UserID) error {
+			end := time.Now().UTC()
+			_, err := app.ComputeTrainingLoad.Execute(ctx, trainingload.Input{UserID: id, Start: end.AddDate(0, 0, -730), End: end, WarmUpDays: 42})
+			return err
+		}
+	}
+	app.Maintenance = r
 }

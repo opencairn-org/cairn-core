@@ -127,6 +127,12 @@ const (
 	// AdminServiceTriggerMaintenanceProcedure is the procedure name of the AdminService's
 	// TriggerMaintenance RPC.
 	AdminServiceTriggerMaintenanceProcedure = "/cairn.v1.AdminService/TriggerMaintenance"
+	// AdminServiceListMaintenanceJobsProcedure is the procedure name of the AdminService's
+	// ListMaintenanceJobs RPC.
+	AdminServiceListMaintenanceJobsProcedure = "/cairn.v1.AdminService/ListMaintenanceJobs"
+	// AdminServiceCancelMaintenanceJobProcedure is the procedure name of the AdminService's
+	// CancelMaintenanceJob RPC.
+	AdminServiceCancelMaintenanceJobProcedure = "/cairn.v1.AdminService/CancelMaintenanceJob"
 	// AdminServiceListWorkersProcedure is the procedure name of the AdminService's ListWorkers RPC.
 	AdminServiceListWorkersProcedure = "/cairn.v1.AdminService/ListWorkers"
 	// AdminServiceListWorkerPoolsProcedure is the procedure name of the AdminService's ListWorkerPools
@@ -394,6 +400,20 @@ var (
 			Procedure:  AdminServiceTriggerMaintenanceProcedure,
 		}
 	})
+	adminServiceListMaintenanceJobsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListMaintenanceJobs"),
+			Procedure:  AdminServiceListMaintenanceJobsProcedure,
+		}
+	})
+	adminServiceCancelMaintenanceJobSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("CancelMaintenanceJob"),
+			Procedure:  AdminServiceCancelMaintenanceJobProcedure,
+		}
+	})
 	adminServiceListWorkersSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -618,15 +638,24 @@ type AdminServiceClient interface {
 	// ---- System health ----
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
-	// Stream of admin-relevant events (worker register/deregister, conflicts,
-	// health degradations). Used by the admin dashboard's live activity view.
+	// Stream of admin-relevant events. Core currently emits worker
+	// registered/offline (presence watcher), worker deregistered (enrollment
+	// revoked), job dead-lettered, user created and user suspended; the other
+	// types are reserved. An empty event every 30 s is the heartbeat.
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest) (AdminServiceStreamAdminEventsClientStream, error)
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as background jobs; returns
-	// the job_id for progress observation.
+	// Trigger expensive recomputations. Queued as in-process background jobs
+	// that run one at a time; the job_id is observable via ListMaintenanceJobs
+	// until the server restarts. confirm_phrase is the operation name in
+	// upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error)
+	// Stops a queued or running maintenance job.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error)
 	// ---- Worker fleet (twins of /api/admin/workers, worker-pools, worker-enrollments) ----
 	// Workers currently online, from the presence KV.
 	// Scope: admin cookie session only (OAuth tokens are refused).
@@ -790,15 +819,24 @@ type AdminServiceHandler interface {
 	// ---- System health ----
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
-	// Stream of admin-relevant events (worker register/deregister, conflicts,
-	// health degradations). Used by the admin dashboard's live activity view.
+	// Stream of admin-relevant events. Core currently emits worker
+	// registered/offline (presence watcher), worker deregistered (enrollment
+	// revoked), job dead-lettered, user created and user suspended; the other
+	// types are reserved. An empty event every 30 s is the heartbeat.
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest, AdminServiceStreamAdminEventsServerStream) error
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as background jobs; returns
-	// the job_id for progress observation.
+	// Trigger expensive recomputations. Queued as in-process background jobs
+	// that run one at a time; the job_id is observable via ListMaintenanceJobs
+	// until the server restarts. confirm_phrase is the operation name in
+	// upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error)
+	// Stops a queued or running maintenance job.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error)
 	// ---- Worker fleet (twins of /api/admin/workers, worker-pools, worker-enrollments) ----
 	// Workers currently online, from the presence KV.
 	// Scope: admin cookie session only (OAuth tokens are refused).
@@ -887,6 +925,8 @@ func RegisterAdminServiceHandler(server *connect.Server, svc AdminServiceHandler
 		connect.Method{Spec: adminServiceGetSystemHealthSpec(), Handler: adapter.getSystemHealth},
 		connect.Method{Spec: adminServiceStreamAdminEventsSpec(), Handler: adapter.streamAdminEvents},
 		connect.Method{Spec: adminServiceTriggerMaintenanceSpec(), Handler: adapter.triggerMaintenance},
+		connect.Method{Spec: adminServiceListMaintenanceJobsSpec(), Handler: adapter.listMaintenanceJobs},
+		connect.Method{Spec: adminServiceCancelMaintenanceJobSpec(), Handler: adapter.cancelMaintenanceJob},
 		connect.Method{Spec: adminServiceListWorkersSpec(), Handler: adapter.listWorkers},
 		connect.Method{Spec: adminServiceListWorkerPoolsSpec(), Handler: adapter.listWorkerPools},
 		connect.Method{Spec: adminServiceRetireWorkerPoolSpec(), Handler: adapter.retireWorkerPool},
@@ -1047,6 +1087,14 @@ func (UnimplementedAdminServiceHandler) StreamAdminEvents(context.Context, *v1.S
 
 func (UnimplementedAdminServiceHandler) TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.TriggerMaintenance is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListMaintenanceJobs is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.CancelMaintenanceJob is not implemented")
 }
 
 func (UnimplementedAdminServiceHandler) ListWorkers(context.Context, *v1.ListWorkersRequest) (*v1.ListWorkersResponse, error) {
@@ -1368,6 +1416,22 @@ func (c *adminServiceClient) StreamAdminEvents(ctx context.Context, req *v1.Stre
 func (c *adminServiceClient) TriggerMaintenance(ctx context.Context, req *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error) {
 	var res v1.TriggerMaintenanceResponse
 	if err := c.client.CallUnary(ctx, adminServiceTriggerMaintenanceSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListMaintenanceJobs(ctx context.Context, req *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
+	var res v1.ListMaintenanceJobsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListMaintenanceJobsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) CancelMaintenanceJob(ctx context.Context, req *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error) {
+	var res v1.CancelMaintenanceJobResponse
+	if err := c.client.CallUnary(ctx, adminServiceCancelMaintenanceJobSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1885,6 +1949,30 @@ func (h adminServiceHandler) triggerMaintenance(ctx context.Context, _ connect.S
 		return err
 	}
 	res, err := h.svc.TriggerMaintenance(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listMaintenanceJobs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListMaintenanceJobsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListMaintenanceJobs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) cancelMaintenanceJob(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CancelMaintenanceJobRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CancelMaintenanceJob(ctx, &req)
 	if err != nil {
 		return err
 	}

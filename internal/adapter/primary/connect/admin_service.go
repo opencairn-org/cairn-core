@@ -16,6 +16,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
+	"github.com/opencairn-org/cairn-core/internal/usecase/maintenance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
@@ -54,7 +55,8 @@ type AdminServer struct {
 	Ops           *instance.Ops
 	WebhookTokens *webhooks.Tokens
 	// Events is the live admin channel behind StreamAdminEvents.
-	Events *AdminEventHub
+	Events      *AdminEventHub
+	Maintenance *maintenance.Runner
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

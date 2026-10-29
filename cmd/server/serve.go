@@ -643,6 +643,11 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 		go runWorkerPresenceWatcher(ctx, logger, app)
 	}
 
+	// Admin-triggered maintenance jobs run one at a time for the server's lifetime.
+	if app.Maintenance != nil {
+		app.Maintenance.Start(ctx)
+	}
+
 	// Start-location backfiller: reverse-geocodes activities missing a
 	// start_place. Self-paced by the geocoder's policy limiter (1 req/s for
 	// OSM). Gated on the geocoder being wired (CAIRN_GEOCODER_ENABLED).

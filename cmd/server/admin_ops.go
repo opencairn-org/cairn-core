@@ -57,6 +57,9 @@ func mountAdminOps(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mux.HandleFunc("GET /api/admin/sources/orphaned", h.orphanedSources)
 	mux.HandleFunc("GET /api/admin/webhook-tokens", h.listWebhookTokens)
 	mux.HandleFunc("POST /api/admin/webhook-tokens/rotate", h.rotateWebhookTokens)
+	mux.HandleFunc("POST /api/admin/maintenance", h.triggerMaintenance)
+	mux.HandleFunc("GET /api/admin/maintenance/jobs", h.listMaintenanceJobs)
+	mux.HandleFunc("POST /api/admin/maintenance/jobs/{id}/cancel", h.cancelMaintenanceJob)
 
 	logger.Info("admin ops endpoints mounted (/api/admin/{geocode,nats,dlq})")
 }
