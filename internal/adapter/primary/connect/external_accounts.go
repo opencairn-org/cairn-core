@@ -13,7 +13,9 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
 // ExternalAccountServer implements the backed parts of
@@ -26,6 +28,9 @@ type ExternalAccountServer struct {
 	Repo                port.ExternalAccountRepo
 	Insight             port.SyncInsight
 	DefaultPollInterval int // seconds
+	// Remover and Tokens back DeleteExternalAccount and RotateWebhookToken.
+	Remover *accounts.Remover
+	Tokens  *webhooks.Tokens
 }
 
 var _ cairnv1connect.ExternalAccountServiceHandler = (*ExternalAccountServer)(nil)

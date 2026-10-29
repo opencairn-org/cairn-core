@@ -24,6 +24,7 @@ import (
 	dmatch "github.com/opencairn-org/cairn-core/internal/domain/match"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
+	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
@@ -158,6 +159,7 @@ type App struct {
 	HealthViews        *view.Health
 	MetricStore        *metricsuc.Store
 	Accounts           *view.Accounts
+	AccountRemover     *accountsuc.Remover
 	ClubViews          *view.Clubs
 	ProfileViews       *view.Profiles
 	AttachmentVariants *attachmentuc.Variants
@@ -975,6 +977,14 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 	app.WebhookTokens = &webhooks.Tokens{Audit: app.AuditLog}
 	if app.ExternalAccounts != nil {
 		app.WebhookTokens.Repo = app.ExternalAccounts
+	}
+	// Account removal is a user action but needs the audit recorder built above.
+	app.AccountRemover = &accountsuc.Remover{Accounts: app.ExternalAccounts, Activities: app.Activities, Audit: app.AuditLog}
+	if app.RecomputeActivity != nil {
+		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := app.RecomputeActivity.Execute(ctx, id)
+			return err
+		}
 	}
 	if app.Gear != nil {
 		app.Ops.Gear = app.Gear

@@ -397,7 +397,7 @@ func issueSessionForUser(w http.ResponseWriter, r *http.Request, app *App, userI
 		UserID:           userID,
 		TokenHash:        hash[:],
 		AuthMethod:       method,
-		UserAgentSummary: truncateUA(r.UserAgent(), 200),
+		UserAgentSummary: truncateUA(r.UserAgent()),
 		CreatedAt:        now,
 		LastSeenAt:       now,
 		ExpiresAt:        expiresAt,

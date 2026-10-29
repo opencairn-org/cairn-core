@@ -139,6 +139,18 @@ func (r *ActivityRepo) ListSourcesForActivity(_ context.Context, id domain.Activ
 	return r.sourcesOf(id, false), nil
 }
 
+func (r *ActivityRepo) ListSourcesForAccount(_ context.Context, acct domain.ExternalAccountID) ([]domain.ActivitySource, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []domain.ActivitySource
+	for _, s := range r.Sources {
+		if s.ExternalAccountID != nil && *s.ExternalAccountID == acct && s.Status != domain.SourceStatusDetached {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
 func (r *ActivityRepo) ListAllSourcesForActivity(_ context.Context, id domain.ActivityID) ([]domain.ActivitySource, error) {
 	return r.sourcesOf(id, true), nil
 }

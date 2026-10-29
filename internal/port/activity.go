@@ -221,6 +221,10 @@ type ActivityRepo interface {
 	// merge engine receives input in the expected sort order.
 	ListSourcesForActivity(ctx context.Context, id domain.ActivityID) ([]domain.ActivitySource, error)
 
+	// ListSourcesForAccount returns every non-detached source an external
+	// account imported, for detaching them when the account goes away.
+	ListSourcesForAccount(ctx context.Context, accountID domain.ExternalAccountID) ([]domain.ActivitySource, error)
+
 	// ListAllSourcesForActivity returns every source on the activity
 	// INCLUDING detached ones, ordered ImportedAt DESC. Used by the
 	// user-facing activity-manage view, which surfaces detached sources

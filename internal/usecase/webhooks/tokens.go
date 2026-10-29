@@ -1,6 +1,7 @@
-// Package webhooks holds the admin side of the per-account webhook signing
-// secrets. No worker consumes the secret yet, so a rotation only replaces
-// the stored hash; re-registering the provider subscription is a later step.
+// Package webhooks holds the per-account webhook signing secrets. Provider
+// subscriptions are owned by the workers (one per worker app, verified in
+// the worker), so a rotation replaces the stored hash and queues no
+// re-registration job.
 package webhooks
 
 import (
@@ -70,4 +71,17 @@ func (t *Tokens) BulkRotate(ctx context.Context, actor audit.Actor, sel domain.W
 	t.Audit.Info(ctx, actor, domain.AuditWebhookTokensRotated, "external_account", "",
 		map[string]string{"provider": sel.Provider, "rotated": strconv.Itoa(len(rotated))})
 	return rotated, nil
+}
+
+// Rotate mints a new token for one account the caller already owns.
+func (t *Tokens) Rotate(ctx context.Context, actor audit.Actor, id domain.ExternalAccountID) error {
+	if t.Repo == nil {
+		return port.NewActionError(port.ActionErrorUnavailable, "webhook tokens are not available")
+	}
+	_, hash := domain.NewWebhookSigningToken()
+	if err := t.Repo.SetWebhookSigningToken(ctx, id, hash, t.now()); err != nil {
+		return port.NewActionError(port.ActionErrorInternal, fmt.Sprintf("rotate %s: %v", id, err))
+	}
+	t.Audit.Info(ctx, actor, domain.AuditWebhookTokensRotated, "external_account", id.String(), map[string]string{"rotated": "1"})
+	return nil
 }

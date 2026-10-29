@@ -76,7 +76,7 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 			UserID:           user.ID,
 			TokenHash:        hash[:],
 			AuthMethod:       domain.SessionAuthPassword,
-			UserAgentSummary: truncateUA(r.UserAgent(), 200),
+			UserAgentSummary: truncateUA(r.UserAgent()),
 			CreatedAt:        now,
 			LastSeenAt:       now,
 			ExpiresAt:        expiresAt,
@@ -148,7 +148,9 @@ func randomSessionToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func truncateUA(s string, n int) string {
+// truncateUA bounds a user agent to what the session and audit rows keep.
+func truncateUA(s string) string {
+	const n = 200
 	if len(s) <= n {
 		return s
 	}

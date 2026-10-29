@@ -375,6 +375,7 @@ func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
 	mountSyncEndpoints(mux, app, logger)
+	mountAccountLifecycle(mux, app, logger)
 
 	// Build/version info (public) — shown in the UI footer.
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, _ *http.Request) {

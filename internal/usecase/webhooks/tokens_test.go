@@ -90,4 +90,10 @@ func TestBulkRotate(t *testing.T) {
 	if _, _, err := (&Tokens{}).List(ctx, "", 0, 0); !errors.As(err, &ae) || ae.Kind != port.ActionErrorUnavailable {
 		t.Fatalf("no repo: %v", err)
 	}
+	if err := tok.Rotate(ctx, audit.Actor{}, garmin); err != nil || repo.rotatedAt[garmin] == nil || !repo.rotatedAt[garmin].Equal(now) {
+		t.Fatalf("rotate one: %v %v", err, repo.rotatedAt[garmin])
+	}
+	if err := (&Tokens{}).Rotate(ctx, audit.Actor{}, garmin); !errors.As(err, &ae) || ae.Kind != port.ActionErrorUnavailable {
+		t.Fatalf("rotate without repo: %v", err)
+	}
 }

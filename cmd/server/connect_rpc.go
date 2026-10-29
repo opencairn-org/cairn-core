@@ -50,7 +50,8 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	notifSvc.Hub = app.NotificationHub
 	cairnv1connect.RegisterNotificationServiceHandler(server, notifSvc)
 	cairnv1connect.RegisterExternalAccountServiceHandler(server, connectadapter.NewExternalAccountServer(
-		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())))
+		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())).
+		WithLifecycle(app.AccountRemover, app.WebhookTokens))
 	cairnv1connect.RegisterAuthServiceHandler(server, newAuthServer(app, logger))
 	registerReadServices(server, app, logger)
 	socialSvc := connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag)

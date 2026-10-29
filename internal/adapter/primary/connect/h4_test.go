@@ -13,8 +13,10 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/inmem"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	notificationuc "github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
 type fakeNotifRepo struct {
@@ -99,9 +101,11 @@ func TestCountUnreadAndStreamNotifications(t *testing.T) {
 
 type fakeAcctRepo struct {
 	port.ExternalAccountRepo
+	port.WebhookTokenRepo
 	accts   []domain.ExternalAccount
 	auto    map[domain.ExternalAccountID]bool
 	patches map[domain.ExternalAccountID]map[string]any
+	rotated int
 }
 
 func (f *fakeAcctRepo) ListAccountsForUser(_ context.Context, uid domain.UserID) ([]domain.ExternalAccount, error) {
@@ -127,6 +131,22 @@ func (f *fakeAcctRepo) SetAutoImport(_ context.Context, id domain.ExternalAccoun
 }
 func (f *fakeAcctRepo) UpdateAccountConfig(_ context.Context, id domain.ExternalAccountID, patch map[string]any) error {
 	f.patches[id] = patch
+	return nil
+}
+func (f *fakeAcctRepo) DeleteAccount(_ context.Context, id domain.ExternalAccountID) error {
+	for i, a := range f.accts {
+		if a.ID == id {
+			f.accts = append(f.accts[:i], f.accts[i+1:]...)
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+func (f *fakeAcctRepo) SetWebhookSigningToken(_ context.Context, id domain.ExternalAccountID, _ []byte, _ time.Time) error {
+	if _, err := f.GetExternalAccount(context.Background(), id); err != nil {
+		return err
+	}
+	f.rotated++
 	return nil
 }
 
@@ -197,4 +217,23 @@ func TestExternalAccountServer(t *testing.T) {
 	wantCode(t, err, connectrpc.CodeInvalidArgument)
 	_, err = s.ListQueueItems(ctx, &v1.ListQueueItemsRequest{AccountId: acct.ID.String()})
 	wantCode(t, err, connectrpc.CodeUnavailable)
+
+	// Lifecycle: unwired → Unavailable, foreign → NotFound, then removal.
+	_, err = s.DeleteExternalAccount(ctx, &v1.DeleteExternalAccountRequest{Id: acct.ID.String()})
+	wantCode(t, err, connectrpc.CodeUnavailable)
+	_, err = s.RotateWebhookToken(ctx, &v1.RotateWebhookTokenRequest{Id: acct.ID.String()})
+	wantCode(t, err, connectrpc.CodeUnavailable)
+	s.WithLifecycle(&accountsuc.Remover{Accounts: repo, Activities: acctActivities{inmem.NewActivityRepo()}}, &webhooks.Tokens{Repo: repo})
+	_, err = s.RotateWebhookToken(other, &v1.RotateWebhookTokenRequest{Id: acct.ID.String()})
+	wantCode(t, err, connectrpc.CodeNotFound)
+	if _, err := s.RotateWebhookToken(ctx, &v1.RotateWebhookTokenRequest{Id: acct.ID.String()}); err != nil || repo.rotated != 1 {
+		t.Fatalf("rotate: %v %d", err, repo.rotated)
+	}
+	_, err = s.DeleteExternalAccount(other, &v1.DeleteExternalAccountRequest{Id: acct.ID.String()})
+	wantCode(t, err, connectrpc.CodeNotFound)
+	if _, err := s.DeleteExternalAccount(ctx, &v1.DeleteExternalAccountRequest{Id: acct.ID.String()}); err != nil || len(repo.accts) != 0 {
+		t.Fatalf("delete: %v %d", err, len(repo.accts))
+	}
+	_, err = s.DeleteExternalAccount(ctx, &v1.DeleteExternalAccountRequest{Id: acct.ID.String()})
+	wantCode(t, err, connectrpc.CodeNotFound)
 }

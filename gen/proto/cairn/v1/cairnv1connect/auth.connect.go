@@ -1409,10 +1409,11 @@ type ExternalAccountServiceClient interface {
 	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
 	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
-	// Delete: unregisters webhook subscription, removes credentials,
-	// and detaches sources from activities (activities themselves remain
-	// visible with the source marked detached).
-	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
+	// Delete the account (DELETE /api/accounts/{id}): its sources are
+	// detached first (activities keep their merged data and re-merge over the
+	// remaining sources), credentials, queue, import events, gear and the
+	// segments mirrored through it go with the row. Activities left without a
+	// live source are soft-deleted only with delete_exclusive_activities.
 	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
@@ -1422,8 +1423,9 @@ type ExternalAccountServiceClient interface {
 	// the discovering flag. since is ignored (the discovery walks everything).
 	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
-	// Rotate the webhook signing token. Queues unregister + register jobs.
-	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
+	// Rotate the webhook signing token (POST /api/accounts/{id}/webhook-token/rotate).
+	// Provider subscriptions are owned by the workers, so no unregister or
+	// register job is queued and both job ids in the response stay empty.
 	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
@@ -1475,10 +1477,11 @@ type ExternalAccountServiceHandler interface {
 	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
 	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
-	// Delete: unregisters webhook subscription, removes credentials,
-	// and detaches sources from activities (activities themselves remain
-	// visible with the source marked detached).
-	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
+	// Delete the account (DELETE /api/accounts/{id}): its sources are
+	// detached first (activities keep their merged data and re-merge over the
+	// remaining sources), credentials, queue, import events, gear and the
+	// segments mirrored through it go with the row. Activities left without a
+	// live source are soft-deleted only with delete_exclusive_activities.
 	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
@@ -1488,8 +1491,9 @@ type ExternalAccountServiceHandler interface {
 	// the discovering flag. since is ignored (the discovery walks everything).
 	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
-	// Rotate the webhook signing token. Queues unregister + register jobs.
-	// Planned, not implemented (returns Unimplemented): no REST counterpart yet either.
+	// Rotate the webhook signing token (POST /api/accounts/{id}/webhook-token/rotate).
+	// Provider subscriptions are owned by the workers, so no unregister or
+	// register job is queued and both job ids in the response stay empty.
 	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }

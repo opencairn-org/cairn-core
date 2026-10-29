@@ -51,7 +51,7 @@ type adminUserHandlers struct {
 func restActor(r *http.Request, admin domain.User) audit.Actor {
 	a := audit.UserActor(admin)
 	a.IP = hostOnly(clientIP(r))
-	a.UserAgent = truncateUA(r.UserAgent(), 200)
+	a.UserAgent = truncateUA(r.UserAgent())
 	return a
 }
 
