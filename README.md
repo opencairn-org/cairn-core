@@ -201,6 +201,20 @@ as an admin user, then call them with the `cairn_session` cookie):
 - `POST /api/admin/geocode/backfill` — run one start-location reverse-geocode batch.
 - `GET/POST /api/admin/workers`, `/api/admin/worker-enrollments`, `/api/admin/invites` —
   worker onboarding + invites (also surfaced in the web admin page).
+- `GET /api/admin/users[/{id}]` plus role/status/quota/password-reset/credential
+  actions, `GET /api/admin/audit` — user management with an audit trail.
+- `GET|PUT /api/admin/settings`, `POST /api/admin/settings/email/test`,
+  `GET /api/admin/health` — instance settings and a component health report.
+- `GET /api/admin/jobs[/{id}]` (+ `retry`, `cancel`), `GET /api/admin/sources/orphaned`
+  — import-queue introspection.
+- `GET /api/admin/webhook-tokens`, `POST /api/admin/webhook-tokens/rotate` — per-account
+  webhook signing secrets.
+- `POST /api/admin/maintenance`, `GET /api/admin/maintenance/jobs`,
+  `POST /api/admin/maintenance/jobs/{id}/cancel` — instance-wide recomputations
+  (confirm with the operation name in upper case).
+
+Every route has a twin on the Connect `AdminService`; both accept only an admin
+session, never an OAuth token.
 
 ## NATS one-time setup
 

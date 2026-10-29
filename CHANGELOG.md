@@ -17,6 +17,41 @@ All notable changes to Cairn are documented here. The format follows
   on the same use cases (`internal/usecase/account`). A password change ends
   the user's other sessions, a reset ends all of them; the last sign-in
   method cannot be unlinked; email changes are refused on both surfaces.
+- `ActivityService.StreamActivityEvents`: a per-user live feed of import,
+  reimport, activity, source and PR events (30 s heartbeat), fed by the ingest
+  router, uploads, source actions and the PR dispatcher.
+- Custom best-effort windows (`ListCustomBestEfforts`, `CreateCustomBestEffort`,
+  `DeleteCustomBestEffort`; REST `/api/records/custom`) with a backfill over
+  the user's activities of that type.
+- Source reimport previews (`PreviewSourceReimport`, `GetSourcePreview`,
+  `CommitSourcePreview`; REST `/api/sources/{id}/preview…`): a re-parse lands
+  in a preview row with a field-level diff before it touches the activity.
+- Native segment authoring and discovery (`CreateSegment`, `UpdateSegment`,
+  `DeleteSegment`, `ListSegments`, `SearchSegments`, `ListSegmentEfforts`,
+  `GetSegmentLeaderboard`, `RematchSegment`; REST `/api/segments…`).
+- Authorized apps: `ListAuthorizedApps` / `RevokeAuthorizedApp`, REST
+  `GET|DELETE /api/oauth/apps[/{client_id}]` and a web settings section that
+  revokes an OAuth client's grants and tokens.
+- Passkey as a second factor: a per-user toggle (`SetPasskeySecondFactor`,
+  `PUT /api/passkeys/second-factor`); a password login then returns a
+  challenge that a passkey assertion satisfies (`Complete2FA` on Connect,
+  `POST /auth/2fa/complete` on REST).
+- `AdminService` is now a full twin of `/api/admin/*`: user management with
+  an audit log (`ListAuditEntries`, `GetUser`, `CreateUser`, `UpdateUser`,
+  `ChangeUserRole`, `SetUserStatus`, `DeleteUser`, `ResetUserPassword`,
+  `RevokeUserCredentials`, `SetUserQuota`), instance settings, test email,
+  invites, system health, import-queue jobs and dead letters, orphaned
+  sources, worker fleet and enrollments, moderation reports and federation
+  blocks, instance merge defaults, operator actions (geocode backfill, gear
+  totals, NATS keys), webhook signing tokens (`ListWebhookSigningTokens`,
+  `BulkRotateWebhookSigningTokens`), `StreamAdminEvents` (worker
+  registered/offline/deregistered, dead-lettered jobs, user created or
+  suspended) and `TriggerMaintenance` with `ListMaintenanceJobs` /
+  `CancelMaintenanceJob`: rematch segments, recompute best efforts, merges or
+  training load, purge soft-deleted activities older than 30 days and collect
+  unreferenced raw-upload and attachment blobs, one in-process job at a time.
+- CI publishes `buf.build/cairn/api` on release tags once `BUF_TOKEN` and the
+  `BUF_PUSH` repository variable are set (the job is skipped until then).
 - `SocialService` reads: `ListFollowingFeed`, `ListClubs`, `GetClub`,
   `ListClubMembers`, `ListClubFeed`, `GetProfile`, `GetProjectedActivity`,
   `GetSharedActivity` (public, the token is the authorization) and

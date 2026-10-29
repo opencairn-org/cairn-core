@@ -144,6 +144,32 @@ jobs:
   # the tag's CHANGELOG.md section plus the image digest and verify commands;
   # the one asset is an SPDX SBOM of that digest (syft), in addition to the
   # BuildKit SBOM attestation already attached to the image.
+  # Publishes api/proto as buf.build/cairn/api so clients can depend on the
+  # module instead of vendoring. Off until an operator creates the BSR org,
+  # stores its token as BUF_TOKEN and sets the BUF_PUSH repository variable.
+  proto-push:
+    name: Push proto module
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') && vars.BUF_PUSH == 'true'
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/opencairn-org/cairn-build-base:1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: buf push
+        working-directory: api/proto
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: buf push --label "$TAG"
+
   release:
     name: GitHub release
     runs-on: ubuntu-latest
