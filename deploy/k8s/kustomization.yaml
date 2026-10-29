@@ -24,4 +24,4 @@ images:
   - name: ghcr.io/opencairn-org/cairn-provider-strava
     newTag: v0.2.5
   - name: ghcr.io/opencairn-org/cairn-provider-garmin
-    newTag: v0.2.2
+    newTag: v0.5.0@sha256:5e3a0325d87c2a17507826de31d1349dd26500a31d3e31133f20a1b16518efad
