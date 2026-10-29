@@ -53,6 +53,8 @@ type AdminServer struct {
 	MergeDefaults *instance.MergeDefaults
 	Ops           *instance.Ops
 	WebhookTokens *webhooks.Tokens
+	// Events is the live admin channel behind StreamAdminEvents.
+	Events *AdminEventHub
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

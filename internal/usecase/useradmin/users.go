@@ -36,6 +36,14 @@ type Users struct {
 	}
 	Audit  *audit.Recorder
 	Quotas port.QuotaRepo
+	// Events receives user created/suspended events; nil drops them.
+	Events port.AdminEventSink
+}
+
+func (u *Users) publish(ev domain.AdminEvent) {
+	if u.Events != nil {
+		u.Events.Publish(ev)
+	}
 }
 
 // UserDetail is the admin view of one user.
@@ -173,6 +181,7 @@ func (u *Users) CreateUser(ctx context.Context, actor audit.Actor, in CreateInpu
 		out.Invite = &inv
 	}
 	u.Audit.Info(ctx, actor, domain.AuditUserCreated, "user", res.User.ID.String(), map[string]string{"username": res.User.Username, "role": string(role)})
+	u.publish(domain.NewAdminEvent(domain.AdminEventUserCreated, domain.AuditInfo, "admin.user_created").AboutUser(res.User.ID).With("username", res.User.Username))
 	return out, nil
 }
 
@@ -311,6 +320,9 @@ func (u *Users) SetStatus(ctx context.Context, actor audit.Actor, id domain.User
 	}
 	u.Audit.Record(ctx, actor, domain.AuditUserStatusChanged, domain.AuditHigh, "user", id.String(),
 		[]domain.FieldChange{{Field: "status", Before: string(user.Status), After: string(status)}}, map[string]string{"reason": reason})
+	if status == domain.UserStatusSuspended {
+		u.publish(domain.NewAdminEvent(domain.AdminEventUserSuspended, domain.AuditHigh, "admin.user_suspended").AboutUser(id).With("username", user.Username).With("reason", reason))
+	}
 	return u.load(ctx, id)
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	emailadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/email"
 	geocodeadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/geocode"
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
@@ -159,6 +160,8 @@ type App struct {
 	AttachmentVariants *attachmentuc.Variants
 	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
 	ActivityEvents *livefeed.Hub[domain.UserID, domain.ActivityEvent]
+	// AdminEvents is the operator channel behind StreamAdminEvents.
+	AdminEvents *connectadapter.AdminEventHub
 	// Self-service account use cases, shared by /api and AuthService.
 	AccountTokens  *account.Tokens
 	SessionMgmt    *account.Sessions
@@ -338,6 +341,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.Metrics = postgres.NewMetricRepo(pool)
 	app.NotificationHub = notification.NewHub()
 	app.ActivityEvents = livefeed.New(func(e domain.ActivityEvent) domain.UserID { return e.UserID })
+	app.AdminEvents = connectadapter.NewAdminEventHub()
 	app.Notifications = notification.NewBroadcastRepo(postgres.NewNotificationRepo(pool), app.NotificationHub)
 	app.Follows = postgres.NewFollowRepo(pool)
 	app.Visibility = postgres.NewVisibilityRepo(pool)
@@ -807,7 +811,7 @@ func wireAdmin(app *App) {
 	if app.Users == nil {
 		return
 	}
-	ua := &useradmin.Users{Users: app.Users, Activities: app.Activities, Create: app.CreateUser, Invites: app.CreateInvite, Audit: app.AuditLog}
+	ua := &useradmin.Users{Users: app.Users, Activities: app.Activities, Create: app.CreateUser, Invites: app.CreateInvite, Audit: app.AuditLog, Events: app.AdminEvents}
 	if app.Sessions != nil {
 		ua.Sessions = app.Sessions
 	}
@@ -939,7 +943,7 @@ func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
 // wireOperatorAdmin builds the fleet and operations use cases, which need
 // package-main helpers (presence KV, NATS keys, the background geocoder).
 func wireOperatorAdmin(app *App, logger *slog.Logger) {
-	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment,
+	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
 		Live: func(ctx context.Context) []domain.WorkerHeartbeat { return scanWorkerHeartbeats(ctx, app, logger) }}
 	if app.WorkerPools != nil {
 		app.Fleet.Pools = app.WorkerPools

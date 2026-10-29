@@ -111,4 +111,13 @@ func handleAdvisory(ctx context.Context, app *App, log *slog.Logger, msg *nats.M
 	}
 	log.Info("dead-letter recorded",
 		"stream", ev.Stream, "consumer", ev.Consumer, "deliveries", ev.Deliveries)
+	publishAdminEvent(app, domain.NewAdminEvent(domain.AdminEventJobDeadLettered, domain.AuditWarn, "admin.job_dead_lettered").
+		AboutJob(ev.ID).With("stream", ev.Stream).With("consumer", ev.Consumer))
+}
+
+// publishAdminEvent fans ev out to open admin streams; a nil hub drops it.
+func publishAdminEvent(app *App, ev domain.AdminEvent) {
+	if app != nil && app.AdminEvents != nil {
+		app.AdminEvents.Publish(ev)
+	}
 }

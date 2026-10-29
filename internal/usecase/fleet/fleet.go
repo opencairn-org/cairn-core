@@ -27,7 +27,15 @@ type Fleet struct {
 	Live        func(ctx context.Context) []domain.WorkerHeartbeat
 	Providers   []string
 	Audit       *audit.Recorder
-	Now         func() time.Time
+	// Events receives the deregistration event; nil drops it.
+	Events port.AdminEventSink
+	Now    func() time.Time
+}
+
+func (f *Fleet) publish(ev domain.AdminEvent) {
+	if f.Events != nil {
+		f.Events.Publish(ev)
+	}
 }
 
 func (f *Fleet) now() time.Time {
@@ -138,6 +146,7 @@ func (f *Fleet) RevokeEnrollment(ctx context.Context, actor audit.Actor, id doma
 		return port.NewActionError(port.ActionErrorPrecondition, err.Error())
 	}
 	f.Audit.High(ctx, actor, domain.AuditEnrollmentRevoked, "worker_enrollment", id.String(), map[string]string{"reason": reason})
+	f.publish(domain.NewAdminEvent(domain.AdminEventWorkerDeregistered, domain.AuditHigh, "admin.worker_deregistered").With("enrollment_id", id.String()).With("reason", reason))
 	return nil
 }
 

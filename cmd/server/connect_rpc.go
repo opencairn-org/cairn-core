@@ -246,6 +246,7 @@ func newAdminServer(app *App, logger *slog.Logger) *connectadapter.AdminServer {
 	adminSvc.Blocks = app.FedBlocks
 	adminSvc.MergeDefaults = app.MergeDefaults
 	adminSvc.Ops = app.Ops
+	adminSvc.Events = app.AdminEvents
 	adminSvc.WebhookTokens = app.WebhookTokens
 	if app.SystemHealth != nil {
 		app.SystemHealth.Workers = liveWorkerCounts(app, logger)

@@ -141,7 +141,8 @@ func fixture() (*Users, *fakeUsers, *fakeSessions, *recordingAudit, domain.UserI
 	}
 	sessions := &fakeSessions{active: map[domain.UserID]int{bob: 2}}
 	rec := &recordingAudit{}
-	u := &Users{Users: users, Sessions: sessions, Hasher: hasher{}, Audit: &audit.Recorder{Repo: rec}}
+	events := &captureEvents{}
+	u := &Users{Users: users, Sessions: sessions, Hasher: hasher{}, Audit: &audit.Recorder{Repo: rec}, Events: events}
 	return u, users, sessions, rec, admin, bob
 }
 
@@ -173,6 +174,9 @@ func TestUsersRoleStatusDelete(t *testing.T) {
 		t.Fatalf("status deleted via SetStatus: %v", err)
 	}
 	got, err := u.SetStatus(ctx, actor, bob, domain.UserStatusSuspended, "spam")
+	if events := u.Events.(*captureEvents); len(events.got) != 1 || events.got[0].Type != domain.AdminEventUserSuspended || *events.got[0].UserID != bob {
+		t.Fatalf("suspend event: %+v", events.got)
+	}
 	if err != nil || got.Status != domain.UserStatusSuspended || len(sessions.revokedAll) != 1 {
 		t.Fatalf("suspend: %v %+v %v", err, got, sessions.revokedAll)
 	}
@@ -243,3 +247,7 @@ func TestUsersUpdateResetRevoke(t *testing.T) {
 		t.Fatalf("unknown: %v", err)
 	}
 }
+
+type captureEvents struct{ got []domain.AdminEvent }
+
+func (c *captureEvents) Publish(ev domain.AdminEvent) { c.got = append(c.got, ev) }

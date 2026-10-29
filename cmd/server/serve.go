@@ -21,6 +21,7 @@ import (
 	webui "github.com/opencairn-org/cairn-core/internal/adapter/primary/web"
 	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/db"
+	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
@@ -1001,6 +1002,12 @@ func (w *workerPresenceWatcher) tick(ctx context.Context) {
 			if err := w.app.NotifyWorkerOffline.Execute(ctx, key, name); err != nil {
 				w.log.Warn("notify worker offline failed", "worker_key", key, "error", err)
 			}
+			publishAdminEvent(w.app, domain.NewAdminEvent(domain.AdminEventWorkerOffline, domain.AuditWarn, "admin.worker_offline").AboutWorker(name).With("worker_key", key))
+		}
+	}
+	for key, name := range live {
+		if _, known := w.seen[key]; !known {
+			publishAdminEvent(w.app, domain.NewAdminEvent(domain.AdminEventWorkerRegistered, domain.AuditInfo, "admin.worker_registered").AboutWorker(name).With("worker_key", key))
 		}
 	}
 	// Manifest keys are worker names ({name}); presence values are the
