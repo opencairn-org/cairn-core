@@ -645,10 +645,11 @@ type AdminServiceClient interface {
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest) (AdminServiceStreamAdminEventsClientStream, error)
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as in-process background jobs
-	// that run one at a time; the job_id is observable via ListMaintenanceJobs
-	// until the server restarts. confirm_phrase is the operation name in
-	// upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
+	// Trigger expensive recomputations. Queued as background jobs that run
+	// one at a time in the core process; the registry is persisted, so a
+	// restart re-queues jobs still waiting and marks the one that was running
+	// failed ("interrupted by server restart", re-trigger it). confirm_phrase
+	// is the operation name in upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).
@@ -826,10 +827,11 @@ type AdminServiceHandler interface {
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest, AdminServiceStreamAdminEventsServerStream) error
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as in-process background jobs
-	// that run one at a time; the job_id is observable via ListMaintenanceJobs
-	// until the server restarts. confirm_phrase is the operation name in
-	// upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
+	// Trigger expensive recomputations. Queued as background jobs that run
+	// one at a time in the core process; the registry is persisted, so a
+	// restart re-queues jobs still waiting and marks the one that was running
+	// failed ("interrupted by server restart", re-trigger it). confirm_phrase
+	// is the operation name in upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).

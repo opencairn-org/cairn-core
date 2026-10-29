@@ -475,8 +475,9 @@ const (
 	// Hard-delete activities soft-deleted more than 30 days ago (sources and
 	// attachments cascade, their blobs are released).
 	MaintenanceOperation_MAINTENANCE_OPERATION_PURGE_SOFT_DELETED MaintenanceOperation = 5
-	// Delete raw-upload and attachment objects older than a day that no source
-	// or attachment references any more. Other key families are left alone.
+	// Delete objects older than a day that no source or attachment references
+	// any more, across every key family they can point at (REST and Connect
+	// uploads, worker-stored blobs, attachments, claim-check payloads).
 	MaintenanceOperation_MAINTENANCE_OPERATION_GARBAGE_COLLECT_BLOBS MaintenanceOperation = 6
 )
 

@@ -103,6 +103,47 @@ func (b *fakeBlobs) ListBlobKeys(_ context.Context, prefix string, visit func(st
 	return nil
 }
 
+type fakeJobs struct {
+	mu   sync.Mutex
+	rows map[string]domain.MaintenanceJob
+}
+
+func (f *fakeJobs) SaveJob(_ context.Context, job domain.MaintenanceJob) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rows[job.ID] = job
+	return nil
+}
+func (f *fakeJobs) GetJob(_ context.Context, id string) (domain.MaintenanceJob, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	job, ok := f.rows[id]
+	if !ok {
+		return domain.MaintenanceJob{}, domain.ErrNotFound
+	}
+	return job, nil
+}
+func (f *fakeJobs) ListJobs(context.Context, int) ([]domain.MaintenanceJob, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]domain.MaintenanceJob, 0, len(f.rows))
+	for _, job := range f.rows {
+		out = append(out, job)
+	}
+	return out, nil
+}
+func (f *fakeJobs) ListOpenJobs(context.Context) ([]domain.MaintenanceJob, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []domain.MaintenanceJob
+	for _, job := range f.rows {
+		if !job.Status.Done() {
+			out = append(out, job)
+		}
+	}
+	return out, nil
+}
+
 func kindOf(t *testing.T, err error) port.ActionErrorKind {
 	t.Helper()
 	var ae *port.ActionError
@@ -116,7 +157,7 @@ func waitDone(t *testing.T, r *Runner, id string) domain.MaintenanceJob {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		job, err := r.Get(id)
+		job, err := r.Get(context.Background(), id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,13 +219,13 @@ func TestRunnerTriggerAndRun(t *testing.T) {
 	if done := waitDone(t, r, tl.ID); done.Processed != 2 {
 		t.Fatalf("training load: %+v", done)
 	}
-	if list := r.List(); len(list) != 2 || list[0].ID != tl.ID {
+	if list := r.List(ctx); len(list) != 2 || list[0].ID != tl.ID {
 		t.Fatalf("list newest first: %+v", list)
 	}
 	if _, err := r.Cancel(ctx, audit.Actor{}, tl.ID); kindOf(t, err) != port.ActionErrorPrecondition {
 		t.Fatalf("cancel finished: %v", err)
 	}
-	if _, err := r.Get("missing"); kindOf(t, err) != port.ActionErrorNotFound {
+	if _, err := r.Get(ctx, "missing"); kindOf(t, err) != port.ActionErrorNotFound {
 		t.Fatalf("get missing: %v", err)
 	}
 }
@@ -240,5 +281,51 @@ func TestRunnerPurgeAndGC(t *testing.T) {
 	}
 	if _, err := (&Runner{Repo: repo}).Trigger(ctx, audit.Actor{}, domain.MaintenanceGarbageCollectBlobs, nil, "GARBAGE_COLLECT_BLOBS"); kindOf(t, err) != port.ActionErrorUnavailable {
 		t.Fatalf("gc without lister: %v", err)
+	}
+}
+
+func TestRunnerPersistsAndRecovers(t *testing.T) {
+	ctx := t.Context()
+	jobs := &fakeJobs{rows: map[string]domain.MaintenanceJob{}}
+	repo := &fakeRepo{users: ids(progressFlushEvery+1, func(u uuid.UUID) domain.UserID { return domain.UserID(u) })}
+	var runs int
+	var mu sync.Mutex
+	r := &Runner{Repo: repo, Jobs: jobs, TrainingLoad: func(context.Context, domain.UserID) error {
+		mu.Lock()
+		defer mu.Unlock()
+		runs++
+		return nil
+	}}
+	r.Start(ctx)
+	job, err := r.Trigger(ctx, audit.Actor{}, domain.MaintenanceRecomputeTrainingLoad, nil, "RECOMPUTE_TRAINING_LOAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitDone(t, r, job.ID)
+	if stored, _ := jobs.GetJob(ctx, job.ID); stored.Status != domain.MaintenanceSucceeded || stored.Processed != done.Processed || stored.StartedAt == nil || stored.FinishedAt == nil {
+		t.Fatalf("persisted: %+v", stored)
+	}
+
+	// A second process: one job was running, one still queued when the first stopped.
+	running, queued := uuid.NewString(), uuid.NewString()
+	start := time.Now().UTC()
+	jobs.rows[running] = domain.MaintenanceJob{ID: running, Operation: domain.MaintenanceRecomputeTrainingLoad, Status: domain.MaintenanceRunning, QueuedAt: start, StartedAt: &start}
+	jobs.rows[queued] = domain.MaintenanceJob{ID: queued, Operation: domain.MaintenanceRecomputeTrainingLoad, Status: domain.MaintenanceQueued, QueuedAt: start.Add(time.Second)}
+	r2 := &Runner{Repo: repo, Jobs: jobs, TrainingLoad: r.TrainingLoad}
+	r2.Start(ctx)
+	if got := waitDone(t, r2, queued); got.Status != domain.MaintenanceSucceeded || got.Processed != int64(progressFlushEvery+1) {
+		t.Fatalf("re-queued job: %+v", got)
+	}
+	if got, err := r2.Get(ctx, running); err != nil || got.Status != domain.MaintenanceFailed || got.Error != InterruptedError {
+		t.Fatalf("interrupted job: %v %+v", err, got)
+	}
+	if got, err := r2.Get(ctx, job.ID); err != nil || got.Status != domain.MaintenanceSucceeded {
+		t.Fatalf("history visible across processes: %v %+v", err, got)
+	}
+	if list := r2.List(ctx); len(list) != 3 || list[0].ID != queued {
+		t.Fatalf("list merges history newest first: %+v", list)
+	}
+	if _, err := r2.Cancel(ctx, audit.Actor{}, job.ID); kindOf(t, err) != port.ActionErrorPrecondition {
+		t.Fatalf("cancel historic: %v", err)
 	}
 }

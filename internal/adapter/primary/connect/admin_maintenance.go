@@ -28,12 +28,12 @@ func (s *AdminServer) TriggerMaintenance(ctx context.Context, req *v1.TriggerMai
 	return &v1.TriggerMaintenanceResponse{JobId: job.ID, EstimatedRecordCount: job.Estimated}, nil
 }
 
-func (s *AdminServer) ListMaintenanceJobs(_ context.Context, _ *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
+func (s *AdminServer) ListMaintenanceJobs(ctx context.Context, _ *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
 	if s.Maintenance == nil {
 		return nil, unavailable("maintenance")
 	}
 	out := &v1.ListMaintenanceJobsResponse{}
-	for _, job := range s.Maintenance.List() {
+	for _, job := range s.Maintenance.List(ctx) {
 		out.Jobs = append(out.Jobs, maintenanceJobToProto(job))
 	}
 	return out, nil

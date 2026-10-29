@@ -61,7 +61,7 @@ func (h *adminOpsHandlers) listMaintenanceJobs(w http.ResponseWriter, r *http.Re
 	if !h.maintenanceReady(w, r) {
 		return
 	}
-	jobs := h.app.Maintenance.List()
+	jobs := h.app.Maintenance.List(r.Context())
 	out := make([]map[string]any, 0, len(jobs))
 	for _, job := range jobs {
 		out = append(out, maintenanceJobJSON(job))

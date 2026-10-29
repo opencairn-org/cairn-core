@@ -993,10 +993,12 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 
 // wireMaintenance builds the maintenance runner over the use-cases wired
 // above; it runs last so every optional stage is already in place. The
-// blob collector only touches the raw-upload and attachment key families,
-// whose rows store the full object key.
+// blob collector covers every key family an activity source or attachment
+// can reference (all rows store the full object key) plus the claim-check
+// transfer area; the map-image cache is left to its own lifecycle.
 func wireMaintenance(app *App, pool *pgxpool.Pool) {
-	r := &maintenance.Runner{Repo: postgres.NewMaintenanceRepo(pool), Audit: app.AuditLog, BlobPrefixes: []string{"raw/", "attachments/"}}
+	r := &maintenance.Runner{Repo: postgres.NewMaintenanceRepo(pool), Jobs: postgres.NewMaintenanceJobRepo(pool), Audit: app.AuditLog, Log: slog.Default(),
+		BlobPrefixes: []string{"raw/", "attachments/", "uploads/", "users/", "shared/", "transfer/"}}
 	if app.BlobStore != nil {
 		r.Blobs = app.BlobStore
 		if lister, ok := app.BlobStore.(port.BlobLister); ok {
