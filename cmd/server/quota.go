@@ -70,7 +70,8 @@ func mountQuota(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	})
 
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := resolveAdminUser(r, app); !ok {
+		admin, ok := resolveAdminUser(r, app)
+		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -88,8 +89,12 @@ func mountQuota(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			http.Error(w, "bad body", http.StatusBadRequest)
 			return
 		}
-		if err := app.Quotas.SetMaxActivities(r.Context(), target, body.MaxActivities); err != nil {
-			http.Error(w, "save failed", http.StatusInternalServerError)
+		if app.UserAdmin == nil {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := app.UserAdmin.SetQuota(r.Context(), restActor(r, admin), target, body.MaxActivities); err != nil {
+			writeActionError(w, err, "save failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"max_activities": body.MaxActivities})

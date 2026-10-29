@@ -72,24 +72,12 @@ func (h *adminOpsHandlers) geocodeBackfill(w http.ResponseWriter, r *http.Reques
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.ComputeStartPlace == nil {
-		http.Error(w, "geocoder disabled", http.StatusServiceUnavailable)
+	admin, _ := resolveAdminUser(r, h.app)
+	limit, err := h.app.Ops.RunGeocodeBackfill(r.Context(), restActor(r, admin), parseIntQuery(r, "limit", 50))
+	if err != nil {
+		writeActionError(w, err, "backfill failed")
 		return
 	}
-	limit := parseIntQuery(r, "limit", 50)
-	if limit <= 0 {
-		limit = 50
-	}
-	go func(limit int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-		n, err := h.app.ComputeStartPlace.BackfillBatch(ctx, limit)
-		if err != nil {
-			h.logger.Warn("admin geocode backfill failed", "error", err)
-			return
-		}
-		h.logger.Info("admin geocode backfill complete", "resolved", n)
-	}(limit)
 	writeJSON(w, http.StatusAccepted, map[string]any{"started": true, "limit": limit})
 }
 
@@ -97,83 +85,114 @@ func (h *adminOpsHandlers) rebuildGearTotals(w http.ResponseWriter, r *http.Requ
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.Gear == nil {
-		http.Error(w, "gear not wired", http.StatusServiceUnavailable)
-		return
-	}
-	n, err := h.app.Gear.RebuildAllTotals(r.Context())
+	admin, _ := resolveAdminUser(r, h.app)
+	n, err := h.app.Ops.RebuildGearTotals(r.Context(), restActor(r, admin))
 	if err != nil {
-		h.logger.Warn("admin gear totals rebuild failed", "error", err)
-		http.Error(w, "rebuild failed", http.StatusInternalServerError)
+		writeActionError(w, err, "rebuild failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rebuilt": true, "users": n})
 }
 
-// signingReady writes 503 and returns false when the signing-key deps are missing.
-func (h *adminOpsHandlers) signingReady(w http.ResponseWriter, r *http.Request) bool {
-	if !h.gate(w, r) {
-		return false
-	}
-	if h.app.SigningKeys == nil || h.app.SecretBox == nil {
-		http.Error(w, "signing-key repo / secret box not wired", http.StatusServiceUnavailable)
-		return false
-	}
-	return true
-}
-
 func (h *adminOpsHandlers) bootstrapAccountKey(w http.ResponseWriter, r *http.Request) {
-	if !h.signingReady(w, r) {
+	if !h.gate(w, r) {
 		return
 	}
-	app := h.app
-	if existing, err := app.SigningKeys.GetActive(r.Context(), domain.SigningKeyPurposeNATSAccount); err == nil {
+	admin, _ := resolveAdminUser(r, h.app)
+	key, created, err := h.app.Ops.BootstrapKey(r.Context(), restActor(r, admin))
+	if err != nil {
+		writeActionError(w, err, "bootstrap failed")
+		return
+	}
+	if !created {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"public_key": existing.PublicKey,
-			"created_at": existing.CreatedAt.UTC(),
-			"action":     "no_change",
-			"note":       "active signing key already exists",
+			"public_key": key.PublicKey, "created_at": key.CreatedAt.UTC(), "action": "no_change",
+			"note": "active signing key already exists",
 		})
 		return
 	}
-	created, err := natsadapter.BootstrapAccountKey(r.Context(), app.SigningKeys, app.SecretBox, adminUserPtr(r, app))
-	if err != nil {
-		http.Error(w, "bootstrap failed: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"public_key": created.PublicKey,
-		"created_at": created.CreatedAt.UTC(),
-		"action":     "created",
-		"note":       "copy this public key into nats-server.conf auth_callout.issuer",
+		"public_key": key.PublicKey, "created_at": key.CreatedAt.UTC(), "action": "created",
+		"note": "copy this public key into nats-server.conf auth_callout.issuer",
 	})
 }
 
 func (h *adminOpsHandlers) rotateAccountKey(w http.ResponseWriter, r *http.Request) {
-	if !h.signingReady(w, r) {
+	if !h.gate(w, r) {
 		return
 	}
-	app := h.app
-	var newKey domain.SigningKey
-	var oldPub string
-	err := app.Tx.InTx(r.Context(), func(ctx context.Context) error {
+	admin, _ := resolveAdminUser(r, h.app)
+	key, oldPub, err := h.app.Ops.RotateKey(r.Context(), restActor(r, admin))
+	if err != nil {
+		writeActionError(w, err, "rotate failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"new_public_key": key.PublicKey, "old_public_key": oldPub, "action": "rotated",
+		"note": "trust BOTH keys in nats-server.conf during the overlap, then drop the old one once all workers have renewed",
+	})
+}
+
+// natsKeyManager runs the account-key operations over the nats adapter.
+type natsKeyManager struct{ app *App }
+
+func (m natsKeyManager) ready() error {
+	if m.app.SigningKeys == nil || m.app.SecretBox == nil {
+		return errors.New("signing-key repo / secret box not wired")
+	}
+	return nil
+}
+
+func (m natsKeyManager) Bootstrap(ctx context.Context, by *domain.UserID) (domain.SigningKey, bool, error) {
+	if err := m.ready(); err != nil {
+		return domain.SigningKey{}, false, err
+	}
+	if existing, err := m.app.SigningKeys.GetActive(ctx, domain.SigningKeyPurposeNATSAccount); err == nil {
+		return existing, false, nil
+	}
+	key, err := natsadapter.BootstrapAccountKey(ctx, m.app.SigningKeys, m.app.SecretBox, by)
+	return key, err == nil, err
+}
+
+func (m natsKeyManager) Rotate(ctx context.Context, by *domain.UserID) (domain.SigningKey, string, error) {
+	if err := m.ready(); err != nil {
+		return domain.SigningKey{}, "", err
+	}
+	var (
+		newKey domain.SigningKey
+		oldPub string
+	)
+	err := m.app.Tx.InTx(ctx, func(ctx context.Context) error {
 		var e error
-		newKey, oldPub, e = natsadapter.RotateAccountKey(ctx, app.SigningKeys, app.SecretBox, adminUserPtr(r, app))
+		newKey, oldPub, e = natsadapter.RotateAccountKey(ctx, m.app.SigningKeys, m.app.SecretBox, by)
 		return e
 	})
 	if err != nil {
-		http.Error(w, "rotate failed: "+err.Error(), http.StatusInternalServerError)
-		return
+		return domain.SigningKey{}, "", err
 	}
-	if app.NATSCredentialIssuer != nil {
-		app.NATSCredentialIssuer.InvalidateCache()
+	if m.app.NATSCredentialIssuer != nil {
+		m.app.NATSCredentialIssuer.InvalidateCache()
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"new_public_key": newKey.PublicKey,
-		"old_public_key": oldPub,
-		"action":         "rotated",
-		"note":           "trust BOTH keys in nats-server.conf during the overlap, then drop the old one once all workers have renewed",
-	})
+	return newKey, oldPub, nil
+}
+
+// geocodeBackfillRunner runs one batch in the background, logging the outcome.
+func geocodeBackfillRunner(app *App, logger *slog.Logger) func(limit int) {
+	if app.ComputeStartPlace == nil {
+		return nil
+	}
+	return func(limit int) {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+			n, err := app.ComputeStartPlace.BackfillBatch(ctx, limit)
+			if err != nil {
+				logger.Warn("admin geocode backfill failed", "error", err)
+				return
+			}
+			logger.Info("admin geocode backfill complete", "resolved", n)
+		}()
+	}
 }
 
 func (h *adminOpsHandlers) listDLQ(w http.ResponseWriter, r *http.Request) {
@@ -223,14 +242,6 @@ func (h *adminOpsHandlers) replayDLQ(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"id": id.String(), "replayed": true, "new_msg_id": newMsgID})
-}
-
-func adminUserPtr(r *http.Request, app *App) *domain.UserID {
-	if u, ok := resolveAdminUser(r, app); ok {
-		id := u.ID
-		return &id
-	}
-	return nil
 }
 
 func dlqJobToJSON(j domain.DeadLetteredJob) map[string]any {

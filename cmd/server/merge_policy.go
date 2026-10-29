@@ -78,22 +78,21 @@ func (h *mergePolicyAPI) putUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *mergePolicyAPI) getInstance(w http.ResponseWriter, r *http.Request) {
-	app := h.app
-	if _, ok := resolveAdminUser(r, app); !ok {
+	if _, ok := resolveAdminUser(r, h.app); !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	defaults, err := app.UserSettings.GetInstanceMergeDefaults(r.Context())
+	defaults, groups, err := h.app.MergeDefaults.Get(r.Context())
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"policies": policiesToAPI(defaults), "field_groups": fieldGroupKeys()})
+	writeJSON(w, http.StatusOK, map[string]any{"policies": policiesToAPI(defaults), "field_groups": groups})
 }
 
 func (h *mergePolicyAPI) putInstance(w http.ResponseWriter, r *http.Request) {
-	app := h.app
-	if _, ok := resolveAdminUser(r, app); !ok {
+	admin, ok := resolveAdminUser(r, h.app)
+	if !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
@@ -104,8 +103,8 @@ func (h *mergePolicyAPI) putInstance(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := app.UserSettings.SetInstanceMergeDefaults(r.Context(), policies); err != nil {
-		http.Error(w, "save failed", http.StatusInternalServerError)
+	if err := h.app.MergeDefaults.Set(r.Context(), restActor(r, admin), policies); err != nil {
+		writeActionError(w, err, "save failed")
 		return
 	}
 	h.logger.Info("instance merge defaults updated", "types", len(policies))

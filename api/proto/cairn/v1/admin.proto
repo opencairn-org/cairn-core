@@ -35,6 +35,7 @@ import "google/protobuf/timestamp.proto";
 
 import "cairn/v1/auth.proto";
 import "cairn/v1/common.proto";
+import "cairn/v1/metrics.proto";
 
 // ============================================================================
 // AdminService
@@ -145,6 +146,64 @@ service AdminService {
   // the job_id for progress observation.
   // Scope: admin cookie session only (OAuth tokens are refused).
   rpc TriggerMaintenance(TriggerMaintenanceRequest) returns (TriggerMaintenanceResponse);
+
+  // ---- Worker fleet (twins of /api/admin/workers, worker-pools, worker-enrollments) ----
+  // Workers currently online, from the presence KV.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+  // The pool registry (docs/adr/0006) with the live instance count per pool.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListWorkerPools(ListWorkerPoolsRequest) returns (ListWorkerPoolsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc RetireWorkerPool(RetireWorkerPoolRequest) returns (RetireWorkerPoolResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListWorkerEnrollments(ListWorkerEnrollmentsRequest) returns (ListWorkerEnrollmentsResponse);
+  // The enrollment token is returned once.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc CreateWorkerEnrollment(CreateWorkerEnrollmentRequest) returns (CreateWorkerEnrollmentResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc RevokeWorkerEnrollment(RevokeWorkerEnrollmentRequest) returns (RevokeWorkerEnrollmentResponse);
+  // Extends (or re-arms a lapsed) enrollment.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ProlongWorkerEnrollment(ProlongWorkerEnrollmentRequest) returns (ProlongWorkerEnrollmentResponse);
+
+  // ---- Moderation (twins of /api/admin/reports, /api/admin/activities/{id}/hide) ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ResolveReport(ResolveReportRequest) returns (ResolveReportResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc SetActivityHidden(SetActivityHiddenRequest) returns (SetActivityHiddenResponse);
+
+  // ---- Quotas (twin of PUT /api/admin/users/{id}/quota) ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc SetUserQuota(SetUserQuotaRequest) returns (SetUserQuotaResponse);
+
+  // ---- Federation blocks (twins of /api/admin/federation/blocks) ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListBlockedDomains(ListBlockedDomainsRequest) returns (ListBlockedDomainsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc BlockDomain(BlockDomainRequest) returns (BlockDomainResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc UnblockDomain(UnblockDomainRequest) returns (UnblockDomainResponse);
+
+  // ---- Instance merge defaults (twins of /api/admin/instance/merge-defaults) ----
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc GetInstanceMergeDefaults(GetInstanceMergeDefaultsRequest) returns (GetInstanceMergeDefaultsResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc UpdateInstanceMergeDefaults(UpdateInstanceMergeDefaultsRequest) returns (UpdateInstanceMergeDefaultsResponse);
+
+  // ---- Operations (twins of /api/admin/geocode/backfill, gear/rebuild-totals, nats/*) ----
+  // Runs one geocoding batch in the background.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc RunGeocodeBackfill(RunGeocodeBackfillRequest) returns (RunGeocodeBackfillResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc RebuildGearTotals(RebuildGearTotalsRequest) returns (RebuildGearTotalsResponse);
+  // First-time NATS account signing key; a no-op when one is active.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc BootstrapNATSAccountKey(BootstrapNATSAccountKeyRequest) returns (BootstrapNATSAccountKeyResponse);
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc RotateNATSAccountKey(RotateNATSAccountKeyRequest) returns (RotateNATSAccountKeyResponse);
 }
 
 // ============================================================================
@@ -823,4 +882,242 @@ message TriggerMaintenanceResponse {
   string job_id = 1;
   // Estimated number of records the operation will touch.
   int64 estimated_record_count = 2;
+}
+
+// ============================================================================
+// Worker fleet
+// ============================================================================
+
+message WorkerCapability {
+  bool read = 1;
+  bool write = 2;
+  bool backfill = 3;
+  string granularity = 4;
+}
+
+message LiveWorker {
+  string worker_name = 1;
+  string worker_key = 2;
+  string instance_id = 3;
+  string version = 4;
+  string release = 5;
+  bool release_compatible = 6;
+  bool release_known = 7;
+  string core_release = 8;
+  string provider = 9;
+  string package = 10;
+  string go_version = 11;
+  string commit = 12;
+  string build_date = 13;
+  bool webhooks = 14;
+  map<string, WorkerCapability> capabilities = 15;
+  google.protobuf.Timestamp last_seen = 16;
+}
+
+message ListWorkersRequest {}
+message ListWorkersResponse {
+  repeated LiveWorker workers = 1;
+}
+
+message WorkerPool {
+  string provider = 1;
+  string name = 2;
+  string package = 3;
+  google.protobuf.Timestamp first_seen_at = 4;
+  google.protobuf.Timestamp last_seen_at = 5;
+  optional google.protobuf.Timestamp retired_at = 6;
+  int32 online_instances = 7;
+}
+
+message ListWorkerPoolsRequest {}
+message ListWorkerPoolsResponse {
+  repeated WorkerPool pools = 1;
+}
+message RetireWorkerPoolRequest {
+  string provider = 1;
+  string name = 2;
+}
+message RetireWorkerPoolResponse {}
+
+message WorkerEnrollment {
+  string id = 1;
+  string provider = 2;
+  string name = 3;
+  int32 version = 4;
+  string worker_key = 5;
+  string worker_name_pattern = 6;
+  string permission_template = 7;
+  string note = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp expires_at = 10;
+  int32 max_uses = 11;
+  int32 uses = 12;
+  optional string created_by_user_id = 13;
+  optional google.protobuf.Timestamp revoked_at = 14;
+  string revoked_reason = 15;
+  optional string revoked_by_user_id = 16;
+  bool is_revoked = 17;
+  bool reenroll_required = 18;
+}
+
+message ListWorkerEnrollmentsRequest {
+  optional string provider = 1;
+  bool include_revoked = 2;
+  bool include_expired = 3;
+}
+message ListWorkerEnrollmentsResponse {
+  repeated WorkerEnrollment enrollments = 1;
+  // Providers an enrollment may be scoped to.
+  repeated string providers = 2;
+}
+message CreateWorkerEnrollmentRequest {
+  string name = 1;
+  string provider = 2;
+  // Default (and cap) 365 days.
+  google.protobuf.Duration expires_in = 3;
+  string note = 4;
+}
+message CreateWorkerEnrollmentResponse {
+  WorkerEnrollment enrollment = 1;
+  // Shown once.
+  string token = 2;
+}
+message RevokeWorkerEnrollmentRequest {
+  string id = 1;
+  string reason = 2;
+}
+message RevokeWorkerEnrollmentResponse {}
+message ProlongWorkerEnrollmentRequest {
+  string id = 1;
+  google.protobuf.Duration expires_in = 2;
+}
+message ProlongWorkerEnrollmentResponse {
+  google.protobuf.Timestamp expires_at = 1;
+}
+
+// ============================================================================
+// Moderation
+// ============================================================================
+
+enum ReportStatus {
+  REPORT_STATUS_UNSPECIFIED = 0;
+  REPORT_STATUS_OPEN = 1;
+  REPORT_STATUS_REVIEWED = 2;
+  REPORT_STATUS_DISMISSED = 3;
+}
+
+message ContentReport {
+  string id = 1;
+  string reporter_user_id = 2;
+  string reporter_username = 3;
+  // "activity", "comment" or "user".
+  string target_kind = 4;
+  string target_id = 5;
+  string reason = 6;
+  ReportStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp reviewed_at = 9;
+  optional string reviewed_by_user_id = 10;
+}
+
+message ListReportsRequest {
+  // Unspecified = open reports.
+  ReportStatus status = 1;
+  PageRequest page = 2;
+}
+message ListReportsResponse {
+  repeated ContentReport reports = 1;
+  PageResponse page = 2;
+}
+message ResolveReportRequest {
+  string id = 1;
+  // REVIEWED (default) or DISMISSED.
+  ReportStatus status = 2;
+}
+message ResolveReportResponse {
+  ReportStatus status = 1;
+}
+message SetActivityHiddenRequest {
+  string activity_id = 1;
+  bool hidden = 2;
+}
+message SetActivityHiddenResponse {}
+
+// ============================================================================
+// Quotas
+// ============================================================================
+
+message SetUserQuotaRequest {
+  string user_id = 1;
+  // Unset clears the per-user override (instance default applies); 0 means
+  // unlimited for this user; >0 caps the number of activities.
+  optional int32 max_activities = 2;
+}
+message SetUserQuotaResponse {}
+
+// ============================================================================
+// Federation blocks
+// ============================================================================
+
+message BlockedDomain {
+  string domain = 1;
+  string reason = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+message ListBlockedDomainsRequest {}
+message ListBlockedDomainsResponse {
+  repeated BlockedDomain domains = 1;
+}
+message BlockDomainRequest {
+  string domain = 1;
+  string reason = 2;
+}
+message BlockDomainResponse {
+  BlockedDomain domain = 1;
+}
+message UnblockDomainRequest {
+  string domain = 1;
+}
+message UnblockDomainResponse {}
+
+// ============================================================================
+// Instance merge defaults
+// ============================================================================
+
+message GetInstanceMergeDefaultsRequest {}
+message GetInstanceMergeDefaultsResponse {
+  map<string, ActivityTypeMergePolicy> policies = 1;
+  repeated string field_groups = 2;
+}
+message UpdateInstanceMergeDefaultsRequest {
+  map<string, ActivityTypeMergePolicy> policies = 1;
+}
+message UpdateInstanceMergeDefaultsResponse {}
+
+// ============================================================================
+// Operations
+// ============================================================================
+
+message RunGeocodeBackfillRequest {
+  int32 limit = 1;
+}
+message RunGeocodeBackfillResponse {
+  bool started = 1;
+  int32 limit = 2;
+}
+message RebuildGearTotalsRequest {}
+message RebuildGearTotalsResponse {
+  int32 users = 1;
+}
+message BootstrapNATSAccountKeyRequest {}
+message BootstrapNATSAccountKeyResponse {
+  string public_key = 1;
+  google.protobuf.Timestamp created_at = 2;
+  // "created" or "no_change".
+  string action = 3;
+}
+message RotateNATSAccountKeyRequest {}
+message RotateNATSAccountKeyResponse {
+  string new_public_key = 1;
+  string old_public_key = 2;
 }

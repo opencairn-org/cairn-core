@@ -12,9 +12,11 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
+	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
+	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 )
 
@@ -42,6 +44,13 @@ type AdminServer struct {
 	Invites   *invite.Admin
 	Jobs      *jobs.Jobs
 	Orphans   *jobs.Orphans
+	Fleet     *fleet.Fleet
+	// CoreRelease is this binary's release, reported next to each worker.
+	CoreRelease   string
+	Reports       *moderation.Reports
+	Blocks        *moderation.Blocks
+	MergeDefaults *instance.MergeDefaults
+	Ops           *instance.Ops
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

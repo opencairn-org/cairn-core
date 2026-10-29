@@ -599,19 +599,21 @@ func (h *fedHandlers) listBlocks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	list, _ := h.app.FederationBlocks.List(r.Context())
+	list, err := h.app.FedBlocks.List(r.Context())
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
+	}
 	out := make([]map[string]any, 0, len(list))
 	for _, b := range list {
-		out = append(out, map[string]any{
-			"domain": b.Domain, "reason": b.Reason,
-			"created_at": b.CreatedAt.UTC().Format(time.RFC3339),
-		})
+		out = append(out, map[string]any{"domain": b.Domain, "reason": b.Reason, "created_at": b.CreatedAt.UTC().Format(time.RFC3339)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"blocked": out})
 }
 
 func (h *fedHandlers) addBlock(w http.ResponseWriter, r *http.Request) {
-	if _, ok := resolveAdminUser(r, h.app); !ok {
+	admin, ok := resolveAdminUser(r, h.app)
+	if !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
@@ -626,22 +628,22 @@ func (h *fedHandlers) addBlock(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "domain required", http.StatusBadRequest)
 		return
 	}
-	if err := h.app.FederationBlocks.Block(r.Context(), body.Domain, body.Reason); err != nil {
-		http.Error(w, "block failed", http.StatusInternalServerError)
+	d, err := h.app.FedBlocks.Block(r.Context(), restActor(r, admin), body.Domain, body.Reason)
+	if err != nil {
+		writeActionError(w, err, "block failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"domain": strings.ToLower(strings.TrimSpace(body.Domain)), "blocked": true,
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"domain": d, "blocked": true})
 }
 
 func (h *fedHandlers) removeBlock(w http.ResponseWriter, r *http.Request) {
-	if _, ok := resolveAdminUser(r, h.app); !ok {
+	admin, ok := resolveAdminUser(r, h.app)
+	if !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	if err := h.app.FederationBlocks.Unblock(r.Context(), r.PathValue("domain")); err != nil {
-		http.Error(w, "unblock failed", http.StatusInternalServerError)
+	if err := h.app.FedBlocks.Unblock(r.Context(), restActor(r, admin), r.PathValue("domain")); err != nil {
+		writeActionError(w, err, "unblock failed")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -1,21 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"maps"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/domain/capability"
-	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 )
 
 // admin_api exposes session-authenticated, admin-gated JSON endpoints for the
@@ -83,7 +81,7 @@ type adminAPIHeartbeat struct {
 }
 
 func mountAdminAPI(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	if app.CreateWorkerEnrollment == nil || app.WorkerEnrollments == nil {
+	if app.Fleet == nil || app.CreateWorkerEnrollment == nil || app.WorkerEnrollments == nil {
 		logger.Info("admin api not mounted: worker enrollment not wired")
 		return
 	}
@@ -110,10 +108,8 @@ func (h *adminAPIHandlers) listWorkers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := []map[string]any{}
-	if h.app.NATSBus != nil {
-		if kv, err := h.app.NATSBus.KV("cairn_worker_presence"); err == nil {
-			out = h.liveWorkers(r, kv, out)
-		}
+	for _, hb := range h.app.Fleet.Workers(r.Context()) {
+		out = append(out, adminAPIWorkerJSON(hb))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"workers": out})
 }
@@ -123,29 +119,19 @@ func (h *adminAPIHandlers) listPools(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	out := []map[string]any{}
-	if h.app.WorkerPools != nil {
-		pools, err := h.app.WorkerPools.ListAll(r.Context())
-		if err != nil {
-			http.Error(w, "list failed", http.StatusInternalServerError)
-			return
-		}
-		live := currentWorkers(r.Context(), h.app, h.logger)
-		for _, p := range pools {
-			out = append(out, poolJSON(p, live))
-		}
+	pools, err := h.app.Fleet.PoolStatuses(r.Context())
+	if err != nil {
+		writeActionError(w, err, "list failed")
+		return
+	}
+	out := make([]map[string]any, 0, len(pools))
+	for _, p := range pools {
+		out = append(out, poolJSON(p))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"pools": out})
 }
 
-// poolJSON renders one registry row with its live instance count.
-func poolJSON(p domain.WorkerPool, live []liveWorker) map[string]any {
-	online := 0
-	for _, l := range live {
-		if l.provider == p.Provider && l.name == p.Name {
-			online++
-		}
-	}
+func poolJSON(p domain.PoolStatus) map[string]any {
 	var retired any
 	if p.RetiredAt != nil {
 		retired = p.RetiredAt.UTC()
@@ -153,93 +139,84 @@ func poolJSON(p domain.WorkerPool, live []liveWorker) map[string]any {
 	return map[string]any{
 		"provider": p.Provider, "name": p.Name, "package": p.Package,
 		"first_seen_at": p.FirstSeenAt.UTC(), "last_seen_at": p.LastSeenAt.UTC(),
-		"retired_at": retired, "online_instances": online,
+		"retired_at": retired, "online_instances": p.OnlineInstances,
 	}
 }
 
 func (h *adminAPIHandlers) retirePool(w http.ResponseWriter, r *http.Request) {
-	if _, ok := resolveAdminUser(r, h.app); !ok {
+	admin, ok := resolveAdminUser(r, h.app)
+	if !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	if h.app.WorkerPools == nil {
-		http.Error(w, "unavailable", http.StatusServiceUnavailable)
-		return
-	}
 	provider, name := r.PathValue("provider"), r.PathValue("name")
-	if err := h.app.WorkerPools.Retire(r.Context(), provider, name); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			http.Error(w, "no such active pool", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "retire failed", http.StatusInternalServerError)
+	if err := h.app.Fleet.RetirePool(r.Context(), restActor(r, admin), provider, name); err != nil {
+		writeActionError(w, err, "retire failed")
 		return
 	}
 	h.logger.Info("worker pool retired", "provider", provider, "pool", name)
 	writeJSON(w, http.StatusOK, map[string]any{"retired": true})
 }
 
-// liveWorkers appends every live presence record in kv to out, pruning stale ones.
-func (h *adminAPIHandlers) liveWorkers(r *http.Request, kv port.KV, out []map[string]any) []map[string]any {
-	keys, _ := kv.Keys(r.Context())
+// scanWorkerHeartbeats reads every live presence record, pruning stale ones.
+func scanWorkerHeartbeats(ctx context.Context, app *App, logger *slog.Logger) []domain.WorkerHeartbeat {
+	out := []domain.WorkerHeartbeat{}
+	if app.NATSBus == nil {
+		return out
+	}
+	kv, err := app.NATSBus.KV("cairn_worker_presence")
+	if err != nil {
+		return out
+	}
+	keys, _ := kv.Keys(ctx)
 	now := time.Now()
 	for _, k := range keys {
-		entry, err := kv.Get(r.Context(), k)
+		entry, err := kv.Get(ctx, k)
 		if err != nil {
-			// Presence keys carry a TTL; one can expire between Keys and Get.
-			h.logger.Debug("admin workers: presence key vanished", "key", k, "error", err)
+			logger.Debug("admin workers: presence key vanished", "key", k, "error", err)
 			continue
 		}
 		var hb adminAPIHeartbeat
 		if json.Unmarshal(entry.Value, &hb) != nil {
 			continue
 		}
-		// Only surface LIVE workers. A presence key whose last heartbeat
-		// is older than the staleness window is a ghost (a crashed or
-		// just-replaced instance — its key lingers until the 60s KV TTL).
-		// Skip it AND actively prune it so the admin view cleans up old
-		// workers instead of showing duplicates as "online".
-		if ts, perr := time.Parse(time.RFC3339, hb.LastSeen); perr == nil {
-			if now.Sub(ts) > presenceStaleAfter {
-				_ = kv.Delete(r.Context(), k)
-				continue
-			}
+		seen, perr := time.Parse(time.RFC3339, hb.LastSeen)
+		if perr == nil && now.Sub(seen) > presenceStaleAfter {
+			_ = kv.Delete(ctx, k)
+			continue
 		}
-		out = append(out, adminAPIWorkerJSON(hb))
+		out = append(out, heartbeatToDomain(hb, seen))
 	}
 	return out
 }
 
-// adminAPIWorkerJSON renders one presence record for the admin UI.
-func adminAPIWorkerJSON(hb adminAPIHeartbeat) map[string]any {
+func heartbeatToDomain(hb adminAPIHeartbeat, seen time.Time) domain.WorkerHeartbeat {
 	compatible, known := domain.ReleaseCompatible(Version, hb.Release)
+	out := domain.WorkerHeartbeat{
+		WorkerName: hb.WorkerName, WorkerKey: hb.WorkerKey, InstanceID: hb.InstanceID, Version: hb.Version, Release: hb.Release,
+		Compatible: compatible, Known: known, Provider: hb.Provider, Package: hb.Package, GoVersion: hb.GoVersion,
+		Commit: hb.Commit, BuildDate: hb.BuildDate, Webhooks: hb.Webhooks, Capabilities: map[string]domain.LiveCapability{}, LastSeen: seen,
+	}
+	for k, c := range hb.Capabilities {
+		out.Capabilities[k] = domain.LiveCapability{Read: c.Read, Write: c.Write, Backfill: c.Backfill, Granularity: c.Granularity}
+	}
+	return out
+}
+
+func adminAPIWorkerJSON(hb domain.WorkerHeartbeat) map[string]any {
+	caps := map[string]map[string]any{}
+	for k, c := range hb.Capabilities {
+		caps[k] = map[string]any{"read": c.Read, "write": c.Write, "backfill": c.Backfill, "granularity": c.Granularity}
+	}
+	lastSeen := ""
+	if !hb.LastSeen.IsZero() {
+		lastSeen = hb.LastSeen.UTC().Format(time.RFC3339)
+	}
 	return map[string]any{
-		"worker_name": hb.WorkerName,
-		"worker_key":  hb.WorkerKey,
-		"instance_id": hb.InstanceID,
-		"version":     hb.Version,
-		// Release vs core's major.minor (docs/adr/0005); release_known is
-		// false for untagged builds on either side.
-		"release":            hb.Release,
-		"release_compatible": compatible,
-		"release_known":      known,
-		"core_release":       Version,
-		"provider":           hb.Provider,
-		"package":            hb.Package,
-		// Build info is informational (may differ across pooled
-		// instances); version+name+provider are the identity.
-		"go_version": hb.GoVersion,
-		"commit":     hb.Commit,
-		"build_date": hb.BuildDate,
-		// The worker advertises whether it owns its webhook subject;
-		// the UI surfaces the webhook URL only for webhook-capable
-		// workers.
-		"webhooks": hb.Webhooks,
-		// Per-data-type capability manifest (read/write/backfill).
-		// Provider-neutral; drives the "this provider gives you …"
-		// display and capability-aware sync routing.
-		"capabilities": hb.Capabilities,
-		"last_seen":    hb.LastSeen,
+		"worker_name": hb.WorkerName, "worker_key": hb.WorkerKey, "instance_id": hb.InstanceID, "version": hb.Version,
+		"release": hb.Release, "release_compatible": hb.Compatible, "release_known": hb.Known, "core_release": Version,
+		"provider": hb.Provider, "package": hb.Package, "go_version": hb.GoVersion, "commit": hb.Commit, "build_date": hb.BuildDate,
+		"webhooks": hb.Webhooks, "capabilities": caps, "last_seen": lastSeen,
 	}
 }
 
@@ -248,12 +225,9 @@ func (h *adminAPIHandlers) listEnrollments(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	list, err := h.app.WorkerEnrollments.ListEnrollments(r.Context(), port.ListEnrollmentsFilter{
-		IncludeRevoked: true,
-		IncludeExpired: true,
-	})
+	list, err := h.app.Fleet.ListEnrollments(r.Context(), r.URL.Query().Get("provider"), true, true)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeActionError(w, err, "list failed")
 		return
 	}
 	out := make([]map[string]any, 0, len(list))
@@ -263,7 +237,6 @@ func (h *adminAPIHandlers) listEnrollments(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]any{"enrollments": out, "providers": enrollmentProviders()})
 }
 
-// enrollmentProviders lists the built-in providers as suggestions; any well-formed provider id is accepted.
 func enrollmentProviders() []string {
 	return slices.Sorted(maps.Keys(providerRegistry))
 }
@@ -274,7 +247,6 @@ func (h *adminAPIHandlers) createEnrollment(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	// The provider scopes the worker's NATS permissions, so it is admin-set; the use case format-checks it.
 	var body struct {
 		Name           string `json:"name"`
 		Provider       string `json:"provider"`
@@ -285,37 +257,21 @@ func (h *adminAPIHandlers) createEnrollment(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	if body.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
-		return
-	}
-	if body.ExpiresInHours <= 0 {
-		body.ExpiresInHours = 365 * 24 // default 365 days (the use-case cap)
-	}
-	result, err := h.app.CreateWorkerEnrollment.Execute(r.Context(), enrollment.CreateEnrollmentInput{
-		Name:      body.Name,
-		Provider:  body.Provider,
-		ExpiresIn: time.Duration(body.ExpiresInHours) * time.Hour,
-		Note:      body.Note,
+	e, token, err := h.app.Fleet.CreateEnrollment(r.Context(), restActor(r, admin), fleet.EnrollmentInput{
+		Name: body.Name, Provider: body.Provider, ExpiresIn: time.Duration(body.ExpiresInHours) * time.Hour, Note: body.Note,
 	})
-	if errors.Is(err, enrollment.ErrInvalidInput) {
-		http.Error(w, strings.TrimPrefix(err.Error(), enrollment.ErrInvalidInput.Error()+": "), http.StatusBadRequest)
-		return
-	}
 	if err != nil {
-		h.logger.Error("create enrollment failed", "error", err)
-		http.Error(w, "create enrollment failed", http.StatusInternalServerError)
+		writeActionError(w, err, "create enrollment failed")
 		return
 	}
 	h.logger.Info("worker enrollment created via admin UI", "admin", admin.ID, "name", body.Name, "provider", body.Provider)
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"enrollment": enrollmentResponseJSON(result.Enrollment),
-		"token":      result.Token, // shown once
+		"enrollment": enrollmentResponseJSON(e),
+		"token":      token, // shown once
 		"warning":    "store this token now — it will not be shown again",
 	})
 }
 
-// enrollmentID gates on admin and parses the {id} path value.
 func (h *adminAPIHandlers) enrollmentID(w http.ResponseWriter, r *http.Request) (domain.User, domain.WorkerEnrollmentID, bool) {
 	admin, ok := resolveAdminUser(r, h.app)
 	if !ok {
@@ -342,20 +298,15 @@ func (h *adminAPIHandlers) revokeEnrollment(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	adminID := admin.ID
-	if err := h.app.RevokeWorkerEnrollment.Execute(r.Context(), enrollment.RevokeInput{
-		EnrollmentID: id,
-		By:           &adminID,
-		Reason:       body.Reason,
-	}); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := h.app.Fleet.RevokeEnrollment(r.Context(), restActor(r, admin), id, body.Reason); err != nil {
+		writeActionError(w, err, "revoke failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (h *adminAPIHandlers) prolongEnrollment(w http.ResponseWriter, r *http.Request) {
-	_, id, ok := h.enrollmentID(w, r)
+	admin, id, ok := h.enrollmentID(w, r)
 	if !ok {
 		return
 	}
@@ -366,16 +317,10 @@ func (h *adminAPIHandlers) prolongEnrollment(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	if body.ExpiresInHours <= 0 {
-		body.ExpiresInHours = 365 * 24
-	}
-	if body.ExpiresInHours > 365*24 {
-		body.ExpiresInHours = 365 * 24 // mirror the create cap
-	}
-	newExpiry := time.Now().UTC().Add(time.Duration(body.ExpiresInHours) * time.Hour)
-	if err := h.app.WorkerEnrollments.ExtendEnrollment(r.Context(), id, newExpiry); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	expires, err := h.app.Fleet.ProlongEnrollment(r.Context(), restActor(r, admin), id, time.Duration(body.ExpiresInHours)*time.Hour)
+	if err != nil {
+		writeActionError(w, err, "prolong failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "expires_at": newExpiry.Format(time.RFC3339)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "expires_at": expires.Format(time.RFC3339)})
 }

@@ -240,6 +240,12 @@ func newAdminServer(app *App, logger *slog.Logger) *connectadapter.AdminServer {
 		app.Orphans.Pools = app.WorkerPools
 	}
 	adminSvc.Orphans = app.Orphans
+	adminSvc.Fleet = app.Fleet
+	adminSvc.CoreRelease = Version
+	adminSvc.Reports = app.ModReports
+	adminSvc.Blocks = app.FedBlocks
+	adminSvc.MergeDefaults = app.MergeDefaults
+	adminSvc.Ops = app.Ops
 	if app.SystemHealth != nil {
 		app.SystemHealth.Workers = liveWorkerCounts(app, logger)
 		app.SystemHealth.QueueOK = natsHealth(app)

@@ -30,6 +30,7 @@ import (
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	geocodeuc "github.com/opencairn-org/cairn-core/internal/usecase/geocode"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
@@ -37,6 +38,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
+	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
@@ -178,6 +180,11 @@ type App struct {
 	InviteAdmin          *invite.Admin
 	Jobs                 *jobs.Jobs
 	Orphans              *jobs.Orphans
+	Fleet                *fleet.Fleet
+	ModReports           *moderation.Reports
+	FedBlocks            *moderation.Blocks
+	MergeDefaults        *instance.MergeDefaults
+	Ops                  *instance.Ops
 	// EmailAdapter / StorageAdapter name the operator's choices (env).
 	EmailAdapter, EmailFrom string
 	StorageAdapter          string
@@ -307,6 +314,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		return nil, err
 	}
 	mirrorInstanceEnv(ctx, app, cfg, logger)
+	wireOperatorAdmin(app, logger)
 	// After the blob store: variants need it (nil → nothing is derived).
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
@@ -815,8 +823,34 @@ func wireAdmin(app *App) {
 	if app.PasswordHasher != nil {
 		ua.Hasher = app.PasswordHasher
 	}
+	if app.Quotas != nil {
+		ua.Quotas = app.Quotas
+	}
 	app.UserAdmin = ua
 	wireInstanceAdmin(app)
+	wireModerationAdmin(app)
+}
+
+// wireModerationAdmin builds the moderation, block and merge-default use cases.
+func wireModerationAdmin(app *App) {
+	rep := &moderation.Reports{Users: app.Users, Audit: app.AuditLog}
+	if app.Reports != nil {
+		rep.Reports = app.Reports
+	}
+	if app.Moderation != nil {
+		rep.Moderation = app.Moderation
+	}
+	app.ModReports = rep
+	blocks := &moderation.Blocks{Audit: app.AuditLog}
+	if app.FederationBlocks != nil {
+		blocks.Repo = app.FederationBlocks
+	}
+	app.FedBlocks = blocks
+	md := &instance.MergeDefaults{Audit: app.AuditLog}
+	if app.UserSettings != nil {
+		md.Settings = app.UserSettings
+	}
+	app.MergeDefaults = md
 }
 
 // wireInstanceAdmin builds the instance settings, email check, health
@@ -897,4 +931,21 @@ func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
 	}
 	app.SecretBox = secretBox
 	return secretBox, nil
+}
+
+// wireOperatorAdmin builds the fleet and operations use cases, which need
+// package-main helpers (presence KV, NATS keys, the background geocoder).
+func wireOperatorAdmin(app *App, logger *slog.Logger) {
+	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment,
+		Live: func(ctx context.Context) []domain.WorkerHeartbeat { return scanWorkerHeartbeats(ctx, app, logger) }}
+	if app.WorkerPools != nil {
+		app.Fleet.Pools = app.WorkerPools
+	}
+	if app.WorkerEnrollments != nil {
+		app.Fleet.Enrollments = app.WorkerEnrollments
+	}
+	app.Ops = &instance.Ops{GeocodeBackfill: geocodeBackfillRunner(app, logger), Keys: natsKeyManager{app: app}, Audit: app.AuditLog}
+	if app.Gear != nil {
+		app.Ops.Gear = app.Gear
+	}
 }

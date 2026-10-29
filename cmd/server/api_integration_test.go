@@ -551,6 +551,21 @@ func TestAPI_EndToEnd(t *testing.T) {
 	adm.rpc("/cairn.v1.AdminService/ListDeadLetterJobs", map[string]any{}, http.StatusOK)
 	adm.rpc("/cairn.v1.AdminService/ListOrphanedSources", map[string]any{}, http.StatusOK)
 	adm.rpc("/cairn.v1.AdminService/GetJob", map[string]any{"id": uuid.NewString()}, http.StatusNotFound)
+	// Fleet, moderation, quota, federation blocks, merge defaults and ops twins.
+	for _, proc := range []string{"ListWorkers", "ListWorkerPools", "ListWorkerEnrollments", "ListReports", "ListBlockedDomains", "GetInstanceMergeDefaults"} {
+		adm.rpc("/cairn.v1.AdminService/"+proc, map[string]any{}, http.StatusOK)
+		bob.rpc("/cairn.v1.AdminService/"+proc, map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
+	}
+	adm.rpc("/cairn.v1.AdminService/BlockDomain", map[string]any{"domain": "Bad.Example", "reason": "rpc"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UnblockDomain", map[string]any{"domain": "bad.example"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/SetUserQuota", map[string]any{"userId": bobID, "maxActivities": 50}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/SetUserQuota", map[string]any{"userId": bobID}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UpdateInstanceMergeDefaults", map[string]any{"policies": map[string]any{"ride": map[string]any{"defaultProviders": []string{"strava"}}}}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RebuildGearTotals", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RunGeocodeBackfill", map[string]any{"limit": 5}, http.StatusServiceUnavailable)
+	adm.rpc("/cairn.v1.AdminService/CreateWorkerEnrollment", map[string]any{"name": "rpc-worker", "provider": "strava"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RetireWorkerPool", map[string]any{"provider": "strava", "name": "nope"}, http.StatusNotFound)
+	adm.rpc("/cairn.v1.AdminService/SetActivityHidden", map[string]any{"activityId": bobAct, "hidden": false}, http.StatusOK)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)

@@ -34,7 +34,8 @@ type Users struct {
 	Hasher           interface {
 		Hash(password string) (string, error)
 	}
-	Audit *audit.Recorder
+	Audit  *audit.Recorder
+	Quotas port.QuotaRepo
 }
 
 // UserDetail is the admin view of one user.
@@ -473,5 +474,28 @@ func (u *Users) notLastAdmin(ctx context.Context) error {
 	if n <= 1 {
 		return port.NewActionError(port.ActionErrorPrecondition, port.ErrLastAdmin.Error())
 	}
+	return nil
+}
+
+// SetQuota sets or clears a user's activity cap; nil clears the override,
+// zero means unlimited.
+func (u *Users) SetQuota(ctx context.Context, actor audit.Actor, id domain.UserID, maxActivities *int) error {
+	if u.Quotas == nil {
+		return port.NewActionError(port.ActionErrorUnavailable, "quotas are not available")
+	}
+	if _, err := u.load(ctx, id); err != nil {
+		return err
+	}
+	if maxActivities != nil && *maxActivities < 0 {
+		return invalid(errors.New("max_activities must not be negative"))
+	}
+	if err := u.Quotas.SetMaxActivities(ctx, id, maxActivities); err != nil {
+		return internalErr("set quota", err)
+	}
+	val := "default"
+	if maxActivities != nil {
+		val = fmt.Sprint(*maxActivities)
+	}
+	u.Audit.Info(ctx, actor, domain.AuditQuotaChanged, "user", id.String(), map[string]string{"max_activities": val})
 	return nil
 }
