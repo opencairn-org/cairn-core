@@ -36,7 +36,7 @@
 # pure Go, downstream `go build` is CGO_ENABLED=0, and the web `npm ci` deps ship
 # prebuilt (the old web stage ran on bare node:alpine). We stay on glibc so the
 # official protoc binary (glibc-only) still runs.
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
+FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
 
 # --- pinned tool versions ---------------------------------------------------
 # Matched to the repo (go.mod, web/package.json) so locally-generated code is
