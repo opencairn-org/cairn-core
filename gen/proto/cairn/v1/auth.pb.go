@@ -623,10 +623,12 @@ type User struct {
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	LastLoginAt   *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_login_at,json=lastLoginAt,proto3,oneof" json:"last_login_at,omitempty"`
 	// Display-format preferences (applied site-wide on every client).
-	DateFormat    DateFormat `protobuf:"varint,15,opt,name=date_format,json=dateFormat,proto3,enum=cairn.v1.DateFormat" json:"date_format,omitempty"`
-	TimeFormat    TimeFormat `protobuf:"varint,16,opt,name=time_format,json=timeFormat,proto3,enum=cairn.v1.TimeFormat" json:"time_format,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DateFormat DateFormat `protobuf:"varint,15,opt,name=date_format,json=dateFormat,proto3,enum=cairn.v1.DateFormat" json:"date_format,omitempty"`
+	TimeFormat TimeFormat `protobuf:"varint,16,opt,name=time_format,json=timeFormat,proto3,enum=cairn.v1.TimeFormat" json:"time_format,omitempty"`
+	// A passkey is required after password sign-in.
+	PasskeySecondFactor bool `protobuf:"varint,17,opt,name=passkey_second_factor,json=passkeySecondFactor,proto3" json:"passkey_second_factor,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
@@ -769,6 +771,13 @@ func (x *User) GetTimeFormat() TimeFormat {
 		return x.TimeFormat
 	}
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+func (x *User) GetPasskeySecondFactor() bool {
+	if x != nil {
+		return x.PasskeySecondFactor
+	}
+	return false
 }
 
 type GetLoginMethodsRequest struct {
@@ -1487,6 +1496,94 @@ func (x *Complete2FAResponse) GetSession() *SessionResult {
 	return nil
 }
 
+type SetPasskeySecondFactorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPasskeySecondFactorRequest) Reset() {
+	*x = SetPasskeySecondFactorRequest{}
+	mi := &file_cairn_v1_auth_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPasskeySecondFactorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPasskeySecondFactorRequest) ProtoMessage() {}
+
+func (x *SetPasskeySecondFactorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_auth_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPasskeySecondFactorRequest.ProtoReflect.Descriptor instead.
+func (*SetPasskeySecondFactorRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SetPasskeySecondFactorRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type SetPasskeySecondFactorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPasskeySecondFactorResponse) Reset() {
+	*x = SetPasskeySecondFactorResponse{}
+	mi := &file_cairn_v1_auth_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPasskeySecondFactorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPasskeySecondFactorResponse) ProtoMessage() {}
+
+func (x *SetPasskeySecondFactorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_auth_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPasskeySecondFactorResponse.ProtoReflect.Descriptor instead.
+func (*SetPasskeySecondFactorResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SetPasskeySecondFactorResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
 type SessionResult struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -1501,7 +1598,7 @@ type SessionResult struct {
 
 func (x *SessionResult) Reset() {
 	*x = SessionResult{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[13]
+	mi := &file_cairn_v1_auth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1513,7 +1610,7 @@ func (x *SessionResult) String() string {
 func (*SessionResult) ProtoMessage() {}
 
 func (x *SessionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[13]
+	mi := &file_cairn_v1_auth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1526,7 +1623,7 @@ func (x *SessionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionResult.ProtoReflect.Descriptor instead.
 func (*SessionResult) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{13}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SessionResult) GetSessionId() string {
@@ -1574,7 +1671,7 @@ type RegisterRequest struct {
 
 func (x *RegisterRequest) Reset() {
 	*x = RegisterRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[14]
+	mi := &file_cairn_v1_auth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1586,7 +1683,7 @@ func (x *RegisterRequest) String() string {
 func (*RegisterRequest) ProtoMessage() {}
 
 func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[14]
+	mi := &file_cairn_v1_auth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1599,7 +1696,7 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{14}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RegisterRequest) GetUsername() string {
@@ -1671,7 +1768,7 @@ type RegisterResponse struct {
 
 func (x *RegisterResponse) Reset() {
 	*x = RegisterResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[15]
+	mi := &file_cairn_v1_auth_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +1780,7 @@ func (x *RegisterResponse) String() string {
 func (*RegisterResponse) ProtoMessage() {}
 
 func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[15]
+	mi := &file_cairn_v1_auth_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +1793,7 @@ func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterResponse.ProtoReflect.Descriptor instead.
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{15}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RegisterResponse) GetUser() *User {
@@ -1730,7 +1827,7 @@ type ChangePasswordRequest struct {
 
 func (x *ChangePasswordRequest) Reset() {
 	*x = ChangePasswordRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[16]
+	mi := &file_cairn_v1_auth_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1742,7 +1839,7 @@ func (x *ChangePasswordRequest) String() string {
 func (*ChangePasswordRequest) ProtoMessage() {}
 
 func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[16]
+	mi := &file_cairn_v1_auth_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1755,7 +1852,7 @@ func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
 func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{16}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ChangePasswordRequest) GetCurrentPassword() string {
@@ -1780,7 +1877,7 @@ type ChangePasswordResponse struct {
 
 func (x *ChangePasswordResponse) Reset() {
 	*x = ChangePasswordResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[17]
+	mi := &file_cairn_v1_auth_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1792,7 +1889,7 @@ func (x *ChangePasswordResponse) String() string {
 func (*ChangePasswordResponse) ProtoMessage() {}
 
 func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[17]
+	mi := &file_cairn_v1_auth_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1805,7 +1902,7 @@ func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordResponse.ProtoReflect.Descriptor instead.
 func (*ChangePasswordResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{17}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{19}
 }
 
 type RequestPasswordResetRequest struct {
@@ -1817,7 +1914,7 @@ type RequestPasswordResetRequest struct {
 
 func (x *RequestPasswordResetRequest) Reset() {
 	*x = RequestPasswordResetRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[18]
+	mi := &file_cairn_v1_auth_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1829,7 +1926,7 @@ func (x *RequestPasswordResetRequest) String() string {
 func (*RequestPasswordResetRequest) ProtoMessage() {}
 
 func (x *RequestPasswordResetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[18]
+	mi := &file_cairn_v1_auth_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1842,7 +1939,7 @@ func (x *RequestPasswordResetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestPasswordResetRequest.ProtoReflect.Descriptor instead.
 func (*RequestPasswordResetRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{18}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RequestPasswordResetRequest) GetEmail() string {
@@ -1863,7 +1960,7 @@ type RequestPasswordResetResponse struct {
 
 func (x *RequestPasswordResetResponse) Reset() {
 	*x = RequestPasswordResetResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[19]
+	mi := &file_cairn_v1_auth_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1875,7 +1972,7 @@ func (x *RequestPasswordResetResponse) String() string {
 func (*RequestPasswordResetResponse) ProtoMessage() {}
 
 func (x *RequestPasswordResetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[19]
+	mi := &file_cairn_v1_auth_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1888,7 +1985,7 @@ func (x *RequestPasswordResetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestPasswordResetResponse.ProtoReflect.Descriptor instead.
 func (*RequestPasswordResetResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{19}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *RequestPasswordResetResponse) GetEmailDispatchAttempted() bool {
@@ -1908,7 +2005,7 @@ type ConfirmPasswordResetRequest struct {
 
 func (x *ConfirmPasswordResetRequest) Reset() {
 	*x = ConfirmPasswordResetRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[20]
+	mi := &file_cairn_v1_auth_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1920,7 +2017,7 @@ func (x *ConfirmPasswordResetRequest) String() string {
 func (*ConfirmPasswordResetRequest) ProtoMessage() {}
 
 func (x *ConfirmPasswordResetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[20]
+	mi := &file_cairn_v1_auth_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1933,7 +2030,7 @@ func (x *ConfirmPasswordResetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPasswordResetRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmPasswordResetRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{20}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ConfirmPasswordResetRequest) GetResetToken() string {
@@ -1960,7 +2057,7 @@ type ConfirmPasswordResetResponse struct {
 
 func (x *ConfirmPasswordResetResponse) Reset() {
 	*x = ConfirmPasswordResetResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[21]
+	mi := &file_cairn_v1_auth_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1972,7 +2069,7 @@ func (x *ConfirmPasswordResetResponse) String() string {
 func (*ConfirmPasswordResetResponse) ProtoMessage() {}
 
 func (x *ConfirmPasswordResetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[21]
+	mi := &file_cairn_v1_auth_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1985,7 +2082,7 @@ func (x *ConfirmPasswordResetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPasswordResetResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmPasswordResetResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{21}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ConfirmPasswordResetResponse) GetSession() *SessionResult {
@@ -2007,7 +2104,7 @@ type StartOIDCLoginRequest struct {
 
 func (x *StartOIDCLoginRequest) Reset() {
 	*x = StartOIDCLoginRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[22]
+	mi := &file_cairn_v1_auth_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2019,7 +2116,7 @@ func (x *StartOIDCLoginRequest) String() string {
 func (*StartOIDCLoginRequest) ProtoMessage() {}
 
 func (x *StartOIDCLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[22]
+	mi := &file_cairn_v1_auth_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2032,7 +2129,7 @@ func (x *StartOIDCLoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOIDCLoginRequest.ProtoReflect.Descriptor instead.
 func (*StartOIDCLoginRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{22}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *StartOIDCLoginRequest) GetOidcClientId() string {
@@ -2062,7 +2159,7 @@ type StartOIDCLoginResponse struct {
 
 func (x *StartOIDCLoginResponse) Reset() {
 	*x = StartOIDCLoginResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[23]
+	mi := &file_cairn_v1_auth_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2074,7 +2171,7 @@ func (x *StartOIDCLoginResponse) String() string {
 func (*StartOIDCLoginResponse) ProtoMessage() {}
 
 func (x *StartOIDCLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[23]
+	mi := &file_cairn_v1_auth_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2087,7 +2184,7 @@ func (x *StartOIDCLoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOIDCLoginResponse.ProtoReflect.Descriptor instead.
 func (*StartOIDCLoginResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{23}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *StartOIDCLoginResponse) GetAuthorizeUrl() string {
@@ -2113,7 +2210,7 @@ type StartOIDCLinkRequest struct {
 
 func (x *StartOIDCLinkRequest) Reset() {
 	*x = StartOIDCLinkRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[24]
+	mi := &file_cairn_v1_auth_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2125,7 +2222,7 @@ func (x *StartOIDCLinkRequest) String() string {
 func (*StartOIDCLinkRequest) ProtoMessage() {}
 
 func (x *StartOIDCLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[24]
+	mi := &file_cairn_v1_auth_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2138,7 +2235,7 @@ func (x *StartOIDCLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOIDCLinkRequest.ProtoReflect.Descriptor instead.
 func (*StartOIDCLinkRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{24}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *StartOIDCLinkRequest) GetOidcClientId() string {
@@ -2158,7 +2255,7 @@ type StartOIDCLinkResponse struct {
 
 func (x *StartOIDCLinkResponse) Reset() {
 	*x = StartOIDCLinkResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[25]
+	mi := &file_cairn_v1_auth_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2170,7 +2267,7 @@ func (x *StartOIDCLinkResponse) String() string {
 func (*StartOIDCLinkResponse) ProtoMessage() {}
 
 func (x *StartOIDCLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[25]
+	mi := &file_cairn_v1_auth_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2183,7 +2280,7 @@ func (x *StartOIDCLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOIDCLinkResponse.ProtoReflect.Descriptor instead.
 func (*StartOIDCLinkResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{25}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *StartOIDCLinkResponse) GetAuthorizeUrl() string {
@@ -2209,7 +2306,7 @@ type UnlinkOIDCIdentityRequest struct {
 
 func (x *UnlinkOIDCIdentityRequest) Reset() {
 	*x = UnlinkOIDCIdentityRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[26]
+	mi := &file_cairn_v1_auth_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2221,7 +2318,7 @@ func (x *UnlinkOIDCIdentityRequest) String() string {
 func (*UnlinkOIDCIdentityRequest) ProtoMessage() {}
 
 func (x *UnlinkOIDCIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[26]
+	mi := &file_cairn_v1_auth_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2234,7 +2331,7 @@ func (x *UnlinkOIDCIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkOIDCIdentityRequest.ProtoReflect.Descriptor instead.
 func (*UnlinkOIDCIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{26}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *UnlinkOIDCIdentityRequest) GetIdentityId() string {
@@ -2252,7 +2349,7 @@ type UnlinkOIDCIdentityResponse struct {
 
 func (x *UnlinkOIDCIdentityResponse) Reset() {
 	*x = UnlinkOIDCIdentityResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[27]
+	mi := &file_cairn_v1_auth_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2264,7 +2361,7 @@ func (x *UnlinkOIDCIdentityResponse) String() string {
 func (*UnlinkOIDCIdentityResponse) ProtoMessage() {}
 
 func (x *UnlinkOIDCIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[27]
+	mi := &file_cairn_v1_auth_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2277,7 +2374,7 @@ func (x *UnlinkOIDCIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkOIDCIdentityResponse.ProtoReflect.Descriptor instead.
 func (*UnlinkOIDCIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{27}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{29}
 }
 
 type ListLinkedIdentitiesRequest struct {
@@ -2288,7 +2385,7 @@ type ListLinkedIdentitiesRequest struct {
 
 func (x *ListLinkedIdentitiesRequest) Reset() {
 	*x = ListLinkedIdentitiesRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[28]
+	mi := &file_cairn_v1_auth_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2300,7 +2397,7 @@ func (x *ListLinkedIdentitiesRequest) String() string {
 func (*ListLinkedIdentitiesRequest) ProtoMessage() {}
 
 func (x *ListLinkedIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[28]
+	mi := &file_cairn_v1_auth_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2313,7 +2410,7 @@ func (x *ListLinkedIdentitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLinkedIdentitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListLinkedIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{28}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{30}
 }
 
 type ListLinkedIdentitiesResponse struct {
@@ -2325,7 +2422,7 @@ type ListLinkedIdentitiesResponse struct {
 
 func (x *ListLinkedIdentitiesResponse) Reset() {
 	*x = ListLinkedIdentitiesResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[29]
+	mi := &file_cairn_v1_auth_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2337,7 +2434,7 @@ func (x *ListLinkedIdentitiesResponse) String() string {
 func (*ListLinkedIdentitiesResponse) ProtoMessage() {}
 
 func (x *ListLinkedIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[29]
+	mi := &file_cairn_v1_auth_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2350,7 +2447,7 @@ func (x *ListLinkedIdentitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLinkedIdentitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListLinkedIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{29}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListLinkedIdentitiesResponse) GetIdentities() []*LinkedIdentity {
@@ -2375,7 +2472,7 @@ type LinkedIdentity struct {
 
 func (x *LinkedIdentity) Reset() {
 	*x = LinkedIdentity{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[30]
+	mi := &file_cairn_v1_auth_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2387,7 +2484,7 @@ func (x *LinkedIdentity) String() string {
 func (*LinkedIdentity) ProtoMessage() {}
 
 func (x *LinkedIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[30]
+	mi := &file_cairn_v1_auth_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2400,7 +2497,7 @@ func (x *LinkedIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkedIdentity.ProtoReflect.Descriptor instead.
 func (*LinkedIdentity) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{30}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *LinkedIdentity) GetId() string {
@@ -2462,7 +2559,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[31]
+	mi := &file_cairn_v1_auth_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2474,7 +2571,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[31]
+	mi := &file_cairn_v1_auth_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2487,7 +2584,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{31}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *LogoutRequest) GetAllDevices() bool {
@@ -2505,7 +2602,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[32]
+	mi := &file_cairn_v1_auth_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2517,7 +2614,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[32]
+	mi := &file_cairn_v1_auth_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2530,7 +2627,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{32}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{34}
 }
 
 type GetCurrentUserRequest struct {
@@ -2541,7 +2638,7 @@ type GetCurrentUserRequest struct {
 
 func (x *GetCurrentUserRequest) Reset() {
 	*x = GetCurrentUserRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[33]
+	mi := &file_cairn_v1_auth_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2553,7 +2650,7 @@ func (x *GetCurrentUserRequest) String() string {
 func (*GetCurrentUserRequest) ProtoMessage() {}
 
 func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[33]
+	mi := &file_cairn_v1_auth_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2566,7 +2663,7 @@ func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{33}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{35}
 }
 
 type GetCurrentUserResponse struct {
@@ -2581,7 +2678,7 @@ type GetCurrentUserResponse struct {
 
 func (x *GetCurrentUserResponse) Reset() {
 	*x = GetCurrentUserResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[34]
+	mi := &file_cairn_v1_auth_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2593,7 +2690,7 @@ func (x *GetCurrentUserResponse) String() string {
 func (*GetCurrentUserResponse) ProtoMessage() {}
 
 func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[34]
+	mi := &file_cairn_v1_auth_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2606,7 +2703,7 @@ func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{34}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetCurrentUserResponse) GetUser() *User {
@@ -2634,7 +2731,7 @@ type UpdateUserPreferencesRequest struct {
 
 func (x *UpdateUserPreferencesRequest) Reset() {
 	*x = UpdateUserPreferencesRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[35]
+	mi := &file_cairn_v1_auth_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2646,7 +2743,7 @@ func (x *UpdateUserPreferencesRequest) String() string {
 func (*UpdateUserPreferencesRequest) ProtoMessage() {}
 
 func (x *UpdateUserPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[35]
+	mi := &file_cairn_v1_auth_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2659,7 +2756,7 @@ func (x *UpdateUserPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*UpdateUserPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{35}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UpdateUserPreferencesRequest) GetDateFormat() DateFormat {
@@ -2692,7 +2789,7 @@ type UpdateUserPreferencesResponse struct {
 
 func (x *UpdateUserPreferencesResponse) Reset() {
 	*x = UpdateUserPreferencesResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[36]
+	mi := &file_cairn_v1_auth_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2704,7 +2801,7 @@ func (x *UpdateUserPreferencesResponse) String() string {
 func (*UpdateUserPreferencesResponse) ProtoMessage() {}
 
 func (x *UpdateUserPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[36]
+	mi := &file_cairn_v1_auth_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2717,7 +2814,7 @@ func (x *UpdateUserPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*UpdateUserPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{36}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *UpdateUserPreferencesResponse) GetUser() *User {
@@ -2742,7 +2839,7 @@ type UpdateProfileRequest struct {
 
 func (x *UpdateProfileRequest) Reset() {
 	*x = UpdateProfileRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[37]
+	mi := &file_cairn_v1_auth_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2754,7 +2851,7 @@ func (x *UpdateProfileRequest) String() string {
 func (*UpdateProfileRequest) ProtoMessage() {}
 
 func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[37]
+	mi := &file_cairn_v1_auth_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2767,7 +2864,7 @@ func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{37}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *UpdateProfileRequest) GetFieldMask() []string {
@@ -2828,7 +2925,7 @@ type UpdateProfileResponse struct {
 
 func (x *UpdateProfileResponse) Reset() {
 	*x = UpdateProfileResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[38]
+	mi := &file_cairn_v1_auth_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2840,7 +2937,7 @@ func (x *UpdateProfileResponse) String() string {
 func (*UpdateProfileResponse) ProtoMessage() {}
 
 func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[38]
+	mi := &file_cairn_v1_auth_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2853,7 +2950,7 @@ func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{38}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *UpdateProfileResponse) GetUser() *User {
@@ -2881,7 +2978,7 @@ type Session struct {
 
 func (x *Session) Reset() {
 	*x = Session{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[39]
+	mi := &file_cairn_v1_auth_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2893,7 +2990,7 @@ func (x *Session) String() string {
 func (*Session) ProtoMessage() {}
 
 func (x *Session) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[39]
+	mi := &file_cairn_v1_auth_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2906,7 +3003,7 @@ func (x *Session) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Session.ProtoReflect.Descriptor instead.
 func (*Session) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{39}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Session) GetId() string {
@@ -2980,7 +3077,7 @@ type ListSessionsRequest struct {
 
 func (x *ListSessionsRequest) Reset() {
 	*x = ListSessionsRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[40]
+	mi := &file_cairn_v1_auth_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2992,7 +3089,7 @@ func (x *ListSessionsRequest) String() string {
 func (*ListSessionsRequest) ProtoMessage() {}
 
 func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[40]
+	mi := &file_cairn_v1_auth_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3005,7 +3102,7 @@ func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{40}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{42}
 }
 
 type ListSessionsResponse struct {
@@ -3017,7 +3114,7 @@ type ListSessionsResponse struct {
 
 func (x *ListSessionsResponse) Reset() {
 	*x = ListSessionsResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[41]
+	mi := &file_cairn_v1_auth_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3029,7 +3126,7 @@ func (x *ListSessionsResponse) String() string {
 func (*ListSessionsResponse) ProtoMessage() {}
 
 func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[41]
+	mi := &file_cairn_v1_auth_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3042,7 +3139,7 @@ func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionsResponse.ProtoReflect.Descriptor instead.
 func (*ListSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{41}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ListSessionsResponse) GetSessions() []*Session {
@@ -3061,7 +3158,7 @@ type RevokeSessionRequest struct {
 
 func (x *RevokeSessionRequest) Reset() {
 	*x = RevokeSessionRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[42]
+	mi := &file_cairn_v1_auth_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3073,7 +3170,7 @@ func (x *RevokeSessionRequest) String() string {
 func (*RevokeSessionRequest) ProtoMessage() {}
 
 func (x *RevokeSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[42]
+	mi := &file_cairn_v1_auth_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3086,7 +3183,7 @@ func (x *RevokeSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeSessionRequest.ProtoReflect.Descriptor instead.
 func (*RevokeSessionRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{42}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *RevokeSessionRequest) GetId() string {
@@ -3104,7 +3201,7 @@ type RevokeSessionResponse struct {
 
 func (x *RevokeSessionResponse) Reset() {
 	*x = RevokeSessionResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[43]
+	mi := &file_cairn_v1_auth_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3116,7 +3213,7 @@ func (x *RevokeSessionResponse) String() string {
 func (*RevokeSessionResponse) ProtoMessage() {}
 
 func (x *RevokeSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[43]
+	mi := &file_cairn_v1_auth_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3129,7 +3226,7 @@ func (x *RevokeSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeSessionResponse.ProtoReflect.Descriptor instead.
 func (*RevokeSessionResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{43}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{45}
 }
 
 type PersonalAccessToken struct {
@@ -3147,7 +3244,7 @@ type PersonalAccessToken struct {
 
 func (x *PersonalAccessToken) Reset() {
 	*x = PersonalAccessToken{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[44]
+	mi := &file_cairn_v1_auth_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3159,7 +3256,7 @@ func (x *PersonalAccessToken) String() string {
 func (*PersonalAccessToken) ProtoMessage() {}
 
 func (x *PersonalAccessToken) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[44]
+	mi := &file_cairn_v1_auth_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3172,7 +3269,7 @@ func (x *PersonalAccessToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonalAccessToken.ProtoReflect.Descriptor instead.
 func (*PersonalAccessToken) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{44}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *PersonalAccessToken) GetId() string {
@@ -3228,7 +3325,7 @@ type CreatePersonalAccessTokenRequest struct {
 
 func (x *CreatePersonalAccessTokenRequest) Reset() {
 	*x = CreatePersonalAccessTokenRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[45]
+	mi := &file_cairn_v1_auth_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3240,7 +3337,7 @@ func (x *CreatePersonalAccessTokenRequest) String() string {
 func (*CreatePersonalAccessTokenRequest) ProtoMessage() {}
 
 func (x *CreatePersonalAccessTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[45]
+	mi := &file_cairn_v1_auth_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3253,7 +3350,7 @@ func (x *CreatePersonalAccessTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePersonalAccessTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreatePersonalAccessTokenRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{45}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *CreatePersonalAccessTokenRequest) GetName() string {
@@ -3288,7 +3385,7 @@ type CreatePersonalAccessTokenResponse struct {
 
 func (x *CreatePersonalAccessTokenResponse) Reset() {
 	*x = CreatePersonalAccessTokenResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[46]
+	mi := &file_cairn_v1_auth_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3300,7 +3397,7 @@ func (x *CreatePersonalAccessTokenResponse) String() string {
 func (*CreatePersonalAccessTokenResponse) ProtoMessage() {}
 
 func (x *CreatePersonalAccessTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[46]
+	mi := &file_cairn_v1_auth_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3313,7 +3410,7 @@ func (x *CreatePersonalAccessTokenResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use CreatePersonalAccessTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreatePersonalAccessTokenResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{46}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *CreatePersonalAccessTokenResponse) GetToken() *PersonalAccessToken {
@@ -3338,7 +3435,7 @@ type ListPersonalAccessTokensRequest struct {
 
 func (x *ListPersonalAccessTokensRequest) Reset() {
 	*x = ListPersonalAccessTokensRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[47]
+	mi := &file_cairn_v1_auth_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3350,7 +3447,7 @@ func (x *ListPersonalAccessTokensRequest) String() string {
 func (*ListPersonalAccessTokensRequest) ProtoMessage() {}
 
 func (x *ListPersonalAccessTokensRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[47]
+	mi := &file_cairn_v1_auth_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3363,7 +3460,7 @@ func (x *ListPersonalAccessTokensRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPersonalAccessTokensRequest.ProtoReflect.Descriptor instead.
 func (*ListPersonalAccessTokensRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{47}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{49}
 }
 
 type ListPersonalAccessTokensResponse struct {
@@ -3375,7 +3472,7 @@ type ListPersonalAccessTokensResponse struct {
 
 func (x *ListPersonalAccessTokensResponse) Reset() {
 	*x = ListPersonalAccessTokensResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[48]
+	mi := &file_cairn_v1_auth_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3387,7 +3484,7 @@ func (x *ListPersonalAccessTokensResponse) String() string {
 func (*ListPersonalAccessTokensResponse) ProtoMessage() {}
 
 func (x *ListPersonalAccessTokensResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[48]
+	mi := &file_cairn_v1_auth_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3400,7 +3497,7 @@ func (x *ListPersonalAccessTokensResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPersonalAccessTokensResponse.ProtoReflect.Descriptor instead.
 func (*ListPersonalAccessTokensResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{48}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ListPersonalAccessTokensResponse) GetTokens() []*PersonalAccessToken {
@@ -3419,7 +3516,7 @@ type RevokePersonalAccessTokenRequest struct {
 
 func (x *RevokePersonalAccessTokenRequest) Reset() {
 	*x = RevokePersonalAccessTokenRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[49]
+	mi := &file_cairn_v1_auth_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3431,7 +3528,7 @@ func (x *RevokePersonalAccessTokenRequest) String() string {
 func (*RevokePersonalAccessTokenRequest) ProtoMessage() {}
 
 func (x *RevokePersonalAccessTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[49]
+	mi := &file_cairn_v1_auth_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3444,7 +3541,7 @@ func (x *RevokePersonalAccessTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePersonalAccessTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokePersonalAccessTokenRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{49}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *RevokePersonalAccessTokenRequest) GetId() string {
@@ -3462,7 +3559,7 @@ type RevokePersonalAccessTokenResponse struct {
 
 func (x *RevokePersonalAccessTokenResponse) Reset() {
 	*x = RevokePersonalAccessTokenResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[50]
+	mi := &file_cairn_v1_auth_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3474,7 +3571,7 @@ func (x *RevokePersonalAccessTokenResponse) String() string {
 func (*RevokePersonalAccessTokenResponse) ProtoMessage() {}
 
 func (x *RevokePersonalAccessTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[50]
+	mi := &file_cairn_v1_auth_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3487,7 +3584,7 @@ func (x *RevokePersonalAccessTokenResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use RevokePersonalAccessTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokePersonalAccessTokenResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{50}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{52}
 }
 
 // AuthorizedApp is one OAuth client with live tokens for the caller.
@@ -3509,7 +3606,7 @@ type AuthorizedApp struct {
 
 func (x *AuthorizedApp) Reset() {
 	*x = AuthorizedApp{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[51]
+	mi := &file_cairn_v1_auth_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3521,7 +3618,7 @@ func (x *AuthorizedApp) String() string {
 func (*AuthorizedApp) ProtoMessage() {}
 
 func (x *AuthorizedApp) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[51]
+	mi := &file_cairn_v1_auth_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3534,7 +3631,7 @@ func (x *AuthorizedApp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthorizedApp.ProtoReflect.Descriptor instead.
 func (*AuthorizedApp) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{51}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AuthorizedApp) GetClientId() string {
@@ -3601,7 +3698,7 @@ type ListAuthorizedAppsRequest struct {
 
 func (x *ListAuthorizedAppsRequest) Reset() {
 	*x = ListAuthorizedAppsRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[52]
+	mi := &file_cairn_v1_auth_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3613,7 +3710,7 @@ func (x *ListAuthorizedAppsRequest) String() string {
 func (*ListAuthorizedAppsRequest) ProtoMessage() {}
 
 func (x *ListAuthorizedAppsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[52]
+	mi := &file_cairn_v1_auth_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3626,7 +3723,7 @@ func (x *ListAuthorizedAppsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthorizedAppsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuthorizedAppsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{52}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{54}
 }
 
 type ListAuthorizedAppsResponse struct {
@@ -3638,7 +3735,7 @@ type ListAuthorizedAppsResponse struct {
 
 func (x *ListAuthorizedAppsResponse) Reset() {
 	*x = ListAuthorizedAppsResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[53]
+	mi := &file_cairn_v1_auth_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3650,7 +3747,7 @@ func (x *ListAuthorizedAppsResponse) String() string {
 func (*ListAuthorizedAppsResponse) ProtoMessage() {}
 
 func (x *ListAuthorizedAppsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[53]
+	mi := &file_cairn_v1_auth_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3663,7 +3760,7 @@ func (x *ListAuthorizedAppsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuthorizedAppsResponse.ProtoReflect.Descriptor instead.
 func (*ListAuthorizedAppsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{53}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ListAuthorizedAppsResponse) GetApps() []*AuthorizedApp {
@@ -3682,7 +3779,7 @@ type RevokeAuthorizedAppRequest struct {
 
 func (x *RevokeAuthorizedAppRequest) Reset() {
 	*x = RevokeAuthorizedAppRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[54]
+	mi := &file_cairn_v1_auth_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3694,7 +3791,7 @@ func (x *RevokeAuthorizedAppRequest) String() string {
 func (*RevokeAuthorizedAppRequest) ProtoMessage() {}
 
 func (x *RevokeAuthorizedAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[54]
+	mi := &file_cairn_v1_auth_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3707,7 +3804,7 @@ func (x *RevokeAuthorizedAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthorizedAppRequest.ProtoReflect.Descriptor instead.
 func (*RevokeAuthorizedAppRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{54}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *RevokeAuthorizedAppRequest) GetClientId() string {
@@ -3726,7 +3823,7 @@ type RevokeAuthorizedAppResponse struct {
 
 func (x *RevokeAuthorizedAppResponse) Reset() {
 	*x = RevokeAuthorizedAppResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[55]
+	mi := &file_cairn_v1_auth_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3738,7 +3835,7 @@ func (x *RevokeAuthorizedAppResponse) String() string {
 func (*RevokeAuthorizedAppResponse) ProtoMessage() {}
 
 func (x *RevokeAuthorizedAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[55]
+	mi := &file_cairn_v1_auth_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3751,7 +3848,7 @@ func (x *RevokeAuthorizedAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeAuthorizedAppResponse.ProtoReflect.Descriptor instead.
 func (*RevokeAuthorizedAppResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{55}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *RevokeAuthorizedAppResponse) GetTokensRevoked() int32 {
@@ -3831,7 +3928,7 @@ type ExternalAccount struct {
 
 func (x *ExternalAccount) Reset() {
 	*x = ExternalAccount{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[56]
+	mi := &file_cairn_v1_auth_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3843,7 +3940,7 @@ func (x *ExternalAccount) String() string {
 func (*ExternalAccount) ProtoMessage() {}
 
 func (x *ExternalAccount) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[56]
+	mi := &file_cairn_v1_auth_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3856,7 +3953,7 @@ func (x *ExternalAccount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExternalAccount.ProtoReflect.Descriptor instead.
 func (*ExternalAccount) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{56}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ExternalAccount) GetId() string {
@@ -4096,7 +4193,7 @@ type QueueCounts struct {
 
 func (x *QueueCounts) Reset() {
 	*x = QueueCounts{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[57]
+	mi := &file_cairn_v1_auth_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4108,7 +4205,7 @@ func (x *QueueCounts) String() string {
 func (*QueueCounts) ProtoMessage() {}
 
 func (x *QueueCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[57]
+	mi := &file_cairn_v1_auth_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4121,7 +4218,7 @@ func (x *QueueCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueueCounts.ProtoReflect.Descriptor instead.
 func (*QueueCounts) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{57}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *QueueCounts) GetPending() int32 {
@@ -4174,7 +4271,7 @@ type WorkerPoolInfo struct {
 
 func (x *WorkerPoolInfo) Reset() {
 	*x = WorkerPoolInfo{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[58]
+	mi := &file_cairn_v1_auth_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4186,7 +4283,7 @@ func (x *WorkerPoolInfo) String() string {
 func (*WorkerPoolInfo) ProtoMessage() {}
 
 func (x *WorkerPoolInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[58]
+	mi := &file_cairn_v1_auth_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4199,7 +4296,7 @@ func (x *WorkerPoolInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerPoolInfo.ProtoReflect.Descriptor instead.
 func (*WorkerPoolInfo) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{58}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *WorkerPoolInfo) GetName() string {
@@ -4255,7 +4352,7 @@ type RateLimitWindow struct {
 
 func (x *RateLimitWindow) Reset() {
 	*x = RateLimitWindow{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[59]
+	mi := &file_cairn_v1_auth_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4267,7 +4364,7 @@ func (x *RateLimitWindow) String() string {
 func (*RateLimitWindow) ProtoMessage() {}
 
 func (x *RateLimitWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[59]
+	mi := &file_cairn_v1_auth_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4280,7 +4377,7 @@ func (x *RateLimitWindow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RateLimitWindow.ProtoReflect.Descriptor instead.
 func (*RateLimitWindow) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{59}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *RateLimitWindow) GetUsed() int32 {
@@ -4314,7 +4411,7 @@ type RateLimitBudget struct {
 
 func (x *RateLimitBudget) Reset() {
 	*x = RateLimitBudget{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[60]
+	mi := &file_cairn_v1_auth_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4326,7 +4423,7 @@ func (x *RateLimitBudget) String() string {
 func (*RateLimitBudget) ProtoMessage() {}
 
 func (x *RateLimitBudget) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[60]
+	mi := &file_cairn_v1_auth_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4339,7 +4436,7 @@ func (x *RateLimitBudget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RateLimitBudget.ProtoReflect.Descriptor instead.
 func (*RateLimitBudget) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{60}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RateLimitBudget) GetShort() *RateLimitWindow {
@@ -4372,7 +4469,7 @@ type ConfigValueMeta struct {
 
 func (x *ConfigValueMeta) Reset() {
 	*x = ConfigValueMeta{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[61]
+	mi := &file_cairn_v1_auth_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4384,7 +4481,7 @@ func (x *ConfigValueMeta) String() string {
 func (*ConfigValueMeta) ProtoMessage() {}
 
 func (x *ConfigValueMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[61]
+	mi := &file_cairn_v1_auth_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4397,7 +4494,7 @@ func (x *ConfigValueMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigValueMeta.ProtoReflect.Descriptor instead.
 func (*ConfigValueMeta) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{61}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ConfigValueMeta) GetHasValue() bool {
@@ -4435,7 +4532,7 @@ type ExternalAccountRateLimit struct {
 
 func (x *ExternalAccountRateLimit) Reset() {
 	*x = ExternalAccountRateLimit{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[62]
+	mi := &file_cairn_v1_auth_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4447,7 +4544,7 @@ func (x *ExternalAccountRateLimit) String() string {
 func (*ExternalAccountRateLimit) ProtoMessage() {}
 
 func (x *ExternalAccountRateLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[62]
+	mi := &file_cairn_v1_auth_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4460,7 +4557,7 @@ func (x *ExternalAccountRateLimit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExternalAccountRateLimit.ProtoReflect.Descriptor instead.
 func (*ExternalAccountRateLimit) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{62}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ExternalAccountRateLimit) GetShortRemaining() int32 {
@@ -4513,7 +4610,7 @@ type ListExternalAccountsRequest struct {
 
 func (x *ListExternalAccountsRequest) Reset() {
 	*x = ListExternalAccountsRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[63]
+	mi := &file_cairn_v1_auth_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4525,7 +4622,7 @@ func (x *ListExternalAccountsRequest) String() string {
 func (*ListExternalAccountsRequest) ProtoMessage() {}
 
 func (x *ListExternalAccountsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[63]
+	mi := &file_cairn_v1_auth_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4538,7 +4635,7 @@ func (x *ListExternalAccountsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExternalAccountsRequest.ProtoReflect.Descriptor instead.
 func (*ListExternalAccountsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{63}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{65}
 }
 
 type ListExternalAccountsResponse struct {
@@ -4552,7 +4649,7 @@ type ListExternalAccountsResponse struct {
 
 func (x *ListExternalAccountsResponse) Reset() {
 	*x = ListExternalAccountsResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[64]
+	mi := &file_cairn_v1_auth_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4564,7 +4661,7 @@ func (x *ListExternalAccountsResponse) String() string {
 func (*ListExternalAccountsResponse) ProtoMessage() {}
 
 func (x *ListExternalAccountsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[64]
+	mi := &file_cairn_v1_auth_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4577,7 +4674,7 @@ func (x *ListExternalAccountsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExternalAccountsResponse.ProtoReflect.Descriptor instead.
 func (*ListExternalAccountsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{64}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ListExternalAccountsResponse) GetAccounts() []*ExternalAccount {
@@ -4602,7 +4699,7 @@ type ListConnectionsRequest struct {
 
 func (x *ListConnectionsRequest) Reset() {
 	*x = ListConnectionsRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[65]
+	mi := &file_cairn_v1_auth_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4614,7 +4711,7 @@ func (x *ListConnectionsRequest) String() string {
 func (*ListConnectionsRequest) ProtoMessage() {}
 
 func (x *ListConnectionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[65]
+	mi := &file_cairn_v1_auth_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4627,7 +4724,7 @@ func (x *ListConnectionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectionsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectionsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{65}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{67}
 }
 
 type Connection struct {
@@ -4646,7 +4743,7 @@ type Connection struct {
 
 func (x *Connection) Reset() {
 	*x = Connection{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[66]
+	mi := &file_cairn_v1_auth_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4658,7 +4755,7 @@ func (x *Connection) String() string {
 func (*Connection) ProtoMessage() {}
 
 func (x *Connection) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[66]
+	mi := &file_cairn_v1_auth_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4671,7 +4768,7 @@ func (x *Connection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Connection.ProtoReflect.Descriptor instead.
 func (*Connection) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{66}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *Connection) GetId() string {
@@ -4735,7 +4832,7 @@ type ProviderInfo struct {
 
 func (x *ProviderInfo) Reset() {
 	*x = ProviderInfo{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[67]
+	mi := &file_cairn_v1_auth_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4747,7 +4844,7 @@ func (x *ProviderInfo) String() string {
 func (*ProviderInfo) ProtoMessage() {}
 
 func (x *ProviderInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[67]
+	mi := &file_cairn_v1_auth_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4760,7 +4857,7 @@ func (x *ProviderInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderInfo.ProtoReflect.Descriptor instead.
 func (*ProviderInfo) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{67}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ProviderInfo) GetProvider() string {
@@ -4801,7 +4898,7 @@ type ListConnectionsResponse struct {
 
 func (x *ListConnectionsResponse) Reset() {
 	*x = ListConnectionsResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[68]
+	mi := &file_cairn_v1_auth_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4813,7 +4910,7 @@ func (x *ListConnectionsResponse) String() string {
 func (*ListConnectionsResponse) ProtoMessage() {}
 
 func (x *ListConnectionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[68]
+	mi := &file_cairn_v1_auth_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4826,7 +4923,7 @@ func (x *ListConnectionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectionsResponse.ProtoReflect.Descriptor instead.
 func (*ListConnectionsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{68}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ListConnectionsResponse) GetConnections() []*Connection {
@@ -4854,7 +4951,7 @@ type ListSyncHistoryRequest struct {
 
 func (x *ListSyncHistoryRequest) Reset() {
 	*x = ListSyncHistoryRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[69]
+	mi := &file_cairn_v1_auth_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4866,7 +4963,7 @@ func (x *ListSyncHistoryRequest) String() string {
 func (*ListSyncHistoryRequest) ProtoMessage() {}
 
 func (x *ListSyncHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[69]
+	mi := &file_cairn_v1_auth_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4879,7 +4976,7 @@ func (x *ListSyncHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSyncHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ListSyncHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{69}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ListSyncHistoryRequest) GetAccountId() string {
@@ -4916,7 +5013,7 @@ type SyncEvent struct {
 
 func (x *SyncEvent) Reset() {
 	*x = SyncEvent{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[70]
+	mi := &file_cairn_v1_auth_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4928,7 +5025,7 @@ func (x *SyncEvent) String() string {
 func (*SyncEvent) ProtoMessage() {}
 
 func (x *SyncEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[70]
+	mi := &file_cairn_v1_auth_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4941,7 +5038,7 @@ func (x *SyncEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncEvent.ProtoReflect.Descriptor instead.
 func (*SyncEvent) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{70}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *SyncEvent) GetKind() string {
@@ -5010,7 +5107,7 @@ type ListSyncHistoryResponse struct {
 
 func (x *ListSyncHistoryResponse) Reset() {
 	*x = ListSyncHistoryResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[71]
+	mi := &file_cairn_v1_auth_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5022,7 +5119,7 @@ func (x *ListSyncHistoryResponse) String() string {
 func (*ListSyncHistoryResponse) ProtoMessage() {}
 
 func (x *ListSyncHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[71]
+	mi := &file_cairn_v1_auth_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5035,7 +5132,7 @@ func (x *ListSyncHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSyncHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ListSyncHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{71}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ListSyncHistoryResponse) GetEvents() []*SyncEvent {
@@ -5066,7 +5163,7 @@ type ListQueueItemsRequest struct {
 
 func (x *ListQueueItemsRequest) Reset() {
 	*x = ListQueueItemsRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[72]
+	mi := &file_cairn_v1_auth_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5078,7 +5175,7 @@ func (x *ListQueueItemsRequest) String() string {
 func (*ListQueueItemsRequest) ProtoMessage() {}
 
 func (x *ListQueueItemsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[72]
+	mi := &file_cairn_v1_auth_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5091,7 +5188,7 @@ func (x *ListQueueItemsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListQueueItemsRequest.ProtoReflect.Descriptor instead.
 func (*ListQueueItemsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{72}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ListQueueItemsRequest) GetAccountId() string {
@@ -5135,7 +5232,7 @@ type QueueItem struct {
 
 func (x *QueueItem) Reset() {
 	*x = QueueItem{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[73]
+	mi := &file_cairn_v1_auth_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5147,7 +5244,7 @@ func (x *QueueItem) String() string {
 func (*QueueItem) ProtoMessage() {}
 
 func (x *QueueItem) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[73]
+	mi := &file_cairn_v1_auth_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5160,7 +5257,7 @@ func (x *QueueItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueueItem.ProtoReflect.Descriptor instead.
 func (*QueueItem) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{73}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *QueueItem) GetId() string {
@@ -5257,7 +5354,7 @@ type ListQueueItemsResponse struct {
 
 func (x *ListQueueItemsResponse) Reset() {
 	*x = ListQueueItemsResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[74]
+	mi := &file_cairn_v1_auth_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5269,7 +5366,7 @@ func (x *ListQueueItemsResponse) String() string {
 func (*ListQueueItemsResponse) ProtoMessage() {}
 
 func (x *ListQueueItemsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[74]
+	mi := &file_cairn_v1_auth_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5282,7 +5379,7 @@ func (x *ListQueueItemsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListQueueItemsResponse.ProtoReflect.Descriptor instead.
 func (*ListQueueItemsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{74}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ListQueueItemsResponse) GetItems() []*QueueItem {
@@ -5307,7 +5404,7 @@ type ListAvailableProvidersRequest struct {
 
 func (x *ListAvailableProvidersRequest) Reset() {
 	*x = ListAvailableProvidersRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[75]
+	mi := &file_cairn_v1_auth_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5319,7 +5416,7 @@ func (x *ListAvailableProvidersRequest) String() string {
 func (*ListAvailableProvidersRequest) ProtoMessage() {}
 
 func (x *ListAvailableProvidersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[75]
+	mi := &file_cairn_v1_auth_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5332,7 +5429,7 @@ func (x *ListAvailableProvidersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAvailableProvidersRequest.ProtoReflect.Descriptor instead.
 func (*ListAvailableProvidersRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{75}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{77}
 }
 
 type ListAvailableProvidersResponse struct {
@@ -5344,7 +5441,7 @@ type ListAvailableProvidersResponse struct {
 
 func (x *ListAvailableProvidersResponse) Reset() {
 	*x = ListAvailableProvidersResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[76]
+	mi := &file_cairn_v1_auth_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5356,7 +5453,7 @@ func (x *ListAvailableProvidersResponse) String() string {
 func (*ListAvailableProvidersResponse) ProtoMessage() {}
 
 func (x *ListAvailableProvidersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[76]
+	mi := &file_cairn_v1_auth_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5369,7 +5466,7 @@ func (x *ListAvailableProvidersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAvailableProvidersResponse.ProtoReflect.Descriptor instead.
 func (*ListAvailableProvidersResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{76}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *ListAvailableProvidersResponse) GetProviders() []*AvailableProvider {
@@ -5403,7 +5500,7 @@ type AvailableProvider struct {
 
 func (x *AvailableProvider) Reset() {
 	*x = AvailableProvider{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[77]
+	mi := &file_cairn_v1_auth_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5415,7 +5512,7 @@ func (x *AvailableProvider) String() string {
 func (*AvailableProvider) ProtoMessage() {}
 
 func (x *AvailableProvider) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[77]
+	mi := &file_cairn_v1_auth_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5428,7 +5525,7 @@ func (x *AvailableProvider) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AvailableProvider.ProtoReflect.Descriptor instead.
 func (*AvailableProvider) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{77}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *AvailableProvider) GetProviderId() string {
@@ -5526,7 +5623,7 @@ type AvailableConfigField struct {
 
 func (x *AvailableConfigField) Reset() {
 	*x = AvailableConfigField{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[78]
+	mi := &file_cairn_v1_auth_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5538,7 +5635,7 @@ func (x *AvailableConfigField) String() string {
 func (*AvailableConfigField) ProtoMessage() {}
 
 func (x *AvailableConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[78]
+	mi := &file_cairn_v1_auth_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5551,7 +5648,7 @@ func (x *AvailableConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AvailableConfigField.ProtoReflect.Descriptor instead.
 func (*AvailableConfigField) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{78}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *AvailableConfigField) GetKey() string {
@@ -5637,7 +5734,7 @@ type CreateExternalAccountRequest struct {
 
 func (x *CreateExternalAccountRequest) Reset() {
 	*x = CreateExternalAccountRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[79]
+	mi := &file_cairn_v1_auth_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5649,7 +5746,7 @@ func (x *CreateExternalAccountRequest) String() string {
 func (*CreateExternalAccountRequest) ProtoMessage() {}
 
 func (x *CreateExternalAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[79]
+	mi := &file_cairn_v1_auth_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5662,7 +5759,7 @@ func (x *CreateExternalAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateExternalAccountRequest.ProtoReflect.Descriptor instead.
 func (*CreateExternalAccountRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{79}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *CreateExternalAccountRequest) GetProvider() string {
@@ -5698,7 +5795,7 @@ type CreateExternalAccountResponse struct {
 
 func (x *CreateExternalAccountResponse) Reset() {
 	*x = CreateExternalAccountResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[80]
+	mi := &file_cairn_v1_auth_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5710,7 +5807,7 @@ func (x *CreateExternalAccountResponse) String() string {
 func (*CreateExternalAccountResponse) ProtoMessage() {}
 
 func (x *CreateExternalAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[80]
+	mi := &file_cairn_v1_auth_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5723,7 +5820,7 @@ func (x *CreateExternalAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateExternalAccountResponse.ProtoReflect.Descriptor instead.
 func (*CreateExternalAccountResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{80}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *CreateExternalAccountResponse) GetAccount() *ExternalAccount {
@@ -5754,7 +5851,7 @@ type UpdateExternalAccountConfigRequest struct {
 
 func (x *UpdateExternalAccountConfigRequest) Reset() {
 	*x = UpdateExternalAccountConfigRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[81]
+	mi := &file_cairn_v1_auth_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5766,7 +5863,7 @@ func (x *UpdateExternalAccountConfigRequest) String() string {
 func (*UpdateExternalAccountConfigRequest) ProtoMessage() {}
 
 func (x *UpdateExternalAccountConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[81]
+	mi := &file_cairn_v1_auth_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5779,7 +5876,7 @@ func (x *UpdateExternalAccountConfigRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use UpdateExternalAccountConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateExternalAccountConfigRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{81}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *UpdateExternalAccountConfigRequest) GetId() string {
@@ -5819,7 +5916,7 @@ type UpdateExternalAccountConfigResponse struct {
 
 func (x *UpdateExternalAccountConfigResponse) Reset() {
 	*x = UpdateExternalAccountConfigResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[82]
+	mi := &file_cairn_v1_auth_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5831,7 +5928,7 @@ func (x *UpdateExternalAccountConfigResponse) String() string {
 func (*UpdateExternalAccountConfigResponse) ProtoMessage() {}
 
 func (x *UpdateExternalAccountConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[82]
+	mi := &file_cairn_v1_auth_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5844,7 +5941,7 @@ func (x *UpdateExternalAccountConfigResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use UpdateExternalAccountConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateExternalAccountConfigResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{82}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *UpdateExternalAccountConfigResponse) GetAccount() *ExternalAccount {
@@ -5863,7 +5960,7 @@ type StartExternalAccountReauthorizeRequest struct {
 
 func (x *StartExternalAccountReauthorizeRequest) Reset() {
 	*x = StartExternalAccountReauthorizeRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[83]
+	mi := &file_cairn_v1_auth_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5875,7 +5972,7 @@ func (x *StartExternalAccountReauthorizeRequest) String() string {
 func (*StartExternalAccountReauthorizeRequest) ProtoMessage() {}
 
 func (x *StartExternalAccountReauthorizeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[83]
+	mi := &file_cairn_v1_auth_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5888,7 +5985,7 @@ func (x *StartExternalAccountReauthorizeRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use StartExternalAccountReauthorizeRequest.ProtoReflect.Descriptor instead.
 func (*StartExternalAccountReauthorizeRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{83}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *StartExternalAccountReauthorizeRequest) GetId() string {
@@ -5907,7 +6004,7 @@ type StartExternalAccountReauthorizeResponse struct {
 
 func (x *StartExternalAccountReauthorizeResponse) Reset() {
 	*x = StartExternalAccountReauthorizeResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[84]
+	mi := &file_cairn_v1_auth_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5919,7 +6016,7 @@ func (x *StartExternalAccountReauthorizeResponse) String() string {
 func (*StartExternalAccountReauthorizeResponse) ProtoMessage() {}
 
 func (x *StartExternalAccountReauthorizeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[84]
+	mi := &file_cairn_v1_auth_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5932,7 +6029,7 @@ func (x *StartExternalAccountReauthorizeResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use StartExternalAccountReauthorizeResponse.ProtoReflect.Descriptor instead.
 func (*StartExternalAccountReauthorizeResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{84}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *StartExternalAccountReauthorizeResponse) GetAuthorizeUrl() string {
@@ -5952,7 +6049,7 @@ type SetExternalAccountEnabledRequest struct {
 
 func (x *SetExternalAccountEnabledRequest) Reset() {
 	*x = SetExternalAccountEnabledRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[85]
+	mi := &file_cairn_v1_auth_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5964,7 +6061,7 @@ func (x *SetExternalAccountEnabledRequest) String() string {
 func (*SetExternalAccountEnabledRequest) ProtoMessage() {}
 
 func (x *SetExternalAccountEnabledRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[85]
+	mi := &file_cairn_v1_auth_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5977,7 +6074,7 @@ func (x *SetExternalAccountEnabledRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetExternalAccountEnabledRequest.ProtoReflect.Descriptor instead.
 func (*SetExternalAccountEnabledRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{85}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *SetExternalAccountEnabledRequest) GetId() string {
@@ -6003,7 +6100,7 @@ type SetExternalAccountEnabledResponse struct {
 
 func (x *SetExternalAccountEnabledResponse) Reset() {
 	*x = SetExternalAccountEnabledResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[86]
+	mi := &file_cairn_v1_auth_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6015,7 +6112,7 @@ func (x *SetExternalAccountEnabledResponse) String() string {
 func (*SetExternalAccountEnabledResponse) ProtoMessage() {}
 
 func (x *SetExternalAccountEnabledResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[86]
+	mi := &file_cairn_v1_auth_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6028,7 +6125,7 @@ func (x *SetExternalAccountEnabledResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SetExternalAccountEnabledResponse.ProtoReflect.Descriptor instead.
 func (*SetExternalAccountEnabledResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{86}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *SetExternalAccountEnabledResponse) GetAccount() *ExternalAccount {
@@ -6051,7 +6148,7 @@ type DeleteExternalAccountRequest struct {
 
 func (x *DeleteExternalAccountRequest) Reset() {
 	*x = DeleteExternalAccountRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[87]
+	mi := &file_cairn_v1_auth_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6063,7 +6160,7 @@ func (x *DeleteExternalAccountRequest) String() string {
 func (*DeleteExternalAccountRequest) ProtoMessage() {}
 
 func (x *DeleteExternalAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[87]
+	mi := &file_cairn_v1_auth_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6076,7 +6173,7 @@ func (x *DeleteExternalAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExternalAccountRequest.ProtoReflect.Descriptor instead.
 func (*DeleteExternalAccountRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{87}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *DeleteExternalAccountRequest) GetId() string {
@@ -6101,7 +6198,7 @@ type DeleteExternalAccountResponse struct {
 
 func (x *DeleteExternalAccountResponse) Reset() {
 	*x = DeleteExternalAccountResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[88]
+	mi := &file_cairn_v1_auth_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6113,7 +6210,7 @@ func (x *DeleteExternalAccountResponse) String() string {
 func (*DeleteExternalAccountResponse) ProtoMessage() {}
 
 func (x *DeleteExternalAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[88]
+	mi := &file_cairn_v1_auth_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6126,7 +6223,7 @@ func (x *DeleteExternalAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExternalAccountResponse.ProtoReflect.Descriptor instead.
 func (*DeleteExternalAccountResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{88}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{90}
 }
 
 type TriggerSyncRequest struct {
@@ -6141,7 +6238,7 @@ type TriggerSyncRequest struct {
 
 func (x *TriggerSyncRequest) Reset() {
 	*x = TriggerSyncRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[89]
+	mi := &file_cairn_v1_auth_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6153,7 +6250,7 @@ func (x *TriggerSyncRequest) String() string {
 func (*TriggerSyncRequest) ProtoMessage() {}
 
 func (x *TriggerSyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[89]
+	mi := &file_cairn_v1_auth_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6166,7 +6263,7 @@ func (x *TriggerSyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerSyncRequest.ProtoReflect.Descriptor instead.
 func (*TriggerSyncRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{89}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *TriggerSyncRequest) GetId() string {
@@ -6192,7 +6289,7 @@ type TriggerSyncResponse struct {
 
 func (x *TriggerSyncResponse) Reset() {
 	*x = TriggerSyncResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[90]
+	mi := &file_cairn_v1_auth_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6204,7 +6301,7 @@ func (x *TriggerSyncResponse) String() string {
 func (*TriggerSyncResponse) ProtoMessage() {}
 
 func (x *TriggerSyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[90]
+	mi := &file_cairn_v1_auth_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6217,7 +6314,7 @@ func (x *TriggerSyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerSyncResponse.ProtoReflect.Descriptor instead.
 func (*TriggerSyncResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{90}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *TriggerSyncResponse) GetJobId() string {
@@ -6236,7 +6333,7 @@ type RotateWebhookTokenRequest struct {
 
 func (x *RotateWebhookTokenRequest) Reset() {
 	*x = RotateWebhookTokenRequest{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[91]
+	mi := &file_cairn_v1_auth_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6248,7 +6345,7 @@ func (x *RotateWebhookTokenRequest) String() string {
 func (*RotateWebhookTokenRequest) ProtoMessage() {}
 
 func (x *RotateWebhookTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[91]
+	mi := &file_cairn_v1_auth_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6261,7 +6358,7 @@ func (x *RotateWebhookTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateWebhookTokenRequest.ProtoReflect.Descriptor instead.
 func (*RotateWebhookTokenRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{91}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *RotateWebhookTokenRequest) GetId() string {
@@ -6281,7 +6378,7 @@ type RotateWebhookTokenResponse struct {
 
 func (x *RotateWebhookTokenResponse) Reset() {
 	*x = RotateWebhookTokenResponse{}
-	mi := &file_cairn_v1_auth_proto_msgTypes[92]
+	mi := &file_cairn_v1_auth_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6293,7 +6390,7 @@ func (x *RotateWebhookTokenResponse) String() string {
 func (*RotateWebhookTokenResponse) ProtoMessage() {}
 
 func (x *RotateWebhookTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_auth_proto_msgTypes[92]
+	mi := &file_cairn_v1_auth_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6306,7 +6403,7 @@ func (x *RotateWebhookTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateWebhookTokenResponse.ProtoReflect.Descriptor instead.
 func (*RotateWebhookTokenResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{92}
+	return file_cairn_v1_auth_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *RotateWebhookTokenResponse) GetUnregisterJobId() string {
@@ -6327,7 +6424,7 @@ var File_cairn_v1_auth_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x13cairn/v1/auth.proto\x12\bcairn.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15cairn/v1/common.proto\"\xb6\x05\n" +
+	"\x13cairn/v1/auth.proto\x12\bcairn.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15cairn/v1/common.proto\"\xea\x05\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x14\n" +
@@ -6350,7 +6447,8 @@ const file_cairn_v1_auth_proto_rawDesc = "" +
 	"\vdate_format\x18\x0f \x01(\x0e2\x14.cairn.v1.DateFormatR\n" +
 	"dateFormat\x125\n" +
 	"\vtime_format\x18\x10 \x01(\x0e2\x14.cairn.v1.TimeFormatR\n" +
-	"timeFormatB\r\n" +
+	"timeFormat\x122\n" +
+	"\x15passkey_second_factor\x18\x11 \x01(\bR\x13passkeySecondFactorB\r\n" +
 	"\v_avatar_urlB\x10\n" +
 	"\x0e_last_login_at\"\x18\n" +
 	"\x16GetLoginMethodsRequest\"\x83\x02\n" +
@@ -6400,7 +6498,11 @@ const file_cairn_v1_auth_proto_rawDesc = "" +
 	"\vremember_me\x18\x04 \x01(\bR\n" +
 	"rememberMe\"H\n" +
 	"\x13Complete2FAResponse\x121\n" +
-	"\asession\x18\x01 \x01(\v2\x17.cairn.v1.SessionResultR\asession\"\xb2\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x17.cairn.v1.SessionResultR\asession\"9\n" +
+	"\x1dSetPasskeySecondFactorRequest\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"D\n" +
+	"\x1eSetPasskeySecondFactorResponse\x12\"\n" +
+	"\x04user\x18\x01 \x01(\v2\x0e.cairn.v1.UserR\x04user\"\xb2\x01\n" +
 	"\rSessionResult\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -6870,12 +6972,13 @@ const file_cairn_v1_auth_proto_rawDesc = "" +
 	"\x1cAVAILABLE_AUTH_METHOD_OAUTH2\x10\x02\x12!\n" +
 	"\x1dAVAILABLE_AUTH_METHOD_API_KEY\x10\x03\x12\x1f\n" +
 	"\x1bAVAILABLE_AUTH_METHOD_BASIC\x10\x04\x12 \n" +
-	"\x1cAVAILABLE_AUTH_METHOD_CUSTOM\x10\x052\x95\x11\n" +
+	"\x1cAVAILABLE_AUTH_METHOD_CUSTOM\x10\x052\x82\x12\n" +
 	"\vAuthService\x12V\n" +
 	"\x0fGetLoginMethods\x12 .cairn.v1.GetLoginMethodsRequest\x1a!.cairn.v1.GetLoginMethodsResponse\x12[\n" +
 	"\x0fGetInstanceInfo\x12 .cairn.v1.GetInstanceInfoRequest\x1a!.cairn.v1.GetInstanceInfoResponse\"\x03\x90\x02\x01\x12P\n" +
 	"\rLoginPassword\x12\x1e.cairn.v1.LoginPasswordRequest\x1a\x1f.cairn.v1.LoginPasswordResponse\x12J\n" +
-	"\vComplete2FA\x12\x1c.cairn.v1.Complete2FARequest\x1a\x1d.cairn.v1.Complete2FAResponse\x12A\n" +
+	"\vComplete2FA\x12\x1c.cairn.v1.Complete2FARequest\x1a\x1d.cairn.v1.Complete2FAResponse\x12k\n" +
+	"\x16SetPasskeySecondFactor\x12'.cairn.v1.SetPasskeySecondFactorRequest\x1a(.cairn.v1.SetPasskeySecondFactorResponse\x12A\n" +
 	"\bRegister\x12\x19.cairn.v1.RegisterRequest\x1a\x1a.cairn.v1.RegisterResponse\x12S\n" +
 	"\x0eChangePassword\x12\x1f.cairn.v1.ChangePasswordRequest\x1a .cairn.v1.ChangePasswordResponse\x12e\n" +
 	"\x14RequestPasswordReset\x12%.cairn.v1.RequestPasswordResetRequest\x1a&.cairn.v1.RequestPasswordResetResponse\x12e\n" +
@@ -6924,7 +7027,7 @@ func file_cairn_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_cairn_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 96)
+var file_cairn_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 98)
 var file_cairn_v1_auth_proto_goTypes = []any{
 	(DateFormat)(0),                                 // 0: cairn.v1.DateFormat
 	(TimeFormat)(0),                                 // 1: cairn.v1.TimeFormat
@@ -6949,260 +7052,265 @@ var file_cairn_v1_auth_proto_goTypes = []any{
 	(*TwoFactorChallenge)(nil),                      // 20: cairn.v1.TwoFactorChallenge
 	(*Complete2FARequest)(nil),                      // 21: cairn.v1.Complete2FARequest
 	(*Complete2FAResponse)(nil),                     // 22: cairn.v1.Complete2FAResponse
-	(*SessionResult)(nil),                           // 23: cairn.v1.SessionResult
-	(*RegisterRequest)(nil),                         // 24: cairn.v1.RegisterRequest
-	(*RegisterResponse)(nil),                        // 25: cairn.v1.RegisterResponse
-	(*ChangePasswordRequest)(nil),                   // 26: cairn.v1.ChangePasswordRequest
-	(*ChangePasswordResponse)(nil),                  // 27: cairn.v1.ChangePasswordResponse
-	(*RequestPasswordResetRequest)(nil),             // 28: cairn.v1.RequestPasswordResetRequest
-	(*RequestPasswordResetResponse)(nil),            // 29: cairn.v1.RequestPasswordResetResponse
-	(*ConfirmPasswordResetRequest)(nil),             // 30: cairn.v1.ConfirmPasswordResetRequest
-	(*ConfirmPasswordResetResponse)(nil),            // 31: cairn.v1.ConfirmPasswordResetResponse
-	(*StartOIDCLoginRequest)(nil),                   // 32: cairn.v1.StartOIDCLoginRequest
-	(*StartOIDCLoginResponse)(nil),                  // 33: cairn.v1.StartOIDCLoginResponse
-	(*StartOIDCLinkRequest)(nil),                    // 34: cairn.v1.StartOIDCLinkRequest
-	(*StartOIDCLinkResponse)(nil),                   // 35: cairn.v1.StartOIDCLinkResponse
-	(*UnlinkOIDCIdentityRequest)(nil),               // 36: cairn.v1.UnlinkOIDCIdentityRequest
-	(*UnlinkOIDCIdentityResponse)(nil),              // 37: cairn.v1.UnlinkOIDCIdentityResponse
-	(*ListLinkedIdentitiesRequest)(nil),             // 38: cairn.v1.ListLinkedIdentitiesRequest
-	(*ListLinkedIdentitiesResponse)(nil),            // 39: cairn.v1.ListLinkedIdentitiesResponse
-	(*LinkedIdentity)(nil),                          // 40: cairn.v1.LinkedIdentity
-	(*LogoutRequest)(nil),                           // 41: cairn.v1.LogoutRequest
-	(*LogoutResponse)(nil),                          // 42: cairn.v1.LogoutResponse
-	(*GetCurrentUserRequest)(nil),                   // 43: cairn.v1.GetCurrentUserRequest
-	(*GetCurrentUserResponse)(nil),                  // 44: cairn.v1.GetCurrentUserResponse
-	(*UpdateUserPreferencesRequest)(nil),            // 45: cairn.v1.UpdateUserPreferencesRequest
-	(*UpdateUserPreferencesResponse)(nil),           // 46: cairn.v1.UpdateUserPreferencesResponse
-	(*UpdateProfileRequest)(nil),                    // 47: cairn.v1.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil),                   // 48: cairn.v1.UpdateProfileResponse
-	(*Session)(nil),                                 // 49: cairn.v1.Session
-	(*ListSessionsRequest)(nil),                     // 50: cairn.v1.ListSessionsRequest
-	(*ListSessionsResponse)(nil),                    // 51: cairn.v1.ListSessionsResponse
-	(*RevokeSessionRequest)(nil),                    // 52: cairn.v1.RevokeSessionRequest
-	(*RevokeSessionResponse)(nil),                   // 53: cairn.v1.RevokeSessionResponse
-	(*PersonalAccessToken)(nil),                     // 54: cairn.v1.PersonalAccessToken
-	(*CreatePersonalAccessTokenRequest)(nil),        // 55: cairn.v1.CreatePersonalAccessTokenRequest
-	(*CreatePersonalAccessTokenResponse)(nil),       // 56: cairn.v1.CreatePersonalAccessTokenResponse
-	(*ListPersonalAccessTokensRequest)(nil),         // 57: cairn.v1.ListPersonalAccessTokensRequest
-	(*ListPersonalAccessTokensResponse)(nil),        // 58: cairn.v1.ListPersonalAccessTokensResponse
-	(*RevokePersonalAccessTokenRequest)(nil),        // 59: cairn.v1.RevokePersonalAccessTokenRequest
-	(*RevokePersonalAccessTokenResponse)(nil),       // 60: cairn.v1.RevokePersonalAccessTokenResponse
-	(*AuthorizedApp)(nil),                           // 61: cairn.v1.AuthorizedApp
-	(*ListAuthorizedAppsRequest)(nil),               // 62: cairn.v1.ListAuthorizedAppsRequest
-	(*ListAuthorizedAppsResponse)(nil),              // 63: cairn.v1.ListAuthorizedAppsResponse
-	(*RevokeAuthorizedAppRequest)(nil),              // 64: cairn.v1.RevokeAuthorizedAppRequest
-	(*RevokeAuthorizedAppResponse)(nil),             // 65: cairn.v1.RevokeAuthorizedAppResponse
-	(*ExternalAccount)(nil),                         // 66: cairn.v1.ExternalAccount
-	(*QueueCounts)(nil),                             // 67: cairn.v1.QueueCounts
-	(*WorkerPoolInfo)(nil),                          // 68: cairn.v1.WorkerPoolInfo
-	(*RateLimitWindow)(nil),                         // 69: cairn.v1.RateLimitWindow
-	(*RateLimitBudget)(nil),                         // 70: cairn.v1.RateLimitBudget
-	(*ConfigValueMeta)(nil),                         // 71: cairn.v1.ConfigValueMeta
-	(*ExternalAccountRateLimit)(nil),                // 72: cairn.v1.ExternalAccountRateLimit
-	(*ListExternalAccountsRequest)(nil),             // 73: cairn.v1.ListExternalAccountsRequest
-	(*ListExternalAccountsResponse)(nil),            // 74: cairn.v1.ListExternalAccountsResponse
-	(*ListConnectionsRequest)(nil),                  // 75: cairn.v1.ListConnectionsRequest
-	(*Connection)(nil),                              // 76: cairn.v1.Connection
-	(*ProviderInfo)(nil),                            // 77: cairn.v1.ProviderInfo
-	(*ListConnectionsResponse)(nil),                 // 78: cairn.v1.ListConnectionsResponse
-	(*ListSyncHistoryRequest)(nil),                  // 79: cairn.v1.ListSyncHistoryRequest
-	(*SyncEvent)(nil),                               // 80: cairn.v1.SyncEvent
-	(*ListSyncHistoryResponse)(nil),                 // 81: cairn.v1.ListSyncHistoryResponse
-	(*ListQueueItemsRequest)(nil),                   // 82: cairn.v1.ListQueueItemsRequest
-	(*QueueItem)(nil),                               // 83: cairn.v1.QueueItem
-	(*ListQueueItemsResponse)(nil),                  // 84: cairn.v1.ListQueueItemsResponse
-	(*ListAvailableProvidersRequest)(nil),           // 85: cairn.v1.ListAvailableProvidersRequest
-	(*ListAvailableProvidersResponse)(nil),          // 86: cairn.v1.ListAvailableProvidersResponse
-	(*AvailableProvider)(nil),                       // 87: cairn.v1.AvailableProvider
-	(*AvailableConfigField)(nil),                    // 88: cairn.v1.AvailableConfigField
-	(*CreateExternalAccountRequest)(nil),            // 89: cairn.v1.CreateExternalAccountRequest
-	(*CreateExternalAccountResponse)(nil),           // 90: cairn.v1.CreateExternalAccountResponse
-	(*UpdateExternalAccountConfigRequest)(nil),      // 91: cairn.v1.UpdateExternalAccountConfigRequest
-	(*UpdateExternalAccountConfigResponse)(nil),     // 92: cairn.v1.UpdateExternalAccountConfigResponse
-	(*StartExternalAccountReauthorizeRequest)(nil),  // 93: cairn.v1.StartExternalAccountReauthorizeRequest
-	(*StartExternalAccountReauthorizeResponse)(nil), // 94: cairn.v1.StartExternalAccountReauthorizeResponse
-	(*SetExternalAccountEnabledRequest)(nil),        // 95: cairn.v1.SetExternalAccountEnabledRequest
-	(*SetExternalAccountEnabledResponse)(nil),       // 96: cairn.v1.SetExternalAccountEnabledResponse
-	(*DeleteExternalAccountRequest)(nil),            // 97: cairn.v1.DeleteExternalAccountRequest
-	(*DeleteExternalAccountResponse)(nil),           // 98: cairn.v1.DeleteExternalAccountResponse
-	(*TriggerSyncRequest)(nil),                      // 99: cairn.v1.TriggerSyncRequest
-	(*TriggerSyncResponse)(nil),                     // 100: cairn.v1.TriggerSyncResponse
-	(*RotateWebhookTokenRequest)(nil),               // 101: cairn.v1.RotateWebhookTokenRequest
-	(*RotateWebhookTokenResponse)(nil),              // 102: cairn.v1.RotateWebhookTokenResponse
-	nil,                                             // 103: cairn.v1.ExternalAccount.ConfigEntry
-	nil,                                             // 104: cairn.v1.CreateExternalAccountRequest.ConfigEntry
-	nil,                                             // 105: cairn.v1.UpdateExternalAccountConfigRequest.ConfigEntry
-	(*timestamppb.Timestamp)(nil),                   // 106: google.protobuf.Timestamp
-	(*PageRequest)(nil),                             // 107: cairn.v1.PageRequest
-	(*PageResponse)(nil),                            // 108: cairn.v1.PageResponse
+	(*SetPasskeySecondFactorRequest)(nil),           // 23: cairn.v1.SetPasskeySecondFactorRequest
+	(*SetPasskeySecondFactorResponse)(nil),          // 24: cairn.v1.SetPasskeySecondFactorResponse
+	(*SessionResult)(nil),                           // 25: cairn.v1.SessionResult
+	(*RegisterRequest)(nil),                         // 26: cairn.v1.RegisterRequest
+	(*RegisterResponse)(nil),                        // 27: cairn.v1.RegisterResponse
+	(*ChangePasswordRequest)(nil),                   // 28: cairn.v1.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),                  // 29: cairn.v1.ChangePasswordResponse
+	(*RequestPasswordResetRequest)(nil),             // 30: cairn.v1.RequestPasswordResetRequest
+	(*RequestPasswordResetResponse)(nil),            // 31: cairn.v1.RequestPasswordResetResponse
+	(*ConfirmPasswordResetRequest)(nil),             // 32: cairn.v1.ConfirmPasswordResetRequest
+	(*ConfirmPasswordResetResponse)(nil),            // 33: cairn.v1.ConfirmPasswordResetResponse
+	(*StartOIDCLoginRequest)(nil),                   // 34: cairn.v1.StartOIDCLoginRequest
+	(*StartOIDCLoginResponse)(nil),                  // 35: cairn.v1.StartOIDCLoginResponse
+	(*StartOIDCLinkRequest)(nil),                    // 36: cairn.v1.StartOIDCLinkRequest
+	(*StartOIDCLinkResponse)(nil),                   // 37: cairn.v1.StartOIDCLinkResponse
+	(*UnlinkOIDCIdentityRequest)(nil),               // 38: cairn.v1.UnlinkOIDCIdentityRequest
+	(*UnlinkOIDCIdentityResponse)(nil),              // 39: cairn.v1.UnlinkOIDCIdentityResponse
+	(*ListLinkedIdentitiesRequest)(nil),             // 40: cairn.v1.ListLinkedIdentitiesRequest
+	(*ListLinkedIdentitiesResponse)(nil),            // 41: cairn.v1.ListLinkedIdentitiesResponse
+	(*LinkedIdentity)(nil),                          // 42: cairn.v1.LinkedIdentity
+	(*LogoutRequest)(nil),                           // 43: cairn.v1.LogoutRequest
+	(*LogoutResponse)(nil),                          // 44: cairn.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),                   // 45: cairn.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil),                  // 46: cairn.v1.GetCurrentUserResponse
+	(*UpdateUserPreferencesRequest)(nil),            // 47: cairn.v1.UpdateUserPreferencesRequest
+	(*UpdateUserPreferencesResponse)(nil),           // 48: cairn.v1.UpdateUserPreferencesResponse
+	(*UpdateProfileRequest)(nil),                    // 49: cairn.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),                   // 50: cairn.v1.UpdateProfileResponse
+	(*Session)(nil),                                 // 51: cairn.v1.Session
+	(*ListSessionsRequest)(nil),                     // 52: cairn.v1.ListSessionsRequest
+	(*ListSessionsResponse)(nil),                    // 53: cairn.v1.ListSessionsResponse
+	(*RevokeSessionRequest)(nil),                    // 54: cairn.v1.RevokeSessionRequest
+	(*RevokeSessionResponse)(nil),                   // 55: cairn.v1.RevokeSessionResponse
+	(*PersonalAccessToken)(nil),                     // 56: cairn.v1.PersonalAccessToken
+	(*CreatePersonalAccessTokenRequest)(nil),        // 57: cairn.v1.CreatePersonalAccessTokenRequest
+	(*CreatePersonalAccessTokenResponse)(nil),       // 58: cairn.v1.CreatePersonalAccessTokenResponse
+	(*ListPersonalAccessTokensRequest)(nil),         // 59: cairn.v1.ListPersonalAccessTokensRequest
+	(*ListPersonalAccessTokensResponse)(nil),        // 60: cairn.v1.ListPersonalAccessTokensResponse
+	(*RevokePersonalAccessTokenRequest)(nil),        // 61: cairn.v1.RevokePersonalAccessTokenRequest
+	(*RevokePersonalAccessTokenResponse)(nil),       // 62: cairn.v1.RevokePersonalAccessTokenResponse
+	(*AuthorizedApp)(nil),                           // 63: cairn.v1.AuthorizedApp
+	(*ListAuthorizedAppsRequest)(nil),               // 64: cairn.v1.ListAuthorizedAppsRequest
+	(*ListAuthorizedAppsResponse)(nil),              // 65: cairn.v1.ListAuthorizedAppsResponse
+	(*RevokeAuthorizedAppRequest)(nil),              // 66: cairn.v1.RevokeAuthorizedAppRequest
+	(*RevokeAuthorizedAppResponse)(nil),             // 67: cairn.v1.RevokeAuthorizedAppResponse
+	(*ExternalAccount)(nil),                         // 68: cairn.v1.ExternalAccount
+	(*QueueCounts)(nil),                             // 69: cairn.v1.QueueCounts
+	(*WorkerPoolInfo)(nil),                          // 70: cairn.v1.WorkerPoolInfo
+	(*RateLimitWindow)(nil),                         // 71: cairn.v1.RateLimitWindow
+	(*RateLimitBudget)(nil),                         // 72: cairn.v1.RateLimitBudget
+	(*ConfigValueMeta)(nil),                         // 73: cairn.v1.ConfigValueMeta
+	(*ExternalAccountRateLimit)(nil),                // 74: cairn.v1.ExternalAccountRateLimit
+	(*ListExternalAccountsRequest)(nil),             // 75: cairn.v1.ListExternalAccountsRequest
+	(*ListExternalAccountsResponse)(nil),            // 76: cairn.v1.ListExternalAccountsResponse
+	(*ListConnectionsRequest)(nil),                  // 77: cairn.v1.ListConnectionsRequest
+	(*Connection)(nil),                              // 78: cairn.v1.Connection
+	(*ProviderInfo)(nil),                            // 79: cairn.v1.ProviderInfo
+	(*ListConnectionsResponse)(nil),                 // 80: cairn.v1.ListConnectionsResponse
+	(*ListSyncHistoryRequest)(nil),                  // 81: cairn.v1.ListSyncHistoryRequest
+	(*SyncEvent)(nil),                               // 82: cairn.v1.SyncEvent
+	(*ListSyncHistoryResponse)(nil),                 // 83: cairn.v1.ListSyncHistoryResponse
+	(*ListQueueItemsRequest)(nil),                   // 84: cairn.v1.ListQueueItemsRequest
+	(*QueueItem)(nil),                               // 85: cairn.v1.QueueItem
+	(*ListQueueItemsResponse)(nil),                  // 86: cairn.v1.ListQueueItemsResponse
+	(*ListAvailableProvidersRequest)(nil),           // 87: cairn.v1.ListAvailableProvidersRequest
+	(*ListAvailableProvidersResponse)(nil),          // 88: cairn.v1.ListAvailableProvidersResponse
+	(*AvailableProvider)(nil),                       // 89: cairn.v1.AvailableProvider
+	(*AvailableConfigField)(nil),                    // 90: cairn.v1.AvailableConfigField
+	(*CreateExternalAccountRequest)(nil),            // 91: cairn.v1.CreateExternalAccountRequest
+	(*CreateExternalAccountResponse)(nil),           // 92: cairn.v1.CreateExternalAccountResponse
+	(*UpdateExternalAccountConfigRequest)(nil),      // 93: cairn.v1.UpdateExternalAccountConfigRequest
+	(*UpdateExternalAccountConfigResponse)(nil),     // 94: cairn.v1.UpdateExternalAccountConfigResponse
+	(*StartExternalAccountReauthorizeRequest)(nil),  // 95: cairn.v1.StartExternalAccountReauthorizeRequest
+	(*StartExternalAccountReauthorizeResponse)(nil), // 96: cairn.v1.StartExternalAccountReauthorizeResponse
+	(*SetExternalAccountEnabledRequest)(nil),        // 97: cairn.v1.SetExternalAccountEnabledRequest
+	(*SetExternalAccountEnabledResponse)(nil),       // 98: cairn.v1.SetExternalAccountEnabledResponse
+	(*DeleteExternalAccountRequest)(nil),            // 99: cairn.v1.DeleteExternalAccountRequest
+	(*DeleteExternalAccountResponse)(nil),           // 100: cairn.v1.DeleteExternalAccountResponse
+	(*TriggerSyncRequest)(nil),                      // 101: cairn.v1.TriggerSyncRequest
+	(*TriggerSyncResponse)(nil),                     // 102: cairn.v1.TriggerSyncResponse
+	(*RotateWebhookTokenRequest)(nil),               // 103: cairn.v1.RotateWebhookTokenRequest
+	(*RotateWebhookTokenResponse)(nil),              // 104: cairn.v1.RotateWebhookTokenResponse
+	nil,                                             // 105: cairn.v1.ExternalAccount.ConfigEntry
+	nil,                                             // 106: cairn.v1.CreateExternalAccountRequest.ConfigEntry
+	nil,                                             // 107: cairn.v1.UpdateExternalAccountConfigRequest.ConfigEntry
+	(*timestamppb.Timestamp)(nil),                   // 108: google.protobuf.Timestamp
+	(*PageRequest)(nil),                             // 109: cairn.v1.PageRequest
+	(*PageResponse)(nil),                            // 110: cairn.v1.PageResponse
 }
 var file_cairn_v1_auth_proto_depIdxs = []int32{
 	4,   // 0: cairn.v1.User.units:type_name -> cairn.v1.UnitSystem
 	2,   // 1: cairn.v1.User.role:type_name -> cairn.v1.UserRole
 	3,   // 2: cairn.v1.User.status:type_name -> cairn.v1.UserStatus
-	106, // 3: cairn.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	106, // 4: cairn.v1.User.updated_at:type_name -> google.protobuf.Timestamp
-	106, // 5: cairn.v1.User.last_login_at:type_name -> google.protobuf.Timestamp
+	108, // 3: cairn.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	108, // 4: cairn.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	108, // 5: cairn.v1.User.last_login_at:type_name -> google.protobuf.Timestamp
 	0,   // 6: cairn.v1.User.date_format:type_name -> cairn.v1.DateFormat
 	1,   // 7: cairn.v1.User.time_format:type_name -> cairn.v1.TimeFormat
 	13,  // 8: cairn.v1.GetLoginMethodsResponse.oidc_clients:type_name -> cairn.v1.OIDCLoginOption
-	106, // 9: cairn.v1.GetInstanceInfoResponse.build_time:type_name -> google.protobuf.Timestamp
-	23,  // 10: cairn.v1.LoginPasswordResponse.session:type_name -> cairn.v1.SessionResult
+	108, // 9: cairn.v1.GetInstanceInfoResponse.build_time:type_name -> google.protobuf.Timestamp
+	25,  // 10: cairn.v1.LoginPasswordResponse.session:type_name -> cairn.v1.SessionResult
 	20,  // 11: cairn.v1.LoginPasswordResponse.challenge:type_name -> cairn.v1.TwoFactorChallenge
 	5,   // 12: cairn.v1.TwoFactorChallenge.methods:type_name -> cairn.v1.TwoFactorMethod
 	5,   // 13: cairn.v1.Complete2FARequest.method:type_name -> cairn.v1.TwoFactorMethod
-	23,  // 14: cairn.v1.Complete2FAResponse.session:type_name -> cairn.v1.SessionResult
-	106, // 15: cairn.v1.SessionResult.expires_at:type_name -> google.protobuf.Timestamp
-	10,  // 16: cairn.v1.SessionResult.user:type_name -> cairn.v1.User
-	4,   // 17: cairn.v1.RegisterRequest.units:type_name -> cairn.v1.UnitSystem
-	10,  // 18: cairn.v1.RegisterResponse.user:type_name -> cairn.v1.User
-	23,  // 19: cairn.v1.RegisterResponse.session:type_name -> cairn.v1.SessionResult
-	23,  // 20: cairn.v1.ConfirmPasswordResetResponse.session:type_name -> cairn.v1.SessionResult
-	40,  // 21: cairn.v1.ListLinkedIdentitiesResponse.identities:type_name -> cairn.v1.LinkedIdentity
-	106, // 22: cairn.v1.LinkedIdentity.linked_at:type_name -> google.protobuf.Timestamp
-	106, // 23: cairn.v1.LinkedIdentity.last_used_at:type_name -> google.protobuf.Timestamp
-	10,  // 24: cairn.v1.GetCurrentUserResponse.user:type_name -> cairn.v1.User
-	0,   // 25: cairn.v1.UpdateUserPreferencesRequest.date_format:type_name -> cairn.v1.DateFormat
-	1,   // 26: cairn.v1.UpdateUserPreferencesRequest.time_format:type_name -> cairn.v1.TimeFormat
-	4,   // 27: cairn.v1.UpdateUserPreferencesRequest.units:type_name -> cairn.v1.UnitSystem
-	10,  // 28: cairn.v1.UpdateUserPreferencesResponse.user:type_name -> cairn.v1.User
-	4,   // 29: cairn.v1.UpdateProfileRequest.units:type_name -> cairn.v1.UnitSystem
-	10,  // 30: cairn.v1.UpdateProfileResponse.user:type_name -> cairn.v1.User
-	106, // 31: cairn.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	106, // 32: cairn.v1.Session.last_seen_at:type_name -> google.protobuf.Timestamp
-	106, // 33: cairn.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
-	6,   // 34: cairn.v1.Session.auth_method:type_name -> cairn.v1.AuthMethod
-	49,  // 35: cairn.v1.ListSessionsResponse.sessions:type_name -> cairn.v1.Session
-	106, // 36: cairn.v1.PersonalAccessToken.created_at:type_name -> google.protobuf.Timestamp
-	106, // 37: cairn.v1.PersonalAccessToken.expires_at:type_name -> google.protobuf.Timestamp
-	106, // 38: cairn.v1.PersonalAccessToken.last_used_at:type_name -> google.protobuf.Timestamp
-	106, // 39: cairn.v1.CreatePersonalAccessTokenRequest.expires_at:type_name -> google.protobuf.Timestamp
-	54,  // 40: cairn.v1.CreatePersonalAccessTokenResponse.token:type_name -> cairn.v1.PersonalAccessToken
-	54,  // 41: cairn.v1.ListPersonalAccessTokensResponse.tokens:type_name -> cairn.v1.PersonalAccessToken
-	106, // 42: cairn.v1.AuthorizedApp.granted_at:type_name -> google.protobuf.Timestamp
-	106, // 43: cairn.v1.AuthorizedApp.last_issued_at:type_name -> google.protobuf.Timestamp
-	61,  // 44: cairn.v1.ListAuthorizedAppsResponse.apps:type_name -> cairn.v1.AuthorizedApp
-	7,   // 45: cairn.v1.ExternalAccount.status:type_name -> cairn.v1.ExternalAccountStatus
-	103, // 46: cairn.v1.ExternalAccount.config:type_name -> cairn.v1.ExternalAccount.ConfigEntry
-	106, // 47: cairn.v1.ExternalAccount.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	106, // 48: cairn.v1.ExternalAccount.webhook_subscribed_at:type_name -> google.protobuf.Timestamp
-	72,  // 49: cairn.v1.ExternalAccount.rate_limit:type_name -> cairn.v1.ExternalAccountRateLimit
-	106, // 50: cairn.v1.ExternalAccount.created_at:type_name -> google.protobuf.Timestamp
-	106, // 51: cairn.v1.ExternalAccount.updated_at:type_name -> google.protobuf.Timestamp
-	106, // 52: cairn.v1.ExternalAccount.last_sync_at:type_name -> google.protobuf.Timestamp
-	106, // 53: cairn.v1.ExternalAccount.last_successful_sync_at:type_name -> google.protobuf.Timestamp
-	106, // 54: cairn.v1.ExternalAccount.watermark:type_name -> google.protobuf.Timestamp
-	67,  // 55: cairn.v1.ExternalAccount.queue:type_name -> cairn.v1.QueueCounts
-	68,  // 56: cairn.v1.ExternalAccount.worker_pools:type_name -> cairn.v1.WorkerPoolInfo
-	70,  // 57: cairn.v1.ExternalAccount.rate_limit_budget:type_name -> cairn.v1.RateLimitBudget
-	106, // 58: cairn.v1.RateLimitWindow.resets_at:type_name -> google.protobuf.Timestamp
-	69,  // 59: cairn.v1.RateLimitBudget.short:type_name -> cairn.v1.RateLimitWindow
-	69,  // 60: cairn.v1.RateLimitBudget.daily:type_name -> cairn.v1.RateLimitWindow
-	106, // 61: cairn.v1.ExternalAccountRateLimit.short_reset_at:type_name -> google.protobuf.Timestamp
-	106, // 62: cairn.v1.ExternalAccountRateLimit.long_reset_at:type_name -> google.protobuf.Timestamp
-	66,  // 63: cairn.v1.ListExternalAccountsResponse.accounts:type_name -> cairn.v1.ExternalAccount
-	68,  // 64: cairn.v1.ProviderInfo.worker_pools:type_name -> cairn.v1.WorkerPoolInfo
-	76,  // 65: cairn.v1.ListConnectionsResponse.connections:type_name -> cairn.v1.Connection
-	77,  // 66: cairn.v1.ListConnectionsResponse.providers:type_name -> cairn.v1.ProviderInfo
-	107, // 67: cairn.v1.ListSyncHistoryRequest.page:type_name -> cairn.v1.PageRequest
-	106, // 68: cairn.v1.SyncEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	80,  // 69: cairn.v1.ListSyncHistoryResponse.events:type_name -> cairn.v1.SyncEvent
-	108, // 70: cairn.v1.ListSyncHistoryResponse.page:type_name -> cairn.v1.PageResponse
-	107, // 71: cairn.v1.ListQueueItemsRequest.page:type_name -> cairn.v1.PageRequest
-	106, // 72: cairn.v1.QueueItem.created_at:type_name -> google.protobuf.Timestamp
-	106, // 73: cairn.v1.QueueItem.item_time:type_name -> google.protobuf.Timestamp
-	106, // 74: cairn.v1.QueueItem.started_at:type_name -> google.protobuf.Timestamp
-	106, // 75: cairn.v1.QueueItem.completed_at:type_name -> google.protobuf.Timestamp
-	83,  // 76: cairn.v1.ListQueueItemsResponse.items:type_name -> cairn.v1.QueueItem
-	108, // 77: cairn.v1.ListQueueItemsResponse.page:type_name -> cairn.v1.PageResponse
-	87,  // 78: cairn.v1.ListAvailableProvidersResponse.providers:type_name -> cairn.v1.AvailableProvider
-	88,  // 79: cairn.v1.AvailableProvider.config_fields:type_name -> cairn.v1.AvailableConfigField
-	9,   // 80: cairn.v1.AvailableProvider.auth_method:type_name -> cairn.v1.AvailableAuthMethod
-	8,   // 81: cairn.v1.AvailableConfigField.type:type_name -> cairn.v1.AvailableFieldType
-	104, // 82: cairn.v1.CreateExternalAccountRequest.config:type_name -> cairn.v1.CreateExternalAccountRequest.ConfigEntry
-	66,  // 83: cairn.v1.CreateExternalAccountResponse.account:type_name -> cairn.v1.ExternalAccount
-	105, // 84: cairn.v1.UpdateExternalAccountConfigRequest.config:type_name -> cairn.v1.UpdateExternalAccountConfigRequest.ConfigEntry
-	66,  // 85: cairn.v1.UpdateExternalAccountConfigResponse.account:type_name -> cairn.v1.ExternalAccount
-	66,  // 86: cairn.v1.SetExternalAccountEnabledResponse.account:type_name -> cairn.v1.ExternalAccount
-	106, // 87: cairn.v1.TriggerSyncRequest.since:type_name -> google.protobuf.Timestamp
-	71,  // 88: cairn.v1.ExternalAccount.ConfigEntry.value:type_name -> cairn.v1.ConfigValueMeta
-	11,  // 89: cairn.v1.AuthService.GetLoginMethods:input_type -> cairn.v1.GetLoginMethodsRequest
-	14,  // 90: cairn.v1.AuthService.GetInstanceInfo:input_type -> cairn.v1.GetInstanceInfoRequest
-	18,  // 91: cairn.v1.AuthService.LoginPassword:input_type -> cairn.v1.LoginPasswordRequest
-	21,  // 92: cairn.v1.AuthService.Complete2FA:input_type -> cairn.v1.Complete2FARequest
-	24,  // 93: cairn.v1.AuthService.Register:input_type -> cairn.v1.RegisterRequest
-	26,  // 94: cairn.v1.AuthService.ChangePassword:input_type -> cairn.v1.ChangePasswordRequest
-	28,  // 95: cairn.v1.AuthService.RequestPasswordReset:input_type -> cairn.v1.RequestPasswordResetRequest
-	30,  // 96: cairn.v1.AuthService.ConfirmPasswordReset:input_type -> cairn.v1.ConfirmPasswordResetRequest
-	32,  // 97: cairn.v1.AuthService.StartOIDCLogin:input_type -> cairn.v1.StartOIDCLoginRequest
-	34,  // 98: cairn.v1.AuthService.StartOIDCLink:input_type -> cairn.v1.StartOIDCLinkRequest
-	36,  // 99: cairn.v1.AuthService.UnlinkOIDCIdentity:input_type -> cairn.v1.UnlinkOIDCIdentityRequest
-	38,  // 100: cairn.v1.AuthService.ListLinkedIdentities:input_type -> cairn.v1.ListLinkedIdentitiesRequest
-	41,  // 101: cairn.v1.AuthService.Logout:input_type -> cairn.v1.LogoutRequest
-	43,  // 102: cairn.v1.AuthService.GetCurrentUser:input_type -> cairn.v1.GetCurrentUserRequest
-	16,  // 103: cairn.v1.AuthService.GetQuota:input_type -> cairn.v1.GetQuotaRequest
-	47,  // 104: cairn.v1.AuthService.UpdateProfile:input_type -> cairn.v1.UpdateProfileRequest
-	45,  // 105: cairn.v1.AuthService.UpdateUserPreferences:input_type -> cairn.v1.UpdateUserPreferencesRequest
-	50,  // 106: cairn.v1.AuthService.ListSessions:input_type -> cairn.v1.ListSessionsRequest
-	52,  // 107: cairn.v1.AuthService.RevokeSession:input_type -> cairn.v1.RevokeSessionRequest
-	55,  // 108: cairn.v1.AuthService.CreatePersonalAccessToken:input_type -> cairn.v1.CreatePersonalAccessTokenRequest
-	57,  // 109: cairn.v1.AuthService.ListPersonalAccessTokens:input_type -> cairn.v1.ListPersonalAccessTokensRequest
-	59,  // 110: cairn.v1.AuthService.RevokePersonalAccessToken:input_type -> cairn.v1.RevokePersonalAccessTokenRequest
-	62,  // 111: cairn.v1.AuthService.ListAuthorizedApps:input_type -> cairn.v1.ListAuthorizedAppsRequest
-	64,  // 112: cairn.v1.AuthService.RevokeAuthorizedApp:input_type -> cairn.v1.RevokeAuthorizedAppRequest
-	73,  // 113: cairn.v1.ExternalAccountService.ListExternalAccounts:input_type -> cairn.v1.ListExternalAccountsRequest
-	85,  // 114: cairn.v1.ExternalAccountService.ListAvailableProviders:input_type -> cairn.v1.ListAvailableProvidersRequest
-	75,  // 115: cairn.v1.ExternalAccountService.ListConnections:input_type -> cairn.v1.ListConnectionsRequest
-	79,  // 116: cairn.v1.ExternalAccountService.ListSyncHistory:input_type -> cairn.v1.ListSyncHistoryRequest
-	82,  // 117: cairn.v1.ExternalAccountService.ListQueueItems:input_type -> cairn.v1.ListQueueItemsRequest
-	89,  // 118: cairn.v1.ExternalAccountService.CreateExternalAccount:input_type -> cairn.v1.CreateExternalAccountRequest
-	91,  // 119: cairn.v1.ExternalAccountService.UpdateExternalAccountConfig:input_type -> cairn.v1.UpdateExternalAccountConfigRequest
-	93,  // 120: cairn.v1.ExternalAccountService.StartExternalAccountReauthorize:input_type -> cairn.v1.StartExternalAccountReauthorizeRequest
-	95,  // 121: cairn.v1.ExternalAccountService.SetExternalAccountEnabled:input_type -> cairn.v1.SetExternalAccountEnabledRequest
-	97,  // 122: cairn.v1.ExternalAccountService.DeleteExternalAccount:input_type -> cairn.v1.DeleteExternalAccountRequest
-	99,  // 123: cairn.v1.ExternalAccountService.TriggerSync:input_type -> cairn.v1.TriggerSyncRequest
-	101, // 124: cairn.v1.ExternalAccountService.RotateWebhookToken:input_type -> cairn.v1.RotateWebhookTokenRequest
-	12,  // 125: cairn.v1.AuthService.GetLoginMethods:output_type -> cairn.v1.GetLoginMethodsResponse
-	15,  // 126: cairn.v1.AuthService.GetInstanceInfo:output_type -> cairn.v1.GetInstanceInfoResponse
-	19,  // 127: cairn.v1.AuthService.LoginPassword:output_type -> cairn.v1.LoginPasswordResponse
-	22,  // 128: cairn.v1.AuthService.Complete2FA:output_type -> cairn.v1.Complete2FAResponse
-	25,  // 129: cairn.v1.AuthService.Register:output_type -> cairn.v1.RegisterResponse
-	27,  // 130: cairn.v1.AuthService.ChangePassword:output_type -> cairn.v1.ChangePasswordResponse
-	29,  // 131: cairn.v1.AuthService.RequestPasswordReset:output_type -> cairn.v1.RequestPasswordResetResponse
-	31,  // 132: cairn.v1.AuthService.ConfirmPasswordReset:output_type -> cairn.v1.ConfirmPasswordResetResponse
-	33,  // 133: cairn.v1.AuthService.StartOIDCLogin:output_type -> cairn.v1.StartOIDCLoginResponse
-	35,  // 134: cairn.v1.AuthService.StartOIDCLink:output_type -> cairn.v1.StartOIDCLinkResponse
-	37,  // 135: cairn.v1.AuthService.UnlinkOIDCIdentity:output_type -> cairn.v1.UnlinkOIDCIdentityResponse
-	39,  // 136: cairn.v1.AuthService.ListLinkedIdentities:output_type -> cairn.v1.ListLinkedIdentitiesResponse
-	42,  // 137: cairn.v1.AuthService.Logout:output_type -> cairn.v1.LogoutResponse
-	44,  // 138: cairn.v1.AuthService.GetCurrentUser:output_type -> cairn.v1.GetCurrentUserResponse
-	17,  // 139: cairn.v1.AuthService.GetQuota:output_type -> cairn.v1.GetQuotaResponse
-	48,  // 140: cairn.v1.AuthService.UpdateProfile:output_type -> cairn.v1.UpdateProfileResponse
-	46,  // 141: cairn.v1.AuthService.UpdateUserPreferences:output_type -> cairn.v1.UpdateUserPreferencesResponse
-	51,  // 142: cairn.v1.AuthService.ListSessions:output_type -> cairn.v1.ListSessionsResponse
-	53,  // 143: cairn.v1.AuthService.RevokeSession:output_type -> cairn.v1.RevokeSessionResponse
-	56,  // 144: cairn.v1.AuthService.CreatePersonalAccessToken:output_type -> cairn.v1.CreatePersonalAccessTokenResponse
-	58,  // 145: cairn.v1.AuthService.ListPersonalAccessTokens:output_type -> cairn.v1.ListPersonalAccessTokensResponse
-	60,  // 146: cairn.v1.AuthService.RevokePersonalAccessToken:output_type -> cairn.v1.RevokePersonalAccessTokenResponse
-	63,  // 147: cairn.v1.AuthService.ListAuthorizedApps:output_type -> cairn.v1.ListAuthorizedAppsResponse
-	65,  // 148: cairn.v1.AuthService.RevokeAuthorizedApp:output_type -> cairn.v1.RevokeAuthorizedAppResponse
-	74,  // 149: cairn.v1.ExternalAccountService.ListExternalAccounts:output_type -> cairn.v1.ListExternalAccountsResponse
-	86,  // 150: cairn.v1.ExternalAccountService.ListAvailableProviders:output_type -> cairn.v1.ListAvailableProvidersResponse
-	78,  // 151: cairn.v1.ExternalAccountService.ListConnections:output_type -> cairn.v1.ListConnectionsResponse
-	81,  // 152: cairn.v1.ExternalAccountService.ListSyncHistory:output_type -> cairn.v1.ListSyncHistoryResponse
-	84,  // 153: cairn.v1.ExternalAccountService.ListQueueItems:output_type -> cairn.v1.ListQueueItemsResponse
-	90,  // 154: cairn.v1.ExternalAccountService.CreateExternalAccount:output_type -> cairn.v1.CreateExternalAccountResponse
-	92,  // 155: cairn.v1.ExternalAccountService.UpdateExternalAccountConfig:output_type -> cairn.v1.UpdateExternalAccountConfigResponse
-	94,  // 156: cairn.v1.ExternalAccountService.StartExternalAccountReauthorize:output_type -> cairn.v1.StartExternalAccountReauthorizeResponse
-	96,  // 157: cairn.v1.ExternalAccountService.SetExternalAccountEnabled:output_type -> cairn.v1.SetExternalAccountEnabledResponse
-	98,  // 158: cairn.v1.ExternalAccountService.DeleteExternalAccount:output_type -> cairn.v1.DeleteExternalAccountResponse
-	100, // 159: cairn.v1.ExternalAccountService.TriggerSync:output_type -> cairn.v1.TriggerSyncResponse
-	102, // 160: cairn.v1.ExternalAccountService.RotateWebhookToken:output_type -> cairn.v1.RotateWebhookTokenResponse
-	125, // [125:161] is the sub-list for method output_type
-	89,  // [89:125] is the sub-list for method input_type
-	89,  // [89:89] is the sub-list for extension type_name
-	89,  // [89:89] is the sub-list for extension extendee
-	0,   // [0:89] is the sub-list for field type_name
+	25,  // 14: cairn.v1.Complete2FAResponse.session:type_name -> cairn.v1.SessionResult
+	10,  // 15: cairn.v1.SetPasskeySecondFactorResponse.user:type_name -> cairn.v1.User
+	108, // 16: cairn.v1.SessionResult.expires_at:type_name -> google.protobuf.Timestamp
+	10,  // 17: cairn.v1.SessionResult.user:type_name -> cairn.v1.User
+	4,   // 18: cairn.v1.RegisterRequest.units:type_name -> cairn.v1.UnitSystem
+	10,  // 19: cairn.v1.RegisterResponse.user:type_name -> cairn.v1.User
+	25,  // 20: cairn.v1.RegisterResponse.session:type_name -> cairn.v1.SessionResult
+	25,  // 21: cairn.v1.ConfirmPasswordResetResponse.session:type_name -> cairn.v1.SessionResult
+	42,  // 22: cairn.v1.ListLinkedIdentitiesResponse.identities:type_name -> cairn.v1.LinkedIdentity
+	108, // 23: cairn.v1.LinkedIdentity.linked_at:type_name -> google.protobuf.Timestamp
+	108, // 24: cairn.v1.LinkedIdentity.last_used_at:type_name -> google.protobuf.Timestamp
+	10,  // 25: cairn.v1.GetCurrentUserResponse.user:type_name -> cairn.v1.User
+	0,   // 26: cairn.v1.UpdateUserPreferencesRequest.date_format:type_name -> cairn.v1.DateFormat
+	1,   // 27: cairn.v1.UpdateUserPreferencesRequest.time_format:type_name -> cairn.v1.TimeFormat
+	4,   // 28: cairn.v1.UpdateUserPreferencesRequest.units:type_name -> cairn.v1.UnitSystem
+	10,  // 29: cairn.v1.UpdateUserPreferencesResponse.user:type_name -> cairn.v1.User
+	4,   // 30: cairn.v1.UpdateProfileRequest.units:type_name -> cairn.v1.UnitSystem
+	10,  // 31: cairn.v1.UpdateProfileResponse.user:type_name -> cairn.v1.User
+	108, // 32: cairn.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	108, // 33: cairn.v1.Session.last_seen_at:type_name -> google.protobuf.Timestamp
+	108, // 34: cairn.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
+	6,   // 35: cairn.v1.Session.auth_method:type_name -> cairn.v1.AuthMethod
+	51,  // 36: cairn.v1.ListSessionsResponse.sessions:type_name -> cairn.v1.Session
+	108, // 37: cairn.v1.PersonalAccessToken.created_at:type_name -> google.protobuf.Timestamp
+	108, // 38: cairn.v1.PersonalAccessToken.expires_at:type_name -> google.protobuf.Timestamp
+	108, // 39: cairn.v1.PersonalAccessToken.last_used_at:type_name -> google.protobuf.Timestamp
+	108, // 40: cairn.v1.CreatePersonalAccessTokenRequest.expires_at:type_name -> google.protobuf.Timestamp
+	56,  // 41: cairn.v1.CreatePersonalAccessTokenResponse.token:type_name -> cairn.v1.PersonalAccessToken
+	56,  // 42: cairn.v1.ListPersonalAccessTokensResponse.tokens:type_name -> cairn.v1.PersonalAccessToken
+	108, // 43: cairn.v1.AuthorizedApp.granted_at:type_name -> google.protobuf.Timestamp
+	108, // 44: cairn.v1.AuthorizedApp.last_issued_at:type_name -> google.protobuf.Timestamp
+	63,  // 45: cairn.v1.ListAuthorizedAppsResponse.apps:type_name -> cairn.v1.AuthorizedApp
+	7,   // 46: cairn.v1.ExternalAccount.status:type_name -> cairn.v1.ExternalAccountStatus
+	105, // 47: cairn.v1.ExternalAccount.config:type_name -> cairn.v1.ExternalAccount.ConfigEntry
+	108, // 48: cairn.v1.ExternalAccount.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	108, // 49: cairn.v1.ExternalAccount.webhook_subscribed_at:type_name -> google.protobuf.Timestamp
+	74,  // 50: cairn.v1.ExternalAccount.rate_limit:type_name -> cairn.v1.ExternalAccountRateLimit
+	108, // 51: cairn.v1.ExternalAccount.created_at:type_name -> google.protobuf.Timestamp
+	108, // 52: cairn.v1.ExternalAccount.updated_at:type_name -> google.protobuf.Timestamp
+	108, // 53: cairn.v1.ExternalAccount.last_sync_at:type_name -> google.protobuf.Timestamp
+	108, // 54: cairn.v1.ExternalAccount.last_successful_sync_at:type_name -> google.protobuf.Timestamp
+	108, // 55: cairn.v1.ExternalAccount.watermark:type_name -> google.protobuf.Timestamp
+	69,  // 56: cairn.v1.ExternalAccount.queue:type_name -> cairn.v1.QueueCounts
+	70,  // 57: cairn.v1.ExternalAccount.worker_pools:type_name -> cairn.v1.WorkerPoolInfo
+	72,  // 58: cairn.v1.ExternalAccount.rate_limit_budget:type_name -> cairn.v1.RateLimitBudget
+	108, // 59: cairn.v1.RateLimitWindow.resets_at:type_name -> google.protobuf.Timestamp
+	71,  // 60: cairn.v1.RateLimitBudget.short:type_name -> cairn.v1.RateLimitWindow
+	71,  // 61: cairn.v1.RateLimitBudget.daily:type_name -> cairn.v1.RateLimitWindow
+	108, // 62: cairn.v1.ExternalAccountRateLimit.short_reset_at:type_name -> google.protobuf.Timestamp
+	108, // 63: cairn.v1.ExternalAccountRateLimit.long_reset_at:type_name -> google.protobuf.Timestamp
+	68,  // 64: cairn.v1.ListExternalAccountsResponse.accounts:type_name -> cairn.v1.ExternalAccount
+	70,  // 65: cairn.v1.ProviderInfo.worker_pools:type_name -> cairn.v1.WorkerPoolInfo
+	78,  // 66: cairn.v1.ListConnectionsResponse.connections:type_name -> cairn.v1.Connection
+	79,  // 67: cairn.v1.ListConnectionsResponse.providers:type_name -> cairn.v1.ProviderInfo
+	109, // 68: cairn.v1.ListSyncHistoryRequest.page:type_name -> cairn.v1.PageRequest
+	108, // 69: cairn.v1.SyncEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	82,  // 70: cairn.v1.ListSyncHistoryResponse.events:type_name -> cairn.v1.SyncEvent
+	110, // 71: cairn.v1.ListSyncHistoryResponse.page:type_name -> cairn.v1.PageResponse
+	109, // 72: cairn.v1.ListQueueItemsRequest.page:type_name -> cairn.v1.PageRequest
+	108, // 73: cairn.v1.QueueItem.created_at:type_name -> google.protobuf.Timestamp
+	108, // 74: cairn.v1.QueueItem.item_time:type_name -> google.protobuf.Timestamp
+	108, // 75: cairn.v1.QueueItem.started_at:type_name -> google.protobuf.Timestamp
+	108, // 76: cairn.v1.QueueItem.completed_at:type_name -> google.protobuf.Timestamp
+	85,  // 77: cairn.v1.ListQueueItemsResponse.items:type_name -> cairn.v1.QueueItem
+	110, // 78: cairn.v1.ListQueueItemsResponse.page:type_name -> cairn.v1.PageResponse
+	89,  // 79: cairn.v1.ListAvailableProvidersResponse.providers:type_name -> cairn.v1.AvailableProvider
+	90,  // 80: cairn.v1.AvailableProvider.config_fields:type_name -> cairn.v1.AvailableConfigField
+	9,   // 81: cairn.v1.AvailableProvider.auth_method:type_name -> cairn.v1.AvailableAuthMethod
+	8,   // 82: cairn.v1.AvailableConfigField.type:type_name -> cairn.v1.AvailableFieldType
+	106, // 83: cairn.v1.CreateExternalAccountRequest.config:type_name -> cairn.v1.CreateExternalAccountRequest.ConfigEntry
+	68,  // 84: cairn.v1.CreateExternalAccountResponse.account:type_name -> cairn.v1.ExternalAccount
+	107, // 85: cairn.v1.UpdateExternalAccountConfigRequest.config:type_name -> cairn.v1.UpdateExternalAccountConfigRequest.ConfigEntry
+	68,  // 86: cairn.v1.UpdateExternalAccountConfigResponse.account:type_name -> cairn.v1.ExternalAccount
+	68,  // 87: cairn.v1.SetExternalAccountEnabledResponse.account:type_name -> cairn.v1.ExternalAccount
+	108, // 88: cairn.v1.TriggerSyncRequest.since:type_name -> google.protobuf.Timestamp
+	73,  // 89: cairn.v1.ExternalAccount.ConfigEntry.value:type_name -> cairn.v1.ConfigValueMeta
+	11,  // 90: cairn.v1.AuthService.GetLoginMethods:input_type -> cairn.v1.GetLoginMethodsRequest
+	14,  // 91: cairn.v1.AuthService.GetInstanceInfo:input_type -> cairn.v1.GetInstanceInfoRequest
+	18,  // 92: cairn.v1.AuthService.LoginPassword:input_type -> cairn.v1.LoginPasswordRequest
+	21,  // 93: cairn.v1.AuthService.Complete2FA:input_type -> cairn.v1.Complete2FARequest
+	23,  // 94: cairn.v1.AuthService.SetPasskeySecondFactor:input_type -> cairn.v1.SetPasskeySecondFactorRequest
+	26,  // 95: cairn.v1.AuthService.Register:input_type -> cairn.v1.RegisterRequest
+	28,  // 96: cairn.v1.AuthService.ChangePassword:input_type -> cairn.v1.ChangePasswordRequest
+	30,  // 97: cairn.v1.AuthService.RequestPasswordReset:input_type -> cairn.v1.RequestPasswordResetRequest
+	32,  // 98: cairn.v1.AuthService.ConfirmPasswordReset:input_type -> cairn.v1.ConfirmPasswordResetRequest
+	34,  // 99: cairn.v1.AuthService.StartOIDCLogin:input_type -> cairn.v1.StartOIDCLoginRequest
+	36,  // 100: cairn.v1.AuthService.StartOIDCLink:input_type -> cairn.v1.StartOIDCLinkRequest
+	38,  // 101: cairn.v1.AuthService.UnlinkOIDCIdentity:input_type -> cairn.v1.UnlinkOIDCIdentityRequest
+	40,  // 102: cairn.v1.AuthService.ListLinkedIdentities:input_type -> cairn.v1.ListLinkedIdentitiesRequest
+	43,  // 103: cairn.v1.AuthService.Logout:input_type -> cairn.v1.LogoutRequest
+	45,  // 104: cairn.v1.AuthService.GetCurrentUser:input_type -> cairn.v1.GetCurrentUserRequest
+	16,  // 105: cairn.v1.AuthService.GetQuota:input_type -> cairn.v1.GetQuotaRequest
+	49,  // 106: cairn.v1.AuthService.UpdateProfile:input_type -> cairn.v1.UpdateProfileRequest
+	47,  // 107: cairn.v1.AuthService.UpdateUserPreferences:input_type -> cairn.v1.UpdateUserPreferencesRequest
+	52,  // 108: cairn.v1.AuthService.ListSessions:input_type -> cairn.v1.ListSessionsRequest
+	54,  // 109: cairn.v1.AuthService.RevokeSession:input_type -> cairn.v1.RevokeSessionRequest
+	57,  // 110: cairn.v1.AuthService.CreatePersonalAccessToken:input_type -> cairn.v1.CreatePersonalAccessTokenRequest
+	59,  // 111: cairn.v1.AuthService.ListPersonalAccessTokens:input_type -> cairn.v1.ListPersonalAccessTokensRequest
+	61,  // 112: cairn.v1.AuthService.RevokePersonalAccessToken:input_type -> cairn.v1.RevokePersonalAccessTokenRequest
+	64,  // 113: cairn.v1.AuthService.ListAuthorizedApps:input_type -> cairn.v1.ListAuthorizedAppsRequest
+	66,  // 114: cairn.v1.AuthService.RevokeAuthorizedApp:input_type -> cairn.v1.RevokeAuthorizedAppRequest
+	75,  // 115: cairn.v1.ExternalAccountService.ListExternalAccounts:input_type -> cairn.v1.ListExternalAccountsRequest
+	87,  // 116: cairn.v1.ExternalAccountService.ListAvailableProviders:input_type -> cairn.v1.ListAvailableProvidersRequest
+	77,  // 117: cairn.v1.ExternalAccountService.ListConnections:input_type -> cairn.v1.ListConnectionsRequest
+	81,  // 118: cairn.v1.ExternalAccountService.ListSyncHistory:input_type -> cairn.v1.ListSyncHistoryRequest
+	84,  // 119: cairn.v1.ExternalAccountService.ListQueueItems:input_type -> cairn.v1.ListQueueItemsRequest
+	91,  // 120: cairn.v1.ExternalAccountService.CreateExternalAccount:input_type -> cairn.v1.CreateExternalAccountRequest
+	93,  // 121: cairn.v1.ExternalAccountService.UpdateExternalAccountConfig:input_type -> cairn.v1.UpdateExternalAccountConfigRequest
+	95,  // 122: cairn.v1.ExternalAccountService.StartExternalAccountReauthorize:input_type -> cairn.v1.StartExternalAccountReauthorizeRequest
+	97,  // 123: cairn.v1.ExternalAccountService.SetExternalAccountEnabled:input_type -> cairn.v1.SetExternalAccountEnabledRequest
+	99,  // 124: cairn.v1.ExternalAccountService.DeleteExternalAccount:input_type -> cairn.v1.DeleteExternalAccountRequest
+	101, // 125: cairn.v1.ExternalAccountService.TriggerSync:input_type -> cairn.v1.TriggerSyncRequest
+	103, // 126: cairn.v1.ExternalAccountService.RotateWebhookToken:input_type -> cairn.v1.RotateWebhookTokenRequest
+	12,  // 127: cairn.v1.AuthService.GetLoginMethods:output_type -> cairn.v1.GetLoginMethodsResponse
+	15,  // 128: cairn.v1.AuthService.GetInstanceInfo:output_type -> cairn.v1.GetInstanceInfoResponse
+	19,  // 129: cairn.v1.AuthService.LoginPassword:output_type -> cairn.v1.LoginPasswordResponse
+	22,  // 130: cairn.v1.AuthService.Complete2FA:output_type -> cairn.v1.Complete2FAResponse
+	24,  // 131: cairn.v1.AuthService.SetPasskeySecondFactor:output_type -> cairn.v1.SetPasskeySecondFactorResponse
+	27,  // 132: cairn.v1.AuthService.Register:output_type -> cairn.v1.RegisterResponse
+	29,  // 133: cairn.v1.AuthService.ChangePassword:output_type -> cairn.v1.ChangePasswordResponse
+	31,  // 134: cairn.v1.AuthService.RequestPasswordReset:output_type -> cairn.v1.RequestPasswordResetResponse
+	33,  // 135: cairn.v1.AuthService.ConfirmPasswordReset:output_type -> cairn.v1.ConfirmPasswordResetResponse
+	35,  // 136: cairn.v1.AuthService.StartOIDCLogin:output_type -> cairn.v1.StartOIDCLoginResponse
+	37,  // 137: cairn.v1.AuthService.StartOIDCLink:output_type -> cairn.v1.StartOIDCLinkResponse
+	39,  // 138: cairn.v1.AuthService.UnlinkOIDCIdentity:output_type -> cairn.v1.UnlinkOIDCIdentityResponse
+	41,  // 139: cairn.v1.AuthService.ListLinkedIdentities:output_type -> cairn.v1.ListLinkedIdentitiesResponse
+	44,  // 140: cairn.v1.AuthService.Logout:output_type -> cairn.v1.LogoutResponse
+	46,  // 141: cairn.v1.AuthService.GetCurrentUser:output_type -> cairn.v1.GetCurrentUserResponse
+	17,  // 142: cairn.v1.AuthService.GetQuota:output_type -> cairn.v1.GetQuotaResponse
+	50,  // 143: cairn.v1.AuthService.UpdateProfile:output_type -> cairn.v1.UpdateProfileResponse
+	48,  // 144: cairn.v1.AuthService.UpdateUserPreferences:output_type -> cairn.v1.UpdateUserPreferencesResponse
+	53,  // 145: cairn.v1.AuthService.ListSessions:output_type -> cairn.v1.ListSessionsResponse
+	55,  // 146: cairn.v1.AuthService.RevokeSession:output_type -> cairn.v1.RevokeSessionResponse
+	58,  // 147: cairn.v1.AuthService.CreatePersonalAccessToken:output_type -> cairn.v1.CreatePersonalAccessTokenResponse
+	60,  // 148: cairn.v1.AuthService.ListPersonalAccessTokens:output_type -> cairn.v1.ListPersonalAccessTokensResponse
+	62,  // 149: cairn.v1.AuthService.RevokePersonalAccessToken:output_type -> cairn.v1.RevokePersonalAccessTokenResponse
+	65,  // 150: cairn.v1.AuthService.ListAuthorizedApps:output_type -> cairn.v1.ListAuthorizedAppsResponse
+	67,  // 151: cairn.v1.AuthService.RevokeAuthorizedApp:output_type -> cairn.v1.RevokeAuthorizedAppResponse
+	76,  // 152: cairn.v1.ExternalAccountService.ListExternalAccounts:output_type -> cairn.v1.ListExternalAccountsResponse
+	88,  // 153: cairn.v1.ExternalAccountService.ListAvailableProviders:output_type -> cairn.v1.ListAvailableProvidersResponse
+	80,  // 154: cairn.v1.ExternalAccountService.ListConnections:output_type -> cairn.v1.ListConnectionsResponse
+	83,  // 155: cairn.v1.ExternalAccountService.ListSyncHistory:output_type -> cairn.v1.ListSyncHistoryResponse
+	86,  // 156: cairn.v1.ExternalAccountService.ListQueueItems:output_type -> cairn.v1.ListQueueItemsResponse
+	92,  // 157: cairn.v1.ExternalAccountService.CreateExternalAccount:output_type -> cairn.v1.CreateExternalAccountResponse
+	94,  // 158: cairn.v1.ExternalAccountService.UpdateExternalAccountConfig:output_type -> cairn.v1.UpdateExternalAccountConfigResponse
+	96,  // 159: cairn.v1.ExternalAccountService.StartExternalAccountReauthorize:output_type -> cairn.v1.StartExternalAccountReauthorizeResponse
+	98,  // 160: cairn.v1.ExternalAccountService.SetExternalAccountEnabled:output_type -> cairn.v1.SetExternalAccountEnabledResponse
+	100, // 161: cairn.v1.ExternalAccountService.DeleteExternalAccount:output_type -> cairn.v1.DeleteExternalAccountResponse
+	102, // 162: cairn.v1.ExternalAccountService.TriggerSync:output_type -> cairn.v1.TriggerSyncResponse
+	104, // 163: cairn.v1.ExternalAccountService.RotateWebhookToken:output_type -> cairn.v1.RotateWebhookTokenResponse
+	127, // [127:164] is the sub-list for method output_type
+	90,  // [90:127] is the sub-list for method input_type
+	90,  // [90:90] is the sub-list for extension type_name
+	90,  // [90:90] is the sub-list for extension extendee
+	0,   // [0:90] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_auth_proto_init() }
@@ -7216,26 +7324,26 @@ func file_cairn_v1_auth_proto_init() {
 		(*LoginPasswordResponse_Session)(nil),
 		(*LoginPasswordResponse_Challenge)(nil),
 	}
-	file_cairn_v1_auth_proto_msgTypes[14].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[15].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[30].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[37].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[16].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[17].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[32].OneofWrappers = []any{}
 	file_cairn_v1_auth_proto_msgTypes[39].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[44].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[45].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[56].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[61].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[73].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[80].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[81].OneofWrappers = []any{}
-	file_cairn_v1_auth_proto_msgTypes[89].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[41].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[46].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[47].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[58].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[63].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[75].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[82].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[83].OneofWrappers = []any{}
+	file_cairn_v1_auth_proto_msgTypes[91].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_auth_proto_rawDesc), len(file_cairn_v1_auth_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   96,
+			NumMessages:   98,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

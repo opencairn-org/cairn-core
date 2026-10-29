@@ -216,11 +216,18 @@ func resolveSessionUser(r *http.Request, app *App) (domain.UserID, bool) {
 			return sess.UserID, true
 		}
 	}
-	// 2. Personal access token (CLI/API clients).
+	// 2. Bearer session token (issued by Complete2FA to non-browser clients).
+	if tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); strings.HasPrefix(tok, domain.SessionTokenPrefix) {
+		hash := sha256.Sum256([]byte(tok))
+		if sess, err := app.Sessions.GetByTokenHash(r.Context(), hash[:]); err == nil && sess.IsActive(time.Now().UTC()) {
+			return sess.UserID, true
+		}
+	}
+	// 3. Personal access token (CLI/API clients).
 	if uid, ok := resolvePAT(r, app); ok {
 		return uid, true
 	}
-	// 3. OAuth 2.1 access token (native/third-party). Read-only tokens may only
+	// 4. OAuth 2.1 access token (native/third-party). Read-only tokens may only
 	// use safe methods; mutating REST calls require a write scope.
 	return resolveOAuthREST(r, app)
 }

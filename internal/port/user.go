@@ -117,6 +117,9 @@ type UserRepo interface {
 	// an empty hash to disable password login.
 	UpdatePassword(ctx context.Context, id domain.UserID, encodedHash string) error
 
+	// SetPasskeySecondFactor sets users.passkey_second_factor.
+	SetPasskeySecondFactor(ctx context.Context, id domain.UserID, enabled bool) error
+
 	// UpdateEmailVerified sets users.email_verified.
 	UpdateEmailVerified(ctx context.Context, id domain.UserID, verified bool) error
 

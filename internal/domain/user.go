@@ -41,6 +41,10 @@ type User struct {
 
 	MustChangePassword bool
 
+	// PasskeySecondFactor requires a passkey assertion after a password
+	// sign-in (the user opts in; needs at least one passkey).
+	PasskeySecondFactor bool
+
 	// ProfileIsPublic opts the user's athlete profile into session-less
 	// rendering at /u/{username} (multi-user v1, see docs/visibility-model.md).
 	ProfileIsPublic bool

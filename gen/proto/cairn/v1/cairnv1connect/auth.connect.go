@@ -65,6 +65,9 @@ const (
 	AuthServiceLoginPasswordProcedure = "/cairn.v1.AuthService/LoginPassword"
 	// AuthServiceComplete2FAProcedure is the procedure name of the AuthService's Complete2FA RPC.
 	AuthServiceComplete2FAProcedure = "/cairn.v1.AuthService/Complete2FA"
+	// AuthServiceSetPasskeySecondFactorProcedure is the procedure name of the AuthService's
+	// SetPasskeySecondFactor RPC.
+	AuthServiceSetPasskeySecondFactorProcedure = "/cairn.v1.AuthService/SetPasskeySecondFactor"
 	// AuthServiceRegisterProcedure is the procedure name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/cairn.v1.AuthService/Register"
 	// AuthServiceChangePasswordProcedure is the procedure name of the AuthService's ChangePassword RPC.
@@ -181,6 +184,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("Complete2FA"),
 			Procedure:  AuthServiceComplete2FAProcedure,
+		}
+	})
+	authServiceSetPasskeySecondFactorSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("SetPasskeySecondFactor"),
+			Procedure:  AuthServiceSetPasskeySecondFactorProcedure,
 		}
 	})
 	authServiceRegisterSpec = sync.OnceValue(func() connect.Spec {
@@ -345,11 +355,20 @@ type AuthServiceClient interface {
 	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
 	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
-	// Complete a 2FA challenge after LoginPassword.
-	// Planned, not implemented (returns Unimplemented): the instance has no
-	// second-factor step after a password login yet (passkeys are a first factor).
+	// Complete a second-factor challenge. A password sign-in of a user who
+	// requires a passkey as second factor (POST /auth/password) answers with
+	// a challenge token instead of a session; the client then runs the
+	// passkey ceremony at POST /auth/webauthn/login/start and
+	// POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+	// challenge satisfied, and finally calls this RPC (or POST
+	// /auth/2fa/complete for a cookie session). The response carries a bearer
+	// session token (`cairn_ses_…`) accepted on both surfaces.
 	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
+	// Require (or stop requiring) a passkey after password sign-in. Enabling
+	// needs at least one registered passkey.
+	// Scope: cookie session only.
+	SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error)
 	// Register a new local user. The instance is invite-only, so invite_code is
 	// required; the account is created and the caller then signs in (OAuth for
 	// native clients, cookie login for the browser). No session is returned.
@@ -443,11 +462,20 @@ type AuthServiceHandler interface {
 	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
 	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
-	// Complete a 2FA challenge after LoginPassword.
-	// Planned, not implemented (returns Unimplemented): the instance has no
-	// second-factor step after a password login yet (passkeys are a first factor).
+	// Complete a second-factor challenge. A password sign-in of a user who
+	// requires a passkey as second factor (POST /auth/password) answers with
+	// a challenge token instead of a session; the client then runs the
+	// passkey ceremony at POST /auth/webauthn/login/start and
+	// POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+	// challenge satisfied, and finally calls this RPC (or POST
+	// /auth/2fa/complete for a cookie session). The response carries a bearer
+	// session token (`cairn_ses_…`) accepted on both surfaces.
 	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
+	// Require (or stop requiring) a passkey after password sign-in. Enabling
+	// needs at least one registered passkey.
+	// Scope: cookie session only.
+	SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error)
 	// Register a new local user. The instance is invite-only, so invite_code is
 	// required; the account is created and the caller then signs in (OAuth for
 	// native clients, cookie login for the browser). No session is returned.
@@ -525,6 +553,7 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceGetInstanceInfoSpec(), Handler: adapter.getInstanceInfo},
 		connect.Method{Spec: authServiceLoginPasswordSpec(), Handler: adapter.loginPassword},
 		connect.Method{Spec: authServiceComplete2FASpec(), Handler: adapter.complete2FA},
+		connect.Method{Spec: authServiceSetPasskeySecondFactorSpec(), Handler: adapter.setPasskeySecondFactor},
 		connect.Method{Spec: authServiceRegisterSpec(), Handler: adapter.register},
 		connect.Method{Spec: authServiceChangePasswordSpec(), Handler: adapter.changePassword},
 		connect.Method{Spec: authServiceRequestPasswordResetSpec(), Handler: adapter.requestPasswordReset},
@@ -565,6 +594,10 @@ func (UnimplementedAuthServiceHandler) LoginPassword(context.Context, *v1.LoginP
 
 func (UnimplementedAuthServiceHandler) Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.Complete2FA is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.SetPasskeySecondFactor is not implemented")
 }
 
 func (UnimplementedAuthServiceHandler) Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error) {
@@ -678,6 +711,14 @@ func (c *authServiceClient) LoginPassword(ctx context.Context, req *v1.LoginPass
 func (c *authServiceClient) Complete2FA(ctx context.Context, req *v1.Complete2FARequest) (*v1.Complete2FAResponse, error) {
 	var res v1.Complete2FAResponse
 	if err := c.client.CallUnary(ctx, authServiceComplete2FASpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) SetPasskeySecondFactor(ctx context.Context, req *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error) {
+	var res v1.SetPasskeySecondFactorResponse
+	if err := c.client.CallUnary(ctx, authServiceSetPasskeySecondFactorSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -887,6 +928,18 @@ func (h authServiceHandler) complete2FA(ctx context.Context, _ connect.Spec, str
 		return err
 	}
 	res, err := h.svc.Complete2FA(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) setPasskeySecondFactor(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetPasskeySecondFactorRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetPasskeySecondFactor(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,11 +46,16 @@ type accountHandlers struct{ app *App }
 
 // currentSessionID resolves the cookie session behind the request (zero for bearer callers).
 func currentSessionID(r *http.Request, app *App) domain.SessionID {
-	c, err := r.Cookie(sessionCookieName)
-	if err != nil || c.Value == "" {
+	token := ""
+	if c, err := r.Cookie(sessionCookieName); err == nil {
+		token = c.Value
+	} else if tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); strings.HasPrefix(tok, domain.SessionTokenPrefix) {
+		token = tok
+	}
+	if token == "" {
 		return domain.SessionID{}
 	}
-	hash := sha256.Sum256([]byte(c.Value))
+	hash := sha256.Sum256([]byte(token))
 	sess, err := app.Sessions.GetByTokenHash(r.Context(), hash[:])
 	if err != nil {
 		return domain.SessionID{}
@@ -216,22 +222,23 @@ func (h *accountHandlers) updateProfile(w http.ResponseWriter, r *http.Request) 
 // userJSON renders the caller's own user row (the REST twin of proto User).
 func userJSON(u domain.User) map[string]any {
 	return map[string]any{
-		"id":             u.ID.String(),
-		"username":       u.Username,
-		"email":          u.Email,
-		"email_verified": u.EmailVerified,
-		"display_name":   u.DisplayName,
-		"avatar_url":     u.AvatarURL,
-		"locale":         u.Locale,
-		"timezone":       u.Timezone,
-		"units":          string(u.Units),
-		"date_format":    u.DateFormat,
-		"time_format":    u.TimeFormat,
-		"role":           string(u.Role),
-		"status":         string(u.Status),
-		"created_at":     u.CreatedAt.UTC().Format(time.RFC3339),
-		"updated_at":     u.UpdatedAt.UTC().Format(time.RFC3339),
-		"last_login_at":  fmtTimePtr(u.LastLoginAt),
+		"id":                    u.ID.String(),
+		"username":              u.Username,
+		"email":                 u.Email,
+		"email_verified":        u.EmailVerified,
+		"display_name":          u.DisplayName,
+		"avatar_url":            u.AvatarURL,
+		"locale":                u.Locale,
+		"timezone":              u.Timezone,
+		"units":                 string(u.Units),
+		"date_format":           u.DateFormat,
+		"time_format":           u.TimeFormat,
+		"role":                  string(u.Role),
+		"status":                string(u.Status),
+		"passkey_second_factor": u.PasskeySecondFactor,
+		"created_at":            u.CreatedAt.UTC().Format(time.RFC3339),
+		"updated_at":            u.UpdatedAt.UTC().Format(time.RFC3339),
+		"last_login_at":         fmtTimePtr(u.LastLoginAt),
 	}
 }
 

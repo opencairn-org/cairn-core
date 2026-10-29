@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -14,6 +15,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
+	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 )
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
@@ -51,6 +53,10 @@ type AuthServer struct {
 	Identities  *account.Identities
 	Profiles    *account.Profiles
 	Apps        *account.AuthorizedApps
+	// SecondFactor backs Complete2FA and SetPasskeySecondFactor; SessionTTL
+	// bounds the bearer sessions Complete2FA issues.
+	SecondFactor *authuc.SecondFactor
+	SessionTTL   time.Duration
 	// Log receives failures that must not reach the caller (reset mail).
 	Log *slog.Logger
 }
@@ -140,20 +146,21 @@ func (s *AuthServer) GetLoginMethods(
 // userToProto converts the domain User into the proto wire type.
 func userToProto(u domain.User) *v1.User {
 	out := &v1.User{
-		Id:            u.ID.String(),
-		Username:      u.Username,
-		Email:         u.Email,
-		EmailVerified: u.EmailVerified,
-		DisplayName:   u.DisplayName,
-		Locale:        u.Locale,
-		Timezone:      u.Timezone,
-		Units:         unitsToProto(u.Units),
-		DateFormat:    dateFormatToProto(u.DateFormat),
-		TimeFormat:    timeFormatToProto(u.TimeFormat),
-		Role:          userRoleToProto(u.Role),
-		Status:        userStatusToProto(u.Status),
-		CreatedAt:     timestamppb.New(u.CreatedAt),
-		UpdatedAt:     timestamppb.New(u.UpdatedAt),
+		Id:                  u.ID.String(),
+		Username:            u.Username,
+		Email:               u.Email,
+		EmailVerified:       u.EmailVerified,
+		DisplayName:         u.DisplayName,
+		Locale:              u.Locale,
+		Timezone:            u.Timezone,
+		Units:               unitsToProto(u.Units),
+		DateFormat:          dateFormatToProto(u.DateFormat),
+		TimeFormat:          timeFormatToProto(u.TimeFormat),
+		PasskeySecondFactor: u.PasskeySecondFactor,
+		Role:                userRoleToProto(u.Role),
+		Status:              userStatusToProto(u.Status),
+		CreatedAt:           timestamppb.New(u.CreatedAt),
+		UpdatedAt:           timestamppb.New(u.UpdatedAt),
 	}
 	if u.AvatarURL != "" {
 		v := u.AvatarURL

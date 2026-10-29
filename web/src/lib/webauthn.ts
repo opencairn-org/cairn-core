@@ -105,6 +105,26 @@ export async function registerPasskey(name: string): Promise<void> {
 
 /** Sign in with a passkey (usernameless / discoverable). */
 export async function loginWithPasskey(): Promise<void> {
+	await runPasskeyAssertion('/auth/webauthn/login/finish');
+}
+
+/**
+ * Second factor after a password sign-in: the passkey assertion satisfies the
+ * server's challenge, then the challenge is exchanged for a session.
+ */
+export async function confirmSecondFactor(challengeToken: string): Promise<void> {
+	await runPasskeyAssertion(
+		`/auth/webauthn/login/finish?challenge=${encodeURIComponent(challengeToken)}`
+	);
+	const res = await fetch('/auth/2fa/complete', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ challenge_token: challengeToken })
+	});
+	if (!res.ok) throw new Error((await res.text()).trim() || 'sign-in could not be completed');
+}
+
+async function runPasskeyAssertion(finishURL: string): Promise<void> {
 	const startRes = await fetch('/auth/webauthn/login/start', { method: 'POST' });
 	if (!startRes.ok) throw new Error((await startRes.text()).trim() || 'could not start login');
 	const options = await startRes.json();
@@ -128,7 +148,7 @@ export async function loginWithPasskey(): Promise<void> {
 		clientExtensionResults: cred.getClientExtensionResults()
 	};
 
-	const finishRes = await fetch('/auth/webauthn/login/finish', {
+	const finishRes = await fetch(finishURL, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(body)

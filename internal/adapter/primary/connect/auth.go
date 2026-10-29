@@ -116,8 +116,11 @@ func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions por
 	if authed, ok := connectAuthSessionCookie(ctx, h, sessions, sessionCookieName); ok {
 		return authed, true
 	}
-	// Bearer credential: PAT or OAuth access token.
+	// Bearer credential: session token (Complete2FA), PAT or OAuth access token.
 	tok := strings.TrimPrefix(h.Get("Authorization"), "Bearer ")
+	if authed, ok := connectAuthBearerSession(ctx, tok, sessions); ok {
+		return authed, true
+	}
 	// 2. Personal access token (full user access).
 	if pats != nil && strings.HasPrefix(tok, patTokenPrefix) {
 		hash := sha256.Sum256([]byte(tok))
@@ -136,6 +139,22 @@ func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions por
 		}
 	}
 	return ctx, false
+}
+
+// connectAuthBearerSession resolves a `cairn_ses_…` bearer session token
+// (issued by Complete2FA) the same way a cookie session is.
+func connectAuthBearerSession(ctx context.Context, tok string, sessions port.SessionRepo) (context.Context, bool) {
+	if sessions == nil || !strings.HasPrefix(tok, domain.SessionTokenPrefix) {
+		return ctx, false
+	}
+	hash := sha256.Sum256([]byte(tok))
+	sess, err := sessions.GetByTokenHash(ctx, hash[:])
+	if err != nil || !sess.IsActive(time.Now().UTC()) {
+		return ctx, false
+	}
+	_ = sessions.TouchLastSeen(ctx, sess.ID)
+	ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
+	return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
 }
 
 // connectAuthSessionCookie resolves the caller from the session cookie, if any.
@@ -230,6 +249,7 @@ var scopeOverrides = map[string]scopePolicy{
 	"/cairn.v1.AuthService/ListPersonalAccessTokens":  scopeSessionOnly,
 	"/cairn.v1.AuthService/RevokePersonalAccessToken": scopeSessionOnly,
 	"/cairn.v1.AuthService/ListAuthorizedApps":        scopeSessionOnly,
+	"/cairn.v1.AuthService/SetPasskeySecondFactor":    scopeSessionOnly,
 	"/cairn.v1.AuthService/RevokeAuthorizedApp":       scopeSessionOnly,
 }
 

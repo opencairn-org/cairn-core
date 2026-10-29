@@ -36,7 +36,7 @@ follow that rule.
 |---|---|
 | none (public) | `AuthService.GetLoginMethods`, `GetInstanceInfo`, `LoginPassword`, `Complete2FA`, `Register`, `RequestPasswordReset`, `ConfirmPasswordReset`, `StartOIDCLogin` |
 | any valid credential | `AuthService.GetCurrentUser`, `GetQuota` |
-| cookie session only (OAuth tokens refused) | `AuthService.Logout`, `ChangePassword`, `ListSessions`, `RevokeSession`, `CreatePersonalAccessToken`, `ListPersonalAccessTokens`, `RevokePersonalAccessToken`, `ListAuthorizedApps`, `RevokeAuthorizedApp`; every `AdminService` RPC |
+| cookie session only (OAuth tokens refused) | `AuthService.Logout`, `ChangePassword`, `ListSessions`, `RevokeSession`, `CreatePersonalAccessToken`, `ListPersonalAccessTokens`, `RevokePersonalAccessToken`, `ListAuthorizedApps`, `RevokeAuthorizedApp`, `SetPasskeySecondFactor`; every `AdminService` RPC |
 | `profile:read` / `profile:write` | `AuthService.ListLinkedIdentities` / `UpdateProfile`, `UpdateUserPreferences`, `StartOIDCLink`, `UnlinkOIDCIdentity`; `SettingsService` |
 | `activities:read` / `activities:write` | `ActivityService` reads / writes; `StatsService` (reads) |
 | `gear:read` / `gear:write` | `GearService` reads / writes |

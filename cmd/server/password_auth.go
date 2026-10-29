@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -53,6 +54,9 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 		user, errCode := passwordAuthVerify(r.Context(), app, logger, identifier, password)
 		if errCode != "" {
 			redirectLoginError(w, r, errCode)
+			return
+		}
+		if redirectSecondFactor(w, r, app, logger, user, dest) {
 			return
 		}
 
@@ -149,4 +153,20 @@ func truncateUA(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+// redirectSecondFactor hands the browser a challenge instead of a session
+// when the user requires a passkey after the password; reports whether it did.
+func redirectSecondFactor(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, user domain.User, dest string) bool {
+	if !app.SecondFactor.Required(user) {
+		return false
+	}
+	token, err := app.SecondFactor.Begin(r.Context(), user.ID)
+	if err != nil {
+		logger.Error("password login: begin second factor failed", "error", err, "user_id", user.ID)
+		redirectLoginError(w, r, "server_error")
+		return true
+	}
+	http.Redirect(w, r, "/login?challenge="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
+	return true
 }

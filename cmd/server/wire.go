@@ -159,6 +159,9 @@ type App struct {
 	Identities     *account.Identities
 	Profiles       *account.Profiles
 	AuthorizedApps *account.AuthorizedApps
+	// SecondFactor runs the passkey-after-password step (nil when passkeys are off).
+	SecondFactor    *authuc.SecondFactor
+	LoginChallenges *postgres.LoginChallengeRepo
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
 	Content                  port.ContentSigner
@@ -216,7 +219,9 @@ type App struct {
 	// externally-visible origin used to build actor + object URLs;
 	// FederationEnabled mirrors the instance flag so the post-ingest
 	// publish step can short-circuit when federation is off.
-	PublicBaseURL     string
+	PublicBaseURL string
+	// SessionTTL bounds every session this instance issues.
+	SessionTTL        time.Duration
 	FederationEnabled bool
 	// OAuthEnabled mirrors CAIRN_AUTH_OAUTH_ENABLED for GetInstanceInfo.
 	OAuthEnabled bool
@@ -227,6 +232,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		QuotaMaxActivities:  cfg.Quota.MaxActivitiesPerUser,
 		DefaultPollInterval: cfg.Scheduler.PollingInterval,
 		PublicBaseURL:       cfg.HTTP.PublicBaseURL,
+		SessionTTL:          cfg.Auth.SessionTTL,
 		OAuthEnabled:        cfg.Auth.OAuthEnabled,
 		FederationEnabled:   cfg.Federation.Enabled,
 	}
@@ -341,6 +347,7 @@ func wireAppSecondaryRepos(app *App, pool *pgxpool.Pool, secretBox *auth.SecretB
 	app.ImportEvents = postgres.NewImportEventRepo(pool)
 	app.AthleteProfiles = postgres.NewAthleteProfileRepo(pool)
 	app.Passkeys = postgres.NewPasskeyRepo(pool)
+	app.LoginChallenges = postgres.NewLoginChallengeRepo(pool)
 	app.FieldOverrides = postgres.NewFieldOverrideRepo(pool)
 	app.ClassOverrides = postgres.NewClassificationOverrideRepo(pool)
 	app.Attachments = postgres.NewAttachmentRepo(pool)
@@ -754,6 +761,9 @@ func wireAccount(app *App) {
 	}
 	if app.OAuth != nil {
 		app.AuthorizedApps = &account.AuthorizedApps{OAuth: app.OAuth}
+	}
+	if app.Passkeys != nil && app.LoginChallenges != nil && app.Users != nil {
+		app.SecondFactor = &authuc.SecondFactor{Challenges: app.LoginChallenges, Users: app.Users, Passkeys: app.Passkeys}
 	}
 }
 

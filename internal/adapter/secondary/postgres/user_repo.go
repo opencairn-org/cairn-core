@@ -45,7 +45,7 @@ const userColumns = `
 	role, status, status_reason,
 	must_change_password,
 	created_at, updated_at, last_login_at,
-	profile_is_public
+	profile_is_public, passkey_second_factor
 `
 
 // ---------------------------------------------------------------------------
@@ -380,6 +380,20 @@ func (r *UserRepo) UpdatePassword(
 }
 
 // UpdateEmailVerified sets users.email_verified.
+func (r *UserRepo) SetPasskeySecondFactor(ctx context.Context, id domain.UserID, enabled bool) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE users SET passkey_second_factor = $2, updated_at = now() WHERE id = $1 AND status != 'deleted'`,
+		id.UUID(), enabled)
+	if err != nil {
+		return fmt.Errorf("set passkey second factor: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("set passkey second factor %s: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
 func (r *UserRepo) UpdateEmailVerified(ctx context.Context, id domain.UserID, verified bool) error {
 	db := dbtx(ctx, r.pool)
 	tag, err := db.Exec(ctx,
@@ -491,6 +505,7 @@ func scanUserRow(row rowScanner) (domain.User, error) {
 		createdAt, updatedAt   time.Time
 		lastLoginAt            *time.Time
 		profileIsPublic        bool
+		secondFactor           bool
 	)
 	err := row.Scan(
 		&id, &username, &email, &emailVerified, &displayName, &avatarURL,
@@ -499,30 +514,31 @@ func scanUserRow(row rowScanner) (domain.User, error) {
 		&role, &status, &statusReason,
 		&mustChange,
 		&createdAt, &updatedAt, &lastLoginAt,
-		&profileIsPublic,
+		&profileIsPublic, &secondFactor,
 	)
 	if err != nil {
 		return domain.User{}, err
 	}
 
 	u := domain.User{
-		ID:                 domain.UserID(id),
-		Username:           username,
-		Email:              email,
-		EmailVerified:      emailVerified,
-		DisplayName:        displayName,
-		Locale:             locale,
-		Timezone:           timezone,
-		Units:              domain.UserUnits(unit),
-		DateFormat:         dateFormat,
-		TimeFormat:         timeFormat,
-		Role:               domain.UserRole(role),
-		Status:             domain.UserStatus(status),
-		MustChangePassword: mustChange,
-		ProfileIsPublic:    profileIsPublic,
-		CreatedAt:          createdAt,
-		UpdatedAt:          updatedAt,
-		LastLoginAt:        lastLoginAt,
+		ID:                  domain.UserID(id),
+		Username:            username,
+		Email:               email,
+		EmailVerified:       emailVerified,
+		DisplayName:         displayName,
+		Locale:              locale,
+		Timezone:            timezone,
+		Units:               domain.UserUnits(unit),
+		DateFormat:          dateFormat,
+		TimeFormat:          timeFormat,
+		Role:                domain.UserRole(role),
+		Status:              domain.UserStatus(status),
+		MustChangePassword:  mustChange,
+		ProfileIsPublic:     profileIsPublic,
+		PasskeySecondFactor: secondFactor,
+		CreatedAt:           createdAt,
+		UpdatedAt:           updatedAt,
+		LastLoginAt:         lastLoginAt,
 	}
 	if avatarURL != nil {
 		u.AvatarURL = *avatarURL
@@ -551,6 +567,7 @@ func scanUserRowWithCredentials(row rowScanner) (domain.User, string, error) {
 		createdAt, updatedAt   time.Time
 		lastLoginAt            *time.Time
 		profileIsPublic        bool
+		secondFactor           bool
 		passwordHash           string
 	)
 	err := row.Scan(
@@ -560,30 +577,31 @@ func scanUserRowWithCredentials(row rowScanner) (domain.User, string, error) {
 		&role, &status, &statusReason,
 		&mustChange,
 		&createdAt, &updatedAt, &lastLoginAt,
-		&profileIsPublic,
+		&profileIsPublic, &secondFactor,
 		&passwordHash,
 	)
 	if err != nil {
 		return domain.User{}, "", err
 	}
 	u := domain.User{
-		ID:                 domain.UserID(id),
-		Username:           username,
-		Email:              email,
-		EmailVerified:      emailVerified,
-		DisplayName:        displayName,
-		Locale:             locale,
-		Timezone:           timezone,
-		Units:              domain.UserUnits(unit),
-		DateFormat:         dateFormat,
-		TimeFormat:         timeFormat,
-		Role:               domain.UserRole(role),
-		Status:             domain.UserStatus(status),
-		MustChangePassword: mustChange,
-		ProfileIsPublic:    profileIsPublic,
-		CreatedAt:          createdAt,
-		UpdatedAt:          updatedAt,
-		LastLoginAt:        lastLoginAt,
+		ID:                  domain.UserID(id),
+		Username:            username,
+		Email:               email,
+		EmailVerified:       emailVerified,
+		DisplayName:         displayName,
+		Locale:              locale,
+		Timezone:            timezone,
+		Units:               domain.UserUnits(unit),
+		DateFormat:          dateFormat,
+		TimeFormat:          timeFormat,
+		Role:                domain.UserRole(role),
+		Status:              domain.UserStatus(status),
+		MustChangePassword:  mustChange,
+		ProfileIsPublic:     profileIsPublic,
+		PasskeySecondFactor: secondFactor,
+		CreatedAt:           createdAt,
+		UpdatedAt:           updatedAt,
+		LastLoginAt:         lastLoginAt,
 	}
 	if avatarURL != nil {
 		u.AvatarURL = *avatarURL

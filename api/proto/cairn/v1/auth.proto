@@ -61,6 +61,8 @@ message User {
   // Display-format preferences (applied site-wide on every client).
   DateFormat date_format = 15;
   TimeFormat time_format = 16;
+  // A passkey is required after password sign-in.
+  bool passkey_second_factor = 17;
 }
 
 // Date display format. UNSPECIFIED = follow the user's BCP-47 locale.
@@ -128,11 +130,21 @@ service AuthService {
   // Scope: none (public).
   rpc LoginPassword(LoginPasswordRequest) returns (LoginPasswordResponse);
 
-  // Complete a 2FA challenge after LoginPassword.
-  // Planned, not implemented (returns Unimplemented): the instance has no
-  // second-factor step after a password login yet (passkeys are a first factor).
+  // Complete a second-factor challenge. A password sign-in of a user who
+  // requires a passkey as second factor (POST /auth/password) answers with
+  // a challenge token instead of a session; the client then runs the
+  // passkey ceremony at POST /auth/webauthn/login/start and
+  // POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+  // challenge satisfied, and finally calls this RPC (or POST
+  // /auth/2fa/complete for a cookie session). The response carries a bearer
+  // session token (`cairn_ses_…`) accepted on both surfaces.
   // Scope: none (public).
   rpc Complete2FA(Complete2FARequest) returns (Complete2FAResponse);
+
+  // Require (or stop requiring) a passkey after password sign-in. Enabling
+  // needs at least one registered passkey.
+  // Scope: cookie session only.
+  rpc SetPasskeySecondFactor(SetPasskeySecondFactorRequest) returns (SetPasskeySecondFactorResponse);
 
   // Register a new local user. The instance is invite-only, so invite_code is
   // required; the account is created and the caller then signs in (OAuth for
@@ -333,6 +345,13 @@ message Complete2FARequest {
 }
 message Complete2FAResponse {
   SessionResult session = 1;
+}
+
+message SetPasskeySecondFactorRequest {
+  bool enabled = 1;
+}
+message SetPasskeySecondFactorResponse {
+  User user = 1;
 }
 
 message SessionResult {
