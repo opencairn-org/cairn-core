@@ -13,7 +13,7 @@ import (
 	"image/jpeg"
 	_ "image/png"
 
-	"github.com/buckket/go-blurhash"
+	"github.com/bbrks/go-blurhash"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 )
