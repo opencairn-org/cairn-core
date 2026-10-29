@@ -19,6 +19,7 @@ const (
 	ActionErrorUnavailable                  // a required subsystem is not configured
 	ActionErrorUpstream                     // object store or bus refused the request
 	ActionErrorQuota                        // the user's activity quota is reached
+	ActionErrorForbidden                    // visible but not permitted to this caller (private club, closed profile)
 )
 
 // ActionError carries a kind plus a user-facing message.

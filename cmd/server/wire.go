@@ -142,6 +142,8 @@ type App struct {
 	SegmentViews       *view.Segments
 	HealthViews        *view.Health
 	Accounts           *view.Accounts
+	ClubViews          *view.Clubs
+	ProfileViews       *view.Profiles
 	AttachmentVariants *attachmentuc.Variants
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
@@ -674,6 +676,12 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	if app.UserProviderConfigs != nil {
 		conns = app.UserProviderConfigs
 	}
+	var clubs port.ClubRepo
+	if app.Clubs != nil {
+		clubs = app.Clubs
+	}
+	app.ClubViews = view.NewClubs(clubs, app.Users, app.Feeds)
+	app.ProfileViews = view.NewProfiles(app.Users, app.Activities, app.Follows, app.Blocks, app.Visibility2)
 	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)

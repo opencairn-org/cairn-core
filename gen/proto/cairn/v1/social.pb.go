@@ -664,6 +664,1155 @@ func (x *ListHomeFeedResponse) GetPage() *PageResponse {
 	return nil
 }
 
+type ListFollowingFeedRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// limit default 30, max 100.
+	Page          *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFollowingFeedRequest) Reset() {
+	*x = ListFollowingFeedRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFollowingFeedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFollowingFeedRequest) ProtoMessage() {}
+
+func (x *ListFollowingFeedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFollowingFeedRequest.ProtoReflect.Descriptor instead.
+func (*ListFollowingFeedRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListFollowingFeedRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListFollowingFeedResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every item has source SOURCE_FOLLOWING.
+	Items         []*FeedItem   `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *PageResponse `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFollowingFeedResponse) Reset() {
+	*x = ListFollowingFeedResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFollowingFeedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFollowingFeedResponse) ProtoMessage() {}
+
+func (x *ListFollowingFeedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFollowingFeedResponse.ProtoReflect.Descriptor instead.
+func (*ListFollowingFeedResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListFollowingFeedResponse) GetItems() []*FeedItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListFollowingFeedResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ClubCard struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	IsPublic      bool                   `protobuf:"varint,4,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
+	MemberCount   int32                  `protobuf:"varint,5,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClubCard) Reset() {
+	*x = ClubCard{}
+	mi := &file_cairn_v1_social_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClubCard) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClubCard) ProtoMessage() {}
+
+func (x *ClubCard) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClubCard.ProtoReflect.Descriptor instead.
+func (*ClubCard) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ClubCard) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ClubCard) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *ClubCard) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ClubCard) GetIsPublic() bool {
+	if x != nil {
+		return x.IsPublic
+	}
+	return false
+}
+
+func (x *ClubCard) GetMemberCount() int32 {
+	if x != nil {
+		return x.MemberCount
+	}
+	return 0
+}
+
+func (x *ClubCard) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListClubsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// limit default 50, max 200.
+	Page          *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubsRequest) Reset() {
+	*x = ListClubsRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubsRequest) ProtoMessage() {}
+
+func (x *ListClubsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubsRequest.ProtoReflect.Descriptor instead.
+func (*ListClubsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListClubsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListClubsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Clubs         []*ClubCard            `protobuf:"bytes,1,rep,name=clubs,proto3" json:"clubs,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubsResponse) Reset() {
+	*x = ListClubsResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubsResponse) ProtoMessage() {}
+
+func (x *ListClubsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubsResponse.ProtoReflect.Descriptor instead.
+func (*ListClubsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListClubsResponse) GetClubs() []*ClubCard {
+	if x != nil {
+		return x.Clubs
+	}
+	return nil
+}
+
+func (x *ListClubsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type GetClubRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClubRequest) Reset() {
+	*x = GetClubRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClubRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClubRequest) ProtoMessage() {}
+
+func (x *GetClubRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClubRequest.ProtoReflect.Descriptor instead.
+func (*GetClubRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetClubRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type GetClubResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Club        *ClubCard              `protobuf:"bytes,1,opt,name=club,proto3" json:"club,omitempty"`
+	Description string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	IsMember    bool                   `protobuf:"varint,3,opt,name=is_member,json=isMember,proto3" json:"is_member,omitempty"`
+	// owner | admin | member, empty when not a member.
+	MyRole        string `protobuf:"bytes,4,opt,name=my_role,json=myRole,proto3" json:"my_role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClubResponse) Reset() {
+	*x = GetClubResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClubResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClubResponse) ProtoMessage() {}
+
+func (x *GetClubResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClubResponse.ProtoReflect.Descriptor instead.
+func (*GetClubResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetClubResponse) GetClub() *ClubCard {
+	if x != nil {
+		return x.Club
+	}
+	return nil
+}
+
+func (x *GetClubResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *GetClubResponse) GetIsMember() bool {
+	if x != nil {
+		return x.IsMember
+	}
+	return false
+}
+
+func (x *GetClubResponse) GetMyRole() string {
+	if x != nil {
+		return x.MyRole
+	}
+	return ""
+}
+
+type ListClubMembersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Slug  string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	// limit default 200.
+	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubMembersRequest) Reset() {
+	*x = ListClubMembersRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubMembersRequest) ProtoMessage() {}
+
+func (x *ListClubMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubMembersRequest.ProtoReflect.Descriptor instead.
+func (*ListClubMembersRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListClubMembersRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *ListClubMembersRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ClubMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *UserCard              `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClubMember) Reset() {
+	*x = ClubMember{}
+	mi := &file_cairn_v1_social_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClubMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClubMember) ProtoMessage() {}
+
+func (x *ClubMember) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClubMember.ProtoReflect.Descriptor instead.
+func (*ClubMember) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ClubMember) GetUser() *UserCard {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *ClubMember) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type ListClubMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Members       []*ClubMember          `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubMembersResponse) Reset() {
+	*x = ListClubMembersResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubMembersResponse) ProtoMessage() {}
+
+func (x *ListClubMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubMembersResponse.ProtoReflect.Descriptor instead.
+func (*ListClubMembersResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ListClubMembersResponse) GetMembers() []*ClubMember {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+func (x *ListClubMembersResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListClubFeedRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Slug  string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	// limit default 30, max 100.
+	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubFeedRequest) Reset() {
+	*x = ListClubFeedRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubFeedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubFeedRequest) ProtoMessage() {}
+
+func (x *ListClubFeedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubFeedRequest.ProtoReflect.Descriptor instead.
+func (*ListClubFeedRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListClubFeedRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *ListClubFeedRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListClubFeedResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Projected rows (or the caller's own activities in full).
+	Items         []*FeedItem   `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *PageResponse `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClubFeedResponse) Reset() {
+	*x = ListClubFeedResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClubFeedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClubFeedResponse) ProtoMessage() {}
+
+func (x *ListClubFeedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClubFeedResponse.ProtoReflect.Descriptor instead.
+func (*ListClubFeedResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListClubFeedResponse) GetItems() []*FeedItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListClubFeedResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type GetProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileRequest) Reset() {
+	*x = GetProfileRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileRequest) ProtoMessage() {}
+
+func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
+func (*GetProfileRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetProfileRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+type GetProfileResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	User           *UserCard              `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	IsPublic       bool                   `protobuf:"varint,2,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
+	IsSelf         bool                   `protobuf:"varint,3,opt,name=is_self,json=isSelf,proto3" json:"is_self,omitempty"`
+	IsFollowing    bool                   `protobuf:"varint,4,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
+	FollowersCount int32                  `protobuf:"varint,5,opt,name=followers_count,json=followersCount,proto3" json:"followers_count,omitempty"`
+	FollowingCount int32                  `protobuf:"varint,6,opt,name=following_count,json=followingCount,proto3" json:"following_count,omitempty"`
+	// The 20 newest activities the caller may see, projected.
+	Activities    []*ProjectedActivity `protobuf:"bytes,7,rep,name=activities,proto3" json:"activities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileResponse) Reset() {
+	*x = GetProfileResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileResponse) ProtoMessage() {}
+
+func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
+func (*GetProfileResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetProfileResponse) GetUser() *UserCard {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *GetProfileResponse) GetIsPublic() bool {
+	if x != nil {
+		return x.IsPublic
+	}
+	return false
+}
+
+func (x *GetProfileResponse) GetIsSelf() bool {
+	if x != nil {
+		return x.IsSelf
+	}
+	return false
+}
+
+func (x *GetProfileResponse) GetIsFollowing() bool {
+	if x != nil {
+		return x.IsFollowing
+	}
+	return false
+}
+
+func (x *GetProfileResponse) GetFollowersCount() int32 {
+	if x != nil {
+		return x.FollowersCount
+	}
+	return 0
+}
+
+func (x *GetProfileResponse) GetFollowingCount() int32 {
+	if x != nil {
+		return x.FollowingCount
+	}
+	return 0
+}
+
+func (x *GetProfileResponse) GetActivities() []*ProjectedActivity {
+	if x != nil {
+		return x.Activities
+	}
+	return nil
+}
+
+type GetProjectedActivityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectedActivityRequest) Reset() {
+	*x = GetProjectedActivityRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectedActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectedActivityRequest) ProtoMessage() {}
+
+func (x *GetProjectedActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectedActivityRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectedActivityRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetProjectedActivityRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type GetProjectedActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Activity      *ProjectedActivity     `protobuf:"bytes,1,opt,name=activity,proto3" json:"activity,omitempty"`
+	Owner         *UserCard              `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	IsOwner       bool                   `protobuf:"varint,3,opt,name=is_owner,json=isOwner,proto3" json:"is_owner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectedActivityResponse) Reset() {
+	*x = GetProjectedActivityResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectedActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectedActivityResponse) ProtoMessage() {}
+
+func (x *GetProjectedActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectedActivityResponse.ProtoReflect.Descriptor instead.
+func (*GetProjectedActivityResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetProjectedActivityResponse) GetActivity() *ProjectedActivity {
+	if x != nil {
+		return x.Activity
+	}
+	return nil
+}
+
+func (x *GetProjectedActivityResponse) GetOwner() *UserCard {
+	if x != nil {
+		return x.Owner
+	}
+	return nil
+}
+
+func (x *GetProjectedActivityResponse) GetIsOwner() bool {
+	if x != nil {
+		return x.IsOwner
+	}
+	return false
+}
+
+type GetSharedActivityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSharedActivityRequest) Reset() {
+	*x = GetSharedActivityRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSharedActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSharedActivityRequest) ProtoMessage() {}
+
+func (x *GetSharedActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSharedActivityRequest.ProtoReflect.Descriptor instead.
+func (*GetSharedActivityRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetSharedActivityRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type GetSharedActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Activity      *ProjectedActivity     `protobuf:"bytes,1,opt,name=activity,proto3" json:"activity,omitempty"`
+	Owner         *UserCard              `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSharedActivityResponse) Reset() {
+	*x = GetSharedActivityResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSharedActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSharedActivityResponse) ProtoMessage() {}
+
+func (x *GetSharedActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSharedActivityResponse.ProtoReflect.Descriptor instead.
+func (*GetSharedActivityResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetSharedActivityResponse) GetActivity() *ProjectedActivity {
+	if x != nil {
+		return x.Activity
+	}
+	return nil
+}
+
+func (x *GetSharedActivityResponse) GetOwner() *UserCard {
+	if x != nil {
+		return x.Owner
+	}
+	return nil
+}
+
+type ListReviewQueueRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReviewQueueRequest) Reset() {
+	*x = ListReviewQueueRequest{}
+	mi := &file_cairn_v1_social_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReviewQueueRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReviewQueueRequest) ProtoMessage() {}
+
+func (x *ListReviewQueueRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReviewQueueRequest.ProtoReflect.Descriptor instead.
+func (*ListReviewQueueRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{23}
+}
+
+type ReviewItem struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title     string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Type      ActivityType           `protobuf:"varint,3,opt,name=type,proto3,enum=cairn.v1.ActivityType" json:"type,omitempty"`
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// The matcher's confidence band that flagged the activity.
+	MatchConfidence string `protobuf:"bytes,5,opt,name=match_confidence,json=matchConfidence,proto3" json:"match_confidence,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ReviewItem) Reset() {
+	*x = ReviewItem{}
+	mi := &file_cairn_v1_social_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewItem) ProtoMessage() {}
+
+func (x *ReviewItem) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewItem.ProtoReflect.Descriptor instead.
+func (*ReviewItem) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ReviewItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReviewItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ReviewItem) GetType() ActivityType {
+	if x != nil {
+		return x.Type
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *ReviewItem) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *ReviewItem) GetMatchConfidence() string {
+	if x != nil {
+		return x.MatchConfidence
+	}
+	return ""
+}
+
+type ListReviewQueueResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ReviewItem          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReviewQueueResponse) Reset() {
+	*x = ListReviewQueueResponse{}
+	mi := &file_cairn_v1_social_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReviewQueueResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReviewQueueResponse) ProtoMessage() {}
+
+func (x *ListReviewQueueResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_social_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReviewQueueResponse.ProtoReflect.Descriptor instead.
+func (*ListReviewQueueResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_social_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListReviewQueueResponse) GetItems() []*ReviewItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 var File_cairn_v1_social_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_social_proto_rawDesc = "" +
@@ -751,9 +1900,95 @@ const file_cairn_v1_social_proto_rawDesc = "" +
 	"\x04page\x18\x01 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"l\n" +
 	"\x14ListHomeFeedResponse\x12(\n" +
 	"\x05items\x18\x01 \x03(\v2\x12.cairn.v1.FeedItemR\x05items\x12*\n" +
-	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page2c\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"E\n" +
+	"\x18ListFollowingFeedRequest\x12)\n" +
+	"\x04page\x18\x01 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"q\n" +
+	"\x19ListFollowingFeedResponse\x12(\n" +
+	"\x05items\x18\x01 \x03(\v2\x12.cairn.v1.FeedItemR\x05items\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"\xbd\x01\n" +
+	"\bClubCard\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1b\n" +
+	"\tis_public\x18\x04 \x01(\bR\bisPublic\x12!\n" +
+	"\fmember_count\x18\x05 \x01(\x05R\vmemberCount\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"=\n" +
+	"\x10ListClubsRequest\x12)\n" +
+	"\x04page\x18\x01 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"i\n" +
+	"\x11ListClubsResponse\x12(\n" +
+	"\x05clubs\x18\x01 \x03(\v2\x12.cairn.v1.ClubCardR\x05clubs\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"$\n" +
+	"\x0eGetClubRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x91\x01\n" +
+	"\x0fGetClubResponse\x12&\n" +
+	"\x04club\x18\x01 \x01(\v2\x12.cairn.v1.ClubCardR\x04club\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1b\n" +
+	"\tis_member\x18\x03 \x01(\bR\bisMember\x12\x17\n" +
+	"\amy_role\x18\x04 \x01(\tR\x06myRole\"W\n" +
+	"\x16ListClubMembersRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"H\n" +
+	"\n" +
+	"ClubMember\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.cairn.v1.UserCardR\x04user\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\"u\n" +
+	"\x17ListClubMembersResponse\x12.\n" +
+	"\amembers\x18\x01 \x03(\v2\x14.cairn.v1.ClubMemberR\amembers\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"T\n" +
+	"\x13ListClubFeedRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"l\n" +
+	"\x14ListClubFeedResponse\x12(\n" +
+	"\x05items\x18\x01 \x03(\v2\x12.cairn.v1.FeedItemR\x05items\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"/\n" +
+	"\x11GetProfileRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\"\xa4\x02\n" +
+	"\x12GetProfileResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.cairn.v1.UserCardR\x04user\x12\x1b\n" +
+	"\tis_public\x18\x02 \x01(\bR\bisPublic\x12\x17\n" +
+	"\ais_self\x18\x03 \x01(\bR\x06isSelf\x12!\n" +
+	"\fis_following\x18\x04 \x01(\bR\visFollowing\x12'\n" +
+	"\x0ffollowers_count\x18\x05 \x01(\x05R\x0efollowersCount\x12'\n" +
+	"\x0ffollowing_count\x18\x06 \x01(\x05R\x0efollowingCount\x12;\n" +
+	"\n" +
+	"activities\x18\a \x03(\v2\x1b.cairn.v1.ProjectedActivityR\n" +
+	"activities\">\n" +
+	"\x1bGetProjectedActivityRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\x9c\x01\n" +
+	"\x1cGetProjectedActivityResponse\x127\n" +
+	"\bactivity\x18\x01 \x01(\v2\x1b.cairn.v1.ProjectedActivityR\bactivity\x12(\n" +
+	"\x05owner\x18\x02 \x01(\v2\x12.cairn.v1.UserCardR\x05owner\x12\x19\n" +
+	"\bis_owner\x18\x03 \x01(\bR\aisOwner\"0\n" +
+	"\x18GetSharedActivityRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"~\n" +
+	"\x19GetSharedActivityResponse\x127\n" +
+	"\bactivity\x18\x01 \x01(\v2\x1b.cairn.v1.ProjectedActivityR\bactivity\x12(\n" +
+	"\x05owner\x18\x02 \x01(\v2\x12.cairn.v1.UserCardR\x05owner\"\x18\n" +
+	"\x16ListReviewQueueRequest\"\xc4\x01\n" +
+	"\n" +
+	"ReviewItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x129\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12)\n" +
+	"\x10match_confidence\x18\x05 \x01(\tR\x0fmatchConfidence\"E\n" +
+	"\x17ListReviewQueueResponse\x12*\n" +
+	"\x05items\x18\x01 \x03(\v2\x14.cairn.v1.ReviewItemR\x05items2\x81\a\n" +
 	"\rSocialService\x12R\n" +
-	"\fListHomeFeed\x12\x1d.cairn.v1.ListHomeFeedRequest\x1a\x1e.cairn.v1.ListHomeFeedResponse\"\x03\x90\x02\x01B\x9c\x01\n" +
+	"\fListHomeFeed\x12\x1d.cairn.v1.ListHomeFeedRequest\x1a\x1e.cairn.v1.ListHomeFeedResponse\"\x03\x90\x02\x01\x12a\n" +
+	"\x11ListFollowingFeed\x12\".cairn.v1.ListFollowingFeedRequest\x1a#.cairn.v1.ListFollowingFeedResponse\"\x03\x90\x02\x01\x12I\n" +
+	"\tListClubs\x12\x1a.cairn.v1.ListClubsRequest\x1a\x1b.cairn.v1.ListClubsResponse\"\x03\x90\x02\x01\x12C\n" +
+	"\aGetClub\x12\x18.cairn.v1.GetClubRequest\x1a\x19.cairn.v1.GetClubResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fListClubMembers\x12 .cairn.v1.ListClubMembersRequest\x1a!.cairn.v1.ListClubMembersResponse\"\x03\x90\x02\x01\x12R\n" +
+	"\fListClubFeed\x12\x1d.cairn.v1.ListClubFeedRequest\x1a\x1e.cairn.v1.ListClubFeedResponse\"\x03\x90\x02\x01\x12L\n" +
+	"\n" +
+	"GetProfile\x12\x1b.cairn.v1.GetProfileRequest\x1a\x1c.cairn.v1.GetProfileResponse\"\x03\x90\x02\x01\x12j\n" +
+	"\x14GetProjectedActivity\x12%.cairn.v1.GetProjectedActivityRequest\x1a&.cairn.v1.GetProjectedActivityResponse\"\x03\x90\x02\x01\x12a\n" +
+	"\x11GetSharedActivity\x12\".cairn.v1.GetSharedActivityRequest\x1a#.cairn.v1.GetSharedActivityResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fListReviewQueue\x12 .cairn.v1.ListReviewQueueRequest\x1a!.cairn.v1.ListReviewQueueResponse\"\x03\x90\x02\x01B\x9c\x01\n" +
 	"\fcom.cairn.v1B\vSocialProtoP\x01Z>github.com/opencairn-org/cairn-core/gen/proto/cairn/v1;cairnv1\xa2\x02\x03CXX\xaa\x02\bCairn.V1\xca\x02\bCairn\\V1\xe2\x02\x14Cairn\\V1\\GPBMetadata\xea\x02\tCairn::V1b\x06proto3"
 
 var (
@@ -769,45 +2004,108 @@ func file_cairn_v1_social_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_social_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_cairn_v1_social_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_cairn_v1_social_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_cairn_v1_social_proto_goTypes = []any{
-	(FeedItem_Source)(0),          // 0: cairn.v1.FeedItem.Source
-	(*ProjectedActivity)(nil),     // 1: cairn.v1.ProjectedActivity
-	(*FederatedActivity)(nil),     // 2: cairn.v1.FederatedActivity
-	(*FeedItem)(nil),              // 3: cairn.v1.FeedItem
-	(*ListHomeFeedRequest)(nil),   // 4: cairn.v1.ListHomeFeedRequest
-	(*ListHomeFeedResponse)(nil),  // 5: cairn.v1.ListHomeFeedResponse
-	(ActivityType)(0),             // 6: cairn.v1.ActivityType
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(*GeoPoint)(nil),              // 8: cairn.v1.GeoPoint
-	(*ContentUrl)(nil),            // 9: cairn.v1.ContentUrl
-	(*UserCard)(nil),              // 10: cairn.v1.UserCard
-	(*Activity)(nil),              // 11: cairn.v1.Activity
-	(*PageRequest)(nil),           // 12: cairn.v1.PageRequest
-	(*PageResponse)(nil),          // 13: cairn.v1.PageResponse
+	(FeedItem_Source)(0),                 // 0: cairn.v1.FeedItem.Source
+	(*ProjectedActivity)(nil),            // 1: cairn.v1.ProjectedActivity
+	(*FederatedActivity)(nil),            // 2: cairn.v1.FederatedActivity
+	(*FeedItem)(nil),                     // 3: cairn.v1.FeedItem
+	(*ListHomeFeedRequest)(nil),          // 4: cairn.v1.ListHomeFeedRequest
+	(*ListHomeFeedResponse)(nil),         // 5: cairn.v1.ListHomeFeedResponse
+	(*ListFollowingFeedRequest)(nil),     // 6: cairn.v1.ListFollowingFeedRequest
+	(*ListFollowingFeedResponse)(nil),    // 7: cairn.v1.ListFollowingFeedResponse
+	(*ClubCard)(nil),                     // 8: cairn.v1.ClubCard
+	(*ListClubsRequest)(nil),             // 9: cairn.v1.ListClubsRequest
+	(*ListClubsResponse)(nil),            // 10: cairn.v1.ListClubsResponse
+	(*GetClubRequest)(nil),               // 11: cairn.v1.GetClubRequest
+	(*GetClubResponse)(nil),              // 12: cairn.v1.GetClubResponse
+	(*ListClubMembersRequest)(nil),       // 13: cairn.v1.ListClubMembersRequest
+	(*ClubMember)(nil),                   // 14: cairn.v1.ClubMember
+	(*ListClubMembersResponse)(nil),      // 15: cairn.v1.ListClubMembersResponse
+	(*ListClubFeedRequest)(nil),          // 16: cairn.v1.ListClubFeedRequest
+	(*ListClubFeedResponse)(nil),         // 17: cairn.v1.ListClubFeedResponse
+	(*GetProfileRequest)(nil),            // 18: cairn.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),           // 19: cairn.v1.GetProfileResponse
+	(*GetProjectedActivityRequest)(nil),  // 20: cairn.v1.GetProjectedActivityRequest
+	(*GetProjectedActivityResponse)(nil), // 21: cairn.v1.GetProjectedActivityResponse
+	(*GetSharedActivityRequest)(nil),     // 22: cairn.v1.GetSharedActivityRequest
+	(*GetSharedActivityResponse)(nil),    // 23: cairn.v1.GetSharedActivityResponse
+	(*ListReviewQueueRequest)(nil),       // 24: cairn.v1.ListReviewQueueRequest
+	(*ReviewItem)(nil),                   // 25: cairn.v1.ReviewItem
+	(*ListReviewQueueResponse)(nil),      // 26: cairn.v1.ListReviewQueueResponse
+	(ActivityType)(0),                    // 27: cairn.v1.ActivityType
+	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
+	(*GeoPoint)(nil),                     // 29: cairn.v1.GeoPoint
+	(*ContentUrl)(nil),                   // 30: cairn.v1.ContentUrl
+	(*UserCard)(nil),                     // 31: cairn.v1.UserCard
+	(*Activity)(nil),                     // 32: cairn.v1.Activity
+	(*PageRequest)(nil),                  // 33: cairn.v1.PageRequest
+	(*PageResponse)(nil),                 // 34: cairn.v1.PageResponse
 }
 var file_cairn_v1_social_proto_depIdxs = []int32{
-	6,  // 0: cairn.v1.ProjectedActivity.type:type_name -> cairn.v1.ActivityType
-	7,  // 1: cairn.v1.ProjectedActivity.start_time:type_name -> google.protobuf.Timestamp
-	8,  // 2: cairn.v1.ProjectedActivity.start:type_name -> cairn.v1.GeoPoint
-	9,  // 3: cairn.v1.ProjectedActivity.map_image:type_name -> cairn.v1.ContentUrl
-	7,  // 4: cairn.v1.FederatedActivity.start_time:type_name -> google.protobuf.Timestamp
-	9,  // 5: cairn.v1.FederatedActivity.map_image:type_name -> cairn.v1.ContentUrl
+	27, // 0: cairn.v1.ProjectedActivity.type:type_name -> cairn.v1.ActivityType
+	28, // 1: cairn.v1.ProjectedActivity.start_time:type_name -> google.protobuf.Timestamp
+	29, // 2: cairn.v1.ProjectedActivity.start:type_name -> cairn.v1.GeoPoint
+	30, // 3: cairn.v1.ProjectedActivity.map_image:type_name -> cairn.v1.ContentUrl
+	28, // 4: cairn.v1.FederatedActivity.start_time:type_name -> google.protobuf.Timestamp
+	30, // 5: cairn.v1.FederatedActivity.map_image:type_name -> cairn.v1.ContentUrl
 	0,  // 6: cairn.v1.FeedItem.source:type_name -> cairn.v1.FeedItem.Source
-	10, // 7: cairn.v1.FeedItem.owner:type_name -> cairn.v1.UserCard
-	11, // 8: cairn.v1.FeedItem.own:type_name -> cairn.v1.Activity
+	31, // 7: cairn.v1.FeedItem.owner:type_name -> cairn.v1.UserCard
+	32, // 8: cairn.v1.FeedItem.own:type_name -> cairn.v1.Activity
 	1,  // 9: cairn.v1.FeedItem.projected:type_name -> cairn.v1.ProjectedActivity
 	2,  // 10: cairn.v1.FeedItem.federated:type_name -> cairn.v1.FederatedActivity
-	12, // 11: cairn.v1.ListHomeFeedRequest.page:type_name -> cairn.v1.PageRequest
+	33, // 11: cairn.v1.ListHomeFeedRequest.page:type_name -> cairn.v1.PageRequest
 	3,  // 12: cairn.v1.ListHomeFeedResponse.items:type_name -> cairn.v1.FeedItem
-	13, // 13: cairn.v1.ListHomeFeedResponse.page:type_name -> cairn.v1.PageResponse
-	4,  // 14: cairn.v1.SocialService.ListHomeFeed:input_type -> cairn.v1.ListHomeFeedRequest
-	5,  // 15: cairn.v1.SocialService.ListHomeFeed:output_type -> cairn.v1.ListHomeFeedResponse
-	15, // [15:16] is the sub-list for method output_type
-	14, // [14:15] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	34, // 13: cairn.v1.ListHomeFeedResponse.page:type_name -> cairn.v1.PageResponse
+	33, // 14: cairn.v1.ListFollowingFeedRequest.page:type_name -> cairn.v1.PageRequest
+	3,  // 15: cairn.v1.ListFollowingFeedResponse.items:type_name -> cairn.v1.FeedItem
+	34, // 16: cairn.v1.ListFollowingFeedResponse.page:type_name -> cairn.v1.PageResponse
+	28, // 17: cairn.v1.ClubCard.created_at:type_name -> google.protobuf.Timestamp
+	33, // 18: cairn.v1.ListClubsRequest.page:type_name -> cairn.v1.PageRequest
+	8,  // 19: cairn.v1.ListClubsResponse.clubs:type_name -> cairn.v1.ClubCard
+	34, // 20: cairn.v1.ListClubsResponse.page:type_name -> cairn.v1.PageResponse
+	8,  // 21: cairn.v1.GetClubResponse.club:type_name -> cairn.v1.ClubCard
+	33, // 22: cairn.v1.ListClubMembersRequest.page:type_name -> cairn.v1.PageRequest
+	31, // 23: cairn.v1.ClubMember.user:type_name -> cairn.v1.UserCard
+	14, // 24: cairn.v1.ListClubMembersResponse.members:type_name -> cairn.v1.ClubMember
+	34, // 25: cairn.v1.ListClubMembersResponse.page:type_name -> cairn.v1.PageResponse
+	33, // 26: cairn.v1.ListClubFeedRequest.page:type_name -> cairn.v1.PageRequest
+	3,  // 27: cairn.v1.ListClubFeedResponse.items:type_name -> cairn.v1.FeedItem
+	34, // 28: cairn.v1.ListClubFeedResponse.page:type_name -> cairn.v1.PageResponse
+	31, // 29: cairn.v1.GetProfileResponse.user:type_name -> cairn.v1.UserCard
+	1,  // 30: cairn.v1.GetProfileResponse.activities:type_name -> cairn.v1.ProjectedActivity
+	1,  // 31: cairn.v1.GetProjectedActivityResponse.activity:type_name -> cairn.v1.ProjectedActivity
+	31, // 32: cairn.v1.GetProjectedActivityResponse.owner:type_name -> cairn.v1.UserCard
+	1,  // 33: cairn.v1.GetSharedActivityResponse.activity:type_name -> cairn.v1.ProjectedActivity
+	31, // 34: cairn.v1.GetSharedActivityResponse.owner:type_name -> cairn.v1.UserCard
+	27, // 35: cairn.v1.ReviewItem.type:type_name -> cairn.v1.ActivityType
+	28, // 36: cairn.v1.ReviewItem.start_time:type_name -> google.protobuf.Timestamp
+	25, // 37: cairn.v1.ListReviewQueueResponse.items:type_name -> cairn.v1.ReviewItem
+	4,  // 38: cairn.v1.SocialService.ListHomeFeed:input_type -> cairn.v1.ListHomeFeedRequest
+	6,  // 39: cairn.v1.SocialService.ListFollowingFeed:input_type -> cairn.v1.ListFollowingFeedRequest
+	9,  // 40: cairn.v1.SocialService.ListClubs:input_type -> cairn.v1.ListClubsRequest
+	11, // 41: cairn.v1.SocialService.GetClub:input_type -> cairn.v1.GetClubRequest
+	13, // 42: cairn.v1.SocialService.ListClubMembers:input_type -> cairn.v1.ListClubMembersRequest
+	16, // 43: cairn.v1.SocialService.ListClubFeed:input_type -> cairn.v1.ListClubFeedRequest
+	18, // 44: cairn.v1.SocialService.GetProfile:input_type -> cairn.v1.GetProfileRequest
+	20, // 45: cairn.v1.SocialService.GetProjectedActivity:input_type -> cairn.v1.GetProjectedActivityRequest
+	22, // 46: cairn.v1.SocialService.GetSharedActivity:input_type -> cairn.v1.GetSharedActivityRequest
+	24, // 47: cairn.v1.SocialService.ListReviewQueue:input_type -> cairn.v1.ListReviewQueueRequest
+	5,  // 48: cairn.v1.SocialService.ListHomeFeed:output_type -> cairn.v1.ListHomeFeedResponse
+	7,  // 49: cairn.v1.SocialService.ListFollowingFeed:output_type -> cairn.v1.ListFollowingFeedResponse
+	10, // 50: cairn.v1.SocialService.ListClubs:output_type -> cairn.v1.ListClubsResponse
+	12, // 51: cairn.v1.SocialService.GetClub:output_type -> cairn.v1.GetClubResponse
+	15, // 52: cairn.v1.SocialService.ListClubMembers:output_type -> cairn.v1.ListClubMembersResponse
+	17, // 53: cairn.v1.SocialService.ListClubFeed:output_type -> cairn.v1.ListClubFeedResponse
+	19, // 54: cairn.v1.SocialService.GetProfile:output_type -> cairn.v1.GetProfileResponse
+	21, // 55: cairn.v1.SocialService.GetProjectedActivity:output_type -> cairn.v1.GetProjectedActivityResponse
+	23, // 56: cairn.v1.SocialService.GetSharedActivity:output_type -> cairn.v1.GetSharedActivityResponse
+	26, // 57: cairn.v1.SocialService.ListReviewQueue:output_type -> cairn.v1.ListReviewQueueResponse
+	48, // [48:58] is the sub-list for method output_type
+	38, // [38:48] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_social_proto_init() }
@@ -830,7 +2128,7 @@ func file_cairn_v1_social_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_social_proto_rawDesc), len(file_cairn_v1_social_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

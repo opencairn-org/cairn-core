@@ -29,12 +29,6 @@ func visibilityFor(
 	return app.Visibility2.For(ctx, ownerID, viewerID, activityID, hasLink)
 }
 
-// ownerPrivacyZones loads the owner's privacy zones to apply to a NON-owner
-// projection; nil for owner reads.
-func ownerPrivacyZones(ctx context.Context, app *App, ownerID domain.UserID, isOwner bool) []domain.PrivacyZone {
-	return app.Visibility2.OwnerZones(ctx, ownerID, isOwner)
-}
-
 // projectActivityJSON emits an activity as JSON limited to the allowed
 // categories, rendered from the domain projection the Connect
 // ProjectedActivity message is also built from.

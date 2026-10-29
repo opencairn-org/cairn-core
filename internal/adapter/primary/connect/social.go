@@ -23,6 +23,13 @@ type SocialServer struct {
 	Content port.ContentSigner // optional; nil → no map image URLs
 	Gear    *gearuc.Service    // optional; gear names on own rows
 	MapETag func(domain.Activity) string
+
+	// Clubs, Profiles, ShareLinks and Activities back the club, profile,
+	// shared-activity and review-queue reads; nil → Unavailable.
+	Clubs      *view.Clubs
+	Profiles   *view.Profiles
+	ShareLinks port.ShareLinkRepo
+	Activities port.ActivityRepo
 }
 
 var _ cairnv1connect.SocialServiceHandler = (*SocialServer)(nil)

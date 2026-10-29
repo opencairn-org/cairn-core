@@ -445,3 +445,8 @@ func (r *ActivityRepo) ListFollowingFeed(_ context.Context, viewerID domain.User
 	}
 	return out, nil
 }
+
+// ListActivitiesNeedingReview: the fake tracks no review flag, so nothing is pending.
+func (r *ActivityRepo) ListActivitiesNeedingReview(context.Context, domain.UserID) ([]domain.ActivityReviewItem, error) {
+	return nil, nil
+}

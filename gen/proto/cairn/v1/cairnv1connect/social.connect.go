@@ -30,6 +30,29 @@ const (
 const (
 	// SocialServiceListHomeFeedProcedure is the procedure name of the SocialService's ListHomeFeed RPC.
 	SocialServiceListHomeFeedProcedure = "/cairn.v1.SocialService/ListHomeFeed"
+	// SocialServiceListFollowingFeedProcedure is the procedure name of the SocialService's
+	// ListFollowingFeed RPC.
+	SocialServiceListFollowingFeedProcedure = "/cairn.v1.SocialService/ListFollowingFeed"
+	// SocialServiceListClubsProcedure is the procedure name of the SocialService's ListClubs RPC.
+	SocialServiceListClubsProcedure = "/cairn.v1.SocialService/ListClubs"
+	// SocialServiceGetClubProcedure is the procedure name of the SocialService's GetClub RPC.
+	SocialServiceGetClubProcedure = "/cairn.v1.SocialService/GetClub"
+	// SocialServiceListClubMembersProcedure is the procedure name of the SocialService's
+	// ListClubMembers RPC.
+	SocialServiceListClubMembersProcedure = "/cairn.v1.SocialService/ListClubMembers"
+	// SocialServiceListClubFeedProcedure is the procedure name of the SocialService's ListClubFeed RPC.
+	SocialServiceListClubFeedProcedure = "/cairn.v1.SocialService/ListClubFeed"
+	// SocialServiceGetProfileProcedure is the procedure name of the SocialService's GetProfile RPC.
+	SocialServiceGetProfileProcedure = "/cairn.v1.SocialService/GetProfile"
+	// SocialServiceGetProjectedActivityProcedure is the procedure name of the SocialService's
+	// GetProjectedActivity RPC.
+	SocialServiceGetProjectedActivityProcedure = "/cairn.v1.SocialService/GetProjectedActivity"
+	// SocialServiceGetSharedActivityProcedure is the procedure name of the SocialService's
+	// GetSharedActivity RPC.
+	SocialServiceGetSharedActivityProcedure = "/cairn.v1.SocialService/GetSharedActivity"
+	// SocialServiceListReviewQueueProcedure is the procedure name of the SocialService's
+	// ListReviewQueue RPC.
+	SocialServiceListReviewQueueProcedure = "/cairn.v1.SocialService/ListReviewQueue"
 )
 
 var (
@@ -38,6 +61,78 @@ var (
 			StreamType:       connect.StreamTypeUnary,
 			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListHomeFeed"),
 			Procedure:        SocialServiceListHomeFeedProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceListFollowingFeedSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListFollowingFeed"),
+			Procedure:        SocialServiceListFollowingFeedProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceListClubsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListClubs"),
+			Procedure:        SocialServiceListClubsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceGetClubSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("GetClub"),
+			Procedure:        SocialServiceGetClubProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceListClubMembersSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListClubMembers"),
+			Procedure:        SocialServiceListClubMembersProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceListClubFeedSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListClubFeed"),
+			Procedure:        SocialServiceListClubFeedProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceGetProfileSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("GetProfile"),
+			Procedure:        SocialServiceGetProfileProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceGetProjectedActivitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("GetProjectedActivity"),
+			Procedure:        SocialServiceGetProjectedActivityProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceGetSharedActivitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("GetSharedActivity"),
+			Procedure:        SocialServiceGetSharedActivityProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	socialServiceListReviewQueueSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_social_proto.Services().ByName("SocialService").Methods().ByName("ListReviewQueue"),
+			Procedure:        SocialServiceListReviewQueueProcedure,
 			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
@@ -50,6 +145,41 @@ type SocialServiceClient interface {
 	// actors, merged newest first.
 	// Scope: social:read.
 	ListHomeFeed(context.Context, *v1.ListHomeFeedRequest) (*v1.ListHomeFeedResponse, error)
+	// The local following feed alone: friends on this server, projected
+	// (GET /api/feed/following).
+	// Scope: social:read.
+	ListFollowingFeed(context.Context, *v1.ListFollowingFeedRequest) (*v1.ListFollowingFeedResponse, error)
+	// Public clubs plus the caller's own (GET /api/clubs).
+	// Scope: social:read.
+	ListClubs(context.Context, *v1.ListClubsRequest) (*v1.ListClubsResponse, error)
+	// A club with the caller's membership; a private club is PermissionDenied
+	// to non-members (GET /api/clubs/{slug}).
+	// Scope: social:read.
+	GetClub(context.Context, *v1.GetClubRequest) (*v1.GetClubResponse, error)
+	// Members of a club the caller may see (GET /api/clubs/{slug}/members).
+	// Scope: social:read.
+	ListClubMembers(context.Context, *v1.ListClubMembersRequest) (*v1.ListClubMembersResponse, error)
+	// Member activities of a club, projected per the visibility model
+	// (GET /api/clubs/{slug}/feed).
+	// Scope: social:read.
+	ListClubFeed(context.Context, *v1.ListClubFeedRequest) (*v1.ListClubFeedResponse, error)
+	// An athlete profile with recent projected activities; a non-public
+	// profile is PermissionDenied unless the caller follows the owner
+	// (GET /api/profiles/{username}).
+	// Scope: social:read.
+	GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error)
+	// Someone else's activity as the caller may see it; PermissionDenied when
+	// nothing is shared (GET /api/activities/{id}/projected).
+	// Scope: social:read.
+	GetProjectedActivity(context.Context, *v1.GetProjectedActivityRequest) (*v1.GetProjectedActivityResponse, error)
+	// An activity behind a share link; the token is the authorization, no
+	// credential needed (GET /api/shared/{token}).
+	// Scope: none (public).
+	GetSharedActivity(context.Context, *v1.GetSharedActivityRequest) (*v1.GetSharedActivityResponse, error)
+	// The caller's activities the matcher flagged for review
+	// (GET /api/review-queue).
+	// Scope: activities:read.
+	ListReviewQueue(context.Context, *v1.ListReviewQueueRequest) (*v1.ListReviewQueueResponse, error)
 }
 
 // NewSocialServiceClient constructs a client for the cairn.v1.SocialService service. Multiple
@@ -65,6 +195,41 @@ type SocialServiceHandler interface {
 	// actors, merged newest first.
 	// Scope: social:read.
 	ListHomeFeed(context.Context, *v1.ListHomeFeedRequest) (*v1.ListHomeFeedResponse, error)
+	// The local following feed alone: friends on this server, projected
+	// (GET /api/feed/following).
+	// Scope: social:read.
+	ListFollowingFeed(context.Context, *v1.ListFollowingFeedRequest) (*v1.ListFollowingFeedResponse, error)
+	// Public clubs plus the caller's own (GET /api/clubs).
+	// Scope: social:read.
+	ListClubs(context.Context, *v1.ListClubsRequest) (*v1.ListClubsResponse, error)
+	// A club with the caller's membership; a private club is PermissionDenied
+	// to non-members (GET /api/clubs/{slug}).
+	// Scope: social:read.
+	GetClub(context.Context, *v1.GetClubRequest) (*v1.GetClubResponse, error)
+	// Members of a club the caller may see (GET /api/clubs/{slug}/members).
+	// Scope: social:read.
+	ListClubMembers(context.Context, *v1.ListClubMembersRequest) (*v1.ListClubMembersResponse, error)
+	// Member activities of a club, projected per the visibility model
+	// (GET /api/clubs/{slug}/feed).
+	// Scope: social:read.
+	ListClubFeed(context.Context, *v1.ListClubFeedRequest) (*v1.ListClubFeedResponse, error)
+	// An athlete profile with recent projected activities; a non-public
+	// profile is PermissionDenied unless the caller follows the owner
+	// (GET /api/profiles/{username}).
+	// Scope: social:read.
+	GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error)
+	// Someone else's activity as the caller may see it; PermissionDenied when
+	// nothing is shared (GET /api/activities/{id}/projected).
+	// Scope: social:read.
+	GetProjectedActivity(context.Context, *v1.GetProjectedActivityRequest) (*v1.GetProjectedActivityResponse, error)
+	// An activity behind a share link; the token is the authorization, no
+	// credential needed (GET /api/shared/{token}).
+	// Scope: none (public).
+	GetSharedActivity(context.Context, *v1.GetSharedActivityRequest) (*v1.GetSharedActivityResponse, error)
+	// The caller's activities the matcher flagged for review
+	// (GET /api/review-queue).
+	// Scope: activities:read.
+	ListReviewQueue(context.Context, *v1.ListReviewQueueRequest) (*v1.ListReviewQueueResponse, error)
 }
 
 // RegisterSocialServiceHandler registers svc as the cairn.v1.SocialService implementation on
@@ -73,6 +238,15 @@ func RegisterSocialServiceHandler(server *connect.Server, svc SocialServiceHandl
 	adapter := socialServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: socialServiceListHomeFeedSpec(), Handler: adapter.listHomeFeed},
+		connect.Method{Spec: socialServiceListFollowingFeedSpec(), Handler: adapter.listFollowingFeed},
+		connect.Method{Spec: socialServiceListClubsSpec(), Handler: adapter.listClubs},
+		connect.Method{Spec: socialServiceGetClubSpec(), Handler: adapter.getClub},
+		connect.Method{Spec: socialServiceListClubMembersSpec(), Handler: adapter.listClubMembers},
+		connect.Method{Spec: socialServiceListClubFeedSpec(), Handler: adapter.listClubFeed},
+		connect.Method{Spec: socialServiceGetProfileSpec(), Handler: adapter.getProfile},
+		connect.Method{Spec: socialServiceGetProjectedActivitySpec(), Handler: adapter.getProjectedActivity},
+		connect.Method{Spec: socialServiceGetSharedActivitySpec(), Handler: adapter.getSharedActivity},
+		connect.Method{Spec: socialServiceListReviewQueueSpec(), Handler: adapter.listReviewQueue},
 	)
 }
 
@@ -81,6 +255,42 @@ type UnimplementedSocialServiceHandler struct{}
 
 func (UnimplementedSocialServiceHandler) ListHomeFeed(context.Context, *v1.ListHomeFeedRequest) (*v1.ListHomeFeedResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListHomeFeed is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) ListFollowingFeed(context.Context, *v1.ListFollowingFeedRequest) (*v1.ListFollowingFeedResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListFollowingFeed is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) ListClubs(context.Context, *v1.ListClubsRequest) (*v1.ListClubsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListClubs is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) GetClub(context.Context, *v1.GetClubRequest) (*v1.GetClubResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.GetClub is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) ListClubMembers(context.Context, *v1.ListClubMembersRequest) (*v1.ListClubMembersResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListClubMembers is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) ListClubFeed(context.Context, *v1.ListClubFeedRequest) (*v1.ListClubFeedResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListClubFeed is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.GetProfile is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) GetProjectedActivity(context.Context, *v1.GetProjectedActivityRequest) (*v1.GetProjectedActivityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.GetProjectedActivity is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) GetSharedActivity(context.Context, *v1.GetSharedActivityRequest) (*v1.GetSharedActivityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.GetSharedActivity is not implemented")
+}
+
+func (UnimplementedSocialServiceHandler) ListReviewQueue(context.Context, *v1.ListReviewQueueRequest) (*v1.ListReviewQueueResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SocialService.ListReviewQueue is not implemented")
 }
 
 type socialServiceClient struct {
@@ -95,6 +305,78 @@ func (c *socialServiceClient) ListHomeFeed(ctx context.Context, req *v1.ListHome
 	return &res, nil
 }
 
+func (c *socialServiceClient) ListFollowingFeed(ctx context.Context, req *v1.ListFollowingFeedRequest) (*v1.ListFollowingFeedResponse, error) {
+	var res v1.ListFollowingFeedResponse
+	if err := c.client.CallUnary(ctx, socialServiceListFollowingFeedSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) ListClubs(ctx context.Context, req *v1.ListClubsRequest) (*v1.ListClubsResponse, error) {
+	var res v1.ListClubsResponse
+	if err := c.client.CallUnary(ctx, socialServiceListClubsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) GetClub(ctx context.Context, req *v1.GetClubRequest) (*v1.GetClubResponse, error) {
+	var res v1.GetClubResponse
+	if err := c.client.CallUnary(ctx, socialServiceGetClubSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) ListClubMembers(ctx context.Context, req *v1.ListClubMembersRequest) (*v1.ListClubMembersResponse, error) {
+	var res v1.ListClubMembersResponse
+	if err := c.client.CallUnary(ctx, socialServiceListClubMembersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) ListClubFeed(ctx context.Context, req *v1.ListClubFeedRequest) (*v1.ListClubFeedResponse, error) {
+	var res v1.ListClubFeedResponse
+	if err := c.client.CallUnary(ctx, socialServiceListClubFeedSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) GetProfile(ctx context.Context, req *v1.GetProfileRequest) (*v1.GetProfileResponse, error) {
+	var res v1.GetProfileResponse
+	if err := c.client.CallUnary(ctx, socialServiceGetProfileSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) GetProjectedActivity(ctx context.Context, req *v1.GetProjectedActivityRequest) (*v1.GetProjectedActivityResponse, error) {
+	var res v1.GetProjectedActivityResponse
+	if err := c.client.CallUnary(ctx, socialServiceGetProjectedActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) GetSharedActivity(ctx context.Context, req *v1.GetSharedActivityRequest) (*v1.GetSharedActivityResponse, error) {
+	var res v1.GetSharedActivityResponse
+	if err := c.client.CallUnary(ctx, socialServiceGetSharedActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *socialServiceClient) ListReviewQueue(ctx context.Context, req *v1.ListReviewQueueRequest) (*v1.ListReviewQueueResponse, error) {
+	var res v1.ListReviewQueueResponse
+	if err := c.client.CallUnary(ctx, socialServiceListReviewQueueSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 type socialServiceHandler struct{ svc SocialServiceHandler }
 
 func (h socialServiceHandler) listHomeFeed(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
@@ -103,6 +385,114 @@ func (h socialServiceHandler) listHomeFeed(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.ListHomeFeed(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) listFollowingFeed(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListFollowingFeedRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListFollowingFeed(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) listClubs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListClubsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListClubs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) getClub(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetClubRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetClub(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) listClubMembers(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListClubMembersRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListClubMembers(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) listClubFeed(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListClubFeedRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListClubFeed(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) getProfile(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetProfileRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetProfile(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) getProjectedActivity(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetProjectedActivityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetProjectedActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) getSharedActivity(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetSharedActivityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetSharedActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h socialServiceHandler) listReviewQueue(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListReviewQueueRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListReviewQueue(ctx, &req)
 	if err != nil {
 		return err
 	}

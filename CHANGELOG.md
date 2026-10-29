@@ -7,6 +7,14 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `SocialService` reads: `ListFollowingFeed`, `ListClubs`, `GetClub`,
+  `ListClubMembers`, `ListClubFeed`, `GetProfile`, `GetProjectedActivity`,
+  `GetSharedActivity` (public, the token is the authorization) and
+  `ListReviewQueue`, the counterparts of `/api/feed/following`,
+  `/api/clubs…`, `/api/profiles/{username}`,
+  `/api/activities/{id}/projected`, `/api/shared/{token}` and
+  `/api/review-queue`. Private clubs and closed profiles answer
+  PermissionDenied, blocked or unknown ones NotFound, like REST.
 - `NotificationService.CountUnreadNotifications` and `StreamNotifications`
   (server stream of new events with a 30 s heartbeat; fed by an in-process
   hub every notification producer publishes to).

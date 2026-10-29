@@ -93,7 +93,7 @@ func writeActionError(w http.ResponseWriter, err error, fallback string) {
 		status = http.StatusServiceUnavailable
 	case port.ActionErrorUpstream:
 		status = http.StatusBadGateway
-	case port.ActionErrorQuota:
+	case port.ActionErrorQuota, port.ActionErrorForbidden:
 		status = http.StatusForbidden
 	case port.ActionErrorInternal:
 	}

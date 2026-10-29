@@ -65,7 +65,14 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())))
 	cairnv1connect.RegisterAuthServiceHandler(server, newAuthServer(app, logger))
 	registerReadServices(server, app)
-	cairnv1connect.RegisterSocialServiceHandler(server, connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag))
+	socialSvc := connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag)
+	socialSvc.Clubs = app.ClubViews
+	socialSvc.Profiles = app.ProfileViews
+	socialSvc.Activities = app.Activities
+	if app.ShareLinks != nil {
+		socialSvc.ShareLinks = app.ShareLinks
+	}
+	cairnv1connect.RegisterSocialServiceHandler(server, socialSvc)
 	connecthttp.Mount(streamSafeMux{mux}, server)
 	logger.Info("connect-rpc services mounted", "services", []string{
 		cairnv1connect.ActivityServiceName, cairnv1connect.NotificationServiceName, cairnv1connect.AuthServiceName,

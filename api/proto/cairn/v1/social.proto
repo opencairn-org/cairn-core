@@ -17,6 +17,68 @@ service SocialService {
   rpc ListHomeFeed(ListHomeFeedRequest) returns (ListHomeFeedResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The local following feed alone: friends on this server, projected
+  // (GET /api/feed/following).
+  // Scope: social:read.
+  rpc ListFollowingFeed(ListFollowingFeedRequest) returns (ListFollowingFeedResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Public clubs plus the caller's own (GET /api/clubs).
+  // Scope: social:read.
+  rpc ListClubs(ListClubsRequest) returns (ListClubsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // A club with the caller's membership; a private club is PermissionDenied
+  // to non-members (GET /api/clubs/{slug}).
+  // Scope: social:read.
+  rpc GetClub(GetClubRequest) returns (GetClubResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Members of a club the caller may see (GET /api/clubs/{slug}/members).
+  // Scope: social:read.
+  rpc ListClubMembers(ListClubMembersRequest) returns (ListClubMembersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Member activities of a club, projected per the visibility model
+  // (GET /api/clubs/{slug}/feed).
+  // Scope: social:read.
+  rpc ListClubFeed(ListClubFeedRequest) returns (ListClubFeedResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // An athlete profile with recent projected activities; a non-public
+  // profile is PermissionDenied unless the caller follows the owner
+  // (GET /api/profiles/{username}).
+  // Scope: social:read.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Someone else's activity as the caller may see it; PermissionDenied when
+  // nothing is shared (GET /api/activities/{id}/projected).
+  // Scope: social:read.
+  rpc GetProjectedActivity(GetProjectedActivityRequest) returns (GetProjectedActivityResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // An activity behind a share link; the token is the authorization, no
+  // credential needed (GET /api/shared/{token}).
+  // Scope: none (public).
+  rpc GetSharedActivity(GetSharedActivityRequest) returns (GetSharedActivityResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The caller's activities the matcher flagged for review
+  // (GET /api/review-queue).
+  // Scope: activities:read.
+  rpc ListReviewQueue(ListReviewQueueRequest) returns (ListReviewQueueResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 // An activity as a non-owner may see it. The summary tier is always present;
@@ -99,4 +161,108 @@ message ListHomeFeedRequest {
 message ListHomeFeedResponse {
   repeated FeedItem items = 1;
   PageResponse page = 2;
+}
+
+message ListFollowingFeedRequest {
+  // limit default 30, max 100.
+  PageRequest page = 1;
+}
+message ListFollowingFeedResponse {
+  // Every item has source SOURCE_FOLLOWING.
+  repeated FeedItem items = 1;
+  PageResponse page = 2;
+}
+
+message ClubCard {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  bool is_public = 4;
+  int32 member_count = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message ListClubsRequest {
+  // limit default 50, max 200.
+  PageRequest page = 1;
+}
+message ListClubsResponse {
+  repeated ClubCard clubs = 1;
+  PageResponse page = 2;
+}
+message GetClubRequest {
+  string slug = 1;
+}
+message GetClubResponse {
+  ClubCard club = 1;
+  string description = 2;
+  bool is_member = 3;
+  // owner | admin | member, empty when not a member.
+  string my_role = 4;
+}
+message ListClubMembersRequest {
+  string slug = 1;
+  // limit default 200.
+  PageRequest page = 2;
+}
+message ClubMember {
+  UserCard user = 1;
+  string role = 2;
+}
+message ListClubMembersResponse {
+  repeated ClubMember members = 1;
+  PageResponse page = 2;
+}
+message ListClubFeedRequest {
+  string slug = 1;
+  // limit default 30, max 100.
+  PageRequest page = 2;
+}
+message ListClubFeedResponse {
+  // Projected rows (or the caller's own activities in full).
+  repeated FeedItem items = 1;
+  PageResponse page = 2;
+}
+
+message GetProfileRequest {
+  string username = 1;
+}
+message GetProfileResponse {
+  UserCard user = 1;
+  bool is_public = 2;
+  bool is_self = 3;
+  bool is_following = 4;
+  int32 followers_count = 5;
+  int32 following_count = 6;
+  // The 20 newest activities the caller may see, projected.
+  repeated ProjectedActivity activities = 7;
+}
+
+message GetProjectedActivityRequest {
+  string activity_id = 1;
+}
+message GetProjectedActivityResponse {
+  ProjectedActivity activity = 1;
+  UserCard owner = 2;
+  bool is_owner = 3;
+}
+
+message GetSharedActivityRequest {
+  string token = 1;
+}
+message GetSharedActivityResponse {
+  ProjectedActivity activity = 1;
+  UserCard owner = 2;
+}
+
+message ListReviewQueueRequest {}
+message ReviewItem {
+  string id = 1;
+  string title = 2;
+  ActivityType type = 3;
+  google.protobuf.Timestamp start_time = 4;
+  // The matcher's confidence band that flagged the activity.
+  string match_confidence = 5;
+}
+message ListReviewQueueResponse {
+  repeated ReviewItem items = 1;
 }

@@ -52,6 +52,8 @@ func actionCode(k port.ActionErrorKind) connectrpc.Code {
 		return connectrpc.CodeUnavailable
 	case port.ActionErrorQuota:
 		return connectrpc.CodeResourceExhausted
+	case port.ActionErrorForbidden:
+		return connectrpc.CodePermissionDenied
 	case port.ActionErrorInternal:
 	}
 	return connectrpc.CodeInternal

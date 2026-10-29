@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
@@ -37,91 +36,32 @@ type profilesAPI struct {
 	app *App
 }
 
-// profilesViewer describes who is looking at a profile.
-type profilesViewer struct {
-	id         domain.UserID
-	present    bool
-	isOwner    bool
-	isFollower bool
-}
-
-// resolveViewer classifies the viewer; ok=false means the profile must be hidden (blocked).
-func (h *profilesAPI) resolveViewer(r *http.Request, u domain.User) (profilesViewer, bool) {
-	app := h.app
-	viewer, hasViewer := optionalSessionUser(r, app)
-	v := profilesViewer{id: viewer, present: hasViewer, isOwner: hasViewer && viewer == u.ID}
-	if !hasViewer || v.isOwner {
-		return v, true
-	}
-	// A block (either direction) makes the profile invisible to the viewer.
-	if app.Blocks != nil {
-		if blocked, _ := app.Blocks.IsBlockedEitherWay(r.Context(), viewer, u.ID); blocked {
-			return v, false
-		}
-	}
-	if app.Follows != nil {
-		v.isFollower, _ = app.Follows.IsFollowing(r.Context(), viewer, u.ID)
-	}
-	return v, true
-}
-
-// recentActivities projects the owner's recent activities for the viewer.
-func (h *profilesAPI) recentActivities(r *http.Request, u domain.User, v profilesViewer) []map[string]any {
-	app := h.app
-	// Recent activities, projected. The owner sees all; others see only
-	// non-private activities, each gated through the visibility model.
-	recent, _ := app.Activities.ListRecentActivitiesForUser(r.Context(), u.ID, 20)
-	acts := make([]map[string]any, 0, len(recent))
-	ownerZones := ownerPrivacyZones(r.Context(), app, u.ID, v.isOwner)
-	var vptr *domain.UserID
-	if v.present {
-		vptr = &v.id
-	}
-	for _, a := range recent {
-		if !v.isOwner && (a.Privacy == domain.PrivacyPrivate || a.HiddenByAdmin) {
-			continue
-		}
-		cats := visibilityFor(r.Context(), app, u.ID, vptr, a.ID, false)
-		if !v.isOwner && len(cats) == 0 {
-			continue
-		}
-		acts = append(acts, projectActivityJSON(a, cats, ownerZones))
-	}
-	return acts
-}
-
 func (h *profilesAPI) getPublic(w http.ResponseWriter, r *http.Request) {
-	app := h.app
-	username := strings.ToLower(strings.TrimSpace(r.PathValue("username")))
-	u, err := app.Users.GetUserByUsername(r.Context(), username)
+	var viewer *domain.UserID
+	if v, ok := optionalSessionUser(r, h.app); ok {
+		viewer = &v
+	}
+	pv, err := h.app.ProfileViews.Get(r.Context(), r.PathValue("username"), viewer)
 	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
+		if errors.Is(err, domain.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		writeActionError(w, err, "load failed")
 		return
 	}
-	v, ok := h.resolveViewer(r, u)
-	if !ok {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
+	acts := make([]map[string]any, 0, len(pv.Activities))
+	for _, p := range pv.Activities {
+		acts = append(acts, projectedJSON(p))
 	}
-	// Gate: a non-public profile is only visible to the owner or a follower.
-	if !u.ProfileIsPublic && !v.isOwner && !v.isFollower {
-		http.Error(w, "this profile is private", http.StatusForbidden)
-		return
-	}
-
-	var counts domain.FollowCounts
-	if app.Follows != nil {
-		counts, _ = app.Follows.Counts(r.Context(), u.ID)
-	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user":            userCardJSON(u),
-		"is_public":       u.ProfileIsPublic,
-		"is_self":         v.isOwner,
-		"is_following":    v.isFollower,
-		"followers_count": counts.Followers,
-		"following_count": counts.Following,
-		"activities":      h.recentActivities(r, u, v),
+		"user":            userCardJSON(pv.User),
+		"is_public":       pv.User.ProfileIsPublic,
+		"is_self":         pv.IsOwner,
+		"is_following":    pv.IsFollowing,
+		"followers_count": pv.Counts.Followers,
+		"following_count": pv.Counts.Following,
+		"activities":      acts,
 	})
 }
 
