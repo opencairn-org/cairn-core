@@ -148,7 +148,9 @@ service AuthService {
   // Scope: none (public).
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
 
-  // Complete password reset using a token from the email.
+  // Complete password reset using a token from the email. Every session of
+  // the user is ended; the response carries no session (sign in afterwards,
+  // native clients via OAuth 2.1).
   // Scope: none (public).
   rpc ConfirmPasswordReset(ConfirmPasswordResetRequest) returns (ConfirmPasswordResetResponse);
 
@@ -199,6 +201,9 @@ service AuthService {
   rpc GetQuota(GetQuotaRequest) returns (GetQuotaResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Edit the caller's profile. field_mask names the fields to apply
+  // (display_name, avatar_url, locale, timezone, units); "email" is refused,
+  // an address change needs a verification flow that does not exist yet.
   // Scope: profile:write.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
 
@@ -368,6 +373,7 @@ message ConfirmPasswordResetRequest {
   string new_password = 2;
 }
 message ConfirmPasswordResetResponse {
+  // Unset: the caller signs in again after a reset.
   SessionResult session = 1;
 }
 

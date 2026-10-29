@@ -126,6 +126,47 @@ func (r *LinkedIdentityRepo) TouchLastUsed(
 	return nil
 }
 
+func (r *LinkedIdentityRepo) ListForUser(ctx context.Context, userID domain.UserID) ([]domain.LinkedIdentity, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT id, user_id, provider, subject, COALESCE(email::text, ''), linked_at, last_used_at
+		   FROM linked_oidc_identities
+		  WHERE user_id = $1
+		  ORDER BY linked_at ASC`, uuid.UUID(userID))
+	if err != nil {
+		return nil, fmt.Errorf("list linked identities: %w", err)
+	}
+	defer rows.Close()
+	out := []domain.LinkedIdentity{}
+	for rows.Next() {
+		var (
+			id, uid  uuid.UUID
+			li       domain.LinkedIdentity
+			linkedAt time.Time
+		)
+		if err := rows.Scan(&id, &uid, &li.Provider, &li.Subject, &li.Email, &linkedAt, &li.LastUsedAt); err != nil {
+			return nil, fmt.Errorf("scan linked identity: %w", err)
+		}
+		li.ID, li.UserID, li.LinkedAt = domain.LinkedIdentityID(id), domain.UserID(uid), linkedAt
+		out = append(out, li)
+	}
+	return out, rows.Err()
+}
+
+func (r *LinkedIdentityRepo) Delete(ctx context.Context, userID domain.UserID, id domain.LinkedIdentityID) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`DELETE FROM linked_oidc_identities WHERE id = $1 AND user_id = $2`,
+		uuid.UUID(id), uuid.UUID(userID))
+	if err != nil {
+		return fmt.Errorf("delete linked identity: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("linked identity %s: %w", uuid.UUID(id), domain.ErrNotFound)
+	}
+	return nil
+}
+
 // isUniqueViolation reports whether err is a Postgres 23505 unique_violation.
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError

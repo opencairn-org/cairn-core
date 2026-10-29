@@ -170,6 +170,12 @@ func newAuthServer(app *App, logger *slog.Logger) *connectadapter.AuthServer {
 			return sendVerificationEmail(ctx, app, logger, strings.TrimRight(app.PublicBaseURL, "/"), u)
 		}
 	}
+	authSvc.PATs = app.AccountTokens
+	authSvc.SessionMgmt = app.SessionMgmt
+	authSvc.Passwords = app.Passwords
+	authSvc.Identities = app.Identities
+	authSvc.Profiles = app.Profiles
+	authSvc.Log = logger
 	return authSvc
 }
 

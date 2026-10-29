@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -12,6 +13,7 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 )
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
@@ -41,6 +43,15 @@ type AuthServer struct {
 	// for a self-entered address.
 	Invites     InviteRedeemer
 	VerifyEmail func(ctx context.Context, u domain.User) error
+
+	// Self-service account use cases (nil → Unavailable on their RPCs).
+	PATs        *account.Tokens
+	SessionMgmt *account.Sessions
+	Passwords   *account.Passwords
+	Identities  *account.Identities
+	Profiles    *account.Profiles
+	// Log receives failures that must not reach the caller (reset mail).
+	Log *slog.Logger
 }
 
 var _ cairnv1connect.AuthServiceHandler = (*AuthServer)(nil)

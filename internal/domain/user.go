@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 	"unicode"
+
+	"golang.org/x/text/language"
 )
 
 // ---------------------------------------------------------------------------
@@ -141,6 +144,10 @@ var (
 	ErrDisplayNameRequired  = errors.New("display name required")
 	ErrInvalidUserRole      = errors.New("invalid user role")
 	ErrInvalidUserStatus    = errors.New("invalid user status")
+	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
+	ErrAvatarURLInvalid     = errors.New("avatar url must be an absolute http(s) url")
+	ErrTimezoneInvalid      = errors.New("timezone must be an IANA zone name")
+	ErrLocaleInvalid        = errors.New("locale must be a BCP-47 tag")
 )
 
 // NormaliseUsername lowercases, trims, and validates the username. The
@@ -197,6 +204,52 @@ func NormaliseEmail(in string) (string, error) {
 // (username format, role / status enum membership, display name presence).
 // Uniqueness of username and email is enforced by the database; the
 // use-case layer translates pg unique-violation errors into domain errors.
+// MinPasswordChars is the instance-wide password floor (NIST 800-63B: length
+// over composition rules).
+const MinPasswordChars = 8
+
+// ValidatePassword applies the password policy to a plaintext candidate.
+func ValidatePassword(pw string) error {
+	if len(pw) < MinPasswordChars {
+		return ErrPasswordTooShort
+	}
+	return nil
+}
+
+// ValidateAvatarURL accepts an empty value or an absolute http(s) URL.
+func ValidateAvatarURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ErrAvatarURLInvalid
+	}
+	return nil
+}
+
+// ValidateTimezone accepts an empty value or a loadable IANA zone.
+func ValidateTimezone(tz string) error {
+	if tz == "" {
+		return nil
+	}
+	if _, err := time.LoadLocation(tz); err != nil || tz == "Local" {
+		return ErrTimezoneInvalid
+	}
+	return nil
+}
+
+// ValidateLocale accepts an empty value or a well-formed BCP-47 tag.
+func ValidateLocale(tag string) error {
+	if tag == "" {
+		return nil
+	}
+	if _, err := language.Parse(tag); err != nil {
+		return ErrLocaleInvalid
+	}
+	return nil
+}
+
 func ValidateUserShape(u User) error {
 	if _, err := NormaliseUsername(u.Username); err != nil {
 		return err

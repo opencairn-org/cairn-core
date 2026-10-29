@@ -334,6 +334,24 @@ func (r *UserRepo) UpdateUserStatus(
 	return nil
 }
 
+func (r *UserRepo) UpdateProfile(ctx context.Context, id domain.UserID, p port.ProfileUpdate) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE users
+		    SET display_name = $2, avatar_url = $3, locale = $4, timezone = $5, units = $6,
+		        updated_at = now()
+		  WHERE id = $1 AND status != 'deleted'`,
+		id.UUID(), p.DisplayName, nullIfEmpty(p.AvatarURL), p.Locale, p.Timezone, p.Units,
+	)
+	if err != nil {
+		return fmt.Errorf("update profile: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("update profile %s: %w", id, domain.ErrNotFound)
+	}
+	return nil
+}
+
 func (r *UserRepo) UpdatePassword(
 	ctx context.Context,
 	id domain.UserID,

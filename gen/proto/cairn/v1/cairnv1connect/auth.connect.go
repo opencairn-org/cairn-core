@@ -340,7 +340,9 @@ type AuthServiceClient interface {
 	// Initiate password reset (sends email if SMTP configured).
 	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
-	// Complete password reset using a token from the email.
+	// Complete password reset using a token from the email. Every session of
+	// the user is ended; the response carries no session (sign in afterwards,
+	// native clients via OAuth 2.1).
 	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
@@ -370,6 +372,9 @@ type AuthServiceClient interface {
 	// imports are refused. Any valid credential.
 	// Scope: any valid credential.
 	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Edit the caller's profile. field_mask names the fields to apply
+	// (display_name, avatar_url, locale, timezone, units); "email" is refused,
+	// an address change needs a verification flow that does not exist yet.
 	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies
@@ -428,7 +433,9 @@ type AuthServiceHandler interface {
 	// Initiate password reset (sends email if SMTP configured).
 	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
-	// Complete password reset using a token from the email.
+	// Complete password reset using a token from the email. Every session of
+	// the user is ended; the response carries no session (sign in afterwards,
+	// native clients via OAuth 2.1).
 	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
@@ -458,6 +465,9 @@ type AuthServiceHandler interface {
 	// imports are refused. Any valid credential.
 	// Scope: any valid credential.
 	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Edit the caller's profile. field_mask names the fields to apply
+	// (display_name, avatar_url, locale, timezone, units); "email" is refused,
+	// an address change needs a verification flow that does not exist yet.
 	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies

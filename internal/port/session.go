@@ -37,4 +37,8 @@ type SessionRepo interface {
 	// during full-logout and on credential changes (password reset,
 	// passkey rotation).
 	RevokeAllForUser(ctx context.Context, userID domain.UserID) error
+
+	// ListForUser returns the user's active sessions (not revoked, not
+	// expired), most recently seen first. Token hashes are left empty.
+	ListForUser(ctx context.Context, userID domain.UserID) ([]domain.Session, error)
 }

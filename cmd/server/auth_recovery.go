@@ -15,11 +15,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-const (
-	passwordResetTTL      = time.Hour
-	emailVerificationTTL  = 24 * time.Hour
-	minResetPasswordChars = 8
-)
+const emailVerificationTTL = 24 * time.Hour
 
 // mountAuthRecovery wires the email-driven account recovery flows: password
 // reset and email verification. Both lean on the email channel (app.Email);
@@ -75,35 +71,13 @@ func (h *authRecoveryHandlers) forgot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	email := strings.TrimSpace(strings.ToLower(body.Email))
-
+	if h.app.Email == nil {
+		h.logger.Warn("password reset requested but email is disabled")
+	}
 	// Always respond the same way regardless of whether the email exists.
-	if email == "" || h.app.Email == nil {
-		if h.app.Email == nil {
-			h.logger.Warn("password reset requested but email is disabled")
-		}
-		authRecoveryGeneric(w)
-		return
+	if _, err := h.app.Passwords.RequestReset(r.Context(), body.Email); err != nil {
+		h.logger.Warn("password reset mail", "error", err)
 	}
-	user, err := h.app.Users.GetUserByEmail(r.Context(), email)
-	if err != nil {
-		authRecoveryGeneric(w) // unknown email — don't leak
-		return
-	}
-	code, hash := newRecoveryCode()
-	if err := h.app.AuthTokens.CreatePasswordResetToken(r.Context(), user.ID, hash, time.Now().UTC().Add(passwordResetTTL)); err != nil {
-		h.logger.Error("create password reset token", "error", err)
-		authRecoveryGeneric(w)
-		return
-	}
-	link := h.base + "/reset-password?code=" + code
-	sendBestEffortEmail(r.Context(), h.app, h.logger, user.Email, "Reset your Cairn password",
-		"Someone asked to reset the password for your Cairn account.\n\n"+
-			"Open this link to choose a new password (valid for 1 hour):\n"+link+"\n\n"+
-			"If you didn't request this, you can ignore this email.\n\n- Cairn",
-		"<p>Someone asked to reset the password for your Cairn account.</p>"+
-			"<p><a href=\""+link+"\">Choose a new password</a> (valid for 1 hour).</p>"+
-			"<p>If you didn't request this, you can ignore this email.</p><p>- Cairn</p>")
 	authRecoveryGeneric(w)
 }
 
@@ -119,27 +93,9 @@ func (h *authRecoveryHandlers) reset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	if len(body.Password) < minResetPasswordChars {
-		http.Error(w, "password must be at least 8 characters", http.StatusBadRequest)
-		return
-	}
-	hash := sha256.Sum256([]byte(strings.TrimSpace(body.Code)))
-	userID, err := h.app.AuthTokens.ConsumePasswordResetToken(r.Context(), hash[:], time.Now().UTC())
-	if errors.Is(err, port.ErrAuthTokenInvalid) {
-		http.Error(w, "this reset link is invalid or has expired", http.StatusBadRequest)
-		return
-	}
+	userID, err := h.app.Passwords.ConfirmReset(r.Context(), strings.TrimSpace(body.Code), body.Password)
 	if err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
-		return
-	}
-	encoded, err := h.app.PasswordHasher.Hash(body.Password)
-	if err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
-		return
-	}
-	if err := h.app.Users.UpdatePassword(r.Context(), userID, encoded); err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
+		writeActionError(w, err, "reset failed")
 		return
 	}
 	// Auto-login after a successful reset.
@@ -217,17 +173,6 @@ func sendVerificationEmail(ctx context.Context, app *App, logger *slog.Logger, b
 		HTMLBody: "<p>Welcome to Cairn! Confirm this email address:</p>" +
 			"<p><a href=\"" + link + "\">Verify email</a> (valid for 24 hours).</p><p>- Cairn</p>",
 	})
-}
-
-// sendBestEffortEmail sends and only logs on failure (used by anti-enumeration
-// flows that must not surface delivery errors to the caller).
-func sendBestEffortEmail(ctx context.Context, app *App, logger *slog.Logger, to, subject, text, html string) {
-	if app.Email == nil {
-		return
-	}
-	if err := app.Email.Send(ctx, port.EmailMessage{To: to, Subject: subject, TextBody: text, HTMLBody: html}); err != nil {
-		logger.Warn("recovery email send failed", "error", err)
-	}
 }
 
 // newRecoveryCode returns a URL-safe random code plus its sha256 (what we store).

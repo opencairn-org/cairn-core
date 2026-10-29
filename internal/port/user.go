@@ -42,6 +42,16 @@ type UserSettingsRepo interface {
 // Credentials live on a separate read path (GetCredentialsByLogin) so
 // password hashes are not loaded into request handlers that only need
 // the public User shape.
+// ProfileUpdate carries the columns UpdateProfile writes; every field is
+// written as given (the use case fills unchanged ones from the current row).
+type ProfileUpdate struct {
+	DisplayName string
+	AvatarURL   string
+	Locale      string
+	Timezone    string
+	Units       string
+}
+
 type UserRepo interface {
 	// CreateUser inserts a new users row (and an associated credentials
 	// row when cred.PasswordHash is non-empty). The provided User must
@@ -89,6 +99,9 @@ type UserRepo interface {
 	// UpdateUserPreferences sets display-format preferences (units + date/time
 	// format). Empty strings reset to the locale default.
 	UpdateUserPreferences(ctx context.Context, id domain.UserID, units, dateFormat, timeFormat string) error
+
+	// UpdateProfile sets the self-editable profile columns in one statement.
+	UpdateProfile(ctx context.Context, id domain.UserID, p ProfileUpdate) error
 
 	// UpdateUserStatus sets users.status and users.status_reason. Used by
 	// `cairn admin suspend/reactivate`.

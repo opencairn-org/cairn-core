@@ -278,6 +278,8 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 	// Personal access tokens (CLI/API auth).
 	mountPATs(mux, app, logger)
+	// Password change, sessions, linked identities, profile (AuthService twins).
+	mountAccount(mux, app, logger)
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {

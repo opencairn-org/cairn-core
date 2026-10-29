@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +22,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	dmatch "github.com/opencairn-org/cairn-core/internal/domain/match"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
@@ -145,6 +147,12 @@ type App struct {
 	ClubViews          *view.Clubs
 	ProfileViews       *view.Profiles
 	AttachmentVariants *attachmentuc.Variants
+	// Self-service account use cases, shared by /api and AuthService.
+	AccountTokens *account.Tokens
+	SessionMgmt   *account.Sessions
+	Passwords     *account.Passwords
+	Identities    *account.Identities
+	Profiles      *account.Profiles
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
 	Content                  port.ContentSigner
@@ -244,6 +252,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	}
 	wireAppIngestUseCases(app, pool, logger)
 	wireAppAccountUseCases(app, pool)
+	wireAccount(app)
 	if err := wireAppNATS(ctx, app, cfg, logger); err != nil {
 		return nil, err
 	}
@@ -701,4 +710,33 @@ func nilIfNilEngagement(app *App) port.EngagementRepo {
 		return nil
 	}
 	return app.Engagement
+}
+
+// wireAccount builds the self-service account use cases (after the account
+// repos exist); the reset link points at the SPA's /reset-password page.
+func wireAccount(app *App) {
+	if app.PATs != nil {
+		app.AccountTokens = &account.Tokens{PATs: app.PATs}
+	}
+	if app.Sessions != nil {
+		app.SessionMgmt = &account.Sessions{Repo: app.Sessions}
+	}
+	if app.Users != nil && app.AuthTokens != nil && app.Sessions != nil && app.PasswordHasher != nil {
+		base := strings.TrimRight(app.PublicBaseURL, "/")
+		app.Passwords = &account.Passwords{
+			Users: app.Users, Hasher: app.PasswordHasher, Tokens: app.AuthTokens, Sessions: app.Sessions,
+			Mail:      app.Email,
+			ResetLink: func(code string) string { return base + "/reset-password?code=" + code },
+		}
+	}
+	if app.LinkedIdentities != nil && app.Users != nil {
+		var passkeys port.PasskeyRepo
+		if app.Passkeys != nil {
+			passkeys = app.Passkeys
+		}
+		app.Identities = &account.Identities{Repo: app.LinkedIdentities, Users: app.Users, Passkeys: passkeys, Providers: app.OIDCProviders}
+	}
+	if app.Users != nil {
+		app.Profiles = &account.Profiles{Users: app.Users}
+	}
 }

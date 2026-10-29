@@ -24,4 +24,10 @@ type LinkedIdentityRepo interface {
 
 	// TouchLastUsed updates last_used_at + last_claims. Best-effort.
 	TouchLastUsed(ctx context.Context, id domain.LinkedIdentityID, claims map[string]any) error
+
+	// ListForUser returns the user's links, oldest first.
+	ListForUser(ctx context.Context, userID domain.UserID) ([]domain.LinkedIdentity, error)
+
+	// Delete removes one link; ownership-scoped. ErrNotFound when no row matches.
+	Delete(ctx context.Context, userID domain.UserID, id domain.LinkedIdentityID) error
 }

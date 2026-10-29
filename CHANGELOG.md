@@ -7,6 +7,16 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `AuthService` account RPCs: `CreatePersonalAccessToken`,
+  `ListPersonalAccessTokens`, `RevokePersonalAccessToken`, `ChangePassword`,
+  `RequestPasswordReset`, `ConfirmPasswordReset`, `ListSessions`,
+  `RevokeSession`, `ListLinkedIdentities`, `UnlinkOIDCIdentity` and
+  `UpdateProfile`. REST gains the missing twins: `POST /auth/password/change`,
+  `GET|DELETE /api/sessions[/{id}]`, `GET|DELETE /api/identities[/{id}]` and
+  `PUT /api/profile`; `/api/pats` and `/auth/password/{forgot,reset}` now run
+  on the same use cases (`internal/usecase/account`). A password change ends
+  the user's other sessions, a reset ends all of them; the last sign-in
+  method cannot be unlinked; email changes are refused on both surfaces.
 - `SocialService` reads: `ListFollowingFeed`, `ListClubs`, `GetClub`,
   `ListClubMembers`, `ListClubFeed`, `GetProfile`, `GetProjectedActivity`,
   `GetSharedActivity` (public, the token is the authorization) and

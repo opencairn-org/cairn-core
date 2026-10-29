@@ -1951,8 +1951,9 @@ func (x *ConfirmPasswordResetRequest) GetNewPassword() string {
 }
 
 type ConfirmPasswordResetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Session       *SessionResult         `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset: the caller signs in again after a reset.
+	Session       *SessionResult `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
