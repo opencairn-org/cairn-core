@@ -7,6 +7,32 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `MetricsService` store RPCs: `GetLatestMetrics`, `QueryMetricSeries`
+  (TimescaleDB buckets, avg/min/max/sum/last/first/count, capped by
+  `max_points`), `UpsertMetric` (manual entry, natural-key dedup),
+  `DeleteMetric`, `BulkUpsertMetrics` (≤1000 rows) and `GetUserContext`
+  (stored measurements, athlete profile for the gaps, merge policies).
+  `ListMetrics` honours every filter and pages in SQL. REST twins under
+  `/api/metrics` (`GET`, `/latest`, `/series`, `/context`, `PUT`, `/bulk`,
+  `DELETE /{id}`).
+- `ExternalAccountService.DeleteExternalAccount` / `DELETE /api/accounts/{id}`:
+  sources are detached, activities with other sources re-merge, orphans are
+  soft-deleted only with `delete_exclusive_activities`, then the row goes
+  (queue, import events, gear and mirrored segments cascade).
+  `RotateWebhookToken` / `POST /api/accounts/{id}/webhook-token/rotate`
+  replaces the per-account signing secret; subscriptions are worker-owned,
+  so no re-registration job is queued.
+- `NotificationService.ListNotificationPreferences` /
+  `UpdateNotificationPreferences` on the same use-case as
+  `/api/notifications/preferences` (email channel, resolved defaults).
+- `StreamAdminEvents` now carries every type in the enum: worker degraded
+  (release incompatible with the core), provider conflict (two sources of
+  one provider kept apart by the recluster), auth flood and system health
+  degraded (minute probe leaving "healthy").
+- Password sign-in guard: every failure is audited (`auth.login_failed`);
+  ten failures per identifier or twenty per address within ten minutes lock
+  the key for ten minutes (`/login?error=too_many_attempts`) and raise the
+  auth-flood admin event.
 - Device authorization grant (RFC 8628): `POST /oauth/device_authorization`
   issues a code pair, the token endpoint accepts
   `urn:ietf:params:oauth:grant-type:device_code` with `authorization_pending`,
@@ -155,6 +181,18 @@ All notable changes to Cairn are documented here. The format follows
   its scope and each `rpc` carries a `// Scope:` comment.
 
 ### Changed
+- Maintenance jobs are persisted (`maintenance_jobs`, migration 00073): a
+  restart re-queues jobs still waiting and marks the one that was running
+  failed with "interrupted by server restart"; `ListMaintenanceJobs` merges
+  the live registry with the stored history. Blob garbage collection now
+  covers every key family a source or attachment can reference (`raw/`,
+  `attachments/`, `uploads/`, `users/`, `shared/`) plus `transfer/`.
+- Connect scope derivation treats `Query*` RPCs as reads; `QueryMetricSeries`
+  needs `training:read`.
+- The REST read paths that still carried logic in `package main` (quota,
+  map/photo/social visibility gates, follow and block lists, follow state,
+  the admin user page, the notification preference matrix) now run on
+  `internal/usecase` types shared with the Connect handlers.
 - OAuth tokens are now checked per scope family on Connect: an
   `ActivityService` read needs `activities:read`, `GearService` needs
   `gear:*`, `NotificationService` `notifications:*`, and so on; session-bound

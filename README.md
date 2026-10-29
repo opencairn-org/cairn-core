@@ -208,10 +208,13 @@ as an admin user, then call them with the `cairn_session` cookie):
 - `GET /api/admin/jobs[/{id}]` (+ `retry`, `cancel`), `GET /api/admin/sources/orphaned`
   — import-queue introspection.
 - `GET /api/admin/webhook-tokens`, `POST /api/admin/webhook-tokens/rotate` — per-account
-  webhook signing secrets.
+  webhook signing secrets (users rotate their own via
+  `POST /api/accounts/{id}/webhook-token/rotate`).
 - `POST /api/admin/maintenance`, `GET /api/admin/maintenance/jobs`,
   `POST /api/admin/maintenance/jobs/{id}/cancel` — instance-wide recomputations
-  (confirm with the operation name in upper case).
+  (confirm with the operation name in upper case). Jobs run one at a time in
+  the core process and are persisted: a restart re-queues waiting jobs and
+  fails the interrupted one.
 
 Every route has a twin on the Connect `AdminService`; both accept only an admin
 session, never an OAuth token.
