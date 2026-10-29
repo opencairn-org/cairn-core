@@ -280,6 +280,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	mountPATs(mux, app, logger)
 	// Password change, sessions, linked identities, profile (AuthService twins).
 	mountAccount(mux, app, logger)
+	mountAuthorizedApps(mux, app)
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {

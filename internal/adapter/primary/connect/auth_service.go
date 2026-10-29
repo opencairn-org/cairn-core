@@ -50,6 +50,7 @@ type AuthServer struct {
 	Passwords   *account.Passwords
 	Identities  *account.Identities
 	Profiles    *account.Profiles
+	Apps        *account.AuthorizedApps
 	// Log receives failures that must not reach the caller (reset mail).
 	Log *slog.Logger
 }

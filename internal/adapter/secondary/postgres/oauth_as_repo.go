@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -180,4 +182,71 @@ func (r *OAuthServerRepo) RevokeRefreshToken(ctx context.Context, tokenHash []by
 	_, err := r.pool.Exec(ctx,
 		`UPDATE oauth_refresh_tokens SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL`, tokenHash)
 	return err
+}
+
+// ---- authorized apps ----
+
+func (r *OAuthServerRepo) ListGrantsForUser(ctx context.Context, userID domain.UserID, now time.Time) ([]domain.OAuthGrant, error) {
+	rows, err := r.pool.Query(ctx, `
+		WITH live AS (
+			SELECT client_id, scope, created_at FROM oauth_access_tokens
+			 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > $2
+			UNION ALL
+			SELECT client_id, scope, created_at FROM oauth_refresh_tokens
+			 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > $2
+		)
+		SELECT l.client_id, COALESCE(c.name, l.client_id), COALESCE(c.software_id, ''), COALESCE(c.software_version, ''),
+		       array_agg(DISTINCT l.scope), min(l.created_at), max(l.created_at), count(*)
+		  FROM live l LEFT JOIN oauth_clients c ON c.client_id = l.client_id
+		 GROUP BY l.client_id, c.name, c.software_id, c.software_version
+		 ORDER BY max(l.created_at) DESC`, userID.UUID(), now)
+	if err != nil {
+		return nil, fmt.Errorf("list oauth grants: %w", err)
+	}
+	defer rows.Close()
+	out := []domain.OAuthGrant{}
+	for rows.Next() {
+		var (
+			g      domain.OAuthGrant
+			scopes []string
+			n      int64
+		)
+		if err := rows.Scan(&g.ClientID, &g.ClientName, &g.SoftwareID, &g.SoftwareVersion, &scopes, &g.GrantedAt, &g.LastIssuedAt, &n); err != nil {
+			return nil, fmt.Errorf("scan oauth grant: %w", err)
+		}
+		g.Scopes = mergeScopeStrings(scopes)
+		g.ActiveTokens = int(n)
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+func (r *OAuthServerRepo) RevokeClientForUser(ctx context.Context, userID domain.UserID, clientID string) (int, error) {
+	n := 0
+	for _, table := range []string{"oauth_access_tokens", "oauth_refresh_tokens"} {
+		tag, err := r.pool.Exec(ctx,
+			`UPDATE `+table+` SET revoked_at = now() WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NULL`,
+			userID.UUID(), clientID)
+		if err != nil {
+			return n, fmt.Errorf("revoke %s: %w", table, err)
+		}
+		n += int(tag.RowsAffected())
+	}
+	return n, nil
+}
+
+// mergeScopeStrings unions space-separated scope strings into a sorted set.
+func mergeScopeStrings(in []string) []string {
+	set := map[string]struct{}{}
+	for _, s := range in {
+		for _, sc := range strings.Fields(s) {
+			set[sc] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for sc := range set {
+		out = append(out, sc)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -234,3 +234,47 @@ func userJSON(u domain.User) map[string]any {
 		"last_login_at":  fmtTimePtr(u.LastLoginAt),
 	}
 }
+
+// mountAuthorizedApps is the REST twin of ListAuthorizedApps / RevokeAuthorizedApp:
+//
+//	GET    /api/oauth/apps              → { apps: [...] }
+//	DELETE /api/oauth/apps/{client_id}  → { tokens_revoked }
+func mountAuthorizedApps(mux *http.ServeMux, app *App) {
+	if app.AuthorizedApps == nil {
+		return
+	}
+	mux.HandleFunc("GET /api/oauth/apps", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := resolveSessionUser(r, app)
+		if !ok {
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		grants, err := app.AuthorizedApps.List(r.Context(), userID)
+		if err != nil {
+			writeActionError(w, err, "load failed")
+			return
+		}
+		out := make([]map[string]any, 0, len(grants))
+		for _, g := range grants {
+			out = append(out, map[string]any{
+				"client_id": g.ClientID, "client_name": g.ClientName, "software_id": g.SoftwareID,
+				"software_version": g.SoftwareVersion, "scopes": g.Scopes, "active_tokens": g.ActiveTokens,
+				"granted_at": g.GrantedAt.UTC().Format(time.RFC3339), "last_issued_at": g.LastIssuedAt.UTC().Format(time.RFC3339),
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"apps": out})
+	})
+	mux.HandleFunc("DELETE /api/oauth/apps/{client_id}", func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := resolveSessionUser(r, app)
+		if !ok {
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		n, err := app.AuthorizedApps.Revoke(r.Context(), userID, r.PathValue("client_id"))
+		if err != nil {
+			writeActionError(w, err, "revoke failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"tokens_revoked": n})
+	})
+}

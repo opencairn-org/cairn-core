@@ -5,6 +5,7 @@
 	import LocaleSwitcher from '#lib/components/LocaleSwitcher.svelte';
 	import PasskeyManager from '#lib/components/PasskeyManager.svelte';
 	import TokenManager from '#lib/components/TokenManager.svelte';
+	import AuthorizedApps from '#lib/components/AuthorizedApps.svelte';
 	import WebhookManager from '#lib/components/WebhookManager.svelte';
 	import PrivacySharingSettings from '#lib/components/PrivacySharingSettings.svelte';
 	import MergePolicyEditor from '#lib/components/MergePolicyEditor.svelte';
@@ -411,6 +412,8 @@
 	<PasskeyManager />
 
 	<TokenManager />
+
+	<AuthorizedApps />
 
 	<WebhookManager />
 </div>

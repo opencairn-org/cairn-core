@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -133,4 +134,45 @@ func revokeOthers(ctx context.Context, repo port.SessionRepo, userID domain.User
 		}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Authorized apps (OAuth clients)
+// ---------------------------------------------------------------------------
+
+// AuthorizedApps lists and revokes the OAuth clients holding tokens for a user.
+type AuthorizedApps struct {
+	OAuth port.OAuthServerRepo
+	Now   func() time.Time
+}
+
+func (a *AuthorizedApps) now() time.Time {
+	if a.Now != nil {
+		return a.Now()
+	}
+	return time.Now().UTC()
+}
+
+// List returns the clients with live tokens, newest grant first.
+func (a *AuthorizedApps) List(ctx context.Context, userID domain.UserID) ([]domain.OAuthGrant, error) {
+	grants, err := a.OAuth.ListGrantsForUser(ctx, userID, a.now())
+	if err != nil {
+		return nil, internalErr("list authorized apps", err)
+	}
+	return grants, nil
+}
+
+// Revoke ends every live token of one client; an unknown client is not found.
+func (a *AuthorizedApps) Revoke(ctx context.Context, userID domain.UserID, clientID string) (int, error) {
+	if strings.TrimSpace(clientID) == "" {
+		return 0, invalid(errors.New("client_id required"))
+	}
+	n, err := a.OAuth.RevokeClientForUser(ctx, userID, clientID)
+	if err != nil {
+		return 0, internalErr("revoke authorized app", err)
+	}
+	if n == 0 {
+		return 0, port.NewActionError(port.ActionErrorNotFound, "no live tokens for this client")
+	}
+	return n, nil
 }

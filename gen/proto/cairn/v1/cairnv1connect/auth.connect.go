@@ -109,6 +109,12 @@ const (
 	// AuthServiceRevokePersonalAccessTokenProcedure is the procedure name of the AuthService's
 	// RevokePersonalAccessToken RPC.
 	AuthServiceRevokePersonalAccessTokenProcedure = "/cairn.v1.AuthService/RevokePersonalAccessToken"
+	// AuthServiceListAuthorizedAppsProcedure is the procedure name of the AuthService's
+	// ListAuthorizedApps RPC.
+	AuthServiceListAuthorizedAppsProcedure = "/cairn.v1.AuthService/ListAuthorizedApps"
+	// AuthServiceRevokeAuthorizedAppProcedure is the procedure name of the AuthService's
+	// RevokeAuthorizedApp RPC.
+	AuthServiceRevokeAuthorizedAppProcedure = "/cairn.v1.AuthService/RevokeAuthorizedApp"
 	// ExternalAccountServiceListExternalAccountsProcedure is the procedure name of the
 	// ExternalAccountService's ListExternalAccounts RPC.
 	ExternalAccountServiceListExternalAccountsProcedure = "/cairn.v1.ExternalAccountService/ListExternalAccounts"
@@ -304,6 +310,21 @@ var (
 			Procedure:  AuthServiceRevokePersonalAccessTokenProcedure,
 		}
 	})
+	authServiceListAuthorizedAppsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("ListAuthorizedApps"),
+			Procedure:        AuthServiceListAuthorizedAppsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	authServiceRevokeAuthorizedAppSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("RevokeAuthorizedApp"),
+			Procedure:  AuthServiceRevokeAuthorizedAppProcedure,
+		}
+	})
 )
 
 // AuthServiceClient is a client for the cairn.v1.AuthService service.
@@ -391,6 +412,11 @@ type AuthServiceClient interface {
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
 	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
+	ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error)
+	// Revokes every live access and refresh token the client holds for the caller.
+	// Scope: cookie session only.
+	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
 }
 
 // NewAuthServiceClient constructs a client for the cairn.v1.AuthService service. Multiple service
@@ -484,6 +510,11 @@ type AuthServiceHandler interface {
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
 	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
+	ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error)
+	// Revokes every live access and refresh token the client holds for the caller.
+	// Scope: cookie session only.
+	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
 }
 
 // RegisterAuthServiceHandler registers svc as the cairn.v1.AuthService implementation on server.
@@ -512,6 +543,8 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceCreatePersonalAccessTokenSpec(), Handler: adapter.createPersonalAccessToken},
 		connect.Method{Spec: authServiceListPersonalAccessTokensSpec(), Handler: adapter.listPersonalAccessTokens},
 		connect.Method{Spec: authServiceRevokePersonalAccessTokenSpec(), Handler: adapter.revokePersonalAccessToken},
+		connect.Method{Spec: authServiceListAuthorizedAppsSpec(), Handler: adapter.listAuthorizedApps},
+		connect.Method{Spec: authServiceRevokeAuthorizedAppSpec(), Handler: adapter.revokeAuthorizedApp},
 	)
 }
 
@@ -604,6 +637,14 @@ func (UnimplementedAuthServiceHandler) ListPersonalAccessTokens(context.Context,
 
 func (UnimplementedAuthServiceHandler) RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.RevokePersonalAccessToken is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.ListAuthorizedApps is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.RevokeAuthorizedApp is not implemented")
 }
 
 type authServiceClient struct {
@@ -781,6 +822,22 @@ func (c *authServiceClient) ListPersonalAccessTokens(ctx context.Context, req *v
 func (c *authServiceClient) RevokePersonalAccessToken(ctx context.Context, req *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error) {
 	var res v1.RevokePersonalAccessTokenResponse
 	if err := c.client.CallUnary(ctx, authServiceRevokePersonalAccessTokenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) ListAuthorizedApps(ctx context.Context, req *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error) {
+	var res v1.ListAuthorizedAppsResponse
+	if err := c.client.CallUnary(ctx, authServiceListAuthorizedAppsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) RevokeAuthorizedApp(ctx context.Context, req *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
+	var res v1.RevokeAuthorizedAppResponse
+	if err := c.client.CallUnary(ctx, authServiceRevokeAuthorizedAppSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1046,6 +1103,30 @@ func (h authServiceHandler) revokePersonalAccessToken(ctx context.Context, _ con
 		return err
 	}
 	res, err := h.svc.RevokePersonalAccessToken(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) listAuthorizedApps(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAuthorizedAppsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListAuthorizedApps(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) revokeAuthorizedApp(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeAuthorizedAppRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeAuthorizedApp(ctx, &req)
 	if err != nil {
 		return err
 	}

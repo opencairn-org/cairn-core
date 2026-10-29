@@ -153,11 +153,12 @@ type App struct {
 	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
 	ActivityEvents *livefeed.Hub[domain.UserID, domain.ActivityEvent]
 	// Self-service account use cases, shared by /api and AuthService.
-	AccountTokens *account.Tokens
-	SessionMgmt   *account.Sessions
-	Passwords     *account.Passwords
-	Identities    *account.Identities
-	Profiles      *account.Profiles
+	AccountTokens  *account.Tokens
+	SessionMgmt    *account.Sessions
+	Passwords      *account.Passwords
+	Identities     *account.Identities
+	Profiles       *account.Profiles
+	AuthorizedApps *account.AuthorizedApps
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
 	Content                  port.ContentSigner
@@ -750,6 +751,9 @@ func wireAccount(app *App) {
 	}
 	if app.Users != nil {
 		app.Profiles = &account.Profiles{Users: app.Users}
+	}
+	if app.OAuth != nil {
+		app.AuthorizedApps = &account.AuthorizedApps{OAuth: app.OAuth}
 	}
 }
 

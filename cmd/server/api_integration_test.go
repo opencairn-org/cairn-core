@@ -577,6 +577,18 @@ func TestAPI_EndToEnd(t *testing.T) {
 			anon.do(http.MethodGet, "/mcp", nil)
 			oc.do(http.MethodPost, "/api/activities/"+actID+"/reviewed", nil, http.StatusUnauthorized, http.StatusForbidden)
 			anon.do(http.MethodPost, "/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {str(tok, "refresh_token")}, "client_id": {cid}}, http.StatusOK)
+			// Authorized apps: the client shows up with live tokens, then revoking it ends them.
+			var apps struct {
+				Apps []map[string]any `json:"apps"`
+			}
+			_ = json.Unmarshal(alice.do(http.MethodGet, "/api/oauth/apps", nil, http.StatusOK), &apps)
+			if len(apps.Apps) != 1 {
+				t.Fatalf("authorized apps = %v", apps)
+			}
+			alice.rpc("/cairn.v1.AuthService/ListAuthorizedApps", map[string]any{}, http.StatusOK)
+			alice.do(http.MethodDelete, "/api/oauth/apps/"+cid, nil, http.StatusOK)
+			alice.do(http.MethodDelete, "/api/oauth/apps/"+cid, nil, http.StatusNotFound)
+			oc.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
 			anon.do(http.MethodPost, "/oauth/revoke", url.Values{"token": {str(tok, "access_token")}, "client_id": {cid}})
 		}
 	}

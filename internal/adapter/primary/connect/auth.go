@@ -229,6 +229,8 @@ var scopeOverrides = map[string]scopePolicy{
 	"/cairn.v1.AuthService/CreatePersonalAccessToken": scopeSessionOnly,
 	"/cairn.v1.AuthService/ListPersonalAccessTokens":  scopeSessionOnly,
 	"/cairn.v1.AuthService/RevokePersonalAccessToken": scopeSessionOnly,
+	"/cairn.v1.AuthService/ListAuthorizedApps":        scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokeAuthorizedApp":       scopeSessionOnly,
 }
 
 // scopeCheck applies the policy of procedure to an OAuth token's scopes.

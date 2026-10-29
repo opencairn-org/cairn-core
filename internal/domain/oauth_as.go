@@ -344,3 +344,18 @@ func SortedScopeString(scopes []string) string {
 	sort.Strings(cp)
 	return strings.Join(cp, " ")
 }
+
+// OAuthGrant is one client's standing access to a user: what the user sees
+// on the "authorized apps" page and can revoke as a whole.
+type OAuthGrant struct {
+	ClientID        string
+	ClientName      string
+	SoftwareID      string
+	SoftwareVersion string
+	// Scopes is the union of the client's live token scopes.
+	Scopes []string
+	// GrantedAt is the oldest live token; LastIssuedAt the newest.
+	GrantedAt    time.Time
+	LastIssuedAt time.Time
+	ActiveTokens int
+}

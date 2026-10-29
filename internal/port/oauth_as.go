@@ -30,4 +30,11 @@ type OAuthServerRepo interface {
 	CreateRefreshToken(ctx context.Context, t domain.OAuthRefreshToken, tokenHash []byte) error
 	FindRefreshToken(ctx context.Context, tokenHash []byte) (domain.OAuthRefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, tokenHash []byte) error
+
+	// ListGrantsForUser groups the user's live access and refresh tokens by
+	// client (authorized apps), newest grant first.
+	ListGrantsForUser(ctx context.Context, userID domain.UserID, now time.Time) ([]domain.OAuthGrant, error)
+	// RevokeClientForUser revokes every live token the client holds for the
+	// user and returns how many were revoked.
+	RevokeClientForUser(ctx context.Context, userID domain.UserID, clientID string) (int, error)
 }
