@@ -28,9 +28,13 @@ func NewLoginChallengeRepo(pool *pgxpool.Pool) *LoginChallengeRepo {
 func (r *LoginChallengeRepo) Create(ctx context.Context, c domain.LoginChallenge) (domain.LoginChallengeID, error) {
 	db := dbtx(ctx, r.pool)
 	var id uuid.UUID
+	purpose := c.Purpose
+	if purpose == "" {
+		purpose = domain.ChallengeSecondFactor
+	}
 	err := db.QueryRow(ctx,
-		`INSERT INTO login_challenges (user_id, token_hash, expires_at) VALUES ($1, $2, $3) RETURNING id`,
-		c.UserID.UUID(), c.TokenHash, c.ExpiresAt).Scan(&id)
+		`INSERT INTO login_challenges (user_id, token_hash, expires_at, purpose) VALUES ($1, $2, $3, $4) RETURNING id`,
+		c.UserID.UUID(), c.TokenHash, c.ExpiresAt, string(purpose)).Scan(&id)
 	if err != nil {
 		return domain.LoginChallengeID{}, fmt.Errorf("insert login challenge: %w", err)
 	}
@@ -44,9 +48,9 @@ func (r *LoginChallengeRepo) GetByTokenHash(ctx context.Context, hash []byte) (d
 		id, uid uuid.UUID
 	)
 	err := db.QueryRow(ctx,
-		`SELECT id, user_id, token_hash, created_at, expires_at, satisfied_at, consumed_at
+		`SELECT id, user_id, purpose, token_hash, created_at, expires_at, satisfied_at, consumed_at
 		   FROM login_challenges WHERE token_hash = $1`, hash,
-	).Scan(&id, &uid, &c.TokenHash, &c.CreatedAt, &c.ExpiresAt, &c.SatisfiedAt, &c.ConsumedAt)
+	).Scan(&id, &uid, &c.Purpose, &c.TokenHash, &c.CreatedAt, &c.ExpiresAt, &c.SatisfiedAt, &c.ConsumedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.LoginChallenge{}, fmt.Errorf("login challenge: %w", domain.ErrNotFound)
 	}

@@ -24,6 +24,7 @@ const emailVerificationTTL = 24 * time.Hour
 //
 //	POST /auth/password/forgot     { email }        → always 200 (anti-enumeration)
 //	POST /auth/password/reset      { code, password } → sets password + logs in
+//	POST /auth/password/required   { challenge_token, password } → replaces a temporary password, then logs in or hands over to the second factor
 //	GET  /auth/email/verify?code=…                   → verifies + redirects to /login
 //	POST /auth/email/verify/send                     → resend (logged-in, unverified)
 func mountAuthRecovery(mux *http.ServeMux, app *App, logger *slog.Logger, publicURL string, sessionTTL time.Duration) {
@@ -34,6 +35,9 @@ func mountAuthRecovery(mux *http.ServeMux, app *App, logger *slog.Logger, public
 
 	// ---- password: reset ----
 	mux.HandleFunc("POST /auth/password/reset", h.reset)
+
+	// ---- password: forced change at sign-in ----
+	mux.HandleFunc("POST /auth/password/required", h.required)
 
 	// ---- email: verify (GET, from the email link) ----
 	mux.HandleFunc("GET /auth/email/verify", h.verify)
@@ -101,6 +105,47 @@ func (h *authRecoveryHandlers) reset(w http.ResponseWriter, r *http.Request) {
 	// Auto-login after a successful reset.
 	if err := issueSessionForUser(w, r, h.app, userID, domain.SessionAuthPassword, h.sessionTTL); err != nil {
 		// Password is set; just have them log in manually.
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": true})
+}
+
+// required completes a must-change-password sign-in with the new password.
+// A user who also needs a passkey gets the second-factor challenge back
+// instead of a session.
+func (h *authRecoveryHandlers) required(w http.ResponseWriter, r *http.Request) {
+	if !requireJSON(w, r) {
+		return
+	}
+	if h.app.PasswordChange == nil {
+		http.Error(w, "password change not available", http.StatusServiceUnavailable)
+		return
+	}
+	var body struct {
+		Token    string `json:"challenge_token"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSONBody(r, &body); err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	user, err := h.app.PasswordChange.Complete(r.Context(), strings.TrimSpace(body.Token), body.Password)
+	if err != nil {
+		writeActionError(w, err, "password change failed")
+		return
+	}
+	if h.app.SecondFactor.Required(user) {
+		token, err := h.app.SecondFactor.Begin(r.Context(), user.ID)
+		if err != nil {
+			h.logger.Error("password change: begin second factor failed", "error", err, "user_id", user.ID)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false, "challenge": token})
+		return
+	}
+	if err := issueSessionForUser(w, r, h.app, user.ID, domain.SessionAuthPassword, h.sessionTTL); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false})
 		return
 	}

@@ -35,6 +35,44 @@
 		}
 	}
 
+	// A password sign-in with a temporary password lands here with ?set_password=.
+	const setPassword = $derived(page.url.searchParams.get('set_password') ?? '');
+	let newPassword = $state('');
+	let newPasswordConfirm = $state('');
+	let setPasswordBusy = $state(false);
+	let setPasswordError = $state<string | null>(null);
+	async function finishPasswordChange(event: SubmitEvent) {
+		event.preventDefault();
+		if (newPassword !== newPasswordConfirm) {
+			setPasswordError = 'The passwords do not match.';
+			return;
+		}
+		setPasswordBusy = true;
+		setPasswordError = null;
+		try {
+			const res = await fetch('/auth/password/required', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challenge_token: setPassword, password: newPassword })
+			});
+			if (!res.ok) throw new Error((await res.text()).trim() || 'the password could not be set');
+			const out = (await res.json()) as { challenge?: string };
+			if (out.challenge) {
+				// The account also needs its passkey: continue on the challenge step.
+				await goto(
+					`/login?challenge=${encodeURIComponent(out.challenge)}&next=${encodeURIComponent(nextDest)}`
+				);
+				return;
+			}
+			await refreshAll();
+			await goto(nextDest).catch(() => location.assign(nextDest));
+		} catch (e) {
+			setPasswordError = (e as Error).message;
+		} finally {
+			setPasswordBusy = false;
+		}
+	}
+
 	let passkeyBusy = $state(false);
 	let passkeyError = $state<string | null>(null);
 	async function signInWithPasskey() {
@@ -109,7 +147,54 @@
 		</div>
 	{/if}
 
-	{#if challenge}
+	{#if setPassword}
+		<form
+			onsubmit={finishPasswordChange}
+			class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+		>
+			<h2 class="text-sm font-medium text-zinc-200">Choose a new password</h2>
+			<p class="text-xs text-zinc-400">
+				Your password was set by an administrator. Replace it before you continue.
+			</p>
+			<label class="block">
+				<span class="text-xs text-zinc-400">New password</span>
+				<input
+					type="password"
+					autocomplete="new-password"
+					required
+					minlength="12"
+					bind:value={newPassword}
+					class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+				/>
+			</label>
+			<label class="block">
+				<span class="text-xs text-zinc-400">Repeat new password</span>
+				<input
+					type="password"
+					autocomplete="new-password"
+					required
+					minlength="12"
+					bind:value={newPasswordConfirm}
+					class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+				/>
+			</label>
+			<button
+				type="submit"
+				disabled={setPasswordBusy}
+				class="w-full rounded bg-accent-500 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400 disabled:opacity-50"
+			>
+				{setPasswordBusy ? 'Saving…' : 'Set password and continue'}
+			</button>
+			{#if setPasswordError}
+				<div class="rounded border border-red-700/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+					{setPasswordError}
+				</div>
+			{/if}
+			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300"
+				>Start over</a
+			>
+		</form>
+	{:else if challenge}
 		<section class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
 			<h2 class="text-sm font-medium text-zinc-200">Confirm it's you</h2>
 			<p class="text-xs text-zinc-400">

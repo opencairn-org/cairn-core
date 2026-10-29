@@ -353,6 +353,8 @@ type AuthServiceClient interface {
 	// Not implemented (returns Unimplemented): the browser signs in through
 	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
 	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// A user flagged must_change_password gets a password-change challenge
+	// from POST /auth/password first (completed by POST /auth/password/required).
 	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
 	// Complete a second-factor challenge. A password sign-in of a user who
@@ -460,6 +462,8 @@ type AuthServiceHandler interface {
 	// Not implemented (returns Unimplemented): the browser signs in through
 	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
 	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// A user flagged must_change_password gets a password-change challenge
+	// from POST /auth/password first (completed by POST /auth/password/required).
 	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
 	// Complete a second-factor challenge. A password sign-in of a user who

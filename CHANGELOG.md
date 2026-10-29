@@ -175,6 +175,13 @@ All notable changes to Cairn are documented here. The format follows
   multipart upload does not.
 
 ### Fixed
+- `must_change_password` is now enforced: a password sign-in of a user whose
+  password was set by an administrator (reset, created with an initial
+  password, bootstrap admin) yields a challenge instead of a session and the
+  login page asks for a new password first (`POST /auth/password/required`);
+  the passkey second factor still follows when enabled. Passkey and OIDC
+  sign-ins are unaffected since they do not use the password (migration
+  00071 tags login challenges with their purpose).
 - Connect streaming RPCs went through the session, scope and admin
   interceptors unauthenticated (the chain only wrapped unary calls). No
   streaming RPC was implemented, so nothing was exposed; the chain now covers

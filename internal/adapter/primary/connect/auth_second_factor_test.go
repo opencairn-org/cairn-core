@@ -22,6 +22,10 @@ type fakeChallengeRepo struct {
 	consumed  bool
 }
 
+func (f *fakeChallengeRepo) GetByTokenHash(context.Context, []byte) (domain.LoginChallenge, error) {
+	return domain.LoginChallenge{UserID: f.user, Purpose: domain.ChallengeSecondFactor}, nil
+}
+
 func (f *fakeChallengeRepo) Consume(_ context.Context, _ []byte, _ time.Time) (domain.UserID, error) {
 	if !f.satisfied || f.consumed {
 		return domain.UserID{}, port.ErrAuthTokenInvalid

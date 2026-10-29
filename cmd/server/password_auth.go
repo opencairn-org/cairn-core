@@ -56,7 +56,7 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 			redirectLoginError(w, r, errCode)
 			return
 		}
-		if redirectSecondFactor(w, r, app, logger, user, dest) {
+		if redirectPasswordChange(w, r, app, logger, user, dest) || redirectSecondFactor(w, r, app, logger, user, dest) {
 			return
 		}
 
@@ -168,5 +168,23 @@ func redirectSecondFactor(w http.ResponseWriter, r *http.Request, app *App, logg
 		return true
 	}
 	http.Redirect(w, r, "/login?challenge="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
+	return true
+}
+
+// redirectPasswordChange hands the browser a password-change challenge
+// instead of a session when the user must replace a temporary password;
+// reports whether it did. The new password then completes the sign-in via
+// POST /auth/password/required, which runs the second factor if needed.
+func redirectPasswordChange(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, user domain.User, dest string) bool {
+	if !app.PasswordChange.Required(user) {
+		return false
+	}
+	token, err := app.PasswordChange.Begin(r.Context(), user.ID)
+	if err != nil {
+		logger.Error("password login: begin password change failed", "error", err, "user_id", user.ID)
+		redirectLoginError(w, r, "server_error")
+		return true
+	}
+	http.Redirect(w, r, "/login?set_password="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
 	return true
 }

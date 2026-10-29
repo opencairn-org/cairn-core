@@ -42,25 +42,39 @@ func (s *SecondFactor) Required(u domain.User) bool {
 
 // Begin stores a challenge for the user and returns its one-time token.
 func (s *SecondFactor) Begin(ctx context.Context, userID domain.UserID) (string, error) {
+	return beginChallenge(ctx, s.Challenges, userID, domain.ChallengeSecondFactor, s.now())
+}
+
+// beginChallenge mints a one-time token and stores its hash with the purpose.
+func beginChallenge(ctx context.Context, repo port.LoginChallengeRepo, userID domain.UserID, purpose domain.LoginChallengePurpose, now time.Time) (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("challenge token: %w", err)
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	hash := sha256.Sum256([]byte(token))
-	if _, err := s.Challenges.Create(ctx, domain.LoginChallenge{
-		UserID: userID, TokenHash: hash[:], CreatedAt: s.now(), ExpiresAt: s.now().Add(domain.LoginChallengeTTL),
+	if _, err := repo.Create(ctx, domain.LoginChallenge{
+		UserID: userID, Purpose: purpose, TokenHash: hash[:], CreatedAt: now, ExpiresAt: now.Add(domain.LoginChallengeTTL),
 	}); err != nil {
 		return "", fmt.Errorf("store challenge: %w", err)
 	}
 	return token, nil
 }
 
+// secondFactorChallenge loads a challenge of the passkey purpose.
+func (s *SecondFactor) secondFactorChallenge(ctx context.Context, token string) (domain.LoginChallenge, error) {
+	hash := sha256.Sum256([]byte(token))
+	c, err := s.Challenges.GetByTokenHash(ctx, hash[:])
+	if err != nil || (c.Purpose != "" && c.Purpose != domain.ChallengeSecondFactor) {
+		return domain.LoginChallenge{}, port.NewActionError(port.ActionErrorInvalid, ErrChallengeInvalid.Error())
+	}
+	return c, nil
+}
+
 // Satisfy records a verified passkey assertion of userID against the
 // challenge; an assertion by another user is refused.
 func (s *SecondFactor) Satisfy(ctx context.Context, token string, userID domain.UserID) error {
-	hash := sha256.Sum256([]byte(token))
-	c, err := s.Challenges.GetByTokenHash(ctx, hash[:])
+	c, err := s.secondFactorChallenge(ctx, token)
 	if err != nil || c.UserID != userID || c.ConsumedAt != nil || !s.now().Before(c.ExpiresAt) {
 		return port.NewActionError(port.ActionErrorInvalid, ErrChallengeInvalid.Error())
 	}
@@ -75,6 +89,9 @@ func (s *SecondFactor) Satisfy(ctx context.Context, token string, userID domain.
 
 // Complete consumes a satisfied challenge and returns the user to sign in.
 func (s *SecondFactor) Complete(ctx context.Context, token string) (domain.UserID, error) {
+	if _, err := s.secondFactorChallenge(ctx, token); err != nil {
+		return domain.UserID{}, err
+	}
 	hash := sha256.Sum256([]byte(token))
 	uid, err := s.Challenges.Consume(ctx, hash[:], s.now())
 	if errors.Is(err, port.ErrAuthTokenInvalid) {

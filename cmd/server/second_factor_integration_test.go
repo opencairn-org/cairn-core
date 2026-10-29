@@ -82,3 +82,80 @@ func TestAPI_SecondFactor(t *testing.T) {
 	alice.do(http.MethodPut, "/api/passkeys/second-factor", map[string]any{"enabled": false}, http.StatusOK)
 	alice.rpc("/cairn.v1.AuthService/SetPasskeySecondFactor", map[string]any{"enabled": true}, http.StatusOK)
 }
+
+// TestAPI_MustChangePassword: an admin reset leaves a temporary password that
+// cannot open a session; the sign-in completes only with a new password, and
+// then runs the second factor when the account requires one.
+func TestAPI_MustChangePassword(t *testing.T) {
+	env := newITestEnv(t)
+	admin := env.user("adminreset", domain.UserRoleAdmin)
+	bob := env.user("bobreset", domain.UserRoleUser)
+	ctx := context.Background()
+
+	var reset struct {
+		Temp string `json:"temporary_password"`
+	}
+	_ = json.Unmarshal(admin.do(http.MethodPost, "/api/admin/users/"+bob.userID.String()+"/reset-password", nil, http.StatusOK), &reset)
+	if reset.Temp == "" {
+		t.Fatal("no temporary password")
+	}
+	bob.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized) // reset ended the session
+
+	login := func(c *itestClient, password string) *http.Response {
+		t.Helper()
+		resp, err := c.http.PostForm(env.srv.URL+"/auth/password", url.Values{"identifier": {bob.name}, "password": {password}, "redirect": {"/activities"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		return resp
+	}
+	fresh := env.anon()
+	resp := login(fresh, reset.Temp)
+	loc := resp.Header.Get("Location")
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/login?set_password=") {
+		t.Fatalf("login with temporary password: %d %s", resp.StatusCode, loc)
+	}
+	u, _ := url.Parse(loc)
+	token := u.Query().Get("set_password")
+	fresh.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
+	fresh.do(http.MethodPost, "/auth/password/required", map[string]any{"challenge_token": token, "password": "short"}, http.StatusBadRequest)
+	fresh.do(http.MethodPost, "/auth/2fa/complete", map[string]any{"challenge_token": token}, http.StatusBadRequest)
+	var out struct {
+		LoggedIn  bool   `json:"logged_in"`
+		Challenge string `json:"challenge"`
+	}
+	_ = json.Unmarshal(fresh.do(http.MethodPost, "/auth/password/required", map[string]any{"challenge_token": token, "password": "a brand new password"}, http.StatusOK), &out)
+	if !out.LoggedIn || out.Challenge != "" {
+		t.Fatalf("required: %+v", out)
+	}
+	fresh.do(http.MethodGet, "/api/overview", nil, http.StatusOK)
+	fresh.do(http.MethodPost, "/auth/password/required", map[string]any{"challenge_token": token, "password": "a brand new password"}, http.StatusBadRequest)
+	if resp := login(env.anon(), reset.Temp); resp.Header.Get("Location") != "/login?error=invalid_credentials" {
+		t.Fatalf("temporary password still valid: %s", resp.Header.Get("Location"))
+	}
+	if resp := login(env.anon(), "a brand new password"); resp.Header.Get("Location") != "/activities" {
+		t.Fatalf("new password: %s", resp.Header.Get("Location"))
+	}
+
+	// With the passkey second factor on, the new password hands over to the challenge.
+	if _, err := env.app.Passkeys.Create(ctx, domain.Passkey{UserID: bob.userID, CredentialID: []byte("cred-" + bob.name), CredentialJSON: []byte(`{}`), Name: "k"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.app.SecondFactor.SetEnabled(ctx, bob.userID, true); err != nil {
+		t.Fatal(err)
+	}
+	_ = json.Unmarshal(admin.do(http.MethodPost, "/api/admin/users/"+bob.userID.String()+"/reset-password", nil, http.StatusOK), &reset)
+	fresh = env.anon()
+	u, _ = url.Parse(login(fresh, reset.Temp).Header.Get("Location"))
+	_ = json.Unmarshal(fresh.do(http.MethodPost, "/auth/password/required", map[string]any{"challenge_token": u.Query().Get("set_password"), "password": "yet another password"}, http.StatusOK), &out)
+	if out.LoggedIn || out.Challenge == "" {
+		t.Fatalf("required with 2fa: %+v", out)
+	}
+	fresh.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
+	if err := env.app.SecondFactor.Satisfy(ctx, out.Challenge, bob.userID); err != nil {
+		t.Fatal(err)
+	}
+	fresh.do(http.MethodPost, "/auth/2fa/complete", map[string]any{"challenge_token": out.Challenge}, http.StatusOK)
+	fresh.do(http.MethodGet, "/api/overview", nil, http.StatusOK)
+}

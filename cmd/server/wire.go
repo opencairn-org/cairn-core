@@ -171,7 +171,9 @@ type App struct {
 	Profiles       *account.Profiles
 	AuthorizedApps *account.AuthorizedApps
 	// SecondFactor runs the passkey-after-password step (nil when passkeys are off).
-	SecondFactor    *authuc.SecondFactor
+	SecondFactor *authuc.SecondFactor
+	// PasswordChange enforces must_change_password at password sign-in.
+	PasswordChange  *authuc.PasswordChangeRequired
 	LoginChallenges *postgres.LoginChallengeRepo
 	// AuditLog records and lists the audit trail; UserAdmin is admin user management.
 	AuditLog  *audit.Recorder
@@ -803,6 +805,9 @@ func wireAccount(app *App) {
 	}
 	if app.Passkeys != nil && app.LoginChallenges != nil && app.Users != nil {
 		app.SecondFactor = &authuc.SecondFactor{Challenges: app.LoginChallenges, Users: app.Users, Passkeys: app.Passkeys}
+	}
+	if app.LoginChallenges != nil && app.Users != nil && app.PasswordHasher != nil {
+		app.PasswordChange = &authuc.PasswordChangeRequired{Challenges: app.LoginChallenges, Users: app.Users, Hasher: app.PasswordHasher}
 	}
 	wireAdmin(app)
 }
