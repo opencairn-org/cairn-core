@@ -55,6 +55,8 @@ func mountAdminOps(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mux.HandleFunc("POST /api/admin/jobs/{id}/retry", h.retryJob)
 	mux.HandleFunc("POST /api/admin/jobs/{id}/cancel", h.cancelJob)
 	mux.HandleFunc("GET /api/admin/sources/orphaned", h.orphanedSources)
+	mux.HandleFunc("GET /api/admin/webhook-tokens", h.listWebhookTokens)
+	mux.HandleFunc("POST /api/admin/webhook-tokens/rotate", h.rotateWebhookTokens)
 
 	logger.Info("admin ops endpoints mounted (/api/admin/{geocode,nats,dlq})")
 }

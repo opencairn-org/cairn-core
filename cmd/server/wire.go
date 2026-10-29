@@ -46,6 +46,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
 // App is the constructed dependency graph the HTTP server uses.
@@ -185,6 +186,8 @@ type App struct {
 	FedBlocks            *moderation.Blocks
 	MergeDefaults        *instance.MergeDefaults
 	Ops                  *instance.Ops
+	// WebhookTokens lists and rotates the per-account webhook signing secrets.
+	WebhookTokens *webhooks.Tokens
 	// EmailAdapter / StorageAdapter name the operator's choices (env).
 	EmailAdapter, EmailFrom string
 	StorageAdapter          string
@@ -945,6 +948,10 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 		app.Fleet.Enrollments = app.WorkerEnrollments
 	}
 	app.Ops = &instance.Ops{GeocodeBackfill: geocodeBackfillRunner(app, logger), Keys: natsKeyManager{app: app}, Audit: app.AuditLog}
+	app.WebhookTokens = &webhooks.Tokens{Audit: app.AuditLog}
+	if app.ExternalAccounts != nil {
+		app.WebhookTokens.Repo = app.ExternalAccounts
+	}
 	if app.Gear != nil {
 		app.Ops.Gear = app.Gear
 	}

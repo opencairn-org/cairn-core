@@ -18,6 +18,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
+	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
 // AdminServer implements cairnv1connect.AdminServiceHandler.
@@ -51,6 +52,7 @@ type AdminServer struct {
 	Blocks        *moderation.Blocks
 	MergeDefaults *instance.MergeDefaults
 	Ops           *instance.Ops
+	WebhookTokens *webhooks.Tokens
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

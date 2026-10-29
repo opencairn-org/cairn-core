@@ -566,6 +566,10 @@ func TestAPI_EndToEnd(t *testing.T) {
 	adm.rpc("/cairn.v1.AdminService/CreateWorkerEnrollment", map[string]any{"name": "rpc-worker", "provider": "strava"}, http.StatusOK)
 	adm.rpc("/cairn.v1.AdminService/RetireWorkerPool", map[string]any{"provider": "strava", "name": "nope"}, http.StatusNotFound)
 	adm.rpc("/cairn.v1.AdminService/SetActivityHidden", map[string]any{"activityId": bobAct, "hidden": false}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListWebhookSigningTokens", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{"provider": "strava", "olderThan": "86400s"}, http.StatusOK)
+	bob.rpc("/cairn.v1.AdminService/ListWebhookSigningTokens", map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)

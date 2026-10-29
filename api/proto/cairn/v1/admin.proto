@@ -758,7 +758,8 @@ message BulkRotateWebhookSigningTokensRequest {
 }
 message BulkRotateWebhookSigningTokensResponse {
   int32 rotated_count = 1;
-  // Per-account job ids for the resulting unregister+register cycles.
+  // One entry per rotated account. The job ids stay empty until a worker
+  // consumes the signing token and the subscription has to be re-registered.
   repeated WebhookRotationJobs rotation_jobs = 2;
 }
 message WebhookRotationJobs {
