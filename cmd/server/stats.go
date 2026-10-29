@@ -59,9 +59,10 @@ func statsRecordJSON(a *domain.Activity) map[string]any {
 	}
 }
 
-func deref(p *float64) float64 {
+func deref[T any](p *T) T {
 	if p == nil {
-		return 0
+		var zero T
+		return zero
 	}
 	return *p
 }

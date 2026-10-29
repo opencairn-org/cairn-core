@@ -54,7 +54,7 @@ const (
 	// sensible result; instance operators with pathological cases can
 	// override match_corridor_m to widen tolerance).
 	segmentSaveGeomExpr = `ST_GeogFromText($25)`
-	segmentSaveBBoxExpr = `ST_Envelope(ST_GeogFromText($25)::geometry)::geography`
+	segmentSaveBBoxExpr = `ST_Envelope(ST_Expand(ST_GeogFromText($25)::geometry, 0.000001))::geography`
 )
 
 // segmentSaveSQL upserts one segment; geom/bbox are derived from the WKT in $25.

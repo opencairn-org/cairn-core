@@ -321,6 +321,7 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// An activity's segment efforts (joined to their segment).
 	mountSegmentEfforts(mux, app, logger)
 	mountSegmentDetail(mux, app, logger)
+	mountSegmentAuthoring(mux, app, logger)
 	mountZones(mux, app, logger)
 	mountLaps(mux, app, logger)
 	mountActivitySources(mux, app, logger)

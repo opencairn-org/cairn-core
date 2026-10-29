@@ -147,6 +147,30 @@ type SegmentRepo interface {
 	// in a single SQL statement; the use case wraps the call in a
 	// transaction so callers that batch multiple segments share one tx.
 	RecomputeRanksForSegment(ctx context.Context, segmentID domain.SegmentID) error
+
+	// ---- authoring, browsing and leaderboards -------------------------
+
+	// ViewerOwnsAccount reports whether the external account belongs to the viewer.
+	ViewerOwnsAccount(ctx context.Context, viewer domain.UserID, account domain.ExternalAccountID) (bool, error)
+
+	// CountEffortsForSegment returns how many efforts exist on the segment.
+	CountEffortsForSegment(ctx context.Context, segmentID domain.SegmentID) (int, error)
+
+	// ListSegments returns the segments visible to the viewer (their own
+	// native ones, instance-scoped ones, mirrors of their accounts) with
+	// the filter and sort applied, plus the total match count.
+	ListSegments(ctx context.Context, viewer domain.UserID, f domain.SegmentListFilter) ([]domain.Segment, int, error)
+
+	// SearchSegmentsInBBox returns visible segments whose bbox intersects box.
+	SearchSegmentsInBBox(ctx context.Context, viewer domain.UserID, box BoundingBox, types []domain.ActivityType, includeInstance bool, limit int) ([]domain.Segment, error)
+
+	// ListSegmentEffortsFiltered lists efforts on one segment (visibility is
+	// the caller's job) with the query applied.
+	ListSegmentEffortsFiltered(ctx context.Context, segmentID domain.SegmentID, q domain.SegmentEffortQuery) ([]domain.SegmentEffort, error)
+
+	// SegmentLeaderboard ranks each athlete's best effort in the window.
+	// mine is the viewer's own entry (nil when they have none).
+	SegmentLeaderboard(ctx context.Context, segmentID domain.SegmentID, viewer domain.UserID, q domain.LeaderboardQuery) (entries []domain.LeaderboardEntry, mine *domain.LeaderboardEntry, err error)
 }
 
 // LeaderboardScope selects which efforts contribute to a leaderboard query.

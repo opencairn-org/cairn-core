@@ -170,6 +170,7 @@ type App struct {
 	ComputeBestEfforts       *besteffort.ComputeBestEffortsForSource
 	CustomBestEfforts        *besteffort.Customs
 	SourcePreviews           *activity.SourcePreviews
+	SegmentAuthoring         *segment.Authoring
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -412,6 +413,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		domain.MatchTolerances{}, // zero → DefaultMatchTolerances
 		nil,                      // default slog.Default
 	)
+	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
 	app.ComputeTrainingLoad = trainingload.NewComputeTrainingLoadForUser(
 		app.Activities,
 		app.Metrics,

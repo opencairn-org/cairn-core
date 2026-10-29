@@ -51,7 +51,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	cairnv1connect.RegisterExternalAccountServiceHandler(server, connectadapter.NewExternalAccountServer(
 		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())))
 	cairnv1connect.RegisterAuthServiceHandler(server, newAuthServer(app, logger))
-	registerReadServices(server, app)
+	registerReadServices(server, app, logger)
 	socialSvc := connectadapter.NewSocialServer(app.Feeds, app.Content, app.Gear, mapImageETag)
 	socialSvc.Clubs = app.ClubViews
 	socialSvc.Profiles = app.ProfileViews
@@ -168,11 +168,16 @@ func newAuthServer(app *App, logger *slog.Logger) *connectadapter.AuthServer {
 
 // registerReadServices mounts the aggregate and reference services (stats,
 // segments, metrics, settings); nil repos stay nil interfaces.
-func registerReadServices(server *connectrpc.Server, app *App) {
+func registerReadServices(server *connectrpc.Server, app *App, logger *slog.Logger) {
 	statsSvc := connectadapter.NewStatsServer(app.Overviews, app.Content, app.Gear, mapImageETag)
 	statsSvc.Stats = app.Stats
 	cairnv1connect.RegisterStatsServiceHandler(server, statsSvc)
-	cairnv1connect.RegisterSegmentServiceHandler(server, connectadapter.NewSegmentServer(app.SegmentViews))
+	segmentSvc := connectadapter.NewSegmentServer(app.SegmentViews)
+	segmentSvc.Authoring = app.SegmentAuthoring
+	segmentSvc.Backfill = func(userID domain.UserID, id domain.SegmentID, from, to time.Time) string {
+		return backfillSegment(app, logger, userID, id, from, to)
+	}
+	cairnv1connect.RegisterSegmentServiceHandler(server, segmentSvc)
 	var metricsRepo port.MetricRepo
 	if app.Metrics != nil {
 		metricsRepo = app.Metrics

@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -11,16 +12,20 @@ import (
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	segmentuc "github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
-// SegmentServer implements the caller-centric reads of
-// cairnv1connect.SegmentServiceHandler (ListMySegments, GetSegment,
-// ListMySegmentEfforts); the rest stays Unimplemented until backed.
+// SegmentServer implements cairnv1connect.SegmentServiceHandler: the
+// caller-centric reads here, authoring and leaderboards in segments_author.go.
 type SegmentServer struct {
 	cairnv1connect.UnimplementedSegmentServiceHandler
 
 	Segments *view.Segments
+	// Authoring backs Create/Update/Delete/RematchActivity; Backfill
+	// (optional) starts the background rematch and returns its job id.
+	Authoring *segmentuc.Authoring
+	Backfill  func(userID domain.UserID, id domain.SegmentID, from, to time.Time) string
 }
 
 var _ cairnv1connect.SegmentServiceHandler = (*SegmentServer)(nil)
