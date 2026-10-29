@@ -6,6 +6,13 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-29
+
+Needs no worker upgrade: the worker contract (`cairn.worker.v1`) is unchanged
+since 0.5.0. Three new migrations (00071–00073) run on start. OAuth clients
+that call `QueryMetricSeries` now need `training:read` instead of
+`training:write`.
+
 ### Added
 - `MetricsService` store RPCs: `GetLatestMetrics`, `QueryMetricSeries`
   (TimescaleDB buckets, avg/min/max/sum/last/first/count, capped by
