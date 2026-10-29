@@ -170,6 +170,8 @@ type App struct {
 	Identities     *account.Identities
 	Profiles       *account.Profiles
 	AuthorizedApps *account.AuthorizedApps
+	// DeviceAuthorizations approves RFC 8628 device sign-ins (browser page and RPCs).
+	DeviceAuthorizations *account.DeviceAuthorizations
 	// SecondFactor runs the passkey-after-password step (nil when passkeys are off).
 	SecondFactor *authuc.SecondFactor
 	// PasswordChange enforces must_change_password at password sign-in.
@@ -802,6 +804,7 @@ func wireAccount(app *App) {
 	}
 	if app.OAuth != nil {
 		app.AuthorizedApps = &account.AuthorizedApps{OAuth: app.OAuth}
+		app.DeviceAuthorizations = &account.DeviceAuthorizations{OAuth: app.OAuth}
 	}
 	if app.Passkeys != nil && app.LoginChallenges != nil && app.Users != nil {
 		app.SecondFactor = &authuc.SecondFactor{Challenges: app.LoginChallenges, Users: app.Users, Passkeys: app.Passkeys}

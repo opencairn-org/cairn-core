@@ -38,6 +38,7 @@ const (
 	ScopeNotificationsWrite = "notifications:write"
 	ScopeConnectionsRead    = "connections:read" // provider connections and sync status
 	ScopeConnectionsWrite   = "connections:write"
+	// ScopeDevicesRead / ScopeDevicesWrite live in oauth_device.go.
 )
 
 // SupportedScopes is the full catalog advertised in AS metadata. Every family
@@ -59,6 +60,8 @@ var SupportedScopes = []string{
 	ScopeNotificationsWrite,
 	ScopeConnectionsRead,
 	ScopeConnectionsWrite,
+	ScopeDevicesRead,
+	ScopeDevicesWrite,
 }
 
 // ReadOnlyScopes is the default grant for agents (no write capability).

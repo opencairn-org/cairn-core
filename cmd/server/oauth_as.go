@@ -15,6 +15,7 @@ package main
 //   POST /oauth/token             code→token (PKCE) and refresh-token rotation
 //   POST /oauth/register          dynamic client registration
 //   POST /oauth/revoke            token revocation
+//   /oauth/device*                device authorization grant (oauth_device.go)
 //   GET  /.well-known/oauth-authorization-server   AS metadata (RFC 8414)
 //   GET  /.well-known/oauth-protected-resource     resource metadata (RFC 9728)
 
@@ -31,6 +32,8 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 )
 
 const (
@@ -45,7 +48,10 @@ func mountOAuthServer(mux *http.ServeMux, app *App, logger *slog.Logger, baseURL
 	if app.OAuth == nil {
 		return
 	}
-	s := &oauthServer{app: app, log: logger, baseURL: strings.TrimRight(baseURL, "/"), auth: auth}
+	s := &oauthServer{
+		app: app, oauth: app.OAuth, devices: app.DeviceAuthorizations,
+		log: logger, baseURL: strings.TrimRight(baseURL, "/"), auth: auth,
+	}
 
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", s.metadata)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", s.protectedResourceMetadata)
@@ -54,6 +60,7 @@ func mountOAuthServer(mux *http.ServeMux, app *App, logger *slog.Logger, baseURL
 	mux.HandleFunc("POST /oauth/authorize/decision", s.decision)
 	mux.HandleFunc("POST /oauth/token", s.token)
 	mux.HandleFunc("POST /oauth/revoke", s.revoke)
+	s.mountDeviceAuthorization(mux)
 	if auth.OAuthAllowDynamicReg {
 		mux.HandleFunc("POST /oauth/register", s.register)
 	}
@@ -62,7 +69,11 @@ func mountOAuthServer(mux *http.ServeMux, app *App, logger *slog.Logger, baseURL
 }
 
 type oauthServer struct {
-	app     *App
+	app *App
+	// oauth and devices are what the handlers use; split from app so tests can
+	// run them on a fake repository.
+	oauth   port.OAuthServerRepo
+	devices *account.DeviceAuthorizations
 	log     *slog.Logger
 	baseURL string
 	auth    config.AuthConfig
@@ -78,9 +89,10 @@ func (s *oauthServer) metadata(w http.ResponseWriter, _ *http.Request) {
 		"authorization_endpoint":                s.baseURL + "/oauth/authorize",
 		"token_endpoint":                        s.baseURL + "/oauth/token",
 		"revocation_endpoint":                   s.baseURL + "/oauth/revoke",
+		"device_authorization_endpoint":         s.baseURL + "/oauth/device_authorization",
 		"scopes_supported":                      domain.SupportedScopes,
 		"response_types_supported":              []string{"code"},
-		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
+		"grant_types_supported":                 []string{"authorization_code", "refresh_token", domain.GrantTypeDeviceCode},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic", "client_secret_post"},
 	}
@@ -111,7 +123,7 @@ func (s *oauthServer) authorize(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	clientID := q.Get("client_id")
 
-	client, err := s.app.OAuth.GetClient(r.Context(), clientID)
+	client, err := s.oauth.GetClient(r.Context(), clientID)
 	if err != nil {
 		http.Error(w, "unknown client_id", http.StatusBadRequest)
 		return
@@ -151,25 +163,16 @@ func (s *oauthServer) authorizeInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	client, err := s.app.OAuth.GetClient(r.Context(), q.Get("client_id"))
+	client, err := s.oauth.GetClient(r.Context(), q.Get("client_id"))
 	if err != nil {
 		http.Error(w, "unknown client_id", http.StatusBadRequest)
 		return
 	}
 	scopes := domain.FilterRequestedScopes(domain.ParseScopes(q.Get("scope")), client.Scopes)
-	type scopeInfo struct {
-		Scope       string `json:"scope"`
-		Description string `json:"description"`
-		Write       bool   `json:"write"`
-	}
-	infos := make([]scopeInfo, 0, len(scopes))
-	for _, sc := range scopes {
-		infos = append(infos, scopeInfo{Scope: sc, Description: scopeDescription(sc), Write: domain.IsWriteScope(sc)})
-	}
 	oauthJSON(w, map[string]any{
 		"client_name": client.Name,
 		"client_id":   client.ClientID,
-		"scopes":      infos,
+		"scopes":      scopeInfos(scopes),
 	})
 }
 
@@ -197,7 +200,7 @@ func (s *oauthServer) decision(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	client, err := s.app.OAuth.GetClient(r.Context(), req.ClientID)
+	client, err := s.oauth.GetClient(r.Context(), req.ClientID)
 	if err != nil {
 		http.Error(w, "invalid client/redirect", http.StatusBadRequest)
 		return
@@ -225,7 +228,7 @@ func (s *oauthServer) decision(w http.ResponseWriter, r *http.Request) {
 		method = "S256"
 	}
 	now := time.Now().UTC()
-	err = s.app.OAuth.CreateAuthCode(r.Context(), domain.OAuthAuthorizationCode{
+	err = s.oauth.CreateAuthCode(r.Context(), domain.OAuthAuthorizationCode{
 		ClientID:            client.ClientID,
 		UserID:              userID,
 		RedirectURI:         redirectURI,
@@ -258,8 +261,10 @@ func (s *oauthServer) token(w http.ResponseWriter, r *http.Request) {
 		s.tokenAuthCode(w, r)
 	case "refresh_token":
 		s.tokenRefresh(w, r)
+	case domain.GrantTypeDeviceCode:
+		s.tokenDeviceCode(w, r)
 	default:
-		oauthTokenErr(w, "unsupported_grant_type", "grant_type must be authorization_code or refresh_token")
+		oauthTokenErr(w, "unsupported_grant_type", "grant_type must be authorization_code, refresh_token or device_code")
 	}
 }
 
@@ -275,7 +280,7 @@ func (s *oauthServer) tokenAuthCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	codeHash := hashToken(codePlain)
-	code, err := s.app.OAuth.ConsumeAuthCode(r.Context(), codeHash, time.Now().UTC())
+	code, err := s.oauth.ConsumeAuthCode(r.Context(), codeHash, time.Now().UTC())
 	if err != nil {
 		oauthTokenErr(w, "invalid_grant", "code invalid, expired, or already used")
 		return
@@ -307,13 +312,13 @@ func (s *oauthServer) tokenRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash := hashToken(rt)
-	stored, err := s.app.OAuth.FindRefreshToken(r.Context(), hash)
+	stored, err := s.oauth.FindRefreshToken(r.Context(), hash)
 	if err != nil || !stored.IsValidAt(time.Now().UTC()) || stored.ClientID != clientID {
 		oauthTokenErr(w, "invalid_grant", "refresh_token invalid or expired")
 		return
 	}
 	// Rotate: revoke the presented refresh token, issue a fresh pair.
-	_ = s.app.OAuth.RevokeRefreshToken(r.Context(), hash)
+	_ = s.oauth.RevokeRefreshToken(r.Context(), hash)
 	// Allow narrowing scope on refresh, never widening.
 	scope := stored.Scope
 	if req := r.PostForm.Get("scope"); req != "" {
@@ -331,14 +336,14 @@ func (s *oauthServer) issueTokens(w http.ResponseWriter, r *http.Request, client
 	rt, rtHash := newToken(oauthRefreshTokenPrefix)
 	atExp := now.Add(s.auth.OAuthAccessTokenTTL)
 
-	if err := s.app.OAuth.CreateAccessToken(r.Context(), domain.OAuthAccessToken{
+	if err := s.oauth.CreateAccessToken(r.Context(), domain.OAuthAccessToken{
 		ClientID: clientID, UserID: userID, Scope: scope, ExpiresAt: atExp,
 	}, atHash); err != nil {
 		s.log.Error("oauth: create access token", "error", err)
 		oauthTokenErr(w, "server_error", "could not issue token")
 		return
 	}
-	if err := s.app.OAuth.CreateRefreshToken(r.Context(), domain.OAuthRefreshToken{
+	if err := s.oauth.CreateRefreshToken(r.Context(), domain.OAuthRefreshToken{
 		ClientID: clientID, UserID: userID, Scope: scope, ExpiresAt: now.Add(s.auth.OAuthRefreshTokenTTL),
 	}, rtHash); err != nil {
 		s.log.Error("oauth: create refresh token", "error", err)
@@ -367,9 +372,9 @@ func (s *oauthServer) revoke(w http.ResponseWriter, r *http.Request) {
 	tok := r.PostForm.Get("token")
 	switch {
 	case strings.HasPrefix(tok, oauthAccessTokenPrefix):
-		_ = s.app.OAuth.RevokeAccessToken(r.Context(), hashToken(tok))
+		_ = s.oauth.RevokeAccessToken(r.Context(), hashToken(tok))
 	case strings.HasPrefix(tok, oauthRefreshTokenPrefix):
-		_ = s.app.OAuth.RevokeRefreshToken(r.Context(), hashToken(tok))
+		_ = s.oauth.RevokeRefreshToken(r.Context(), hashToken(tok))
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -410,7 +415,7 @@ func (req registrationRequest) withDefaults() (authMethod string, grants, scopes
 	}
 	grants = req.GrantTypes
 	if len(grants) == 0 {
-		grants = []string{"authorization_code", "refresh_token"}
+		grants = []string{"authorization_code", "refresh_token", domain.GrantTypeDeviceCode}
 	}
 	// Default to read-only scopes; intersect any requested with the catalog.
 	scopes = domain.ReadOnlyScopes
@@ -474,7 +479,7 @@ func (s *oauthServer) register(w http.ResponseWriter, r *http.Request) {
 		client.SecretHash = h[:]
 		resp["client_secret"] = secret
 	}
-	if err := s.app.OAuth.CreateClient(r.Context(), client); err != nil {
+	if err := s.oauth.CreateClient(r.Context(), client); err != nil {
 		s.log.Error("oauth: register client", "error", err)
 		oauthTokenErr(w, "server_error", "could not register client")
 		return
@@ -499,7 +504,7 @@ func (s *oauthServer) authClient(r *http.Request) (string, bool) {
 	if clientID == "" {
 		return "", false
 	}
-	client, err := s.app.OAuth.GetClient(r.Context(), clientID)
+	client, err := s.oauth.GetClient(r.Context(), clientID)
 	if err != nil {
 		return "", false
 	}
@@ -553,26 +558,7 @@ func appendQuery(rawURL string, params map[string]string) string {
 	return u.String()
 }
 
-func scopeDescription(scope string) string {
-	switch scope {
-	case domain.ScopeActivitiesRead:
-		return "Read your activities, streams, best-efforts and records"
-	case domain.ScopeActivitiesWrite:
-		return "Create, edit and delete your activities"
-	case domain.ScopeProfileRead:
-		return "Read your profile and preferences"
-	case domain.ScopeSocialRead:
-		return "Read your feed, kudos and comments"
-	case domain.ScopeSocialWrite:
-		return "Post kudos and comments on your behalf"
-	case domain.ScopeSegmentsRead:
-		return "Read segments and leaderboards"
-	case domain.ScopeTrainingRead:
-		return "Read your training-load metrics"
-	default:
-		return scope
-	}
-}
+func scopeDescription(scope string) string { return domain.ScopeDescription(scope) }
 
 func oauthJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

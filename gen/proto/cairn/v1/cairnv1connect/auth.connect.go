@@ -118,6 +118,12 @@ const (
 	// AuthServiceRevokeAuthorizedAppProcedure is the procedure name of the AuthService's
 	// RevokeAuthorizedApp RPC.
 	AuthServiceRevokeAuthorizedAppProcedure = "/cairn.v1.AuthService/RevokeAuthorizedApp"
+	// AuthServiceLookupDeviceAuthorizationProcedure is the procedure name of the AuthService's
+	// LookupDeviceAuthorization RPC.
+	AuthServiceLookupDeviceAuthorizationProcedure = "/cairn.v1.AuthService/LookupDeviceAuthorization"
+	// AuthServiceDecideDeviceAuthorizationProcedure is the procedure name of the AuthService's
+	// DecideDeviceAuthorization RPC.
+	AuthServiceDecideDeviceAuthorizationProcedure = "/cairn.v1.AuthService/DecideDeviceAuthorization"
 	// ExternalAccountServiceListExternalAccountsProcedure is the procedure name of the
 	// ExternalAccountService's ListExternalAccounts RPC.
 	ExternalAccountServiceListExternalAccountsProcedure = "/cairn.v1.ExternalAccountService/ListExternalAccounts"
@@ -335,6 +341,21 @@ var (
 			Procedure:  AuthServiceRevokeAuthorizedAppProcedure,
 		}
 	})
+	authServiceLookupDeviceAuthorizationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("LookupDeviceAuthorization"),
+			Procedure:        AuthServiceLookupDeviceAuthorizationProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	authServiceDecideDeviceAuthorizationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("DecideDeviceAuthorization"),
+			Procedure:  AuthServiceDecideDeviceAuthorizationProcedure,
+		}
+	})
 )
 
 // AuthServiceClient is a client for the cairn.v1.AuthService service.
@@ -438,6 +459,15 @@ type AuthServiceClient interface {
 	// Revokes every live access and refresh token the client holds for the caller.
 	// Scope: cookie session only.
 	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
+	// The pending sign-in behind a user code shown on another device: which
+	// app asked and what approving it would grant. An OAuth caller sees the
+	// request capped to its own scopes.
+	// Scope: devices:read.
+	LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error)
+	// Approve or deny that sign-in. Approval grants at most the caller's own
+	// scopes; the device then receives tokens on its next poll.
+	// Scope: devices:write.
+	DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error)
 }
 
 // NewAuthServiceClient constructs a client for the cairn.v1.AuthService service. Multiple service
@@ -547,6 +577,15 @@ type AuthServiceHandler interface {
 	// Revokes every live access and refresh token the client holds for the caller.
 	// Scope: cookie session only.
 	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
+	// The pending sign-in behind a user code shown on another device: which
+	// app asked and what approving it would grant. An OAuth caller sees the
+	// request capped to its own scopes.
+	// Scope: devices:read.
+	LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error)
+	// Approve or deny that sign-in. Approval grants at most the caller's own
+	// scopes; the device then receives tokens on its next poll.
+	// Scope: devices:write.
+	DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error)
 }
 
 // RegisterAuthServiceHandler registers svc as the cairn.v1.AuthService implementation on server.
@@ -578,6 +617,8 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceRevokePersonalAccessTokenSpec(), Handler: adapter.revokePersonalAccessToken},
 		connect.Method{Spec: authServiceListAuthorizedAppsSpec(), Handler: adapter.listAuthorizedApps},
 		connect.Method{Spec: authServiceRevokeAuthorizedAppSpec(), Handler: adapter.revokeAuthorizedApp},
+		connect.Method{Spec: authServiceLookupDeviceAuthorizationSpec(), Handler: adapter.lookupDeviceAuthorization},
+		connect.Method{Spec: authServiceDecideDeviceAuthorizationSpec(), Handler: adapter.decideDeviceAuthorization},
 	)
 }
 
@@ -682,6 +723,14 @@ func (UnimplementedAuthServiceHandler) ListAuthorizedApps(context.Context, *v1.L
 
 func (UnimplementedAuthServiceHandler) RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.RevokeAuthorizedApp is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.LookupDeviceAuthorization is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.DecideDeviceAuthorization is not implemented")
 }
 
 type authServiceClient struct {
@@ -883,6 +932,22 @@ func (c *authServiceClient) ListAuthorizedApps(ctx context.Context, req *v1.List
 func (c *authServiceClient) RevokeAuthorizedApp(ctx context.Context, req *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
 	var res v1.RevokeAuthorizedAppResponse
 	if err := c.client.CallUnary(ctx, authServiceRevokeAuthorizedAppSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) LookupDeviceAuthorization(ctx context.Context, req *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error) {
+	var res v1.LookupDeviceAuthorizationResponse
+	if err := c.client.CallUnary(ctx, authServiceLookupDeviceAuthorizationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) DecideDeviceAuthorization(ctx context.Context, req *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error) {
+	var res v1.DecideDeviceAuthorizationResponse
+	if err := c.client.CallUnary(ctx, authServiceDecideDeviceAuthorizationSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1184,6 +1249,30 @@ func (h authServiceHandler) revokeAuthorizedApp(ctx context.Context, _ connect.S
 		return err
 	}
 	res, err := h.svc.RevokeAuthorizedApp(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) lookupDeviceAuthorization(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.LookupDeviceAuthorizationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.LookupDeviceAuthorization(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) decideDeviceAuthorization(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DecideDeviceAuthorizationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DecideDeviceAuthorization(ctx, &req)
 	if err != nil {
 		return err
 	}

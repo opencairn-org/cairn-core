@@ -228,6 +228,12 @@ var scopeFamilies = map[string]string{
 	"cairn.v1.SocialService":          "social",
 }
 
+// scopeProcedureFamilies gives a procedure a family other than its service's.
+var scopeProcedureFamilies = map[string]string{
+	"/cairn.v1.AuthService/LookupDeviceAuthorization": "devices",
+	"/cairn.v1.AuthService/DecideDeviceAuthorization": "devices",
+}
+
 // scopeOverrides lists the procedures whose policy is not the service family.
 var scopeOverrides = map[string]scopePolicy{
 	"/cairn.v1.AuthService/GetLoginMethods":           scopePublic,
@@ -268,7 +274,10 @@ func scopeCheck(procedure string, scopes []string) error {
 	if i := strings.LastIndexByte(procedure, '/'); i >= 0 {
 		service = strings.TrimPrefix(procedure[:i], "/")
 	}
-	family, ok := scopeFamilies[service]
+	family, ok := scopeProcedureFamilies[procedure]
+	if !ok {
+		family, ok = scopeFamilies[service]
+	}
 	if !ok {
 		return connectrpc.NewError(connectrpc.CodePermissionDenied, "this operation is not available to OAuth tokens")
 	}
@@ -305,6 +314,20 @@ func hasAnyWriteScope(scopes []string) bool {
 		}
 	}
 	return false
+}
+
+// scopesFromHandlerCtx returns the caller's OAuth scopes, or nil for a cookie
+// session or PAT (unrestricted). An OAuth token without scopes yields an empty,
+// non-nil slice so it never reads as unrestricted.
+func scopesFromHandlerCtx(ctx context.Context) []string {
+	scopes, isOAuth := ctx.Value(ctxKeyScopes).([]string)
+	if !isOAuth {
+		return nil
+	}
+	if scopes == nil {
+		return []string{}
+	}
+	return scopes
 }
 
 // userIDFromHandlerCtx is the primary helper for handlers to call. It

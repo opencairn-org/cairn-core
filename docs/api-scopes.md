@@ -20,9 +20,11 @@ Every family has a read and a write scope. A read RPC accepts `family:read` or
 | `training` | MetricsService: training load, best-effort history, health and athlete metrics |
 | `profile` | SettingsService and the AuthService profile/preferences RPCs |
 | `social` | SocialService: home feed; follows, kudos, comments, clubs |
+| `devices` | Approving another device's sign-in (RFC 8628): `AuthService.LookupDeviceAuthorization` / `DecideDeviceAuthorization` |
 
 The default grant for a dynamically registered client is every `:read` scope
-(`domain.ReadOnlyScopes`). `scopes_supported` in the authorization-server
+(`domain.ReadOnlyScopes`); `devices:*` is never part of a default and must be
+asked for explicitly. `scopes_supported` in the authorization-server
 metadata and `GetInstanceInfo.supported_scopes` list the catalog.
 
 ## Connect RPCs
@@ -45,6 +47,7 @@ follow that rule.
 | `segments:read` / `segments:write` | `SegmentService` reads / writes |
 | `training:read` / `training:write` | `MetricsService` reads / writes |
 | `social:read` / `social:write` | `SocialService` reads / writes |
+| `devices:read` / `devices:write` | `AuthService.LookupDeviceAuthorization` / `DecideDeviceAuthorization`; an OAuth approver can grant at most its own scopes |
 
 A service without a family is closed to OAuth tokens until it gets one.
 

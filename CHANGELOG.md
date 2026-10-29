@@ -7,6 +7,16 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Device authorization grant (RFC 8628): `POST /oauth/device_authorization`
+  issues a code pair, the token endpoint accepts
+  `urn:ietf:params:oauth:grant-type:device_code` with `authorization_pending`,
+  `slow_down`, `access_denied` and `expired_token`, and the signed-in side
+  approves on the new `/oauth/device` page or through
+  `AuthService.LookupDeviceAuthorization` / `DecideDeviceAuthorization` under
+  the new `devices:read` / `devices:write` scopes. An OAuth approver can grant
+  at most its own scopes. Dynamically registered clients get the grant by
+  default; `CAIRN_AUTH_OAUTH_DEVICE_CODE_TTL` (10m) and
+  `CAIRN_AUTH_OAUTH_DEVICE_POLL_INTERVAL` (5s) tune it.
 - `AuthService` account RPCs: `CreatePersonalAccessToken`,
   `ListPersonalAccessTokens`, `RevokePersonalAccessToken`, `ChangePassword`,
   `RequestPasswordReset`, `ConfirmPasswordReset`, `ListSessions`,

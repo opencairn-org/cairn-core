@@ -249,6 +249,20 @@ service AuthService {
   // Revokes every live access and refresh token the client holds for the caller.
   // Scope: cookie session only.
   rpc RevokeAuthorizedApp(RevokeAuthorizedAppRequest) returns (RevokeAuthorizedAppResponse);
+
+  // ---- Device authorization (RFC 8628): approving another device's sign-in ----
+
+  // The pending sign-in behind a user code shown on another device: which
+  // app asked and what approving it would grant. An OAuth caller sees the
+  // request capped to its own scopes.
+  // Scope: devices:read.
+  rpc LookupDeviceAuthorization(LookupDeviceAuthorizationRequest) returns (LookupDeviceAuthorizationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Approve or deny that sign-in. Approval grants at most the caller's own
+  // scopes; the device then receives tokens on its next poll.
+  // Scope: devices:write.
+  rpc DecideDeviceAuthorization(DecideDeviceAuthorizationRequest) returns (DecideDeviceAuthorizationResponse);
 }
 
 // ----------------------------------------------------------------------------
@@ -587,6 +601,34 @@ message RevokeAuthorizedAppRequest {
 }
 message RevokeAuthorizedAppResponse {
   int32 tokens_revoked = 1;
+}
+
+// One scope a device sign-in would be granted, as shown on the consent page.
+message DeviceAuthorizationScope {
+  string scope = 1;
+  string description = 2;
+  bool write = 3;
+}
+message LookupDeviceAuthorizationRequest {
+  // As typed: "1234-5678", "1234 5678" or "12345678".
+  string user_code = 1;
+}
+message LookupDeviceAuthorizationResponse {
+  string client_id = 1;
+  string client_name = 2;
+  string software_id = 3;
+  string software_version = 4;
+  // What approval by this caller would grant.
+  repeated DeviceAuthorizationScope scopes = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+message DecideDeviceAuthorizationRequest {
+  string user_code = 1;
+  bool approve = 2;
+}
+message DecideDeviceAuthorizationResponse {
+  // Empty when denied.
+  repeated string granted_scopes = 1;
 }
 
 // ============================================================================

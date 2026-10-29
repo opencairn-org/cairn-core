@@ -296,6 +296,10 @@ type AuthConfig struct {
 	OAuthRefreshTokenTTL time.Duration `env:"OAUTH_REFRESH_TOKEN_TTL, default=2160h"` // 90 days gitleaks:allow
 	OAuthAuthCodeTTL     time.Duration `env:"OAUTH_AUTH_CODE_TTL, default=5m"`
 	OAuthAllowDynamicReg bool          `env:"OAUTH_ALLOW_DYNAMIC_REGISTRATION, default=true"`
+	// Device authorization (RFC 8628): how long a code pair stays valid and
+	// how often a device may poll the token endpoint.
+	OAuthDeviceCodeTTL      time.Duration `env:"OAUTH_DEVICE_CODE_TTL, default=10m"`
+	OAuthDevicePollInterval time.Duration `env:"OAUTH_DEVICE_POLL_INTERVAL, default=5s"`
 }
 
 // EmailConfig selects the outbound email adapter. The adapter type

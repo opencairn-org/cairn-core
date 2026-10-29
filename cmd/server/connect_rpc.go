@@ -165,6 +165,7 @@ func newAuthServer(app *App, logger *slog.Logger) *connectadapter.AuthServer {
 	authSvc.Identities = app.Identities
 	authSvc.Profiles = app.Profiles
 	authSvc.Apps = app.AuthorizedApps
+	authSvc.Devices = app.DeviceAuthorizations
 	authSvc.SecondFactor = app.SecondFactor
 	authSvc.SessionTTL = app.SessionTTL
 	authSvc.Log = logger

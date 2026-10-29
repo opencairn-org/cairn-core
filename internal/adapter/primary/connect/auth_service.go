@@ -53,6 +53,7 @@ type AuthServer struct {
 	Identities  *account.Identities
 	Profiles    *account.Profiles
 	Apps        *account.AuthorizedApps
+	Devices     *account.DeviceAuthorizations
 	// SecondFactor backs Complete2FA and SetPasskeySecondFactor; SessionTTL
 	// bounds the bearer sessions Complete2FA issues.
 	SecondFactor *authuc.SecondFactor
