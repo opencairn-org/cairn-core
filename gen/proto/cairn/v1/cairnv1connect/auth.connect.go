@@ -58,10 +58,16 @@ const (
 	// AuthServiceGetLoginMethodsProcedure is the procedure name of the AuthService's GetLoginMethods
 	// RPC.
 	AuthServiceGetLoginMethodsProcedure = "/cairn.v1.AuthService/GetLoginMethods"
+	// AuthServiceGetInstanceInfoProcedure is the procedure name of the AuthService's GetInstanceInfo
+	// RPC.
+	AuthServiceGetInstanceInfoProcedure = "/cairn.v1.AuthService/GetInstanceInfo"
 	// AuthServiceLoginPasswordProcedure is the procedure name of the AuthService's LoginPassword RPC.
 	AuthServiceLoginPasswordProcedure = "/cairn.v1.AuthService/LoginPassword"
 	// AuthServiceComplete2FAProcedure is the procedure name of the AuthService's Complete2FA RPC.
 	AuthServiceComplete2FAProcedure = "/cairn.v1.AuthService/Complete2FA"
+	// AuthServiceSetPasskeySecondFactorProcedure is the procedure name of the AuthService's
+	// SetPasskeySecondFactor RPC.
+	AuthServiceSetPasskeySecondFactorProcedure = "/cairn.v1.AuthService/SetPasskeySecondFactor"
 	// AuthServiceRegisterProcedure is the procedure name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/cairn.v1.AuthService/Register"
 	// AuthServiceChangePasswordProcedure is the procedure name of the AuthService's ChangePassword RPC.
@@ -86,6 +92,8 @@ const (
 	AuthServiceLogoutProcedure = "/cairn.v1.AuthService/Logout"
 	// AuthServiceGetCurrentUserProcedure is the procedure name of the AuthService's GetCurrentUser RPC.
 	AuthServiceGetCurrentUserProcedure = "/cairn.v1.AuthService/GetCurrentUser"
+	// AuthServiceGetQuotaProcedure is the procedure name of the AuthService's GetQuota RPC.
+	AuthServiceGetQuotaProcedure = "/cairn.v1.AuthService/GetQuota"
 	// AuthServiceUpdateProfileProcedure is the procedure name of the AuthService's UpdateProfile RPC.
 	AuthServiceUpdateProfileProcedure = "/cairn.v1.AuthService/UpdateProfile"
 	// AuthServiceUpdateUserPreferencesProcedure is the procedure name of the AuthService's
@@ -104,12 +112,33 @@ const (
 	// AuthServiceRevokePersonalAccessTokenProcedure is the procedure name of the AuthService's
 	// RevokePersonalAccessToken RPC.
 	AuthServiceRevokePersonalAccessTokenProcedure = "/cairn.v1.AuthService/RevokePersonalAccessToken"
+	// AuthServiceListAuthorizedAppsProcedure is the procedure name of the AuthService's
+	// ListAuthorizedApps RPC.
+	AuthServiceListAuthorizedAppsProcedure = "/cairn.v1.AuthService/ListAuthorizedApps"
+	// AuthServiceRevokeAuthorizedAppProcedure is the procedure name of the AuthService's
+	// RevokeAuthorizedApp RPC.
+	AuthServiceRevokeAuthorizedAppProcedure = "/cairn.v1.AuthService/RevokeAuthorizedApp"
+	// AuthServiceLookupDeviceAuthorizationProcedure is the procedure name of the AuthService's
+	// LookupDeviceAuthorization RPC.
+	AuthServiceLookupDeviceAuthorizationProcedure = "/cairn.v1.AuthService/LookupDeviceAuthorization"
+	// AuthServiceDecideDeviceAuthorizationProcedure is the procedure name of the AuthService's
+	// DecideDeviceAuthorization RPC.
+	AuthServiceDecideDeviceAuthorizationProcedure = "/cairn.v1.AuthService/DecideDeviceAuthorization"
 	// ExternalAccountServiceListExternalAccountsProcedure is the procedure name of the
 	// ExternalAccountService's ListExternalAccounts RPC.
 	ExternalAccountServiceListExternalAccountsProcedure = "/cairn.v1.ExternalAccountService/ListExternalAccounts"
 	// ExternalAccountServiceListAvailableProvidersProcedure is the procedure name of the
 	// ExternalAccountService's ListAvailableProviders RPC.
 	ExternalAccountServiceListAvailableProvidersProcedure = "/cairn.v1.ExternalAccountService/ListAvailableProviders"
+	// ExternalAccountServiceListConnectionsProcedure is the procedure name of the
+	// ExternalAccountService's ListConnections RPC.
+	ExternalAccountServiceListConnectionsProcedure = "/cairn.v1.ExternalAccountService/ListConnections"
+	// ExternalAccountServiceListSyncHistoryProcedure is the procedure name of the
+	// ExternalAccountService's ListSyncHistory RPC.
+	ExternalAccountServiceListSyncHistoryProcedure = "/cairn.v1.ExternalAccountService/ListSyncHistory"
+	// ExternalAccountServiceListQueueItemsProcedure is the procedure name of the
+	// ExternalAccountService's ListQueueItems RPC.
+	ExternalAccountServiceListQueueItemsProcedure = "/cairn.v1.ExternalAccountService/ListQueueItems"
 	// ExternalAccountServiceCreateExternalAccountProcedure is the procedure name of the
 	// ExternalAccountService's CreateExternalAccount RPC.
 	ExternalAccountServiceCreateExternalAccountProcedure = "/cairn.v1.ExternalAccountService/CreateExternalAccount"
@@ -141,6 +170,14 @@ var (
 			Procedure:  AuthServiceGetLoginMethodsProcedure,
 		}
 	})
+	authServiceGetInstanceInfoSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetInstanceInfo"),
+			Procedure:        AuthServiceGetInstanceInfoProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	authServiceLoginPasswordSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -153,6 +190,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("Complete2FA"),
 			Procedure:  AuthServiceComplete2FAProcedure,
+		}
+	})
+	authServiceSetPasskeySecondFactorSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("SetPasskeySecondFactor"),
+			Procedure:  AuthServiceSetPasskeySecondFactorProcedure,
 		}
 	})
 	authServiceRegisterSpec = sync.OnceValue(func() connect.Spec {
@@ -225,6 +269,14 @@ var (
 			Procedure:  AuthServiceGetCurrentUserProcedure,
 		}
 	})
+	authServiceGetQuotaSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetQuota"),
+			Procedure:        AuthServiceGetQuotaProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	authServiceUpdateProfileSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -274,45 +326,148 @@ var (
 			Procedure:  AuthServiceRevokePersonalAccessTokenProcedure,
 		}
 	})
+	authServiceListAuthorizedAppsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("ListAuthorizedApps"),
+			Procedure:        AuthServiceListAuthorizedAppsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	authServiceRevokeAuthorizedAppSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("RevokeAuthorizedApp"),
+			Procedure:  AuthServiceRevokeAuthorizedAppProcedure,
+		}
+	})
+	authServiceLookupDeviceAuthorizationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("LookupDeviceAuthorization"),
+			Procedure:        AuthServiceLookupDeviceAuthorizationProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	authServiceDecideDeviceAuthorizationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("DecideDeviceAuthorization"),
+			Procedure:  AuthServiceDecideDeviceAuthorizationProcedure,
+		}
+	})
 )
 
 // AuthServiceClient is a client for the cairn.v1.AuthService service.
 type AuthServiceClient interface {
 	// List enabled login methods for the login screen, including OIDC clients.
 	// Public; no auth required.
+	// Scope: none (public).
 	GetLoginMethods(context.Context, *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error)
+	// Instance identity and feature flags for a client's server picker:
+	// release, commit, build time, federation/OAuth availability, signup
+	// policy and the scope catalog. Public; no auth required.
+	// Scope: none (public).
+	GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error)
 	// Username + password. Returns a session token or a 2FA challenge if
 	// the account has WebAuthn enabled as a second factor.
+	// Not implemented (returns Unimplemented): the browser signs in through
+	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
+	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// A user flagged must_change_password gets a password-change challenge
+	// from POST /auth/password first (completed by POST /auth/password/required).
+	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
-	// Complete a 2FA challenge after LoginPassword.
+	// Complete a second-factor challenge. A password sign-in of a user who
+	// requires a passkey as second factor (POST /auth/password) answers with
+	// a challenge token instead of a session; the client then runs the
+	// passkey ceremony at POST /auth/webauthn/login/start and
+	// POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+	// challenge satisfied, and finally calls this RPC (or POST
+	// /auth/2fa/complete for a cookie session). The response carries a bearer
+	// session token (`cairn_ses_…`) accepted on both surfaces.
+	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
-	// Register a new local user. May require invite code per instance policy.
+	// Require (or stop requiring) a passkey after password sign-in. Enabling
+	// needs at least one registered passkey.
+	// Scope: cookie session only.
+	SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error)
+	// Register a new local user. The instance is invite-only, so invite_code is
+	// required; the account is created and the caller then signs in (OAuth for
+	// native clients, cookie login for the browser). No session is returned.
+	// Scope: none (public).
 	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
 	// Change password (requires current password).
+	// Scope: cookie session only.
 	ChangePassword(context.Context, *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error)
 	// Initiate password reset (sends email if SMTP configured).
+	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
-	// Complete password reset using a token from the email.
+	// Complete password reset using a token from the email. Every session of
+	// the user is ended; the response carries no session (sign in afterwards,
+	// native clients via OAuth 2.1).
+	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
 	// The state cookie is set on the response automatically.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start.
+	// Scope: none (public).
 	StartOIDCLogin(context.Context, *v1.StartOIDCLoginRequest) (*v1.StartOIDCLoginResponse, error)
 	// Link an additional OIDC identity to the currently authenticated user.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start while signed in.
+	// Scope: profile:write.
 	StartOIDCLink(context.Context, *v1.StartOIDCLinkRequest) (*v1.StartOIDCLinkResponse, error)
 	// Unlink an OIDC identity. Cannot unlink the last credential.
+	// Scope: profile:write.
 	UnlinkOIDCIdentity(context.Context, *v1.UnlinkOIDCIdentityRequest) (*v1.UnlinkOIDCIdentityResponse, error)
+	// Scope: profile:read.
 	ListLinkedIdentities(context.Context, *v1.ListLinkedIdentitiesRequest) (*v1.ListLinkedIdentitiesResponse, error)
+	// Revoke the calling cookie session (or every session of the user with
+	// all_devices). Bearer callers (PAT, OAuth) have no session: OAuth tokens
+	// are revoked at POST /oauth/revoke, PATs via RevokePersonalAccessToken.
+	// Scope: cookie session only.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// Scope: any valid credential.
 	GetCurrentUser(context.Context, *v1.GetCurrentUserRequest) (*v1.GetCurrentUserResponse, error)
+	// The caller's activity quota: used, limit (0 = unlimited) and whether new
+	// imports are refused. Any valid credential.
+	// Scope: any valid credential.
+	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Edit the caller's profile. field_mask names the fields to apply
+	// (display_name, avatar_url, locale, timezone, units); "email" is refused,
+	// an address change needs a verification flow that does not exist yet.
+	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies
 	// site-wide on every client (web + mobile); clients re-read on change.
+	// Scope: profile:write.
 	UpdateUserPreferences(context.Context, *v1.UpdateUserPreferencesRequest) (*v1.UpdateUserPreferencesResponse, error)
+	// Scope: cookie session only.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// Scope: cookie session only.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// Scope: cookie session only.
 	CreatePersonalAccessToken(context.Context, *v1.CreatePersonalAccessTokenRequest) (*v1.CreatePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
+	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
+	ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error)
+	// Revokes every live access and refresh token the client holds for the caller.
+	// Scope: cookie session only.
+	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
+	// The pending sign-in behind a user code shown on another device: which
+	// app asked and what approving it would grant. An OAuth caller sees the
+	// request capped to its own scopes.
+	// Scope: devices:read.
+	LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error)
+	// Approve or deny that sign-in. Approval grants at most the caller's own
+	// scopes; the device then receives tokens on its next poll.
+	// Scope: devices:write.
+	DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error)
 }
 
 // NewAuthServiceClient constructs a client for the cairn.v1.AuthService service. Multiple service
@@ -325,39 +480,112 @@ func NewAuthServiceClient(client *connect.Client) AuthServiceClient {
 type AuthServiceHandler interface {
 	// List enabled login methods for the login screen, including OIDC clients.
 	// Public; no auth required.
+	// Scope: none (public).
 	GetLoginMethods(context.Context, *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error)
+	// Instance identity and feature flags for a client's server picker:
+	// release, commit, build time, federation/OAuth availability, signup
+	// policy and the scope catalog. Public; no auth required.
+	// Scope: none (public).
+	GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error)
 	// Username + password. Returns a session token or a 2FA challenge if
 	// the account has WebAuthn enabled as a second factor.
+	// Not implemented (returns Unimplemented): the browser signs in through
+	// POST /auth/password (cookie session); native clients use OAuth 2.1 with
+	// PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+	// A user flagged must_change_password gets a password-change challenge
+	// from POST /auth/password first (completed by POST /auth/password/required).
+	// Scope: none (public).
 	LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error)
-	// Complete a 2FA challenge after LoginPassword.
+	// Complete a second-factor challenge. A password sign-in of a user who
+	// requires a passkey as second factor (POST /auth/password) answers with
+	// a challenge token instead of a session; the client then runs the
+	// passkey ceremony at POST /auth/webauthn/login/start and
+	// POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+	// challenge satisfied, and finally calls this RPC (or POST
+	// /auth/2fa/complete for a cookie session). The response carries a bearer
+	// session token (`cairn_ses_…`) accepted on both surfaces.
+	// Scope: none (public).
 	Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error)
-	// Register a new local user. May require invite code per instance policy.
+	// Require (or stop requiring) a passkey after password sign-in. Enabling
+	// needs at least one registered passkey.
+	// Scope: cookie session only.
+	SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error)
+	// Register a new local user. The instance is invite-only, so invite_code is
+	// required; the account is created and the caller then signs in (OAuth for
+	// native clients, cookie login for the browser). No session is returned.
+	// Scope: none (public).
 	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
 	// Change password (requires current password).
+	// Scope: cookie session only.
 	ChangePassword(context.Context, *v1.ChangePasswordRequest) (*v1.ChangePasswordResponse, error)
 	// Initiate password reset (sends email if SMTP configured).
+	// Scope: none (public).
 	RequestPasswordReset(context.Context, *v1.RequestPasswordResetRequest) (*v1.RequestPasswordResetResponse, error)
-	// Complete password reset using a token from the email.
+	// Complete password reset using a token from the email. Every session of
+	// the user is ended; the response carries no session (sign in afterwards,
+	// native clients via OAuth 2.1).
+	// Scope: none (public).
 	ConfirmPasswordReset(context.Context, *v1.ConfirmPasswordResetRequest) (*v1.ConfirmPasswordResetResponse, error)
 	// Begin OIDC login: returns an authorize URL the client redirects to.
 	// The state cookie is set on the response automatically.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start.
+	// Scope: none (public).
 	StartOIDCLogin(context.Context, *v1.StartOIDCLoginRequest) (*v1.StartOIDCLoginResponse, error)
 	// Link an additional OIDC identity to the currently authenticated user.
+	// Not implemented (returns Unimplemented): browser flow, served by
+	// GET /auth/oidc/{provider}/start while signed in.
+	// Scope: profile:write.
 	StartOIDCLink(context.Context, *v1.StartOIDCLinkRequest) (*v1.StartOIDCLinkResponse, error)
 	// Unlink an OIDC identity. Cannot unlink the last credential.
+	// Scope: profile:write.
 	UnlinkOIDCIdentity(context.Context, *v1.UnlinkOIDCIdentityRequest) (*v1.UnlinkOIDCIdentityResponse, error)
+	// Scope: profile:read.
 	ListLinkedIdentities(context.Context, *v1.ListLinkedIdentitiesRequest) (*v1.ListLinkedIdentitiesResponse, error)
+	// Revoke the calling cookie session (or every session of the user with
+	// all_devices). Bearer callers (PAT, OAuth) have no session: OAuth tokens
+	// are revoked at POST /oauth/revoke, PATs via RevokePersonalAccessToken.
+	// Scope: cookie session only.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// Scope: any valid credential.
 	GetCurrentUser(context.Context, *v1.GetCurrentUserRequest) (*v1.GetCurrentUserResponse, error)
+	// The caller's activity quota: used, limit (0 = unlimited) and whether new
+	// imports are refused. Any valid credential.
+	// Scope: any valid credential.
+	GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error)
+	// Edit the caller's profile. field_mask names the fields to apply
+	// (display_name, avatar_url, locale, timezone, units); "email" is refused,
+	// an address change needs a verification flow that does not exist yet.
+	// Scope: profile:write.
 	UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error)
 	// Update the caller's display-format preferences (date/time/units). Applies
 	// site-wide on every client (web + mobile); clients re-read on change.
+	// Scope: profile:write.
 	UpdateUserPreferences(context.Context, *v1.UpdateUserPreferencesRequest) (*v1.UpdateUserPreferencesResponse, error)
+	// Scope: cookie session only.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// Scope: cookie session only.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// Scope: cookie session only.
 	CreatePersonalAccessToken(context.Context, *v1.CreatePersonalAccessTokenRequest) (*v1.CreatePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
 	ListPersonalAccessTokens(context.Context, *v1.ListPersonalAccessTokensRequest) (*v1.ListPersonalAccessTokensResponse, error)
+	// Scope: cookie session only.
 	RevokePersonalAccessToken(context.Context, *v1.RevokePersonalAccessTokenRequest) (*v1.RevokePersonalAccessTokenResponse, error)
+	// Scope: cookie session only.
+	ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error)
+	// Revokes every live access and refresh token the client holds for the caller.
+	// Scope: cookie session only.
+	RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error)
+	// The pending sign-in behind a user code shown on another device: which
+	// app asked and what approving it would grant. An OAuth caller sees the
+	// request capped to its own scopes.
+	// Scope: devices:read.
+	LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error)
+	// Approve or deny that sign-in. Approval grants at most the caller's own
+	// scopes; the device then receives tokens on its next poll.
+	// Scope: devices:write.
+	DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error)
 }
 
 // RegisterAuthServiceHandler registers svc as the cairn.v1.AuthService implementation on server.
@@ -365,8 +593,10 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 	adapter := authServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: authServiceGetLoginMethodsSpec(), Handler: adapter.getLoginMethods},
+		connect.Method{Spec: authServiceGetInstanceInfoSpec(), Handler: adapter.getInstanceInfo},
 		connect.Method{Spec: authServiceLoginPasswordSpec(), Handler: adapter.loginPassword},
 		connect.Method{Spec: authServiceComplete2FASpec(), Handler: adapter.complete2FA},
+		connect.Method{Spec: authServiceSetPasskeySecondFactorSpec(), Handler: adapter.setPasskeySecondFactor},
 		connect.Method{Spec: authServiceRegisterSpec(), Handler: adapter.register},
 		connect.Method{Spec: authServiceChangePasswordSpec(), Handler: adapter.changePassword},
 		connect.Method{Spec: authServiceRequestPasswordResetSpec(), Handler: adapter.requestPasswordReset},
@@ -377,6 +607,7 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceListLinkedIdentitiesSpec(), Handler: adapter.listLinkedIdentities},
 		connect.Method{Spec: authServiceLogoutSpec(), Handler: adapter.logout},
 		connect.Method{Spec: authServiceGetCurrentUserSpec(), Handler: adapter.getCurrentUser},
+		connect.Method{Spec: authServiceGetQuotaSpec(), Handler: adapter.getQuota},
 		connect.Method{Spec: authServiceUpdateProfileSpec(), Handler: adapter.updateProfile},
 		connect.Method{Spec: authServiceUpdateUserPreferencesSpec(), Handler: adapter.updateUserPreferences},
 		connect.Method{Spec: authServiceListSessionsSpec(), Handler: adapter.listSessions},
@@ -384,6 +615,10 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceCreatePersonalAccessTokenSpec(), Handler: adapter.createPersonalAccessToken},
 		connect.Method{Spec: authServiceListPersonalAccessTokensSpec(), Handler: adapter.listPersonalAccessTokens},
 		connect.Method{Spec: authServiceRevokePersonalAccessTokenSpec(), Handler: adapter.revokePersonalAccessToken},
+		connect.Method{Spec: authServiceListAuthorizedAppsSpec(), Handler: adapter.listAuthorizedApps},
+		connect.Method{Spec: authServiceRevokeAuthorizedAppSpec(), Handler: adapter.revokeAuthorizedApp},
+		connect.Method{Spec: authServiceLookupDeviceAuthorizationSpec(), Handler: adapter.lookupDeviceAuthorization},
+		connect.Method{Spec: authServiceDecideDeviceAuthorizationSpec(), Handler: adapter.decideDeviceAuthorization},
 	)
 }
 
@@ -394,12 +629,20 @@ func (UnimplementedAuthServiceHandler) GetLoginMethods(context.Context, *v1.GetL
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetLoginMethods is not implemented")
 }
 
+func (UnimplementedAuthServiceHandler) GetInstanceInfo(context.Context, *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetInstanceInfo is not implemented")
+}
+
 func (UnimplementedAuthServiceHandler) LoginPassword(context.Context, *v1.LoginPasswordRequest) (*v1.LoginPasswordResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.LoginPassword is not implemented")
 }
 
 func (UnimplementedAuthServiceHandler) Complete2FA(context.Context, *v1.Complete2FARequest) (*v1.Complete2FAResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.Complete2FA is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) SetPasskeySecondFactor(context.Context, *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.SetPasskeySecondFactor is not implemented")
 }
 
 func (UnimplementedAuthServiceHandler) Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error) {
@@ -442,6 +685,10 @@ func (UnimplementedAuthServiceHandler) GetCurrentUser(context.Context, *v1.GetCu
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetCurrentUser is not implemented")
 }
 
+func (UnimplementedAuthServiceHandler) GetQuota(context.Context, *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.GetQuota is not implemented")
+}
+
 func (UnimplementedAuthServiceHandler) UpdateProfile(context.Context, *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.UpdateProfile is not implemented")
 }
@@ -470,6 +717,22 @@ func (UnimplementedAuthServiceHandler) RevokePersonalAccessToken(context.Context
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.RevokePersonalAccessToken is not implemented")
 }
 
+func (UnimplementedAuthServiceHandler) ListAuthorizedApps(context.Context, *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.ListAuthorizedApps is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) RevokeAuthorizedApp(context.Context, *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.RevokeAuthorizedApp is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) LookupDeviceAuthorization(context.Context, *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.LookupDeviceAuthorization is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) DecideDeviceAuthorization(context.Context, *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AuthService.DecideDeviceAuthorization is not implemented")
+}
+
 type authServiceClient struct {
 	client *connect.Client
 }
@@ -477,6 +740,14 @@ type authServiceClient struct {
 func (c *authServiceClient) GetLoginMethods(ctx context.Context, req *v1.GetLoginMethodsRequest) (*v1.GetLoginMethodsResponse, error) {
 	var res v1.GetLoginMethodsResponse
 	if err := c.client.CallUnary(ctx, authServiceGetLoginMethodsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) GetInstanceInfo(ctx context.Context, req *v1.GetInstanceInfoRequest) (*v1.GetInstanceInfoResponse, error) {
+	var res v1.GetInstanceInfoResponse
+	if err := c.client.CallUnary(ctx, authServiceGetInstanceInfoSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -493,6 +764,14 @@ func (c *authServiceClient) LoginPassword(ctx context.Context, req *v1.LoginPass
 func (c *authServiceClient) Complete2FA(ctx context.Context, req *v1.Complete2FARequest) (*v1.Complete2FAResponse, error) {
 	var res v1.Complete2FAResponse
 	if err := c.client.CallUnary(ctx, authServiceComplete2FASpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) SetPasskeySecondFactor(ctx context.Context, req *v1.SetPasskeySecondFactorRequest) (*v1.SetPasskeySecondFactorResponse, error) {
+	var res v1.SetPasskeySecondFactorResponse
+	if err := c.client.CallUnary(ctx, authServiceSetPasskeySecondFactorSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -578,6 +857,14 @@ func (c *authServiceClient) GetCurrentUser(ctx context.Context, req *v1.GetCurre
 	return &res, nil
 }
 
+func (c *authServiceClient) GetQuota(ctx context.Context, req *v1.GetQuotaRequest) (*v1.GetQuotaResponse, error) {
+	var res v1.GetQuotaResponse
+	if err := c.client.CallUnary(ctx, authServiceGetQuotaSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *authServiceClient) UpdateProfile(ctx context.Context, req *v1.UpdateProfileRequest) (*v1.UpdateProfileResponse, error) {
 	var res v1.UpdateProfileResponse
 	if err := c.client.CallUnary(ctx, authServiceUpdateProfileSpec(), req, &res); err != nil {
@@ -634,6 +921,38 @@ func (c *authServiceClient) RevokePersonalAccessToken(ctx context.Context, req *
 	return &res, nil
 }
 
+func (c *authServiceClient) ListAuthorizedApps(ctx context.Context, req *v1.ListAuthorizedAppsRequest) (*v1.ListAuthorizedAppsResponse, error) {
+	var res v1.ListAuthorizedAppsResponse
+	if err := c.client.CallUnary(ctx, authServiceListAuthorizedAppsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) RevokeAuthorizedApp(ctx context.Context, req *v1.RevokeAuthorizedAppRequest) (*v1.RevokeAuthorizedAppResponse, error) {
+	var res v1.RevokeAuthorizedAppResponse
+	if err := c.client.CallUnary(ctx, authServiceRevokeAuthorizedAppSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) LookupDeviceAuthorization(ctx context.Context, req *v1.LookupDeviceAuthorizationRequest) (*v1.LookupDeviceAuthorizationResponse, error) {
+	var res v1.LookupDeviceAuthorizationResponse
+	if err := c.client.CallUnary(ctx, authServiceLookupDeviceAuthorizationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) DecideDeviceAuthorization(ctx context.Context, req *v1.DecideDeviceAuthorizationRequest) (*v1.DecideDeviceAuthorizationResponse, error) {
+	var res v1.DecideDeviceAuthorizationResponse
+	if err := c.client.CallUnary(ctx, authServiceDecideDeviceAuthorizationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 type authServiceHandler struct{ svc AuthServiceHandler }
 
 func (h authServiceHandler) getLoginMethods(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
@@ -642,6 +961,18 @@ func (h authServiceHandler) getLoginMethods(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.GetLoginMethods(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) getInstanceInfo(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetInstanceInfoRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetInstanceInfo(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -666,6 +997,18 @@ func (h authServiceHandler) complete2FA(ctx context.Context, _ connect.Spec, str
 		return err
 	}
 	res, err := h.svc.Complete2FA(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) setPasskeySecondFactor(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetPasskeySecondFactorRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetPasskeySecondFactor(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -792,6 +1135,18 @@ func (h authServiceHandler) getCurrentUser(ctx context.Context, _ connect.Spec, 
 	return stream.Send(res)
 }
 
+func (h authServiceHandler) getQuota(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetQuotaRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetQuota(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 func (h authServiceHandler) updateProfile(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.UpdateProfileRequest
 	if err := stream.Receive(&req); err != nil {
@@ -876,6 +1231,54 @@ func (h authServiceHandler) revokePersonalAccessToken(ctx context.Context, _ con
 	return stream.Send(res)
 }
 
+func (h authServiceHandler) listAuthorizedApps(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAuthorizedAppsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListAuthorizedApps(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) revokeAuthorizedApp(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeAuthorizedAppRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeAuthorizedApp(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) lookupDeviceAuthorization(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.LookupDeviceAuthorizationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.LookupDeviceAuthorization(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) decideDeviceAuthorization(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DecideDeviceAuthorizationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DecideDeviceAuthorization(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 var (
 	externalAccountServiceListExternalAccountsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
@@ -889,6 +1292,30 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListAvailableProviders"),
 			Procedure:  ExternalAccountServiceListAvailableProvidersProcedure,
+		}
+	})
+	externalAccountServiceListConnectionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListConnections"),
+			Procedure:        ExternalAccountServiceListConnectionsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	externalAccountServiceListSyncHistorySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListSyncHistory"),
+			Procedure:        ExternalAccountServiceListSyncHistoryProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	externalAccountServiceListQueueItemsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_auth_proto.Services().ByName("ExternalAccountService").Methods().ByName("ListQueueItems"),
+			Procedure:        ExternalAccountServiceListQueueItemsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	externalAccountServiceCreateExternalAccountSpec = sync.OnceValue(func() connect.Spec {
@@ -945,29 +1372,61 @@ var (
 // ExternalAccountServiceClient is a client for the cairn.v1.ExternalAccountService service.
 type ExternalAccountServiceClient interface {
 	// List all external accounts for the current user, with status.
+	// Scope: connections:read.
 	ListExternalAccounts(context.Context, *v1.ListExternalAccountsRequest) (*v1.ListExternalAccountsResponse, error)
 	// List providers available for "Add account": only those with at least
 	// one registered, healthy worker. Returns the manifest's config_fields
 	// and auth method so the UI can render a dynamic form.
+	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
+	// The user's provider connections (app credentials) and the providers
+	// with their worker pools (GET /api/connections).
+	// Scope: connections:read.
+	ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error)
+	// Import history of an account, newest first (GET /api/accounts/{id}/history).
+	// Scope: connections:read.
+	ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error)
+	// Import queue items of an account (GET /api/accounts/{id}/queue/items).
+	// Scope: connections:read.
+	ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Only config["poll_interval_seconds"] and display_label are editable
+	// today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+	// PUT /api/accounts/{id}/worker for now (InvalidArgument here).
+	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
+	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
-	// Delete: unregisters webhook subscription, removes credentials,
-	// and detaches sources from activities (activities themselves remain
-	// visible with the source marked detached).
+	// Delete the account (DELETE /api/accounts/{id}): its sources are
+	// detached first (activities keep their merged data and re-merge over the
+	// remaining sources), credentials, queue, import events, gear and the
+	// segments mirrored through it go with the row. Activities left without a
+	// live source are soft-deleted only with delete_exclusive_activities.
+	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Starts a full background discovery of the account (POST
+	// /api/accounts/{id}/sync/start); progress shows in the queue counts and
+	// the discovering flag. since is ignored (the discovery walks everything).
+	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
-	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Rotate the webhook signing token (POST /api/accounts/{id}/webhook-token/rotate).
+	// Provider subscriptions are owned by the workers, so no unregister or
+	// register job is queued and both job ids in the response stay empty.
+	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
 
@@ -981,29 +1440,61 @@ func NewExternalAccountServiceClient(client *connect.Client) ExternalAccountServ
 // service.
 type ExternalAccountServiceHandler interface {
 	// List all external accounts for the current user, with status.
+	// Scope: connections:read.
 	ListExternalAccounts(context.Context, *v1.ListExternalAccountsRequest) (*v1.ListExternalAccountsResponse, error)
 	// List providers available for "Add account": only those with at least
 	// one registered, healthy worker. Returns the manifest's config_fields
 	// and auth method so the UI can render a dynamic form.
+	// Scope: connections:read.
 	ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error)
+	// The user's provider connections (app credentials) and the providers
+	// with their worker pools (GET /api/connections).
+	// Scope: connections:read.
+	ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error)
+	// Import history of an account, newest first (GET /api/accounts/{id}/history).
+	// Scope: connections:read.
+	ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error)
+	// Import queue items of an account (GET /api/accounts/{id}/queue/items).
+	// Scope: connections:read.
+	ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error)
 	// Create a new external account with the user-supplied config. Returns
 	// either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
 	// or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+	// Scope: connections:write.
 	CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error)
 	// Update an external account's config (e.g. fill in a newly required field).
+	// Only config["poll_interval_seconds"] and display_label are editable
+	// today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+	// PUT /api/accounts/{id}/worker for now (InvalidArgument here).
+	// Scope: connections:write.
 	UpdateExternalAccountConfig(context.Context, *v1.UpdateExternalAccountConfigRequest) (*v1.UpdateExternalAccountConfigResponse, error)
 	// Re-authorize an account whose OAuth tokens went invalid.
+	// Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+	// Scope: connections:write.
 	StartExternalAccountReauthorize(context.Context, *v1.StartExternalAccountReauthorizeRequest) (*v1.StartExternalAccountReauthorizeResponse, error)
 	// Enable / disable an account without deleting it.
+	// enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
+	// Scope: connections:write.
 	SetExternalAccountEnabled(context.Context, *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error)
-	// Delete: unregisters webhook subscription, removes credentials,
-	// and detaches sources from activities (activities themselves remain
-	// visible with the source marked detached).
+	// Delete the account (DELETE /api/accounts/{id}): its sources are
+	// detached first (activities keep their merged data and re-merge over the
+	// remaining sources), credentials, queue, import events, gear and the
+	// segments mirrored through it go with the row. Activities left without a
+	// live source are soft-deleted only with delete_exclusive_activities.
+	// Scope: connections:write.
 	DeleteExternalAccount(context.Context, *v1.DeleteExternalAccountRequest) (*v1.DeleteExternalAccountResponse, error)
 	// Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
 	// job at high priority).
+	// Starts a full background discovery of the account (POST
+	// /api/accounts/{id}/sync/start); progress shows in the queue counts and
+	// the discovering flag. since is ignored (the discovery walks everything).
+	// Scope: connections:write.
 	TriggerSync(context.Context, *v1.TriggerSyncRequest) (*v1.TriggerSyncResponse, error)
-	// Rotate the webhook signing token. Queues unregister + register jobs.
+	// Rotate the webhook signing token (POST /api/accounts/{id}/webhook-token/rotate).
+	// Provider subscriptions are owned by the workers, so no unregister or
+	// register job is queued and both job ids in the response stay empty.
+	// Scope: connections:write.
 	RotateWebhookToken(context.Context, *v1.RotateWebhookTokenRequest) (*v1.RotateWebhookTokenResponse, error)
 }
 
@@ -1014,6 +1505,9 @@ func RegisterExternalAccountServiceHandler(server *connect.Server, svc ExternalA
 	server.Register(
 		connect.Method{Spec: externalAccountServiceListExternalAccountsSpec(), Handler: adapter.listExternalAccounts},
 		connect.Method{Spec: externalAccountServiceListAvailableProvidersSpec(), Handler: adapter.listAvailableProviders},
+		connect.Method{Spec: externalAccountServiceListConnectionsSpec(), Handler: adapter.listConnections},
+		connect.Method{Spec: externalAccountServiceListSyncHistorySpec(), Handler: adapter.listSyncHistory},
+		connect.Method{Spec: externalAccountServiceListQueueItemsSpec(), Handler: adapter.listQueueItems},
 		connect.Method{Spec: externalAccountServiceCreateExternalAccountSpec(), Handler: adapter.createExternalAccount},
 		connect.Method{Spec: externalAccountServiceUpdateExternalAccountConfigSpec(), Handler: adapter.updateExternalAccountConfig},
 		connect.Method{Spec: externalAccountServiceStartExternalAccountReauthorizeSpec(), Handler: adapter.startExternalAccountReauthorize},
@@ -1033,6 +1527,18 @@ func (UnimplementedExternalAccountServiceHandler) ListExternalAccounts(context.C
 
 func (UnimplementedExternalAccountServiceHandler) ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListAvailableProviders is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListConnections(context.Context, *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListConnections is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListSyncHistory(context.Context, *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListSyncHistory is not implemented")
+}
+
+func (UnimplementedExternalAccountServiceHandler) ListQueueItems(context.Context, *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ExternalAccountService.ListQueueItems is not implemented")
 }
 
 func (UnimplementedExternalAccountServiceHandler) CreateExternalAccount(context.Context, *v1.CreateExternalAccountRequest) (*v1.CreateExternalAccountResponse, error) {
@@ -1078,6 +1584,30 @@ func (c *externalAccountServiceClient) ListExternalAccounts(ctx context.Context,
 func (c *externalAccountServiceClient) ListAvailableProviders(ctx context.Context, req *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
 	var res v1.ListAvailableProvidersResponse
 	if err := c.client.CallUnary(ctx, externalAccountServiceListAvailableProvidersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListConnections(ctx context.Context, req *v1.ListConnectionsRequest) (*v1.ListConnectionsResponse, error) {
+	var res v1.ListConnectionsResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListConnectionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListSyncHistory(ctx context.Context, req *v1.ListSyncHistoryRequest) (*v1.ListSyncHistoryResponse, error) {
+	var res v1.ListSyncHistoryResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListSyncHistorySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *externalAccountServiceClient) ListQueueItems(ctx context.Context, req *v1.ListQueueItemsRequest) (*v1.ListQueueItemsResponse, error) {
+	var res v1.ListQueueItemsResponse
+	if err := c.client.CallUnary(ctx, externalAccountServiceListQueueItemsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1159,6 +1689,42 @@ func (h externalAccountServiceHandler) listAvailableProviders(ctx context.Contex
 		return err
 	}
 	res, err := h.svc.ListAvailableProviders(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listConnections(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListConnectionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListConnections(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listSyncHistory(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSyncHistoryRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSyncHistory(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h externalAccountServiceHandler) listQueueItems(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListQueueItemsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListQueueItems(ctx, &req)
 	if err != nil {
 		return err
 	}

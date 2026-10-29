@@ -29,7 +29,10 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
+	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // ActivityServer implements cairnv1connect.ActivityServiceHandler. The
@@ -59,6 +62,43 @@ type ActivityServer struct {
 	// Gear backs the gear_id edit (ownership check, type default on reset)
 	// and the gear names on the wire. Nil → gear edits rejected.
 	Gear *gearuc.Service
+
+	// SourceActions and SourceLinks back DeleteActivity, DetachSource and
+	// LinkSourceToActivity; the REST handlers call the same use cases.
+	SourceActions *activity.SourceActions
+	SourceLinks   *matchuc.SourceLinks
+
+	// Reimporter dispatches ReimportSource; Uploads ingests UploadActivity;
+	// Blobs mints PresignActivityUpload URLs and reads the uploaded object.
+	// Each nil → the RPC answers Unavailable.
+	Reimporter port.SourceReimporter
+	Uploads    port.UploadIngester
+	Blobs      port.BlobStore
+
+	// Events is the live feed behind StreamActivityEvents; UpdateActivity
+	// publishes to it. Nil → the stream answers Unavailable.
+	Events *ActivityEventHub
+
+	// Customs backs the custom best-effort RPCs; Backfill (optional) is told
+	// to recompute the user's activities of a type after a create.
+	Customs  *besteffort.Customs
+	Backfill func(userID domain.UserID, activityType domain.ActivityType)
+
+	// Previews runs reimport dry-runs; PreviewCommitter ingests a held result.
+	Previews         *activity.SourcePreviews
+	PreviewCommitter port.SourcePreviewCommitter
+
+	// Content signs photo/map/export URLs; Attachments lists photos;
+	// Visibility gates non-owner reads; Exports renders interchange files;
+	// MapETag derives Activity.map_image_etag. Nil → the RPC is Unavailable
+	// (or the field stays empty).
+	Content     port.ContentSigner
+	Attachments port.AttachmentRepo
+	Visibility  *view.Visibility
+	Exports     *view.Exports
+	Searches    *view.Searches
+	Details     *view.Details
+	MapETag     func(domain.Activity) string
 }
 
 // Compile-time interface check.
@@ -86,27 +126,9 @@ func NewActivityServer(
 	}
 }
 
-// gearNames resolves the names of the gear attached to the given activities
-// (one query) for Activity.gear_name. Empty when gear is not wired or the
-// lookup fails: names are a display hint.
+// gearNames resolves the names of the gear attached to the given activities.
 func (s *ActivityServer) gearNames(ctx context.Context, activities ...domain.Activity) map[domain.GearID]string {
-	if s.Gear == nil {
-		return nil
-	}
-	var ids []domain.GearID
-	for _, a := range activities {
-		if a.GearID != nil {
-			ids = append(ids, *a.GearID)
-		}
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	names, err := s.Gear.Names(ctx, ids)
-	if err != nil {
-		return nil
-	}
-	return names
+	return gearNamesOf(ctx, s.Gear, activities...)
 }
 
 // withGear fills the gear fields of a wire activity.
@@ -176,7 +198,7 @@ func (s *ActivityServer) ListActivities(
 			}
 			sources = srcs
 		}
-		out.Activities = append(out.Activities, withGear(activityToProto(a, sources), a, names))
+		out.Activities = append(out.Activities, s.withMapImage(ctx, withGear(activityToProto(a, sources), a, names), a))
 	}
 
 	// Reverse to start-time-DESC unless the caller asked otherwise. The
@@ -231,7 +253,7 @@ func (s *ActivityServer) GetActivity(
 	}
 
 	return &v1.GetActivityResponse{
-		Activity: withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)), activity),
 	}, nil
 }
 
@@ -290,6 +312,9 @@ func (s *ActivityServer) UpdateActivity(
 	if e.privacyTouched {
 		s.activityUpdateFederate(ctx, prevPrivacy, updated)
 	}
+	if s.Events != nil {
+		s.Events.Publish(domain.NewActivityEvent(domain.ActivityEventActivityUpdated, updated.UserID, "activity.updated").For(updated.ID, domain.SourceID{}))
+	}
 
 	sources, err := s.Activities.ListSourcesForActivity(ctx, activityID)
 	if err != nil {
@@ -298,7 +323,7 @@ func (s *ActivityServer) UpdateActivity(
 	}
 
 	return &v1.UpdateActivityResponse{
-		Activity: withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)), updated),
 	}, nil
 }
 

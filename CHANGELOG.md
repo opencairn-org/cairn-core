@@ -6,7 +6,241 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-29
+
+Needs no worker upgrade: the worker contract (`cairn.worker.v1`) is unchanged
+since 0.5.0. Three new migrations (00071–00073) run on start. OAuth clients
+that call `QueryMetricSeries` now need `training:read` instead of
+`training:write`.
+
 ### Added
+- `MetricsService` store RPCs: `GetLatestMetrics`, `QueryMetricSeries`
+  (TimescaleDB buckets, avg/min/max/sum/last/first/count, capped by
+  `max_points`), `UpsertMetric` (manual entry, natural-key dedup),
+  `DeleteMetric`, `BulkUpsertMetrics` (≤1000 rows) and `GetUserContext`
+  (stored measurements, athlete profile for the gaps, merge policies).
+  `ListMetrics` honours every filter and pages in SQL. REST twins under
+  `/api/metrics` (`GET`, `/latest`, `/series`, `/context`, `PUT`, `/bulk`,
+  `DELETE /{id}`).
+- `ExternalAccountService.DeleteExternalAccount` / `DELETE /api/accounts/{id}`:
+  sources are detached, activities with other sources re-merge, orphans are
+  soft-deleted only with `delete_exclusive_activities`, then the row goes
+  (queue, import events, gear and mirrored segments cascade).
+  `RotateWebhookToken` / `POST /api/accounts/{id}/webhook-token/rotate`
+  replaces the per-account signing secret; subscriptions are worker-owned,
+  so no re-registration job is queued.
+- `NotificationService.ListNotificationPreferences` /
+  `UpdateNotificationPreferences` on the same use-case as
+  `/api/notifications/preferences` (email channel, resolved defaults).
+- `StreamAdminEvents` now carries every type in the enum: worker degraded
+  (release incompatible with the core), provider conflict (two sources of
+  one provider kept apart by the recluster), auth flood and system health
+  degraded (minute probe leaving "healthy").
+- Password sign-in guard: every failure is audited (`auth.login_failed`);
+  ten failures per identifier or twenty per address within ten minutes lock
+  the key for ten minutes (`/login?error=too_many_attempts`) and raise the
+  auth-flood admin event.
+- Device authorization grant (RFC 8628): `POST /oauth/device_authorization`
+  issues a code pair, the token endpoint accepts
+  `urn:ietf:params:oauth:grant-type:device_code` with `authorization_pending`,
+  `slow_down`, `access_denied` and `expired_token`, and the signed-in side
+  approves on the new `/oauth/device` page or through
+  `AuthService.LookupDeviceAuthorization` / `DecideDeviceAuthorization` under
+  the new `devices:read` / `devices:write` scopes. An OAuth approver can grant
+  at most its own scopes. Dynamically registered clients get the grant by
+  default; `CAIRN_AUTH_OAUTH_DEVICE_CODE_TTL` (10m) and
+  `CAIRN_AUTH_OAUTH_DEVICE_POLL_INTERVAL` (5s) tune it.
+- `AuthService` account RPCs: `CreatePersonalAccessToken`,
+  `ListPersonalAccessTokens`, `RevokePersonalAccessToken`, `ChangePassword`,
+  `RequestPasswordReset`, `ConfirmPasswordReset`, `ListSessions`,
+  `RevokeSession`, `ListLinkedIdentities`, `UnlinkOIDCIdentity` and
+  `UpdateProfile`. REST gains the missing twins: `POST /auth/password/change`,
+  `GET|DELETE /api/sessions[/{id}]`, `GET|DELETE /api/identities[/{id}]` and
+  `PUT /api/profile`; `/api/pats` and `/auth/password/{forgot,reset}` now run
+  on the same use cases (`internal/usecase/account`). A password change ends
+  the user's other sessions, a reset ends all of them; the last sign-in
+  method cannot be unlinked; email changes are refused on both surfaces.
+- `ActivityService.StreamActivityEvents`: a per-user live feed of import,
+  reimport, activity, source and PR events (30 s heartbeat), fed by the ingest
+  router, uploads, source actions and the PR dispatcher.
+- Custom best-effort windows (`ListCustomBestEfforts`, `CreateCustomBestEffort`,
+  `DeleteCustomBestEffort`; REST `/api/records/custom`) with a backfill over
+  the user's activities of that type.
+- Source reimport previews (`PreviewSourceReimport`, `GetSourcePreview`,
+  `CommitSourcePreview`; REST `/api/sources/{id}/preview…`): a re-parse lands
+  in a preview row with a field-level diff before it touches the activity.
+- Native segment authoring and discovery (`CreateSegment`, `UpdateSegment`,
+  `DeleteSegment`, `ListSegments`, `SearchSegments`, `ListSegmentEfforts`,
+  `GetSegmentLeaderboard`, `RematchSegment`; REST `/api/segments…`).
+- Authorized apps: `ListAuthorizedApps` / `RevokeAuthorizedApp`, REST
+  `GET|DELETE /api/oauth/apps[/{client_id}]` and a web settings section that
+  revokes an OAuth client's grants and tokens.
+- Passkey as a second factor: a per-user toggle (`SetPasskeySecondFactor`,
+  `PUT /api/passkeys/second-factor`); a password login then returns a
+  challenge that a passkey assertion satisfies (`Complete2FA` on Connect,
+  `POST /auth/2fa/complete` on REST).
+- `AdminService` is now a full twin of `/api/admin/*`: user management with
+  an audit log (`ListAuditEntries`, `GetUser`, `CreateUser`, `UpdateUser`,
+  `ChangeUserRole`, `SetUserStatus`, `DeleteUser`, `ResetUserPassword`,
+  `RevokeUserCredentials`, `SetUserQuota`), instance settings, test email,
+  invites, system health, import-queue jobs and dead letters, orphaned
+  sources, worker fleet and enrollments, moderation reports and federation
+  blocks, instance merge defaults, operator actions (geocode backfill, gear
+  totals, NATS keys), webhook signing tokens (`ListWebhookSigningTokens`,
+  `BulkRotateWebhookSigningTokens`), `StreamAdminEvents` (worker
+  registered/offline/deregistered, dead-lettered jobs, user created or
+  suspended) and `TriggerMaintenance` with `ListMaintenanceJobs` /
+  `CancelMaintenanceJob`: rematch segments, recompute best efforts, merges or
+  training load, purge soft-deleted activities older than 30 days and collect
+  unreferenced raw-upload and attachment blobs, one in-process job at a time.
+- CI publishes `buf.build/cairn/api` on release tags once `BUF_TOKEN` and the
+  `BUF_PUSH` repository variable are set (the job is skipped until then).
+- `SocialService` reads: `ListFollowingFeed`, `ListClubs`, `GetClub`,
+  `ListClubMembers`, `ListClubFeed`, `GetProfile`, `GetProjectedActivity`,
+  `GetSharedActivity` (public, the token is the authorization) and
+  `ListReviewQueue`, the counterparts of `/api/feed/following`,
+  `/api/clubs…`, `/api/profiles/{username}`,
+  `/api/activities/{id}/projected`, `/api/shared/{token}` and
+  `/api/review-queue`. Private clubs and closed profiles answer
+  PermissionDenied, blocked or unknown ones NotFound, like REST.
+- `NotificationService.CountUnreadNotifications` and `StreamNotifications`
+  (server stream of new events with a 30 s heartbeat; fed by an in-process
+  hub every notification producer publishes to).
+- `ExternalAccountService` is mounted: `ListExternalAccounts` with the sync
+  status of each account (imported/provider totals, watermark, discovering,
+  rate limits and live budget, queue counts, pools, out-of-date sources),
+  `ListAvailableProviders`, new `ListConnections`, `ListSyncHistory` and
+  `ListQueueItems`, and the account toggles `UpdateExternalAccountConfig`
+  (poll interval, label), `SetExternalAccountEnabled` (auto import) and
+  `TriggerSync` (full discovery). Linking an account stays the browser OAuth
+  flow on REST.
+- `StatsService.GetStats`, `GetTrainingLoad`, `GetBestEffortHistory` and
+  `GetHeatmap` (tracks as encoded polylines), the counterparts of
+  `/api/stats`, `/api/analysis`, `/api/best-efforts/history` and
+  `/api/activities/heatmap`.
+- `SegmentService` is mounted: `ListMySegments` (the segments landing page),
+  `GetSegment` (with the caller's efforts as `top_efforts`) and
+  `ListMySegmentEfforts`. Native segment authoring and instance leaderboards
+  stay planned (no REST counterpart yet either).
+- `MetricsService` is mounted: `ListMetrics` (one key at a time),
+  `ListHealthSeries` (`/api/health`), `ListAthleteMetrics`,
+  `UpsertAthleteMetric` and `DeleteAthleteMetric` (`/api/athlete/metrics`).
+- `SettingsService` is mounted over what core stores today: `GetSettings`,
+  `UpdateSettings` (field mask `merge_policy_by_activity_type`) and
+  `ResetSettingsSection` (merge policies), the counterparts of
+  `/api/settings/merge-policy`.
+- Per-activity detail RPCs on `ActivityService`: `ListLaps`,
+  `GetActivityZones` (time in HR/power zones + aerobic decoupling),
+  `ListActivitySegmentEfforts`, `ListSimilarActivities`, `GetMergedStream`,
+  `ListKudos`, `ListComments`, `GetActivityManageInfo` (source insights and
+  merge provenance) and `GetParsedSource`, the counterparts of the
+  `/api/activities/{id}/…` detail routes. `ActivityLap` gains
+  `start_offset_s` and `elevation_loss_m`. The zone computation, the
+  same-route grouping, the manage insights and the re-parse eligibility
+  rules moved into the domain; REST and Connect render the same results.
+- `ActivityService.SearchActivities`: the faceted, filterable, sortable list
+  behind the web feed (`ActivityFilter` with the full filter bar, facets,
+  paging), the Connect counterpart of `GET /api/activities/feed`.
+  `ActivitySort` gains `ELEVATION_DESC` and `SPEED_DESC`; `Activity` gains
+  `gear_unset`.
+- New `StatsService.GetOverview` (dashboard totals, per-sport breakdown,
+  newest activities, this/last week with ranges) and `SocialService.ListHomeFeed`
+  (own, following and federated rows, projected per the visibility model),
+  the counterparts of `GET /api/overview` and `GET /api/feed/home`. Shared
+  messages `Facet`, `Totals`, `UserCard`, `ProjectedActivity`, `FeedItem`.
+  The REST handlers now render from the same use cases (`usecase/view`).
+- Signed binary-content URLs. Photos, static course images and exports are
+  handed out as short-lived `ContentUrl`s a client fetches with a plain GET:
+  `ActivityService.ListAttachments` (original/medium/thumb + blurhash),
+  `GetActivityMapImage`, `GetExportOptions`, `ExportActivity` (rendered on
+  GET), and `Activity.map_image` + `map_image_etag` on every activity with a
+  track. Stored objects are presigned on `CAIRN_STORAGE_PUBLIC_ENDPOINT` when
+  set; otherwise, and always for rendered content, the URL points at the new
+  `GET /content/{token}` route (HMAC-signed claims, 15 min). `PUT
+  /content/{token}` is the upload counterpart `PresignActivityUpload` uses
+  when no public endpoint exists, so the two-step upload works everywhere.
+  REST `/api/activities/{id}/attachments` now also carries `urls` per
+  variant and `blurhash`.
+- Photo variants: uploads and worker-mirrored photos get a 320 px thumb and
+  a 1280 px medium JPEG plus a blurhash (migration 00068; pure Go, cgo-free).
+  `cairn attachments backfill-variants` derives them for existing photos.
+- Cleartext HTTP/2 (h2c, prior knowledge) next to HTTP/1.1, so native Connect
+  and gRPC clients multiplex and stream over one connection without a TLS
+  proxy in front. Streaming RPCs are exempt from the server-wide
+  `CAIRN_HTTP_WRITE_TIMEOUT`; unary calls keep it.
+- `AuthService.GetInstanceInfo` (public): release, commit, build time,
+  federation/OAuth flags, signup policy and the scope catalog, for a client's
+  server picker. `AuthService.GetQuota` (same numbers as `GET /api/quota`),
+  `Logout` (cookie session; `all_devices` revokes every session) and
+  `Register` (invite-based, mirrors `POST /auth/invite/redeem`; no session is
+  issued, the client signs in afterwards).
+- OAuth 2.1 loopback redirects per RFC 8252 §7.3: a registered
+  `http://127.0.0.1/...` or `http://[::1]/...` redirect matches any port, and
+  the authorization code goes to the port the app actually bound. `localhost`
+  and custom schemes still match exactly.
+- Dynamic client registration stores `software_id` and `software_version`
+  (migration 00067) and echoes them, so an authorized-apps view can name the
+  application behind a client.
+- Scope catalog completed: every family now has `:read` and `:write`
+  (`profile:write`, `segments:write`, `training:write`, `gear:read/write`,
+  `notifications:read/write`, `connections:read/write`). The read-only default
+  grant includes the new read scopes. `docs/api-scopes.md` maps every RPC to
+  its scope and each `rpc` carries a `// Scope:` comment.
+
+### Changed
+- Maintenance jobs are persisted (`maintenance_jobs`, migration 00073): a
+  restart re-queues jobs still waiting and marks the one that was running
+  failed with "interrupted by server restart"; `ListMaintenanceJobs` merges
+  the live registry with the stored history. Blob garbage collection now
+  covers every key family a source or attachment can reference (`raw/`,
+  `attachments/`, `uploads/`, `users/`, `shared/`) plus `transfer/`.
+- Connect scope derivation treats `Query*` RPCs as reads; `QueryMetricSeries`
+  needs `training:read`.
+- The REST read paths that still carried logic in `package main` (quota,
+  map/photo/social visibility gates, follow and block lists, follow state,
+  the admin user page, the notification preference matrix) now run on
+  `internal/usecase` types shared with the Connect handlers.
+- OAuth tokens are now checked per scope family on Connect: an
+  `ActivityService` read needs `activities:read`, `GearService` needs
+  `gear:*`, `NotificationService` `notifications:*`, and so on; session-bound
+  RPCs (sessions, personal access tokens, `Logout`, `ChangePassword`,
+  everything on `AdminService`) refuse OAuth tokens. Before, any read-only
+  token could call every read RPC. Tokens issued before this release keep
+  working for the families they hold; re-authorize to pick up new scopes.
+  REST keeps the coarse read/write rule.
+- Declared RPCs without backing code say so in their proto comment and keep
+  returning `Unimplemented`: `StreamActivityEvents`, the source-preview trio,
+  custom best efforts, `Complete2FA`; browser-only flows (`LoginPassword`,
+  `StartOIDCLogin`, `StartOIDCLink`) point at their REST routes.
+- Connect `ActivityService` now implements `ListActivitySources`,
+  `DeleteActivity`, `DetachSource` (incl. `keep_as_new_activity` = split),
+  `LinkSourceToActivity`, `ReimportSource` (`prefer_local_reparse` = re-parse
+  from the archive), `ListRecords`, `PresignActivityUpload` and
+  `UploadActivity`. They call the same use cases as the REST handlers
+  (`/sources/{id}/detach|reimport`, `/split`, `/merge`, `/upload`,
+  `/api/records`), so the two surfaces behave identically. Still
+  unimplemented: `StreamActivityEvents`, the source-preview trio and custom
+  best efforts.
+- `DELETE /api/activities/{id}` soft-deletes an activity (every source
+  detached and denylisted, remote followers told). Before, the only way was
+  detaching the sources one by one.
+- `PresignActivityUpload` + `UploadActivity` give native clients a two-step
+  upload via object storage (`uploads/<user>/<id>.<ext>`, 15 min PUT URL);
+  needs the S3 endpoint to be reachable by the client, which the REST
+  multipart upload does not.
+
+### Fixed
+- `must_change_password` is now enforced: a password sign-in of a user whose
+  password was set by an administrator (reset, created with an initial
+  password, bootstrap admin) yields a challenge instead of a session and the
+  login page asks for a new password first (`POST /auth/password/required`);
+  the passkey second factor still follows when enabled. Passkey and OIDC
+  sign-ins are unaffected since they do not use the password (migration
+  00071 tags login challenges with their purpose).
+- Connect streaming RPCs went through the session, scope and admin
+  interceptors unauthenticated (the chain only wrapped unary calls). No
+  streaming RPC was implemented, so nothing was exposed; the chain now covers
+  every stream type.
 - A v* tag now also publishes the GitHub release: the tag's CHANGELOG.md
   section as notes plus the image digest and verify commands, with an SPDX
   SBOM of that digest (syft) attached. Before, the release object was created

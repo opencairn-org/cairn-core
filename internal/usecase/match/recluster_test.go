@@ -240,9 +240,13 @@ func TestReclusterBucket_SameProviderConflict(t *testing.T) {
 	s1, a1 := mkSource(m, "garmin", reTime, 30000)
 	s2, a2 := mkSource(m, "garmin", reTime.Add(2*time.Second), 30010)
 
-	res, err := newRecluster(m).Execute(context.Background(), Input{UserID: testUser, Around: reTime})
+	events := &captureEvents{}
+	res, err := newRecluster(m).WithEvents(events).Execute(context.Background(), Input{UserID: testUser, Around: reTime})
 	if err != nil {
 		t.Fatalf("execute: %v", err)
+	}
+	if len(events.got) != 1 || events.got[0].Type != domain.AdminEventProviderConflict || events.got[0].Params["provider"] != "garmin" || *events.got[0].UserID != testUser {
+		t.Errorf("conflict event: %+v", events.got)
 	}
 	if m.srcs[s1].ActivityID == m.srcs[s2].ActivityID {
 		t.Errorf("same-provider sources must NOT merge")
@@ -279,3 +283,7 @@ func TestReclusterBucket_DenylistKeepsStandalone(t *testing.T) {
 		t.Errorf("neither activity should be dissolved when the dupe is denied")
 	}
 }
+
+type captureEvents struct{ got []domain.AdminEvent }
+
+func (c *captureEvents) Publish(ev domain.AdminEvent) { c.got = append(c.got, ev) }

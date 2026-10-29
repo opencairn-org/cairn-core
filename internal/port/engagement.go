@@ -25,6 +25,10 @@ type EngagementRepo interface {
 
 	AddComment(ctx context.Context, c domain.Comment) (domain.CommentID, error)
 	ListComments(ctx context.Context, activityID domain.ActivityID, limit, offset int) ([]domain.Comment, error)
+	// Federated reactions (ActivityPub Likes and reply Notes).
+	CountRemoteKudos(ctx context.Context, activityID domain.ActivityID) (int, error)
+	ListRemoteKudosers(ctx context.Context, activityID domain.ActivityID, limit int) ([]domain.RemoteKudoser, error)
+	ListRemoteComments(ctx context.Context, activityID domain.ActivityID, limit int) ([]domain.RemoteComment, error)
 	CountComments(ctx context.Context, activityID domain.ActivityID) (int, error)
 	// DeleteComment soft-deletes a comment. Permitted for the comment author
 	// OR the owner of the activity the comment is on (enforced in SQL).

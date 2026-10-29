@@ -13,14 +13,35 @@
 	let passkeys = $state<Passkey[]>([]);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+	let secondFactor = $state(false);
 	const supported = passkeysSupported();
 
 	async function load() {
 		try {
 			const res = await fetch('/api/passkeys');
-			if (res.ok) passkeys = (await res.json()).passkeys ?? [];
+			if (res.ok) {
+				const body = await res.json();
+				passkeys = body.passkeys ?? [];
+				secondFactor = !!body.second_factor;
+			}
 		} catch {
 			/* ignore */
+		}
+	}
+
+	async function toggleSecondFactor() {
+		const next = !secondFactor;
+		error = null;
+		try {
+			const res = await fetch('/api/passkeys/second-factor', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ enabled: next })
+			});
+			if (!res.ok) throw new Error((await res.text()).trim());
+			secondFactor = next;
+		} catch (e) {
+			error = (e as Error).message;
 		}
 	}
 	onMount(load);
@@ -82,6 +103,20 @@
 			{error}
 		</div>
 	{/if}
+
+	<label class="mb-3 flex items-center gap-2 text-xs text-zinc-300">
+		<input
+			type="checkbox"
+			checked={secondFactor}
+			disabled={passkeys.length === 0 && !secondFactor}
+			onchange={toggleSecondFactor}
+			class="accent-accent-500"
+		/>
+		Require a passkey after password sign-in
+		{#if passkeys.length === 0 && !secondFactor}
+			<span class="text-zinc-600">(add a passkey first)</span>
+		{/if}
+	</label>
 
 	{#if !supported}
 		<p class="text-xs text-zinc-600">This browser doesn’t support passkeys.</p>

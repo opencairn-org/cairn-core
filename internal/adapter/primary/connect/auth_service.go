@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -12,18 +14,17 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/account"
+	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
 //
-// Only GetCurrentUser + GetLoginMethods are wired today — every other
-// RPC falls through to the embedded Unimplemented base and returns
-// CodeUnimplemented.
-//
-// Password / WebAuthn / OAuth-link RPCs land in subsequent passes; the
-// OIDC sign-in itself runs through the REST handler in cmd/server/oidc.go
-// rather than this service because Connect-RPC's call model doesn't
-// fit cleanly with a redirect-based OAuth flow.
+// Browser flows (password login, OIDC start/link, passkeys) stay on the REST
+// handlers because they are redirect- and cookie-driven; the proto comments
+// on those RPCs say so and they return CodeUnimplemented. Everything else
+// falls through to the embedded Unimplemented base until implemented.
 type AuthServer struct {
 	cairnv1connect.UnimplementedAuthServiceHandler
 
@@ -31,6 +32,32 @@ type AuthServer struct {
 	// OIDCProviders are the env-configured (CAIRN_OIDC_*) providers. Immutable
 	// at runtime — there is no client database. Empty means OIDC is disabled.
 	OIDCProviders []domain.OIDCProvider
+
+	// Instance backs GetInstanceInfo.
+	Instance InstanceInfo
+	// Sessions backs Logout; nil → Unavailable.
+	Sessions port.SessionRepo
+	// Quota backs GetQuota (the rule shared with GET /api/quota).
+	Quota *view.Quota
+	// Invites backs Register; VerifyEmail (optional) mails a verification link
+	// for a self-entered address.
+	Invites     InviteRedeemer
+	VerifyEmail func(ctx context.Context, u domain.User) error
+
+	// Self-service account use cases (nil → Unavailable on their RPCs).
+	PATs        *account.Tokens
+	SessionMgmt *account.Sessions
+	Passwords   *account.Passwords
+	Identities  *account.Identities
+	Profiles    *account.Profiles
+	Apps        *account.AuthorizedApps
+	Devices     *account.DeviceAuthorizations
+	// SecondFactor backs Complete2FA and SetPasskeySecondFactor; SessionTTL
+	// bounds the bearer sessions Complete2FA issues.
+	SecondFactor *authuc.SecondFactor
+	SessionTTL   time.Duration
+	// Log receives failures that must not reach the caller (reset mail).
+	Log *slog.Logger
 }
 
 var _ cairnv1connect.AuthServiceHandler = (*AuthServer)(nil)
@@ -118,20 +145,21 @@ func (s *AuthServer) GetLoginMethods(
 // userToProto converts the domain User into the proto wire type.
 func userToProto(u domain.User) *v1.User {
 	out := &v1.User{
-		Id:            u.ID.String(),
-		Username:      u.Username,
-		Email:         u.Email,
-		EmailVerified: u.EmailVerified,
-		DisplayName:   u.DisplayName,
-		Locale:        u.Locale,
-		Timezone:      u.Timezone,
-		Units:         unitsToProto(u.Units),
-		DateFormat:    dateFormatToProto(u.DateFormat),
-		TimeFormat:    timeFormatToProto(u.TimeFormat),
-		Role:          userRoleToProto(u.Role),
-		Status:        userStatusToProto(u.Status),
-		CreatedAt:     timestamppb.New(u.CreatedAt),
-		UpdatedAt:     timestamppb.New(u.UpdatedAt),
+		Id:                  u.ID.String(),
+		Username:            u.Username,
+		Email:               u.Email,
+		EmailVerified:       u.EmailVerified,
+		DisplayName:         u.DisplayName,
+		Locale:              u.Locale,
+		Timezone:            u.Timezone,
+		Units:               unitsToProto(u.Units),
+		DateFormat:          dateFormatToProto(u.DateFormat),
+		TimeFormat:          timeFormatToProto(u.TimeFormat),
+		PasskeySecondFactor: u.PasskeySecondFactor,
+		Role:                userRoleToProto(u.Role),
+		Status:              userStatusToProto(u.Status),
+		CreatedAt:           timestamppb.New(u.CreatedAt),
+		UpdatedAt:           timestamppb.New(u.UpdatedAt),
 	}
 	if u.AvatarURL != "" {
 		v := u.AvatarURL

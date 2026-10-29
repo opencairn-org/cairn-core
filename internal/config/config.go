@@ -205,6 +205,13 @@ type StorageConfig struct {
 	// to clients and workers.
 	PresignTTL time.Duration `env:"PRESIGN_TTL, default=15m"`
 
+	// PublicEndpoint is the object-store origin clients (browsers, native
+	// apps) can reach, used only to presign URLs handed to them; Endpoint
+	// stays the cluster-internal address workers and the server use. Empty
+	// (the default) means the server serves such content itself through
+	// signed /content/{token} URLs, which works on every deployment.
+	PublicEndpoint string `env:"PUBLIC_ENDPOINT"`
+
 	// TransferExpiryDays is the lifecycle backstop for claim-checked result
 	// payloads under transfer/ — the server deletes them right after ingest,
 	// this rule reaps orphans (crashed ingest, envelope never delivered).
@@ -289,6 +296,10 @@ type AuthConfig struct {
 	OAuthRefreshTokenTTL time.Duration `env:"OAUTH_REFRESH_TOKEN_TTL, default=2160h"` // 90 days gitleaks:allow
 	OAuthAuthCodeTTL     time.Duration `env:"OAUTH_AUTH_CODE_TTL, default=5m"`
 	OAuthAllowDynamicReg bool          `env:"OAUTH_ALLOW_DYNAMIC_REGISTRATION, default=true"`
+	// Device authorization (RFC 8628): how long a code pair stays valid and
+	// how often a device may poll the token endpoint.
+	OAuthDeviceCodeTTL      time.Duration `env:"OAUTH_DEVICE_CODE_TTL, default=10m"`
+	OAuthDevicePollInterval time.Duration `env:"OAUTH_DEVICE_POLL_INTERVAL, default=5s"`
 }
 
 // EmailConfig selects the outbound email adapter. The adapter type

@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
-	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/postgres"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // adminOpsHandlers holds the dependencies of the admin maintenance routes.
@@ -49,6 +49,17 @@ func mountAdminOps(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// Dead-letter inspection + replay.
 	mux.HandleFunc("GET /api/admin/dlq", h.listDLQ)
 	mux.HandleFunc("POST /api/admin/dlq/{id}/replay", h.replayDLQ)
+	// Job introspection over the import queue, and sources whose worker is gone.
+	mux.HandleFunc("GET /api/admin/jobs", h.listJobs)
+	mux.HandleFunc("GET /api/admin/jobs/{id}", h.getJob)
+	mux.HandleFunc("POST /api/admin/jobs/{id}/retry", h.retryJob)
+	mux.HandleFunc("POST /api/admin/jobs/{id}/cancel", h.cancelJob)
+	mux.HandleFunc("GET /api/admin/sources/orphaned", h.orphanedSources)
+	mux.HandleFunc("GET /api/admin/webhook-tokens", h.listWebhookTokens)
+	mux.HandleFunc("POST /api/admin/webhook-tokens/rotate", h.rotateWebhookTokens)
+	mux.HandleFunc("POST /api/admin/maintenance", h.triggerMaintenance)
+	mux.HandleFunc("GET /api/admin/maintenance/jobs", h.listMaintenanceJobs)
+	mux.HandleFunc("POST /api/admin/maintenance/jobs/{id}/cancel", h.cancelMaintenanceJob)
 
 	logger.Info("admin ops endpoints mounted (/api/admin/{geocode,nats,dlq})")
 }
@@ -66,24 +77,12 @@ func (h *adminOpsHandlers) geocodeBackfill(w http.ResponseWriter, r *http.Reques
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.ComputeStartPlace == nil {
-		http.Error(w, "geocoder disabled", http.StatusServiceUnavailable)
+	admin, _ := resolveAdminUser(r, h.app)
+	limit, err := h.app.Ops.RunGeocodeBackfill(r.Context(), restActor(r, admin), parseIntQuery(r, "limit", 50))
+	if err != nil {
+		writeActionError(w, err, "backfill failed")
 		return
 	}
-	limit := parseIntQuery(r, "limit", 50)
-	if limit <= 0 {
-		limit = 50
-	}
-	go func(limit int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-		n, err := h.app.ComputeStartPlace.BackfillBatch(ctx, limit)
-		if err != nil {
-			h.logger.Warn("admin geocode backfill failed", "error", err)
-			return
-		}
-		h.logger.Info("admin geocode backfill complete", "resolved", n)
-	}(limit)
 	writeJSON(w, http.StatusAccepted, map[string]any{"started": true, "limit": limit})
 }
 
@@ -91,109 +90,134 @@ func (h *adminOpsHandlers) rebuildGearTotals(w http.ResponseWriter, r *http.Requ
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.Gear == nil {
-		http.Error(w, "gear not wired", http.StatusServiceUnavailable)
-		return
-	}
-	n, err := h.app.Gear.RebuildAllTotals(r.Context())
+	admin, _ := resolveAdminUser(r, h.app)
+	n, err := h.app.Ops.RebuildGearTotals(r.Context(), restActor(r, admin))
 	if err != nil {
-		h.logger.Warn("admin gear totals rebuild failed", "error", err)
-		http.Error(w, "rebuild failed", http.StatusInternalServerError)
+		writeActionError(w, err, "rebuild failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rebuilt": true, "users": n})
 }
 
-// signingReady writes 503 and returns false when the signing-key deps are missing.
-func (h *adminOpsHandlers) signingReady(w http.ResponseWriter, r *http.Request) bool {
-	if !h.gate(w, r) {
-		return false
-	}
-	if h.app.SigningKeys == nil || h.app.SecretBox == nil {
-		http.Error(w, "signing-key repo / secret box not wired", http.StatusServiceUnavailable)
-		return false
-	}
-	return true
-}
-
 func (h *adminOpsHandlers) bootstrapAccountKey(w http.ResponseWriter, r *http.Request) {
-	if !h.signingReady(w, r) {
+	if !h.gate(w, r) {
 		return
 	}
-	app := h.app
-	if existing, err := app.SigningKeys.GetActive(r.Context(), domain.SigningKeyPurposeNATSAccount); err == nil {
+	admin, _ := resolveAdminUser(r, h.app)
+	key, created, err := h.app.Ops.BootstrapKey(r.Context(), restActor(r, admin))
+	if err != nil {
+		writeActionError(w, err, "bootstrap failed")
+		return
+	}
+	if !created {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"public_key": existing.PublicKey,
-			"created_at": existing.CreatedAt.UTC(),
-			"action":     "no_change",
-			"note":       "active signing key already exists",
+			"public_key": key.PublicKey, "created_at": key.CreatedAt.UTC(), "action": "no_change",
+			"note": "active signing key already exists",
 		})
 		return
 	}
-	created, err := natsadapter.BootstrapAccountKey(r.Context(), app.SigningKeys, app.SecretBox, adminUserPtr(r, app))
-	if err != nil {
-		http.Error(w, "bootstrap failed: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"public_key": created.PublicKey,
-		"created_at": created.CreatedAt.UTC(),
-		"action":     "created",
-		"note":       "copy this public key into nats-server.conf auth_callout.issuer",
+		"public_key": key.PublicKey, "created_at": key.CreatedAt.UTC(), "action": "created",
+		"note": "copy this public key into nats-server.conf auth_callout.issuer",
 	})
 }
 
 func (h *adminOpsHandlers) rotateAccountKey(w http.ResponseWriter, r *http.Request) {
-	if !h.signingReady(w, r) {
+	if !h.gate(w, r) {
 		return
 	}
-	app := h.app
-	var newKey domain.SigningKey
-	var oldPub string
-	err := app.Tx.InTx(r.Context(), func(ctx context.Context) error {
+	admin, _ := resolveAdminUser(r, h.app)
+	key, oldPub, err := h.app.Ops.RotateKey(r.Context(), restActor(r, admin))
+	if err != nil {
+		writeActionError(w, err, "rotate failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"new_public_key": key.PublicKey, "old_public_key": oldPub, "action": "rotated",
+		"note": "trust BOTH keys in nats-server.conf during the overlap, then drop the old one once all workers have renewed",
+	})
+}
+
+// natsKeyManager runs the account-key operations over the nats adapter.
+type natsKeyManager struct{ app *App }
+
+func (m natsKeyManager) ready() error {
+	if m.app.SigningKeys == nil || m.app.SecretBox == nil {
+		return errors.New("signing-key repo / secret box not wired")
+	}
+	return nil
+}
+
+func (m natsKeyManager) Bootstrap(ctx context.Context, by *domain.UserID) (domain.SigningKey, bool, error) {
+	if err := m.ready(); err != nil {
+		return domain.SigningKey{}, false, err
+	}
+	if existing, err := m.app.SigningKeys.GetActive(ctx, domain.SigningKeyPurposeNATSAccount); err == nil {
+		return existing, false, nil
+	}
+	key, err := natsadapter.BootstrapAccountKey(ctx, m.app.SigningKeys, m.app.SecretBox, by)
+	return key, err == nil, err
+}
+
+func (m natsKeyManager) Rotate(ctx context.Context, by *domain.UserID) (domain.SigningKey, string, error) {
+	if err := m.ready(); err != nil {
+		return domain.SigningKey{}, "", err
+	}
+	var (
+		newKey domain.SigningKey
+		oldPub string
+	)
+	err := m.app.Tx.InTx(ctx, func(ctx context.Context) error {
 		var e error
-		newKey, oldPub, e = natsadapter.RotateAccountKey(ctx, app.SigningKeys, app.SecretBox, adminUserPtr(r, app))
+		newKey, oldPub, e = natsadapter.RotateAccountKey(ctx, m.app.SigningKeys, m.app.SecretBox, by)
 		return e
 	})
 	if err != nil {
-		http.Error(w, "rotate failed: "+err.Error(), http.StatusInternalServerError)
-		return
+		return domain.SigningKey{}, "", err
 	}
-	if app.NATSCredentialIssuer != nil {
-		app.NATSCredentialIssuer.InvalidateCache()
+	if m.app.NATSCredentialIssuer != nil {
+		m.app.NATSCredentialIssuer.InvalidateCache()
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"new_public_key": newKey.PublicKey,
-		"old_public_key": oldPub,
-		"action":         "rotated",
-		"note":           "trust BOTH keys in nats-server.conf during the overlap, then drop the old one once all workers have renewed",
-	})
+	return newKey, oldPub, nil
+}
+
+// geocodeBackfillRunner runs one batch in the background, logging the outcome.
+func geocodeBackfillRunner(app *App, logger *slog.Logger) func(limit int) {
+	if app.ComputeStartPlace == nil {
+		return nil
+	}
+	return func(limit int) {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+			n, err := app.ComputeStartPlace.BackfillBatch(ctx, limit)
+			if err != nil {
+				logger.Warn("admin geocode backfill failed", "error", err)
+				return
+			}
+			logger.Info("admin geocode backfill complete", "resolved", n)
+		}()
+	}
 }
 
 func (h *adminOpsHandlers) listDLQ(w http.ResponseWriter, r *http.Request) {
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.DeadLetters == nil {
+	if h.app.Jobs == nil {
 		http.Error(w, "dlq repo not wired", http.StatusServiceUnavailable)
 		return
 	}
 	q := r.URL.Query()
-	var beforeTS time.Time
-	if v := q.Get("before"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			beforeTS = t
-		}
-	}
-	list, err := h.app.DeadLetters.List(r.Context(), postgres.DLQListInput{
+	list, err := h.app.Jobs.ListDeadLetters(r.Context(), port.DeadLetterFilter{
 		Stream:            q.Get("stream"),
 		Subject:           q.Get("subject"),
 		IncludeReplayed:   q.Get("include_replayed") == "true",
 		Limit:             parseIntQuery(r, "limit", 50),
-		BeforeFirstSeenAt: beforeTS,
+		BeforeFirstSeenAt: parseTimeQuery(q.Get("before")),
 	})
 	if err != nil {
-		http.Error(w, "list failed: "+err.Error(), http.StatusInternalServerError)
+		writeActionError(w, err, "list failed")
 		return
 	}
 	out := make([]map[string]any, 0, len(list))
@@ -203,60 +227,26 @@ func (h *adminOpsHandlers) listDLQ(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": out, "count": len(out)})
 }
 
-// loadDLQJob parses {id} and loads the dead-lettered job, writing errors itself.
-func (h *adminOpsHandlers) loadDLQJob(w http.ResponseWriter, r *http.Request) (domain.DeadLetteredJob, bool) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return domain.DeadLetteredJob{}, false
-	}
-	job, err := h.app.DeadLetters.Get(r.Context(), domain.DeadLetteredJobID(id))
-	if errors.Is(err, domain.ErrNotFound) {
-		http.Error(w, "not found", http.StatusNotFound)
-		return domain.DeadLetteredJob{}, false
-	}
-	if err != nil {
-		http.Error(w, "load failed: "+err.Error(), http.StatusInternalServerError)
-		return domain.DeadLetteredJob{}, false
-	}
-	return job, true
-}
-
 func (h *adminOpsHandlers) replayDLQ(w http.ResponseWriter, r *http.Request) {
 	if !h.gate(w, r) {
 		return
 	}
-	if h.app.DeadLetters == nil || h.app.NATSBus == nil {
+	if h.app.Jobs == nil {
 		http.Error(w, "dlq + nats not wired", http.StatusServiceUnavailable)
 		return
 	}
-	job, ok := h.loadDLQJob(w, r)
-	if !ok {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	if len(job.Payload) == 0 {
-		http.Error(w, "captured row has no payload to replay", http.StatusUnprocessableEntity)
+	admin, _ := resolveAdminUser(r, h.app)
+	_, newMsgID, err := h.app.Jobs.Requeue(r.Context(), restActor(r, admin), domain.DeadLetteredJobID(id))
+	if err != nil {
+		writeActionError(w, err, "replay failed")
 		return
 	}
-	newMsgID := fmt.Sprintf("replay:%s:%d", job.ID.String(), time.Now().Unix())
-	if err := h.app.NATSBus.Publish(r.Context(), "cairn.replay.unsorted", newMsgID, job.Payload); err != nil {
-		http.Error(w, "publish failed: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := h.app.DeadLetters.MarkReplayed(r.Context(), job.ID, nil, time.Now().UTC()); err != nil {
-		h.logger.Warn("replay published but mark failed", "id", job.ID, "error", err)
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": job.ID.String(), "replayed": true, "new_msg_id": newMsgID})
-}
-
-// adminUserPtr returns the resolved admin user's id pointer (for audit trails),
-// or nil when it can't be resolved (the caller already passed adminGate).
-func adminUserPtr(r *http.Request, app *App) *domain.UserID {
-	if u, ok := resolveAdminUser(r, app); ok {
-		id := u.ID
-		return &id
-	}
-	return nil
+	writeJSON(w, http.StatusOK, map[string]any{"id": id.String(), "replayed": true, "new_msg_id": newMsgID})
 }
 
 func dlqJobToJSON(j domain.DeadLetteredJob) map[string]any {
@@ -309,4 +299,151 @@ func enrollmentResponseJSON(e domain.WorkerEnrollment) map[string]any {
 		out["revoked_by_user_id"] = e.RevokedByUserID.String()
 	}
 	return out
+}
+
+// natsReplayer republishes a dead-lettered payload on the replay subject.
+type natsReplayer struct{ app *App }
+
+func (n natsReplayer) Replay(ctx context.Context, job domain.DeadLetteredJob) (string, error) {
+	if n.app.NATSBus == nil {
+		return "", errors.New("message bus not configured")
+	}
+	newMsgID := fmt.Sprintf("replay:%s:%d", job.ID.String(), time.Now().Unix())
+	if err := n.app.NATSBus.Publish(ctx, "cairn.replay.unsorted", newMsgID, job.Payload); err != nil {
+		return "", err
+	}
+	return newMsgID, nil
+}
+
+func (h *adminOpsHandlers) jobsReady(w http.ResponseWriter, r *http.Request) bool {
+	if !h.gate(w, r) {
+		return false
+	}
+	if h.app.Jobs == nil {
+		http.Error(w, "import queue not wired", http.StatusServiceUnavailable)
+		return false
+	}
+	return true
+}
+
+func (h *adminOpsHandlers) listJobs(w http.ResponseWriter, r *http.Request) {
+	if !h.jobsReady(w, r) {
+		return
+	}
+	q := r.URL.Query()
+	f := port.ImportQueueFilter{Statuses: csv[domain.ImportItemStatus](q.Get("status")), ItemTypes: csv[domain.ImportItemType](q.Get("type")),
+		Providers: csv[string](q.Get("provider")), Limit: parseIntQuery(r, "limit", 50), Offset: parseIntQuery(r, "offset", 0)}
+	f.From, f.To = parseTimeQuery(q.Get("from")), parseTimeQuery(q.Get("to"))
+	if raw := q.Get("user_id"); raw != "" {
+		uid, err := uuid.Parse(raw)
+		if err != nil {
+			http.Error(w, "bad user_id", http.StatusBadRequest)
+			return
+		}
+		u := domain.UserID(uid)
+		f.UserID = &u
+	}
+	items, total, counts, err := h.app.Jobs.List(r.Context(), f)
+	if err != nil {
+		writeActionError(w, err, "list failed")
+		return
+	}
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, queueItemAdminJSON(it))
+	}
+	byStatus := map[string]int{}
+	for st, n := range counts {
+		byStatus[string(st)] = n
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"jobs": out, "total": total, "count_by_status": byStatus})
+}
+
+func (h *adminOpsHandlers) jobID(w http.ResponseWriter, r *http.Request) (domain.ImportQueueItemID, bool) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return domain.ImportQueueItemID{}, false
+	}
+	return domain.ImportQueueItemID(id), true
+}
+
+func (h *adminOpsHandlers) getJob(w http.ResponseWriter, r *http.Request) {
+	if !h.jobsReady(w, r) {
+		return
+	}
+	id, ok := h.jobID(w, r)
+	if !ok {
+		return
+	}
+	it, err := h.app.Jobs.Get(r.Context(), id)
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"job": queueItemAdminJSON(it)})
+}
+
+func (h *adminOpsHandlers) retryJob(w http.ResponseWriter, r *http.Request) {
+	if !h.jobsReady(w, r) {
+		return
+	}
+	id, ok := h.jobID(w, r)
+	if !ok {
+		return
+	}
+	admin, _ := resolveAdminUser(r, h.app)
+	it, err := h.app.Jobs.Retry(r.Context(), restActor(r, admin), id, r.URL.Query().Get("reset") == "true")
+	if err != nil {
+		writeActionError(w, err, "retry failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"job": queueItemAdminJSON(it)})
+}
+
+func (h *adminOpsHandlers) cancelJob(w http.ResponseWriter, r *http.Request) {
+	if !h.jobsReady(w, r) {
+		return
+	}
+	id, ok := h.jobID(w, r)
+	if !ok {
+		return
+	}
+	admin, _ := resolveAdminUser(r, h.app)
+	it, err := h.app.Jobs.Cancel(r.Context(), restActor(r, admin), id)
+	if err != nil {
+		writeActionError(w, err, "cancel failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"job": queueItemAdminJSON(it)})
+}
+
+func (h *adminOpsHandlers) orphanedSources(w http.ResponseWriter, r *http.Request) {
+	if !h.gate(w, r) {
+		return
+	}
+	if h.app.Orphans == nil {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	groups, err := h.app.Orphans.List(r.Context(), r.URL.Query().Get("worker"))
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
+	}
+	out := make([]map[string]any, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, map[string]any{"worker_name": g.WorkerName, "sources": g.Sources, "external_accounts": g.ExternalAccounts,
+			"users": g.Users, "oldest_imported_at": fmtTimePtr(g.OldestImportedAt)})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"groups": out})
+}
+
+func queueItemAdminJSON(it domain.ImportQueueItem) map[string]any {
+	return map[string]any{
+		"id": it.ID.String(), "external_account_id": it.ExternalAccountID.String(), "user_id": it.UserID.String(), "provider": it.Provider,
+		"item_type": string(it.ItemType), "external_id": it.ExternalID, "item_time": fmtTimePtr(it.ItemTime), "status": string(it.Status),
+		"priority": it.Priority, "attempts": it.Attempts, "last_error": it.LastError, "created_at": it.CreatedAt.UTC().Format(time.RFC3339),
+		"started_at": fmtTimePtr(it.StartedAt), "completed_at": fmtTimePtr(it.CompletedAt),
+	}
 }

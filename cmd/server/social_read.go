@@ -1,164 +1,97 @@
 package main
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-// social_read.go centralises the multi-user read-path: resolving a viewer's
-// visibility against an activity owner, and projecting an activity to JSON
-// through the resulting CategorySet so non-owner reads never leak gated data.
+// social_read.go renders the multi-user read-path: every non-owner read
+// resolves the viewer through usecase/view.Visibility (shared with Connect)
+// and projects the activity through the resulting CategorySet so gated data
+// never leaks.
 
 // resolveViewer collects the (optional) session user. ok=false means anonymous.
 func optionalSessionUser(r *http.Request, app *App) (domain.UserID, bool) {
 	return resolveSessionUser(r, app)
 }
 
-// visibilityFor computes the CategorySet a viewer may see for one owner's
-// activity. viewerID is nil for anonymous viewers; hasLink is true when a valid
-// share token was presented.
-func visibilityFor(
-	ctx context.Context,
-	app *App,
-	ownerID domain.UserID,
-	viewerID *domain.UserID,
-	activityID domain.ActivityID,
-	hasLink bool,
-) domain.CategorySet {
-	in := domain.VisibilityInput{
-		IsOwner:      viewerID != nil && *viewerID == ownerID,
-		HasValidLink: hasLink,
-	}
-	if in.IsOwner {
-		return domain.ResolveVisibility(in)
-	}
-	if viewerID != nil {
-		// A block (either direction) hides everything from the other party.
-		if app.Blocks != nil {
-			if blocked, err := app.Blocks.IsBlockedEitherWay(ctx, *viewerID, ownerID); err == nil && blocked {
-				return domain.CategorySet{}
-			}
-		}
-		// Follower?
-		if app.Follows != nil {
-			if following, err := app.Follows.IsFollowing(ctx, *viewerID, ownerID); err == nil {
-				in.IsFollower = following
-			}
-		}
-	}
-	if app.Visibility != nil {
-		visibilityLoadPolicies(ctx, app, &in, ownerID, activityID)
-	}
-	return domain.ResolveVisibility(in)
-}
-
-// visibilityLoadPolicies fills the owner and per-activity policies, ignoring load errors.
-func visibilityLoadPolicies(ctx context.Context, app *App, in *domain.VisibilityInput, ownerID domain.UserID, activityID domain.ActivityID) {
-	if p, err := app.Visibility.GetUserPolicy(ctx, ownerID); err == nil {
-		in.OwnerPolicy = p
-	}
-	if ov, err := app.Visibility.GetActivityOverride(ctx, activityID); err == nil {
-		in.ActivityPolicy = ov
-	}
-}
-
-// ownerPrivacyZones loads the owner's privacy zones to apply to a NON-owner
-// projection. Returns nil for owner reads (an owner always sees their own
-// coordinates) or when zones can't be loaded — fail-open on the load error but
-// fail-closed on a positive zone match (see projectActivityJSON).
-func ownerPrivacyZones(ctx context.Context, app *App, ownerID domain.UserID, isOwner bool) []domain.PrivacyZone {
-	if isOwner || app.Visibility == nil {
-		return nil
-	}
-	zones, err := app.Visibility.ListPrivacyZones(ctx, ownerID)
-	if err != nil {
-		return nil
-	}
-	return zones
-}
-
 // projectActivityJSON emits an activity as JSON limited to the allowed
-// categories. Summary fields are always present (the lowest tier). Map and
-// location-bearing fields are only included when their category is allowed.
-//
-// zones are the owner's privacy zones (nil for owner reads). When the
-// activity's start point falls inside any zone, the start coordinates AND the
-// resolved place name are suppressed even if CategoryLocation is granted — a
-// home/work geofence the owner configured. visible_categories still lists
-// location so the client can render "start hidden", flagged by
-// start_location_redacted.
+// categories, rendered from the domain projection the Connect
+// ProjectedActivity message is also built from.
 func projectActivityJSON(a domain.Activity, cats domain.CategorySet, zones []domain.PrivacyZone) map[string]any {
+	return projectedJSON(domain.ProjectActivity(a, cats, zones))
+}
+
+// projectedJSON renders a domain projection in the REST shape. Map and photo
+// URLs point at the gated REST routes (the web UI's contract).
+func projectedJSON(p domain.ProjectedActivity) map[string]any {
 	out := map[string]any{
-		"id":                 a.ID.String(),
-		"title":              a.Title,
-		"type":               string(a.Type),
-		"discipline":         string(a.Discipline),
-		"start_time":         a.StartTime.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		"timezone":           a.Timezone,
-		"elapsed_duration_s": int64(a.ElapsedDuration.Seconds()),
-		"moving_duration_s":  int64(a.MovingDuration.Seconds()),
-		"distance_m":         a.Summary.DistanceM,
-		"elevation_gain_m":   a.Summary.ElevationGainM,
+		"id":                 p.ID.String(),
+		"title":              p.Title,
+		"type":               string(p.Type),
+		"discipline":         string(p.Discipline),
+		"start_time":         p.StartTime.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		"timezone":           p.Timezone,
+		"elapsed_duration_s": int64(p.ElapsedDuration.Seconds()),
+		"moving_duration_s":  int64(p.MovingDuration.Seconds()),
+		"distance_m":         p.DistanceM,
+		"elevation_gain_m":   p.ElevationGainM,
 	}
-	if cats.Has(domain.CategorySummary) {
-		out["description"] = a.Description
-		out["tss"] = a.Summary.TSS
-		out["calories"] = a.Summary.CaloriesKcal
+	has := projectedHas(p)
+	if has[domain.CategorySummary] {
+		out["description"] = p.Description
+		out["tss"] = p.TSS
+		out["calories"] = p.CaloriesKcal
 	}
-	if cats.Has(domain.CategoryLocation) {
-		projectActivityLocation(out, a, zones)
+	if has[domain.CategoryLocation] {
+		projectedLocationJSON(out, p)
 	}
-	if cats.Has(domain.CategoryHR) {
-		out["avg_hr"] = a.Summary.AvgHeartRateBpm
-		out["max_hr"] = a.Summary.MaxHeartRateBpm
+	if has[domain.CategoryHR] {
+		out["avg_hr"] = p.AvgHeartRateBpm
+		out["max_hr"] = p.MaxHeartRateBpm
 	}
-	if cats.Has(domain.CategoryPower) {
-		out["avg_power"] = a.Summary.AvgPowerW
-		out["max_power"] = a.Summary.MaxPowerW
-		out["normalized_power"] = a.Summary.NormalizedPowerW
+	if has[domain.CategoryPower] {
+		out["avg_power"] = p.AvgPowerW
+		out["max_power"] = p.MaxPowerW
+		out["normalized_power"] = p.NormalizedPowerW
 	}
-	if cats.Has(domain.CategoryPaceSpeed) {
-		out["avg_speed_mps"] = a.Summary.AvgSpeedMps
-		out["max_speed_mps"] = a.Summary.MaxSpeedMps
+	if has[domain.CategoryPaceSpeed] {
+		out["avg_speed_mps"] = p.AvgSpeedMps
+		out["max_speed_mps"] = p.MaxSpeedMps
 	}
-	// When the viewer may see the map, expose the static course-image URL (the
-	// endpoint re-checks visibility + trims privacy zones). This is the
-	// non-owner map surface — feeds, lists, and federation use it instead of an
-	// interactive map (no raw GPS track is ever served to non-owners).
-	if cats.Has(domain.CategoryMap) {
-		out["map_image_url"] = "/api/activities/" + a.ID.String() + "/map.png"
+	if p.MapVisible {
+		out["map_image_url"] = "/api/activities/" + p.ID.String() + "/map.png"
 	}
-	// When photos are shared, point at the attachments list endpoint, which
-	// re-checks visibility and serves each image via its own gated /raw URL.
-	if cats.Has(domain.CategoryPhotos) {
-		out["photos_url"] = "/api/activities/" + a.ID.String() + "/attachments"
+	if p.PhotosVisible {
+		out["photos_url"] = "/api/activities/" + p.ID.String() + "/attachments"
 	}
-	// The category list tells the client which richer views (map, segments,
-	// best-efforts, kudos/comments) it may request.
-	allowed := make([]string, 0, len(cats))
-	for _, c := range domain.AllCategories {
-		if cats.Has(c) {
-			allowed = append(allowed, string(c))
-		}
+	allowed := make([]string, 0, len(p.Visible))
+	for _, c := range p.Visible {
+		allowed = append(allowed, string(c))
 	}
 	out["visible_categories"] = allowed
 	return out
 }
 
-// projectActivityLocation adds the start place/coords unless the start is geofenced.
-func projectActivityLocation(out map[string]any, a domain.Activity, zones []domain.PrivacyZone) {
-	inZone := a.StartLat != nil && a.StartLng != nil &&
-		domain.PointInAnyZone(zones, *a.StartLat, *a.StartLng)
-	if inZone {
-		// Geofenced: reveal neither the coordinates nor the place name.
+// projectedHas indexes the granted categories.
+func projectedHas(p domain.ProjectedActivity) map[domain.Category]bool {
+	has := make(map[domain.Category]bool, len(p.Visible))
+	for _, c := range p.Visible {
+		has[c] = true
+	}
+	return has
+}
+
+// projectedLocationJSON adds the start place/coords unless geofenced.
+func projectedLocationJSON(out map[string]any, p domain.ProjectedActivity) {
+	if p.StartLocationRedacted {
 		out["start_location_redacted"] = true
 		return
 	}
-	out["start_place"] = a.StartPlace
-	if a.StartLat != nil && a.StartLng != nil {
-		out["start_lat"] = *a.StartLat
-		out["start_lng"] = *a.StartLng
+	out["start_place"] = p.StartPlace
+	if p.StartLat != nil && p.StartLng != nil {
+		out["start_lat"] = *p.StartLat
+		out["start_lng"] = *p.StartLng
 	}
 }

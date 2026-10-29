@@ -124,29 +124,40 @@ func (h *oauthConnectHandlers) list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	conns, _ := h.app.UserProviderConfigs.ListForUser(r.Context(), userID)
+	conns, providers, err := h.app.Accounts.Connections(r.Context(), userID)
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
+	}
 	out := make([]map[string]any, 0, len(conns))
 	for _, c := range conns {
 		out = append(out, map[string]any{
-			"id":           c.ID.String(),
-			"provider":     c.Provider,
-			"display_name": providerDisplayName(c.Provider),
-			"label":        c.Label,
-			"client_id":    c.ClientID,
-			"has_secret":   c.HasSecret,
-			"oauth":        oauthProvider(providerRegistry[c.Provider]),
+			"id":           c.Connection.ID.String(),
+			"provider":     c.Connection.Provider,
+			"display_name": c.DisplayName,
+			"label":        c.Connection.Label,
+			"client_id":    c.Connection.ClientID,
+			"has_secret":   c.Connection.HasSecret,
+			"oauth":        c.OAuth,
 		})
 	}
 	// Known pools per provider: with several, the user picks which one a
 	// connection is for (docs/adr/0006).
-	providers := make([]map[string]any, 0, len(providerRegistry))
-	for id, meta := range providerRegistry {
-		providers = append(providers, map[string]any{
-			"provider": id, "display_name": meta.DisplayName, "oauth": oauthProvider(meta),
-			"worker_pools": workerPoolsJSON(r.Context(), h.app, h.logger, id),
+	provOut := make([]map[string]any, 0, len(providers))
+	for _, p := range providers {
+		pools := make([]map[string]any, 0, len(p.Pools))
+		for _, wp := range p.Pools {
+			pools = append(pools, map[string]any{
+				"name": wp.Name, "package": wp.Package, "parser_version": wp.ParserVersion, "release": wp.Release,
+				"online": wp.Online, "compatible": wp.Compatible,
+			})
+		}
+		provOut = append(provOut, map[string]any{
+			"provider": p.Provider.ID, "display_name": p.Provider.DisplayName, "oauth": p.Provider.OAuth,
+			"worker_pools": pools,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"connections": out, "providers": providers})
+	writeJSON(w, http.StatusOK, map[string]any{"connections": out, "providers": provOut})
 }
 
 // oauthConnectWebhookEP is one advertised webhook callback.
@@ -531,13 +542,6 @@ func ownConnection(r *http.Request, app *App) (domain.UserProviderConfig, bool) 
 		return domain.UserProviderConfig{}, false
 	}
 	return conn, true
-}
-
-func providerDisplayName(provider string) string {
-	if m, ok := providerRegistry[provider]; ok {
-		return m.DisplayName
-	}
-	return provider
 }
 
 // exchangeOAuthCode posts the authorization code to the provider's token

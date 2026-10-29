@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -132,43 +132,41 @@ func (h *clubsAPI) list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	clubs, err := h.app.Clubs.List(r.Context(), me, parseIntQuery(r, "limit", 50), parseIntQuery(r, "offset", 0))
+	cards, err := h.app.ClubViews.List(r.Context(), me, parseIntQuery(r, "limit", 50), parseIntQuery(r, "offset", 0))
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
-	out := make([]map[string]any, 0, len(clubs))
-	for _, c := range clubs {
-		n, _ := h.app.Clubs.CountMembers(r.Context(), c.ID)
-		out = append(out, clubCardJSON(c, n))
+	out := make([]map[string]any, 0, len(cards))
+	for _, c := range cards {
+		out = append(out, clubCardJSON(c.Club, c.Members))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"clubs": out})
 }
 
+// writeClubError maps a club read failure to its REST status.
+func writeClubError(w http.ResponseWriter, err error) {
+	if errors.Is(err, domain.ErrNotFound) {
+		http.Error(w, "club not found", http.StatusNotFound)
+		return
+	}
+	writeActionError(w, err, "load failed")
+}
+
 func (h *clubsAPI) detail(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.resolveClub(w, r)
-	if !ok {
+	var viewer *domain.UserID
+	if me, ok := resolveSessionUser(r, h.app); ok {
+		viewer = &me
+	}
+	d, err := h.app.ClubViews.Get(r.Context(), r.PathValue("slug"), viewer)
+	if err != nil {
+		writeClubError(w, err)
 		return
 	}
-	me, hasMe := resolveSessionUser(r, h.app)
-	role := domain.ClubMemberRole("")
-	isMember := false
-	if hasMe {
-		if rr, member, _ := h.app.Clubs.MemberRole(r.Context(), c.ID, me); member {
-			role = rr
-			isMember = true
-		}
-	}
-	// A private club is only visible to its members.
-	if !c.IsPublic && !isMember {
-		http.Error(w, "this club is private", http.StatusForbidden)
-		return
-	}
-	n, _ := h.app.Clubs.CountMembers(r.Context(), c.ID)
-	body := clubCardJSON(c, n)
-	body["description"] = c.Description
-	body["is_member"] = isMember
-	body["my_role"] = string(role)
+	body := clubCardJSON(d.Club, d.Members)
+	body["description"] = d.Club.Description
+	body["is_member"] = d.IsMember
+	body["my_role"] = string(d.Role)
 	writeJSON(w, http.StatusOK, body)
 }
 
@@ -214,42 +212,21 @@ func (h *clubsAPI) leave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"is_member": false})
 }
 
-// resolveReadableClub loads the club and enforces membership for private clubs
-// (403 written on denial). Returns the session user when present.
-func (h *clubsAPI) resolveReadableClub(w http.ResponseWriter, r *http.Request) (domain.Club, domain.UserID, bool, bool) {
-	c, ok := h.resolveClub(w, r)
-	if !ok {
-		return domain.Club{}, domain.UserID{}, false, false
-	}
-	me, hasMe := resolveSessionUser(r, h.app)
-	if !c.IsPublic {
-		member := false
-		if hasMe {
-			_, member, _ = h.app.Clubs.MemberRole(r.Context(), c.ID, me)
-		}
-		if !member {
-			http.Error(w, "private club", http.StatusForbidden)
-			return domain.Club{}, domain.UserID{}, false, false
-		}
-	}
-	return c, me, hasMe, true
-}
-
 func (h *clubsAPI) members(w http.ResponseWriter, r *http.Request) {
-	c, _, _, ok := h.resolveReadableClub(w, r)
-	if !ok {
-		return
+	var viewer *domain.UserID
+	if me, ok := resolveSessionUser(r, h.app); ok {
+		viewer = &me
 	}
-	members, err := h.app.Clubs.ListMembers(r.Context(), c.ID, 200, 0)
+	rows, err := h.app.ClubViews.Members(r.Context(), r.PathValue("slug"), viewer, 0, 0)
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeClubError(w, err)
 		return
 	}
-	out := make([]map[string]any, 0, len(members))
-	for _, m := range members {
-		card := map[string]any{"role": string(m.Role)}
-		if u, err := h.app.Users.GetUser(r.Context(), m.UserID); err == nil {
-			for k, v := range userCardJSON(u) {
+	out := make([]map[string]any, 0, len(rows))
+	for _, m := range rows {
+		card := map[string]any{"role": string(m.Member.Role)}
+		if m.User.ID != (domain.UserID{}) {
+			for k, v := range userCardJSON(m.User) {
 				card[k] = v
 			}
 		}
@@ -259,50 +236,20 @@ func (h *clubsAPI) members(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *clubsAPI) feed(w http.ResponseWriter, r *http.Request) {
-	c, me, hasMe, ok := h.resolveReadableClub(w, r)
-	if !ok {
-		return
+	var viewer *domain.UserID
+	if me, ok := resolveSessionUser(r, h.app); ok {
+		viewer = &me
 	}
-	acts, err := h.app.Clubs.ListClubFeed(r.Context(), c.ID, parseIntQuery(r, "limit", 30), parseIntQuery(r, "offset", 0))
+	items, err := h.app.ClubViews.Feed(r.Context(), r.PathValue("slug"), viewer, parseIntQuery(r, "limit", 30), parseIntQuery(r, "offset", 0))
 	if err != nil {
-		http.Error(w, "feed failed", http.StatusInternalServerError)
+		writeClubError(w, err)
 		return
 	}
-	// Route every row through the visibility choke-point (club membership is
-	// not itself an audience — members see each other at the public/follower
-	// tier the owner's policy grants). viewerPtr is nil for anonymous viewers
-	// of a public club.
-	var viewerPtr *domain.UserID
-	if hasMe {
-		viewerPtr = &me
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, projectedFeedJSON(it))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"activities": h.projectFeed(r.Context(), acts, viewerPtr)})
-}
-
-// projectFeed filters acts by visibility and attaches owner cards.
-func (h *clubsAPI) projectFeed(ctx context.Context, acts []domain.Activity, viewerPtr *domain.UserID) []map[string]any {
-	owners := map[domain.UserID]map[string]any{}
-	zonesByOwner := map[domain.UserID][]domain.PrivacyZone{}
-	out := make([]map[string]any, 0, len(acts))
-	for _, a := range acts {
-		cats := visibilityFor(ctx, h.app, a.UserID, viewerPtr, a.ID, false)
-		if len(cats) == 0 {
-			continue
-		}
-		owner, cached := owners[a.UserID]
-		if !cached {
-			if u, err := h.app.Users.GetUser(ctx, a.UserID); err == nil {
-				owner = userCardJSON(u)
-			}
-			owners[a.UserID] = owner
-			isOwner := viewerPtr != nil && *viewerPtr == a.UserID
-			zonesByOwner[a.UserID] = ownerPrivacyZones(ctx, h.app, a.UserID, isOwner)
-		}
-		item := projectActivityJSON(a, cats, zonesByOwner[a.UserID])
-		item["owner"] = owner
-		out = append(out, item)
-	}
-	return out
+	writeJSON(w, http.StatusOK, map[string]any{"activities": out})
 }
 
 func clubCardJSON(c domain.Club, memberCount int) map[string]any {

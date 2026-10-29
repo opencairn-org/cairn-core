@@ -29,7 +29,7 @@ type invitesAPI struct {
 //	POST   /api/admin/invites/{id}/revoke (admin)
 //	POST   /auth/invite/redeem                → create a user from a code + log in
 func mountInvites(mux *http.ServeMux, app *App, logger *slog.Logger, publicURL string, sessionTTL time.Duration) {
-	if app.CreateInvite == nil || app.RedeemInvite == nil || app.Invites == nil {
+	if app.CreateInvite == nil || app.RedeemInvite == nil || app.Invites == nil || app.InviteAdmin == nil {
 		return
 	}
 	h := &invitesAPI{app: app, logger: logger, publicURL: publicURL, sessionTTL: sessionTTL}
@@ -55,46 +55,43 @@ func (h *invitesAPI) create(w http.ResponseWriter, r *http.Request) {
 		Role          string `json:"role"`
 		Email         string `json:"email"`
 		ExpiresInDays int    `json:"expires_in_days"`
+		SendEmail     bool   `json:"send_email"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	role := domain.UserRole(body.Role)
 	if role == "" {
 		role = domain.UserRoleUser
 	}
-	var expiresIn time.Duration
+	var expiresAt *time.Time
 	if body.ExpiresInDays > 0 {
-		expiresIn = time.Duration(body.ExpiresInDays) * 24 * time.Hour
+		t := time.Now().UTC().Add(time.Duration(body.ExpiresInDays) * 24 * time.Hour)
+		expiresAt = &t
 	}
-	createdBy := adminUser.ID
-	res, err := h.app.CreateInvite.Execute(r.Context(), invite.CreateInviteInput{
-		Role: role, Email: strings.TrimSpace(body.Email), ExpiresIn: expiresIn, CreatedBy: &createdBy,
-	})
+	res, err := h.app.InviteAdmin.Mint(r.Context(), restActor(r, adminUser), body.Email, role, expiresAt, body.SendEmail)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeActionError(w, err, "create failed")
 		return
 	}
-	var exp any
-	if res.ExpiresAt != nil {
-		exp = res.ExpiresAt.UTC().Format(time.RFC3339)
-	}
-	// The plaintext code (and a ready-to-share signup link) are returned
-	// ONCE here and never again.
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id": res.ID.String(), "code": res.Code, "prefix": res.Prefix,
-		"expires_at": exp,
+	out := map[string]any{
+		"id": res.Invite.ID.String(), "code": res.Code, "prefix": res.Invite.CodePrefix,
+		"expires_at": fmtTimePtr(res.Invite.ExpiresAt), "delivered": res.Delivered,
 		"signup_url": strings.TrimRight(h.publicURL, "/") + "/signup?code=" + res.Code,
-	})
+	}
+	if res.Err != nil {
+		out["email_error"] = res.Err.Error()
+	}
+	writeJSON(w, http.StatusCreated, out)
 }
 
-// --- admin: list ------------------------------------------------------
 func (h *invitesAPI) list(w http.ResponseWriter, r *http.Request) {
 	if _, ok := resolveAdminUser(r, h.app); !ok {
 		http.Error(w, "admin only", http.StatusForbidden)
 		return
 	}
-	invs, err := h.app.Invites.ListForInstance(r.Context())
+	q := r.URL.Query()
+	invs, err := h.app.InviteAdmin.List(r.Context(), q.Get("include_used") != "false", q.Get("include_expired") != "false")
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
 	now := time.Now()
@@ -122,8 +119,9 @@ func (h *invitesAPI) revoke(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad id", http.StatusBadRequest)
 		return
 	}
-	if err := h.app.Invites.Revoke(r.Context(), domain.InviteID(id), time.Now().UTC()); err != nil {
-		http.Error(w, "revoke failed", http.StatusInternalServerError)
+	admin, _ := resolveAdminUser(r, h.app)
+	if err := h.app.InviteAdmin.Revoke(r.Context(), restActor(r, admin), domain.InviteID(id)); err != nil {
+		writeActionError(w, err, "revoke failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

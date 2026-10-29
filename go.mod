@@ -41,6 +41,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.10
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.5
 	github.com/aws/smithy-go v1.28.6
+	github.com/bbrks/go-blurhash v1.2.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/go-webauthn/webauthn v0.18.2
@@ -49,9 +50,12 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
 	github.com/tormoder/fit v0.15.0
+	github.com/twpayne/go-polyline v1.1.2
 	github.com/wneessen/go-mail v0.8.1
+	golang.org/x/image v0.47.0
 	golang.org/x/mod v0.42.0
 	golang.org/x/oauth2 v0.37.0
+	golang.org/x/text v0.43.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -99,7 +103,6 @@ require (
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 // indirect
-	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.51.0 // indirect
 	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect

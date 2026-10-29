@@ -40,6 +40,8 @@ type BlobStore struct {
 	cfg       config.StorageConfig
 	client    *awss3.Client
 	presigner *awss3.PresignClient
+	// publicPresigner signs for cfg.PublicEndpoint; nil when unset.
+	publicPresigner *awss3.PresignClient
 }
 
 // Compile-time interface check.
@@ -77,11 +79,23 @@ func New(cfg config.StorageConfig) (*BlobStore, error) {
 	}
 
 	client := awss3.NewFromConfig(awsCfg, clientOpts...)
-	return &BlobStore{
+	b := &BlobStore{
 		cfg:       cfg,
 		client:    client,
 		presigner: awss3.NewPresignClient(client),
-	}, nil
+	}
+	if cfg.PublicEndpoint != "" {
+		// Same credentials and bucket, different origin: a presigned URL is
+		// bound to the host it was signed for, so client-facing URLs need a
+		// client whose endpoint is the public one.
+		pubOpts := append([]func(*awss3.Options){}, clientOpts...)
+		pubOpts = append(pubOpts, func(o *awss3.Options) {
+			endpoint := cfg.PublicEndpoint
+			o.BaseEndpoint = &endpoint
+		})
+		b.publicPresigner = awss3.NewPresignClient(awss3.NewFromConfig(awsCfg, pubOpts...))
+	}
+	return b, nil
 }
 
 // Put stores an object directly via the server's S3 credentials. Used for
@@ -138,6 +152,18 @@ func (b *BlobStore) Get(ctx context.Context, key string) ([]byte, string, error)
 // Required request headers come back in RequiredHeaders — the caller
 // MUST forward them verbatim or the signature won't validate.
 func (b *BlobStore) PresignUpload(ctx context.Context, key string, opts port.PresignUploadOpts) (port.PresignedURL, error) {
+	return b.presignUpload(ctx, b.presigner, key, opts)
+}
+
+// PresignPublicUpload is PresignUpload for the client-reachable endpoint.
+func (b *BlobStore) PresignPublicUpload(ctx context.Context, key string, opts port.PresignUploadOpts) (port.PresignedURL, error) {
+	if b.publicPresigner == nil {
+		return port.PresignedURL{}, port.ErrNoPublicEndpoint
+	}
+	return b.presignUpload(ctx, b.publicPresigner, key, opts)
+}
+
+func (b *BlobStore) presignUpload(ctx context.Context, presigner *awss3.PresignClient, key string, opts port.PresignUploadOpts) (port.PresignedURL, error) {
 	if key == "" {
 		return port.PresignedURL{}, errors.New("blob: empty key")
 	}
@@ -167,7 +193,7 @@ func (b *BlobStore) PresignUpload(ctx context.Context, key string, opts port.Pre
 		in.ChecksumSHA256 = &checksumB64
 	}
 
-	req, err := b.presigner.PresignPutObject(ctx, in, func(po *awss3.PresignOptions) {
+	req, err := presigner.PresignPutObject(ctx, in, func(po *awss3.PresignOptions) {
 		po.Expires = expiry
 	})
 	if err != nil {
@@ -200,6 +226,18 @@ func (b *BlobStore) PresignUpload(ctx context.Context, key string, opts port.Pre
 // Content-Type response overrides are S3's response-header overrides —
 // the bucket's stored values stay unchanged.
 func (b *BlobStore) PresignDownload(ctx context.Context, key string, opts port.PresignDownloadOpts) (port.PresignedURL, error) {
+	return b.presignDownload(ctx, b.presigner, key, opts)
+}
+
+// PresignPublicDownload is PresignDownload for the client-reachable endpoint.
+func (b *BlobStore) PresignPublicDownload(ctx context.Context, key string, opts port.PresignDownloadOpts) (port.PresignedURL, error) {
+	if b.publicPresigner == nil {
+		return port.PresignedURL{}, port.ErrNoPublicEndpoint
+	}
+	return b.presignDownload(ctx, b.publicPresigner, key, opts)
+}
+
+func (b *BlobStore) presignDownload(ctx context.Context, presigner *awss3.PresignClient, key string, opts port.PresignDownloadOpts) (port.PresignedURL, error) {
 	if key == "" {
 		return port.PresignedURL{}, errors.New("blob: empty key")
 	}
@@ -219,7 +257,7 @@ func (b *BlobStore) PresignDownload(ctx context.Context, key string, opts port.P
 		in.ResponseContentType = &opts.ResponseContentType
 	}
 
-	req, err := b.presigner.PresignGetObject(ctx, in, func(po *awss3.PresignOptions) {
+	req, err := presigner.PresignGetObject(ctx, in, func(po *awss3.PresignOptions) {
 		po.Expires = expiry
 	})
 	if err != nil {

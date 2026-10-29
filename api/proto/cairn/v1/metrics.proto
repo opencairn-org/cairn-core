@@ -153,27 +153,62 @@ message Metric {
 // ----------------------------------------------------------------------------
 
 service MetricsService {
-  // List metrics with filtering. Default sort newest first.
+  // List metrics with filtering. Default sort newest first (GET /api/metrics).
+  // Scope: training:read.
   rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
 
   // Get the latest value for each requested key. Optimized for the
-  // dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+  // dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+  // GET /api/metrics/latest).
+  // Scope: training:read.
   rpc GetLatestMetrics(GetLatestMetricsRequest) returns (GetLatestMetricsResponse);
 
   // Time-series query for charting. Server applies downsampling for long
-  // ranges; clients indicate desired bucket size.
+  // ranges; clients indicate desired bucket size (GET /api/metrics/series).
+  // Scope: training:read.
   rpc QueryMetricSeries(QueryMetricSeriesRequest) returns (QueryMetricSeriesResponse);
 
-  // Manual entry / edit.
+  // Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+  // edit; provider defaults to "manual".
+  // Scope: training:write.
   rpc UpsertMetric(UpsertMetricRequest) returns (UpsertMetricResponse);
+  // Remove one entry (DELETE /api/metrics/{id}).
+  // Scope: training:write.
   rpc DeleteMetric(DeleteMetricRequest) returns (DeleteMetricResponse);
 
-  // Bulk manual entry (CSV import etc).
+  // Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+  // 1000 rows per call.
+  // Scope: training:write.
   rpc BulkUpsertMetrics(BulkUpsertMetricsRequest) returns (BulkUpsertMetricsResponse);
 
   // Get the current training-context the domain assembles for the user:
-  // settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+  // settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+  // (GET /api/metrics/context). Stored measurements win; the dated athlete
+  // profile fills the keys without one.
+  // Scope: training:read.
   rpc GetUserContext(GetUserContextRequest) returns (GetUserContextResponse);
+
+  // Daily health series (steps, HRV, resting HR, sleep, weight, water),
+  // merged per day across providers (GET /api/health).
+  // Scope: training:read.
+  rpc ListHealthSeries(ListHealthSeriesRequest) returns (ListHealthSeriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The athlete physiology profile: the metric registry (for a form) and
+  // the caller's dated entries (GET /api/athlete/metrics).
+  // Scope: training:read.
+  rpc ListAthleteMetrics(ListAthleteMetricsRequest) returns (ListAthleteMetricsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Upsert one dated measurement (PUT /api/athlete/metrics).
+  // Scope: training:write.
+  rpc UpsertAthleteMetric(UpsertAthleteMetricRequest) returns (UpsertAthleteMetricResponse);
+
+  // Remove one entry (DELETE /api/athlete/metrics/{id}).
+  // Scope: training:write.
+  rpc DeleteAthleteMetric(DeleteAthleteMetricRequest) returns (DeleteAthleteMetricResponse);
 }
 
 message ListMetricsRequest {
@@ -326,6 +361,57 @@ message GetUserContextResponse {
 // UserSettings
 // ============================================================================
 
+message ListHealthSeriesRequest {
+  // One of Steps, HRV, RestingHR, Sleep, Weight, WaterIntake.
+  string type = 1;
+  // Days back from today; default 90, max 3650.
+  int32 days = 2;
+}
+message HealthSample {
+  // YYYY-MM-DD, UTC.
+  string day = 1;
+  double value = 2;
+  string unit = 3;
+  // The provider whose sample won the day.
+  string provider = 4;
+}
+message ListHealthSeriesResponse {
+  string type = 1;
+  repeated HealthSample series = 2;
+}
+
+message ListAthleteMetricsRequest {}
+message AthleteMetricSpec {
+  string key = 1;
+  string label = 2;
+  string unit = 3;
+  double min = 4;
+  double max = 5;
+}
+message AthleteMetricEntry {
+  string id = 1;
+  string key = 2;
+  // YYYY-MM-DD; the value applies from this day on.
+  string effective_date = 3;
+  double value = 4;
+}
+message ListAthleteMetricsResponse {
+  repeated AthleteMetricSpec specs = 1;
+  repeated AthleteMetricEntry entries = 2;
+}
+message UpsertAthleteMetricRequest {
+  string key = 1;
+  string effective_date = 2;
+  double value = 3;
+}
+message UpsertAthleteMetricResponse {
+  string id = 1;
+}
+message DeleteAthleteMetricRequest {
+  string id = 1;
+}
+message DeleteAthleteMetricResponse {}
+
 message UserSettings {
   string user_id = 1;
 
@@ -446,14 +532,17 @@ message BestEffortWindowSet {
 // ----------------------------------------------------------------------------
 
 service SettingsService {
+  // Scope: profile:read.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
 
   // Merge-update — only fields in field_mask are touched. Map updates
   // are replace-by-key semantics: passing an entry replaces that key's
   // value entirely; omitting a key leaves the existing value.
+  // Scope: profile:write.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
 
   // Reset to defaults — useful from the settings UI.
+  // Scope: profile:write.
   rpc ResetSettingsSection(ResetSettingsSectionRequest) returns (ResetSettingsSectionResponse);
 }
 

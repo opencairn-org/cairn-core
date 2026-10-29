@@ -188,16 +188,28 @@ message CreateGearFromRefResponse {
 }
 
 service GearService {
+  // Scope: gear:read.
   rpc ListGear(ListGearRequest) returns (ListGearResponse);
+  // Scope: gear:read.
   rpc GetGear(GetGearRequest) returns (GetGearResponse);
+  // Scope: gear:write.
   rpc CreateGear(CreateGearRequest) returns (CreateGearResponse);
+  // Scope: gear:write.
   rpc UpdateGear(UpdateGearRequest) returns (UpdateGearResponse);
+  // Scope: gear:write.
   rpc DeleteGear(DeleteGearRequest) returns (DeleteGearResponse);
+  // Scope: gear:write.
   rpc MergeGear(MergeGearRequest) returns (MergeGearResponse);
+  // Scope: gear:write.
   rpc LinkGearRef(LinkGearRefRequest) returns (LinkGearRefResponse);
+  // Scope: gear:read.
   rpc ListPendingGearRefs(ListPendingGearRefsRequest) returns (ListPendingGearRefsResponse);
+  // Scope: gear:write.
   rpc CreateGearFromRef(CreateGearFromRefRequest) returns (CreateGearFromRefResponse);
+  // Scope: gear:write.
   rpc SetGearDefault(SetGearDefaultRequest) returns (SetGearDefaultResponse);
+  // Scope: gear:write.
   rpc ClearGearDefault(ClearGearDefaultRequest) returns (ClearGearDefaultResponse);
+  // Scope: gear:read.
   rpc ListGearDefaults(ListGearDefaultsRequest) returns (ListGearDefaultsResponse);
 }

@@ -1549,3 +1549,62 @@ func (r *ActivityRepo) MarkSourcesPoolChanged(ctx context.Context, acct domain.E
 	}
 	return int(tag.RowsAffected()), nil
 }
+
+// UserFootprints aggregates activities, sources' archived bytes and
+// external accounts per user in one pass.
+func (r *ActivityRepo) UserFootprints(ctx context.Context, userIDs []domain.UserID) (map[domain.UserID]port.UserFootprint, error) {
+	db := dbtx(ctx, r.pool)
+	ids := make([]uuid.UUID, 0, len(userIDs))
+	for _, id := range userIDs {
+		ids = append(ids, id.UUID())
+	}
+	rows, err := db.Query(ctx, `
+		SELECT u.id,
+		       (SELECT count(*) FROM activities a WHERE a.user_id = u.id AND a.deleted_at IS NULL),
+		       (SELECT max(a.start_time) FROM activities a WHERE a.user_id = u.id AND a.deleted_at IS NULL),
+		       (SELECT COALESCE(sum(s.raw_size_bytes), 0) FROM activity_sources s WHERE s.user_id = u.id),
+		       (SELECT count(*) FROM external_accounts e WHERE e.user_id = u.id)
+		  FROM unnest($1::uuid[]) AS u(id)`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("user footprints: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[domain.UserID]port.UserFootprint, len(ids))
+	for rows.Next() {
+		var (
+			id   uuid.UUID
+			fp   port.UserFootprint
+			last *time.Time
+		)
+		if err := rows.Scan(&id, &fp.Activities, &last, &fp.StorageBytes, &fp.ExternalAccounts); err != nil {
+			return nil, fmt.Errorf("scan user footprint: %w", err)
+		}
+		fp.LastActivityAt = last
+		out[domain.UserID(id)] = fp
+	}
+	return out, rows.Err()
+}
+
+// SourceWorkerGroups groups active sources by the pool that imported them.
+func (r *ActivityRepo) SourceWorkerGroups(ctx context.Context) ([]port.SourceWorkerGroup, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `
+		SELECT source_worker_name, count(*), count(DISTINCT external_account_id), count(DISTINCT user_id), min(imported_at)
+		  FROM activity_sources
+		 WHERE status = 'active'
+		 GROUP BY source_worker_name
+		 ORDER BY count(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("source worker groups: %w", err)
+	}
+	defer rows.Close()
+	out := []port.SourceWorkerGroup{}
+	for rows.Next() {
+		var g port.SourceWorkerGroup
+		if err := rows.Scan(&g.WorkerName, &g.Sources, &g.Accounts, &g.Users, &g.OldestImportedAt); err != nil {
+			return nil, fmt.Errorf("scan source worker group: %w", err)
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}

@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { refreshAll, goto } from '$app/navigation';
-	import { loginWithPasskey, supported as passkeysSupported } from '#lib/webauthn.js';
+	import {
+		confirmSecondFactor,
+		loginWithPasskey,
+		supported as passkeysSupported
+	} from '#lib/webauthn.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -12,6 +16,62 @@
 		const n = page.url.searchParams.get('next') ?? '';
 		return n.startsWith('/') && !n.startsWith('//') ? n : '/';
 	});
+
+	// A password sign-in that still needs its passkey lands here with ?challenge=.
+	const challenge = $derived(page.url.searchParams.get('challenge') ?? '');
+	let challengeBusy = $state(false);
+	let challengeError = $state<string | null>(null);
+	async function finishSecondFactor() {
+		challengeBusy = true;
+		challengeError = null;
+		try {
+			await confirmSecondFactor(challenge);
+			await refreshAll();
+			await goto(nextDest).catch(() => location.assign(nextDest));
+		} catch (e) {
+			challengeError = (e as Error).message;
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	// A password sign-in with a temporary password lands here with ?set_password=.
+	const setPassword = $derived(page.url.searchParams.get('set_password') ?? '');
+	let newPassword = $state('');
+	let newPasswordConfirm = $state('');
+	let setPasswordBusy = $state(false);
+	let setPasswordError = $state<string | null>(null);
+	async function finishPasswordChange(event: SubmitEvent) {
+		event.preventDefault();
+		if (newPassword !== newPasswordConfirm) {
+			setPasswordError = 'The passwords do not match.';
+			return;
+		}
+		setPasswordBusy = true;
+		setPasswordError = null;
+		try {
+			const res = await fetch('/auth/password/required', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challenge_token: setPassword, password: newPassword })
+			});
+			if (!res.ok) throw new Error((await res.text()).trim() || 'the password could not be set');
+			const out = (await res.json()) as { challenge?: string };
+			if (out.challenge) {
+				// The account also needs its passkey: continue on the challenge step.
+				await goto(
+					`/login?challenge=${encodeURIComponent(out.challenge)}&next=${encodeURIComponent(nextDest)}`
+				);
+				return;
+			}
+			await refreshAll();
+			await goto(nextDest).catch(() => location.assign(nextDest));
+		} catch (e) {
+			setPasswordError = (e as Error).message;
+		} finally {
+			setPasswordBusy = false;
+		}
+	}
 
 	let passkeyBusy = $state(false);
 	let passkeyError = $state<string | null>(null);
@@ -33,6 +93,7 @@
 	// The password + OIDC endpoints bounce back to /login?error=<code> on failure.
 	const errorMessages: Record<string, string> = {
 		invalid_credentials: 'Incorrect username/email or password.',
+		too_many_attempts: 'Too many failed attempts. Try again in a few minutes.',
 		missing_credentials: 'Enter your username/email and password.',
 		account_inactive: 'This account is not active.',
 		server_error: 'Something went wrong — please try again.',
@@ -87,129 +148,206 @@
 		</div>
 	{/if}
 
-	{#if data.oidcClients.length > 0}
-		<section class="space-y-2">
-			{#each data.oidcClients as client (client.id)}
-				<a
-					href={`/auth/oidc/${client.id}/start`}
-					class="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm hover:border-accent-500 hover:bg-zinc-900"
-				>
-					<span class="flex items-center gap-3">
-						<span
-							class="flex h-5 w-5 items-center justify-center rounded bg-accent-500/20 text-[10px] font-bold text-accent-300"
-						>
-							{client.displayName.charAt(0).toUpperCase()}
-						</span>
-						<span class="font-medium">Continue with {client.displayName}</span>
-					</span>
-					<span class="text-zinc-500">→</span>
-				</a>
-			{/each}
-		</section>
-	{/if}
-
-	{#if data.webauthnEnabled && passkeysSupported()}
-		<section class="space-y-2">
-			{#if data.oidcClients.length > 0}
-				<div class="flex items-center gap-3 text-xs text-zinc-500">
-					<span class="h-px flex-1 bg-zinc-800"></span>
-					<span>or</span>
-					<span class="h-px flex-1 bg-zinc-800"></span>
+	{#if setPassword}
+		<form
+			onsubmit={finishPasswordChange}
+			class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+		>
+			<h2 class="text-sm font-medium text-zinc-200">Choose a new password</h2>
+			<p class="text-xs text-zinc-400">
+				Your password was set by an administrator. Replace it before you continue.
+			</p>
+			<label class="block">
+				<span class="text-xs text-zinc-400">New password</span>
+				<input
+					type="password"
+					autocomplete="new-password"
+					required
+					minlength="12"
+					bind:value={newPassword}
+					class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+				/>
+			</label>
+			<label class="block">
+				<span class="text-xs text-zinc-400">Repeat new password</span>
+				<input
+					type="password"
+					autocomplete="new-password"
+					required
+					minlength="12"
+					bind:value={newPasswordConfirm}
+					class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+				/>
+			</label>
+			<button
+				type="submit"
+				disabled={setPasswordBusy}
+				class="w-full rounded bg-accent-500 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400 disabled:opacity-50"
+			>
+				{setPasswordBusy ? 'Saving…' : 'Set password and continue'}
+			</button>
+			{#if setPasswordError}
+				<div class="rounded border border-red-700/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+					{setPasswordError}
 				</div>
 			{/if}
+			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300"
+				>Start over</a
+			>
+		</form>
+	{:else if challenge}
+		<section class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+			<h2 class="text-sm font-medium text-zinc-200">Confirm it's you</h2>
+			<p class="text-xs text-zinc-400">
+				Your account requires a passkey after the password. Use Touch ID, Windows Hello or your
+				security key to finish signing in.
+			</p>
 			<button
 				type="button"
-				onclick={signInWithPasskey}
-				disabled={passkeyBusy}
-				class="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-medium hover:border-accent-500 hover:bg-zinc-900 disabled:opacity-50"
+				onclick={finishSecondFactor}
+				disabled={challengeBusy || !passkeysSupported()}
+				class="w-full rounded bg-accent-500 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400 disabled:opacity-50"
 			>
-				<svg
-					class="h-4 w-4"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<rect x="3" y="11" width="18" height="11" rx="2" />
-					<path d="M7 11V7a5 5 0 0 1 10 0v4" />
-				</svg>
-				{passkeyBusy ? 'Waiting for passkey…' : 'Sign in with a passkey'}
+				{challengeBusy ? 'Waiting for passkey…' : 'Continue with passkey'}
 			</button>
-			{#if passkeyError}
+			{#if !passkeysSupported()}
+				<p class="text-xs text-red-300">This browser doesn’t support passkeys.</p>
+			{/if}
+			{#if challengeError}
 				<div class="rounded border border-red-700/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
-					{passkeyError}
+					{challengeError}
 				</div>
 			{/if}
-		</section>
-	{/if}
-
-	{#if data.passwordEnabled}
-		<section class="space-y-3">
-			{#if data.oidcClients.length > 0 || data.webauthnEnabled}
-				<div class="flex items-center gap-3 text-xs text-zinc-500">
-					<span class="h-px flex-1 bg-zinc-800"></span>
-					<span>or</span>
-					<span class="h-px flex-1 bg-zinc-800"></span>
-				</div>
-			{/if}
-			<form
-				method="POST"
-				action="/auth/password"
-				class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300"
+				>Start over</a
 			>
-				<input type="hidden" name="redirect" value={nextDest} />
-				{#if loginError}
+		</section>
+	{:else}
+		{#if data.oidcClients.length > 0}
+			<section class="space-y-2">
+				{#each data.oidcClients as client (client.id)}
+					<a
+						href={`/auth/oidc/${client.id}/start`}
+						class="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm hover:border-accent-500 hover:bg-zinc-900"
+					>
+						<span class="flex items-center gap-3">
+							<span
+								class="flex h-5 w-5 items-center justify-center rounded bg-accent-500/20 text-[10px] font-bold text-accent-300"
+							>
+								{client.displayName.charAt(0).toUpperCase()}
+							</span>
+							<span class="font-medium">Continue with {client.displayName}</span>
+						</span>
+						<span class="text-zinc-500">→</span>
+					</a>
+				{/each}
+			</section>
+		{/if}
+
+		{#if data.webauthnEnabled && passkeysSupported()}
+			<section class="space-y-2">
+				{#if data.oidcClients.length > 0}
+					<div class="flex items-center gap-3 text-xs text-zinc-500">
+						<span class="h-px flex-1 bg-zinc-800"></span>
+						<span>or</span>
+						<span class="h-px flex-1 bg-zinc-800"></span>
+					</div>
+				{/if}
+				<button
+					type="button"
+					onclick={signInWithPasskey}
+					disabled={passkeyBusy}
+					class="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-medium hover:border-accent-500 hover:bg-zinc-900 disabled:opacity-50"
+				>
+					<svg
+						class="h-4 w-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<rect x="3" y="11" width="18" height="11" rx="2" />
+						<path d="M7 11V7a5 5 0 0 1 10 0v4" />
+					</svg>
+					{passkeyBusy ? 'Waiting for passkey…' : 'Sign in with a passkey'}
+				</button>
+				{#if passkeyError}
 					<div
 						class="rounded border border-red-700/50 bg-red-950/30 px-3 py-2 text-xs text-red-300"
 					>
-						{loginError}
+						{passkeyError}
 					</div>
 				{/if}
-				<label class="block">
-					<span class="text-xs text-zinc-400">Username or email</span>
-					<input
-						name="identifier"
-						type="text"
-						autocomplete="username"
-						required
-						class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
-					/>
-				</label>
-				<label class="block">
-					<span class="text-xs text-zinc-400">Password</span>
-					<input
-						name="password"
-						type="password"
-						autocomplete="current-password"
-						required
-						class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
-					/>
-				</label>
-				<button
-					type="submit"
-					class="w-full rounded bg-accent-500 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400"
-				>
-					Sign in
-				</button>
-				<div class="text-center">
-					<a href="/forgot-password" class="text-xs text-zinc-500 hover:text-accent-300"
-						>Forgot password?</a
-					>
-				</div>
-			</form>
-		</section>
-	{/if}
+			</section>
+		{/if}
 
-	{#if data.oidcClients.length === 0 && !data.passwordEnabled}
-		<div
-			class="rounded-lg border border-amber-700/50 bg-amber-950/30 p-4 text-sm text-amber-200/80"
-		>
-			No sign-in methods configured. Enable password sign-in, or configure an OIDC provider via the <code
-				>CAIRN_OIDC_*</code
-			> environment variables and restart the server.
-		</div>
+		{#if data.passwordEnabled}
+			<section class="space-y-3">
+				{#if data.oidcClients.length > 0 || data.webauthnEnabled}
+					<div class="flex items-center gap-3 text-xs text-zinc-500">
+						<span class="h-px flex-1 bg-zinc-800"></span>
+						<span>or</span>
+						<span class="h-px flex-1 bg-zinc-800"></span>
+					</div>
+				{/if}
+				<form
+					method="POST"
+					action="/auth/password"
+					class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+				>
+					<input type="hidden" name="redirect" value={nextDest} />
+					{#if loginError}
+						<div
+							class="rounded border border-red-700/50 bg-red-950/30 px-3 py-2 text-xs text-red-300"
+						>
+							{loginError}
+						</div>
+					{/if}
+					<label class="block">
+						<span class="text-xs text-zinc-400">Username or email</span>
+						<input
+							name="identifier"
+							type="text"
+							autocomplete="username"
+							required
+							class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+						/>
+					</label>
+					<label class="block">
+						<span class="text-xs text-zinc-400">Password</span>
+						<input
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							required
+							class="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-accent-500 focus:outline-none"
+						/>
+					</label>
+					<button
+						type="submit"
+						class="w-full rounded bg-accent-500 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400"
+					>
+						Sign in
+					</button>
+					<div class="text-center">
+						<a href="/forgot-password" class="text-xs text-zinc-500 hover:text-accent-300"
+							>Forgot password?</a
+						>
+					</div>
+				</form>
+			</section>
+		{/if}
+
+		{#if data.oidcClients.length === 0 && !data.passwordEnabled}
+			<div
+				class="rounded-lg border border-amber-700/50 bg-amber-950/30 p-4 text-sm text-amber-200/80"
+			>
+				No sign-in methods configured. Enable password sign-in, or configure an OIDC provider via
+				the <code>CAIRN_OIDC_*</code> environment variables and restart the server.
+			</div>
+		{/if}
 	{/if}
 
 	<p class="text-center text-xs text-zinc-500">

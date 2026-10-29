@@ -15,11 +15,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-const (
-	passwordResetTTL      = time.Hour
-	emailVerificationTTL  = 24 * time.Hour
-	minResetPasswordChars = 8
-)
+const emailVerificationTTL = 24 * time.Hour
 
 // mountAuthRecovery wires the email-driven account recovery flows: password
 // reset and email verification. Both lean on the email channel (app.Email);
@@ -28,6 +24,7 @@ const (
 //
 //	POST /auth/password/forgot     { email }        → always 200 (anti-enumeration)
 //	POST /auth/password/reset      { code, password } → sets password + logs in
+//	POST /auth/password/required   { challenge_token, password } → replaces a temporary password, then logs in or hands over to the second factor
 //	GET  /auth/email/verify?code=…                   → verifies + redirects to /login
 //	POST /auth/email/verify/send                     → resend (logged-in, unverified)
 func mountAuthRecovery(mux *http.ServeMux, app *App, logger *slog.Logger, publicURL string, sessionTTL time.Duration) {
@@ -38,6 +35,9 @@ func mountAuthRecovery(mux *http.ServeMux, app *App, logger *slog.Logger, public
 
 	// ---- password: reset ----
 	mux.HandleFunc("POST /auth/password/reset", h.reset)
+
+	// ---- password: forced change at sign-in ----
+	mux.HandleFunc("POST /auth/password/required", h.required)
 
 	// ---- email: verify (GET, from the email link) ----
 	mux.HandleFunc("GET /auth/email/verify", h.verify)
@@ -75,35 +75,13 @@ func (h *authRecoveryHandlers) forgot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	email := strings.TrimSpace(strings.ToLower(body.Email))
-
+	if h.app.Email == nil {
+		h.logger.Warn("password reset requested but email is disabled")
+	}
 	// Always respond the same way regardless of whether the email exists.
-	if email == "" || h.app.Email == nil {
-		if h.app.Email == nil {
-			h.logger.Warn("password reset requested but email is disabled")
-		}
-		authRecoveryGeneric(w)
-		return
+	if _, err := h.app.Passwords.RequestReset(r.Context(), body.Email); err != nil {
+		h.logger.Warn("password reset mail", "error", err)
 	}
-	user, err := h.app.Users.GetUserByEmail(r.Context(), email)
-	if err != nil {
-		authRecoveryGeneric(w) // unknown email — don't leak
-		return
-	}
-	code, hash := newRecoveryCode()
-	if err := h.app.AuthTokens.CreatePasswordResetToken(r.Context(), user.ID, hash, time.Now().UTC().Add(passwordResetTTL)); err != nil {
-		h.logger.Error("create password reset token", "error", err)
-		authRecoveryGeneric(w)
-		return
-	}
-	link := h.base + "/reset-password?code=" + code
-	sendBestEffortEmail(r.Context(), h.app, h.logger, user.Email, "Reset your Cairn password",
-		"Someone asked to reset the password for your Cairn account.\n\n"+
-			"Open this link to choose a new password (valid for 1 hour):\n"+link+"\n\n"+
-			"If you didn't request this, you can ignore this email.\n\n- Cairn",
-		"<p>Someone asked to reset the password for your Cairn account.</p>"+
-			"<p><a href=\""+link+"\">Choose a new password</a> (valid for 1 hour).</p>"+
-			"<p>If you didn't request this, you can ignore this email.</p><p>- Cairn</p>")
 	authRecoveryGeneric(w)
 }
 
@@ -119,32 +97,55 @@ func (h *authRecoveryHandlers) reset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
-	if len(body.Password) < minResetPasswordChars {
-		http.Error(w, "password must be at least 8 characters", http.StatusBadRequest)
-		return
-	}
-	hash := sha256.Sum256([]byte(strings.TrimSpace(body.Code)))
-	userID, err := h.app.AuthTokens.ConsumePasswordResetToken(r.Context(), hash[:], time.Now().UTC())
-	if errors.Is(err, port.ErrAuthTokenInvalid) {
-		http.Error(w, "this reset link is invalid or has expired", http.StatusBadRequest)
-		return
-	}
+	userID, err := h.app.Passwords.ConfirmReset(r.Context(), strings.TrimSpace(body.Code), body.Password)
 	if err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
-		return
-	}
-	encoded, err := h.app.PasswordHasher.Hash(body.Password)
-	if err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
-		return
-	}
-	if err := h.app.Users.UpdatePassword(r.Context(), userID, encoded); err != nil {
-		http.Error(w, "reset failed", http.StatusInternalServerError)
+		writeActionError(w, err, "reset failed")
 		return
 	}
 	// Auto-login after a successful reset.
 	if err := issueSessionForUser(w, r, h.app, userID, domain.SessionAuthPassword, h.sessionTTL); err != nil {
 		// Password is set; just have them log in manually.
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": true})
+}
+
+// required completes a must-change-password sign-in with the new password.
+// A user who also needs a passkey gets the second-factor challenge back
+// instead of a session.
+func (h *authRecoveryHandlers) required(w http.ResponseWriter, r *http.Request) {
+	if !requireJSON(w, r) {
+		return
+	}
+	if h.app.PasswordChange == nil {
+		http.Error(w, "password change not available", http.StatusServiceUnavailable)
+		return
+	}
+	var body struct {
+		Token    string `json:"challenge_token"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSONBody(r, &body); err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	user, err := h.app.PasswordChange.Complete(r.Context(), strings.TrimSpace(body.Token), body.Password)
+	if err != nil {
+		writeActionError(w, err, "password change failed")
+		return
+	}
+	if h.app.SecondFactor.Required(user) {
+		token, err := h.app.SecondFactor.Begin(r.Context(), user.ID)
+		if err != nil {
+			h.logger.Error("password change: begin second factor failed", "error", err, "user_id", user.ID)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false, "challenge": token})
+		return
+	}
+	if err := issueSessionForUser(w, r, h.app, user.ID, domain.SessionAuthPassword, h.sessionTTL); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logged_in": false})
 		return
 	}
@@ -217,17 +218,6 @@ func sendVerificationEmail(ctx context.Context, app *App, logger *slog.Logger, b
 		HTMLBody: "<p>Welcome to Cairn! Confirm this email address:</p>" +
 			"<p><a href=\"" + link + "\">Verify email</a> (valid for 24 hours).</p><p>- Cairn</p>",
 	})
-}
-
-// sendBestEffortEmail sends and only logs on failure (used by anti-enumeration
-// flows that must not surface delivery errors to the caller).
-func sendBestEffortEmail(ctx context.Context, app *App, logger *slog.Logger, to, subject, text, html string) {
-	if app.Email == nil {
-		return
-	}
-	if err := app.Email.Send(ctx, port.EmailMessage{To: to, Subject: subject, TextBody: text, HTMLBody: html}); err != nil {
-		logger.Warn("recovery email send failed", "error", err)
-	}
 }
 
 // newRecoveryCode returns a URL-safe random code plus its sha256 (what we store).

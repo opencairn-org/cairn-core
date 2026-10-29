@@ -448,3 +448,42 @@ func collectSourceIDs(sources []domain.ActivitySource) []domain.SourceID {
 	}
 	return ids
 }
+
+// PreviewMerge merges the activity's sources with one of them replaced by
+// candidate and returns the result WITHOUT persisting anything: the dry run
+// behind reimport previews. The gear step is skipped (it may write).
+func (uc *RecomputeActivityFromSources) PreviewMerge(ctx context.Context, id domain.ActivityID, candidate domain.ActivitySource) (domain.Activity, error) {
+	prev, err := uc.activities.GetActivity(ctx, id)
+	if err != nil {
+		return domain.Activity{}, fmt.Errorf("get activity: %w", err)
+	}
+	sources, err := uc.activities.ListSourcesForActivity(ctx, id)
+	if err != nil {
+		return domain.Activity{}, fmt.Errorf("list sources: %w", err)
+	}
+	replaced := false
+	for i := range sources {
+		if sources[i].ID == candidate.ID {
+			sources[i] = candidate
+			replaced = true
+		}
+	}
+	if !replaced {
+		return domain.Activity{}, fmt.Errorf("source %s is not attached to %s: %w", candidate.ID, id, domain.ErrNotFound)
+	}
+	resolver := uc.buildResolver(ctx, prev.UserID)
+	overrides, err := uc.loadFieldOverrides(ctx, id)
+	if err != nil {
+		return domain.Activity{}, err
+	}
+	merged, err := domain.MergeWithOverrides(id, sources, resolver, overrides, uc.now())
+	if err != nil {
+		return domain.Activity{}, fmt.Errorf("merge: %w", err)
+	}
+	preserveUserEdits(&merged, prev)
+	if err := uc.applyClassificationOverride(ctx, id, &merged); err != nil {
+		return domain.Activity{}, err
+	}
+	uc.fillEstimatedTSS(ctx, &merged)
+	return merged, nil
+}

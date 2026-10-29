@@ -99,6 +99,14 @@ func (f *fakeAccounts) UpdateSyncWatermark(ctx context.Context, id domain.Extern
 	return nil
 }
 
+func (f *fakeAccounts) DeleteAccount(_ context.Context, id domain.ExternalAccountID) error {
+	if _, ok := f.byID[id]; !ok {
+		return domain.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
+
 func (f *fakeAccounts) UpdateStatus(ctx context.Context, id domain.ExternalAccountID, s domain.ExternalAccountStatus, reason string) error {
 	return nil
 }

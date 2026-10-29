@@ -3,6 +3,7 @@ package domain
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"strings"
 	"testing"
 )
 
@@ -97,5 +98,53 @@ func TestOAuthClientHelpers(t *testing.T) {
 	}
 	if !conf.VerifySecret(secret) || conf.VerifySecret("nope") {
 		t.Fatal("secret verification wrong")
+	}
+}
+
+func TestOAuthClientLoopbackRedirects(t *testing.T) {
+	c := OAuthClient{RedirectURIs: []string{"http://127.0.0.1:0/oauth/callback", "http://[::1]/cb", "http://localhost:9000/cb", "org.opencairn.cairn:/oauth/callback"}}
+	// Any port matches a registered loopback redirect; the target is the requested uri.
+	for _, uri := range []string{"http://127.0.0.1:51234/oauth/callback", "http://127.0.0.1/oauth/callback", "http://[::1]:7777/cb"} {
+		got, ok := c.RegisteredRedirectURI(uri)
+		if !ok || got != uri {
+			t.Errorf("RegisteredRedirectURI(%q) = %q, %v; want the requested uri", uri, got, ok)
+		}
+	}
+	// Path, query, scheme, host literal and user info must still match.
+	for _, uri := range []string{"http://127.0.0.1:1/other", "http://127.0.0.1:1/oauth/callback?x=1", "https://127.0.0.1:1/oauth/callback",
+		"http://localhost:9001/cb", "http://127.0.0.2:1/oauth/callback", "http://u@127.0.0.1:1/oauth/callback", "http://127.0.0.1:1/oauth/callback#f"} {
+		if _, ok := c.RegisteredRedirectURI(uri); ok {
+			t.Errorf("RegisteredRedirectURI(%q) matched", uri)
+		}
+	}
+	// Exact matches still return the stored value; a loopback registration
+	// does not loosen custom schemes or localhost.
+	if got, ok := c.RegisteredRedirectURI("org.opencairn.cairn:/oauth/callback"); !ok || got != "org.opencairn.cairn:/oauth/callback" {
+		t.Fatalf("custom scheme: %q %v", got, ok)
+	}
+	if got, ok := c.RegisteredRedirectURI("http://localhost:9000/cb"); !ok || got != "http://localhost:9000/cb" {
+		t.Fatalf("localhost exact: %q %v", got, ok)
+	}
+}
+
+func TestScopesGrant(t *testing.T) {
+	ro := []string{ScopeActivitiesRead, ScopeGearRead}
+	if !ScopesGrant(ro, "activities", false) || ScopesGrant(ro, "activities", true) {
+		t.Fatal("read scope must grant reads only")
+	}
+	rw := []string{ScopeActivitiesWrite}
+	if !ScopesGrant(rw, "activities", false) || !ScopesGrant(rw, "activities", true) {
+		t.Fatal("write scope must grant reads and writes")
+	}
+	if ScopesGrant(ro, "notifications", false) {
+		t.Fatal("foreign family must not be granted")
+	}
+	if ScopeFamily("gear:write") != "gear" || ScopeFamily("x") != "" {
+		t.Fatal("ScopeFamily wrong")
+	}
+	for _, s := range SupportedScopes {
+		if ScopeFamily(s) == "" || (!IsWriteScope(s) && !strings.HasSuffix(s, ":read")) {
+			t.Errorf("scope %q is not family:read|write", s)
+		}
 	}
 }

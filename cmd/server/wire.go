@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	emailadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/email"
 	geocodeadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/geocode"
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
@@ -21,20 +23,34 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	dmatch "github.com/opencairn-org/cairn-core/internal/domain/match"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/account"
+	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
+	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	geocodeuc "github.com/opencairn-org/cairn-core/internal/usecase/geocode"
+	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
+	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
+	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
+	"github.com/opencairn-org/cairn-core/internal/usecase/maintenance"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
+	metricsuc "github.com/opencairn-org/cairn-core/internal/usecase/metrics"
+	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
+	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
 // App is the constructed dependency graph the HTTP server uses.
@@ -56,9 +72,12 @@ type App struct {
 	Users                  *postgres.UserRepo
 	Streams                *postgres.StreamRepo
 	BestEfforts            *postgres.BestEffortRepo
+	CustomBestEffortRepo   *postgres.CustomBestEffortRepo
+	SourcePreviewRepo      *postgres.SourcePreviewRepo
 	Segments               *postgres.SegmentRepo
 	Metrics                *postgres.MetricRepo
-	Notifications          *postgres.NotificationRepo
+	Notifications          port.NotificationRepo // postgres repo wrapped by notification.BroadcastRepo
+	NotificationHub        *notification.Hub
 	NotificationPrefs      *postgres.NotificationPreferenceRepo
 	WebhookEndpoints       *postgres.WebhookEndpointRepo
 	QuietHours             *postgres.QuietHoursRepo
@@ -124,9 +143,77 @@ type App struct {
 	Email port.EmailSender
 
 	// Use cases
-	RecomputeActivity        *activity.RecomputeActivityFromSources
-	IngestActivity           *activity.IngestActivityFromWorker
-	ReclusterBucket          *matchuc.ReclusterBucket
+	RecomputeActivity       *activity.RecomputeActivityFromSources
+	IngestActivity          *activity.IngestActivityFromWorker
+	ReclusterBucket         *matchuc.ReclusterBucket
+	SourceActions           *activity.SourceActions
+	SourceLinks             *matchuc.SourceLinks
+	Visibility2             *view.Visibility // shared visibility resolver (REST + Connect)
+	Exports                 *view.Exports
+	Overviews               *view.Overviews
+	Searches                *view.Searches
+	Feeds                   *view.Feeds
+	Details                 *view.Details
+	Stats                   *view.Stats
+	SegmentViews            *view.Segments
+	HealthViews             *view.Health
+	MetricStore             *metricsuc.Store
+	Accounts                *view.Accounts
+	AccountRemover          *accountsuc.Remover
+	ClubViews               *view.Clubs
+	ProfileViews            *view.Profiles
+	QuotaViews              *view.Quota
+	NotificationPreferences *notification.Preferences
+	AttachmentVariants      *attachmentuc.Variants
+	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
+	ActivityEvents *livefeed.Hub[domain.UserID, domain.ActivityEvent]
+	// AdminEvents is the operator channel behind StreamAdminEvents.
+	AdminEvents *connectadapter.AdminEventHub
+	// Self-service account use cases, shared by /api and AuthService.
+	AccountTokens  *account.Tokens
+	SessionMgmt    *account.Sessions
+	Passwords      *account.Passwords
+	Identities     *account.Identities
+	Profiles       *account.Profiles
+	AuthorizedApps *account.AuthorizedApps
+	// DeviceAuthorizations approves RFC 8628 device sign-ins (browser page and RPCs).
+	DeviceAuthorizations *account.DeviceAuthorizations
+	// SecondFactor runs the passkey-after-password step (nil when passkeys are off).
+	SecondFactor *authuc.SecondFactor
+	// PasswordChange enforces must_change_password at password sign-in.
+	PasswordChange  *authuc.PasswordChangeRequired
+	LoginChallenges *postgres.LoginChallengeRepo
+	// LoginGuard throttles password sign-in failures and raises auth-flood events.
+	LoginGuard *authuc.LoginGuard
+	// AuditLog records and lists the audit trail; UserAdmin is admin user management.
+	AuditLog  *audit.Recorder
+	AuditRepo *postgres.AuditRepo
+	UserAdmin *useradmin.Users
+	// Instance-level admin: settings, email check, health; invite management.
+	InstanceSettingsRepo *postgres.InstanceSettingsRepo
+	InstanceSettings     *instance.Settings
+	TestEmail            *instance.TestEmail
+	SystemHealth         *instance.Health
+	InviteAdmin          *invite.Admin
+	Jobs                 *jobs.Jobs
+	Orphans              *jobs.Orphans
+	Fleet                *fleet.Fleet
+	ModReports           *moderation.Reports
+	FedBlocks            *moderation.Blocks
+	MergeDefaults        *instance.MergeDefaults
+	Ops                  *instance.Ops
+	// WebhookTokens lists and rotates the per-account webhook signing secrets.
+	WebhookTokens *webhooks.Tokens
+	// Maintenance runs the admin-triggered instance-wide recomputations.
+	Maintenance *maintenance.Runner
+	// EmailAdapter / StorageAdapter name the operator's choices (env).
+	EmailAdapter, EmailFrom string
+	StorageAdapter          string
+	// DBPing probes the database for the health report.
+	DBPing func(ctx context.Context) error
+	// Content mints the signed URLs binary content is delivered under; set by
+	// mountContent (needs the HTTP config).
+	Content                  port.ContentSigner
 	FieldOverrides           port.FieldOverrideRepo
 	ClassOverrides           port.ClassificationOverrideRepo
 	Attachments              port.AttachmentRepo
@@ -134,6 +221,9 @@ type App struct {
 	Health                   port.HealthRepo
 	Gear                     *gearuc.Service
 	ComputeBestEfforts       *besteffort.ComputeBestEffortsForSource
+	CustomBestEfforts        *besteffort.Customs
+	SourcePreviews           *activity.SourcePreviews
+	SegmentAuthoring         *segment.Authoring
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -178,8 +268,12 @@ type App struct {
 	// externally-visible origin used to build actor + object URLs;
 	// FederationEnabled mirrors the instance flag so the post-ingest
 	// publish step can short-circuit when federation is off.
-	PublicBaseURL     string
+	PublicBaseURL string
+	// SessionTTL bounds every session this instance issues.
+	SessionTTL        time.Duration
 	FederationEnabled bool
+	// OAuthEnabled mirrors CAIRN_AUTH_OAUTH_ENABLED for GetInstanceInfo.
+	OAuthEnabled bool
 }
 
 func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger *slog.Logger) (*App, error) {
@@ -187,6 +281,12 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		QuotaMaxActivities:  cfg.Quota.MaxActivitiesPerUser,
 		DefaultPollInterval: cfg.Scheduler.PollingInterval,
 		PublicBaseURL:       cfg.HTTP.PublicBaseURL,
+		SessionTTL:          cfg.Auth.SessionTTL,
+		EmailAdapter:        cfg.Email.Adapter,
+		EmailFrom:           cfg.Email.FromAddress,
+		StorageAdapter:      "minio",
+		DBPing:              pool.Ping,
+		OAuthEnabled:        cfg.Auth.OAuthEnabled,
 		FederationEnabled:   cfg.Federation.Enabled,
 	}
 	wireAppCoreRepos(app, pool, cfg)
@@ -199,18 +299,10 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	}
 	app.OIDCProviders = oidcProviders
 
-	app.PasswordHasher = auth.NewPasswordHasher(auth.PasswordParams{
-		Time:    cfg.Auth.Argon2Time,
-		Memory:  cfg.Auth.Argon2Memory,
-		Threads: cfg.Auth.Argon2Threads,
-		KeyLen:  cfg.Auth.Argon2KeyLen,
-	})
-
-	secretBox, err := auth.NewSecretBoxFromMasterKey(cfg.Auth.MasterEncryptionKey)
+	secretBox, err := wireAppCrypto(app, cfg)
 	if err != nil {
 		return nil, err
 	}
-	app.SecretBox = secretBox
 
 	wireAppSecondaryRepos(app, pool, secretBox)
 	// Notifications before ingest: the gear use cases notify on pending
@@ -220,6 +312,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	}
 	wireAppIngestUseCases(app, pool, logger)
 	wireAppAccountUseCases(app, pool)
+	wireAccount(app)
 	if err := wireAppNATS(ctx, app, cfg, logger); err != nil {
 		return nil, err
 	}
@@ -241,7 +334,12 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	if err := wireAppBlobStore(ctx, app, cfg, logger); err != nil {
 		return nil, err
 	}
+	mirrorInstanceEnv(ctx, app, cfg, logger)
+	wireOperatorAdmin(app, logger)
+	// After the blob store: variants need it (nil → nothing is derived).
+	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
+	wireMaintenance(app, pool)
 	return app, nil
 }
 
@@ -253,9 +351,14 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.Users = postgres.NewUserRepo(pool)
 	app.Streams = postgres.NewStreamRepo(pool)
 	app.BestEfforts = postgres.NewBestEffortRepo(pool)
+	app.CustomBestEffortRepo = postgres.NewCustomBestEffortRepo(pool)
+	app.SourcePreviewRepo = postgres.NewSourcePreviewRepo(pool)
 	app.Segments = postgres.NewSegmentRepo(pool)
 	app.Metrics = postgres.NewMetricRepo(pool)
-	app.Notifications = postgres.NewNotificationRepo(pool)
+	app.NotificationHub = notification.NewHub()
+	app.ActivityEvents = livefeed.New(func(e domain.ActivityEvent) domain.UserID { return e.UserID })
+	app.AdminEvents = connectadapter.NewAdminEventHub()
+	app.Notifications = notification.NewBroadcastRepo(postgres.NewNotificationRepo(pool), app.NotificationHub)
 	app.Follows = postgres.NewFollowRepo(pool)
 	app.Visibility = postgres.NewVisibilityRepo(pool)
 	app.ShareLinks = postgres.NewShareLinkRepo(pool)
@@ -293,6 +396,7 @@ func wireAppSecondaryRepos(app *App, pool *pgxpool.Pool, secretBox *auth.SecretB
 	app.ImportEvents = postgres.NewImportEventRepo(pool)
 	app.AthleteProfiles = postgres.NewAthleteProfileRepo(pool)
 	app.Passkeys = postgres.NewPasskeyRepo(pool)
+	app.LoginChallenges = postgres.NewLoginChallengeRepo(pool)
 	app.FieldOverrides = postgres.NewFieldOverrideRepo(pool)
 	app.ClassOverrides = postgres.NewClassificationOverrideRepo(pool)
 	app.Attachments = postgres.NewAttachmentRepo(pool)
@@ -342,15 +446,18 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default uuid.NewV7
 		dmatch.DefaultOptions(),
 		logger,
-	)
-	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
-		app.Activities,
-		app.Streams,
-		app.BestEfforts,
-		app.Tx,
-		nil, // default time.Now
-		nil, // default uuid.NewV7
-	)
+	).WithEvents(app.AdminEvents)
+	wireAppViews(app, logger)
+	// The owner-facing source actions, shared by REST and Connect.
+	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
+	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
+	app.SourceActions.Events = app.ActivityEvents
+	app.SourceLinks.Events = app.ActivityEvents
+	app.SourcePreviews = &activity.SourcePreviews{
+		Repo: app.SourcePreviewRepo, Actions: app.SourceActions, Recompute: app.RecomputeActivity,
+		Reimporter: newSourceReimporter(app, logger), Activities: app.Activities, Events: app.ActivityEvents,
+	}
+	wireBestEfforts(app)
 	app.ComputeSegmentRanks = segmentrank.NewComputeSegmentRanks(app.Segments, app.Tx)
 	app.MatchSegments = segment.NewMatchSegmentsForActivity(
 		app.Activities,
@@ -363,6 +470,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		domain.MatchTolerances{}, // zero → DefaultMatchTolerances
 		nil,                      // default slog.Default
 	)
+	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
 	app.ComputeTrainingLoad = trainingload.NewComputeTrainingLoadForUser(
 		app.Activities,
 		app.Metrics,
@@ -414,6 +522,7 @@ func wireAppNotifications(app *App, pool *pgxpool.Pool, cfg *config.Config, secr
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)
+	app.DispatchPR.Events = app.ActivityEvents
 	app.NotifyAccountNeedsReauth = notification.NewNotifyAccountNeedsReauth(
 		app.ExternalAccounts,
 		app.Notifications,
@@ -445,6 +554,8 @@ func wireAppAccountUseCases(app *App, pool *pgxpool.Pool) {
 	app.CreateUser = admin.NewCreateUser(app.Users, app.PasswordHasher, nil, nil)
 	app.BootstrapAdmin = admin.NewBootstrapAdmin(app.Users, app.CreateUser)
 	app.Invites = postgres.NewInviteRepo(pool)
+	app.AuditRepo = postgres.NewAuditRepo(pool)
+	app.InstanceSettingsRepo = postgres.NewInstanceSettingsRepo(pool)
 	app.CreateInvite = invite.NewCreateInvite(app.Invites, nil)
 	app.RedeemInvite = invite.NewRedeemInvite(app.Invites, app.CreateUser, nil)
 	app.PATs = postgres.NewPATRepo(pool)
@@ -609,4 +720,334 @@ func wireAppGeocoder(app *App, cfg *config.Config, logger *slog.Logger) {
 	geocoder := geocodeadapter.New(cfg.Geocoder)
 	app.ComputeStartPlace = geocodeuc.NewComputeStartPlace(app.Activities, app.Streams, geocoder, logger)
 	logger.Info("geocoder wired", "url", cfg.Geocoder.URL, "min_interval", cfg.Geocoder.MinInterval)
+}
+
+// wireAppViews builds the read-side use cases REST and Connect both render from.
+func wireAppViews(app *App, logger *slog.Logger) {
+	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
+	app.Exports = view.NewExports(app.Streams)
+	app.Overviews = view.NewOverviews(app.Activities, nil)
+	app.Searches = view.NewSearches(app.Activities, app.Gear)
+	var fedFeed port.FederationFeedRepo
+	if app.FederationFeed != nil {
+		fedFeed = app.FederationFeed
+	}
+	app.Feeds = view.NewFeeds(app.Activities, app.Users, app.Visibility2, fedFeed, app.FederationEnabled)
+	var metrics port.MetricRepo
+	if app.Metrics != nil {
+		metrics = app.Metrics
+	}
+	var bestEfforts port.BestEffortRepo
+	if app.BestEfforts != nil {
+		bestEfforts = app.BestEfforts
+	}
+	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
+	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
+	app.HealthViews = view.NewHealth(app.Health, nil)
+	if app.Metrics != nil {
+		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}
+		if app.AthleteProfiles != nil {
+			app.MetricStore.Athlete = app.AthleteProfiles
+		}
+	}
+	var queue port.ImportQueueRepo
+	if app.ImportQueue != nil {
+		queue = app.ImportQueue
+	}
+	var events port.ImportEventRepo
+	if app.ImportEvents != nil {
+		events = app.ImportEvents
+	}
+	var conns port.UserProviderConfigRepo
+	if app.UserProviderConfigs != nil {
+		conns = app.UserProviderConfigs
+	}
+	var clubs port.ClubRepo
+	if app.Clubs != nil {
+		clubs = app.Clubs
+	}
+	app.ClubViews = view.NewClubs(clubs, app.Users, app.Feeds)
+	app.ProfileViews = view.NewProfiles(app.Users, app.Activities, app.Follows, app.Blocks, app.Visibility2)
+	wireUserViews(app)
+	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
+	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
+		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
+}
+
+// nilIfNilSegments / nilIfNilEngagement keep a nil pointer from becoming a
+// non-nil interface.
+func nilIfNilSegments(app *App) port.SegmentRepo {
+	if app.Segments == nil {
+		return nil
+	}
+	return app.Segments
+}
+
+func nilIfNilEngagement(app *App) port.EngagementRepo {
+	if app.Engagement == nil {
+		return nil
+	}
+	return app.Engagement
+}
+
+// wireAccount builds the self-service account use cases (after the account
+// repos exist); the reset link points at the SPA's /reset-password page.
+func wireAccount(app *App) {
+	if app.PATs != nil {
+		app.AccountTokens = &account.Tokens{PATs: app.PATs}
+	}
+	if app.Sessions != nil {
+		app.SessionMgmt = &account.Sessions{Repo: app.Sessions}
+	}
+	if app.Users != nil && app.AuthTokens != nil && app.Sessions != nil && app.PasswordHasher != nil {
+		base := strings.TrimRight(app.PublicBaseURL, "/")
+		app.Passwords = &account.Passwords{
+			Users: app.Users, Hasher: app.PasswordHasher, Tokens: app.AuthTokens, Sessions: app.Sessions,
+			Mail:      app.Email,
+			ResetLink: func(code string) string { return base + "/reset-password?code=" + code },
+		}
+	}
+	if app.LinkedIdentities != nil && app.Users != nil {
+		var passkeys port.PasskeyRepo
+		if app.Passkeys != nil {
+			passkeys = app.Passkeys
+		}
+		app.Identities = &account.Identities{Repo: app.LinkedIdentities, Users: app.Users, Passkeys: passkeys, Providers: app.OIDCProviders}
+	}
+	if app.Users != nil {
+		app.Profiles = &account.Profiles{Users: app.Users}
+	}
+	if app.OAuth != nil {
+		app.AuthorizedApps = &account.AuthorizedApps{OAuth: app.OAuth}
+		app.DeviceAuthorizations = &account.DeviceAuthorizations{OAuth: app.OAuth}
+	}
+	if app.Passkeys != nil && app.LoginChallenges != nil && app.Users != nil {
+		app.SecondFactor = &authuc.SecondFactor{Challenges: app.LoginChallenges, Users: app.Users, Passkeys: app.Passkeys}
+	}
+	if app.LoginChallenges != nil && app.Users != nil && app.PasswordHasher != nil {
+		app.PasswordChange = &authuc.PasswordChangeRequired{Challenges: app.LoginChallenges, Users: app.Users, Hasher: app.PasswordHasher}
+	}
+	wireAdmin(app)
+}
+
+// wireAdmin builds the audit recorder and the admin user management.
+func wireAdmin(app *App) {
+	if app.AuditRepo != nil {
+		app.AuditLog = &audit.Recorder{Repo: app.AuditRepo, Log: slog.Default()}
+	}
+	app.LoginGuard = &authuc.LoginGuard{Audit: app.AuditLog, Events: app.AdminEvents}
+	if app.Users == nil {
+		return
+	}
+	ua := &useradmin.Users{Users: app.Users, Activities: app.Activities, Create: app.CreateUser, Invites: app.CreateInvite, Audit: app.AuditLog, Events: app.AdminEvents}
+	if app.Sessions != nil {
+		ua.Sessions = app.Sessions
+	}
+	if app.PATs != nil {
+		ua.PATs = app.PATs
+	}
+	if app.Passkeys != nil {
+		ua.Passkeys = app.Passkeys
+	}
+	if app.LinkedIdentities != nil {
+		ua.Identities = app.LinkedIdentities
+	}
+	if app.ExternalAccounts != nil {
+		ua.ExternalAccounts = app.ExternalAccounts
+	}
+	if app.PasswordHasher != nil {
+		ua.Hasher = app.PasswordHasher
+	}
+	if app.Quotas != nil {
+		ua.Quotas = app.Quotas
+	}
+	app.UserAdmin = ua
+	wireInstanceAdmin(app)
+	wireModerationAdmin(app)
+}
+
+// wireModerationAdmin builds the moderation, block and merge-default use cases.
+func wireModerationAdmin(app *App) {
+	rep := &moderation.Reports{Users: app.Users, Audit: app.AuditLog}
+	if app.Reports != nil {
+		rep.Reports = app.Reports
+	}
+	if app.Moderation != nil {
+		rep.Moderation = app.Moderation
+	}
+	app.ModReports = rep
+	blocks := &moderation.Blocks{Audit: app.AuditLog}
+	if app.FederationBlocks != nil {
+		blocks.Repo = app.FederationBlocks
+	}
+	app.FedBlocks = blocks
+	md := &instance.MergeDefaults{Audit: app.AuditLog}
+	if app.UserSettings != nil {
+		md.Settings = app.UserSettings
+	}
+	app.MergeDefaults = md
+}
+
+// wireInstanceAdmin builds the instance settings, email check, health
+// report and invite management.
+func wireInstanceAdmin(app *App) {
+	if app.InstanceSettingsRepo != nil {
+		app.InstanceSettings = &instance.Settings{Repo: app.InstanceSettingsRepo, Audit: app.AuditLog}
+	}
+	if app.Email != nil {
+		app.TestEmail = &instance.TestEmail{Mail: app.Email}
+	}
+	h := &instance.Health{PingDB: app.DBPing, Mail: app.Email}
+	if app.BlobStore != nil {
+		h.Blobs = app.BlobStore
+	}
+	if app.ImportQueue != nil {
+		h.Queue = app.ImportQueue
+	}
+	if app.DeadLetters != nil {
+		h.DeadLetters = app.DeadLetters
+	}
+	app.SystemHealth = h
+	j := &jobs.Jobs{Audit: app.AuditLog}
+	if app.ImportQueue != nil {
+		j.Queue = app.ImportQueue
+	}
+	if app.DeadLetters != nil {
+		j.DeadLetters = app.DeadLetters
+	}
+	app.Jobs = j
+	if app.CreateInvite != nil && app.Invites != nil {
+		base := strings.TrimRight(app.PublicBaseURL, "/")
+		app.InviteAdmin = &invite.Admin{
+			Invites: app.Invites, Create: app.CreateInvite, Mail: app.Email, Audit: app.AuditLog,
+			SignupURL: func(code string) string { return base + "/signup?code=" + code },
+		}
+	}
+}
+
+// wireBestEfforts builds the best-effort compute and the custom-window use case.
+func wireBestEfforts(app *App) {
+	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
+		app.Activities,
+		app.Streams,
+		app.BestEfforts,
+		app.Tx,
+		nil, // default time.Now
+		nil, // default uuid.NewV7
+	)
+	app.ComputeBestEfforts.Customs = app.CustomBestEffortRepo
+	app.CustomBestEfforts = &besteffort.Customs{Repo: app.CustomBestEffortRepo, BestEfforts: app.BestEfforts, Activities: app.Activities, Compute: app.ComputeBestEfforts}
+}
+
+// mirrorInstanceEnv records the operator's email and storage choices in the
+// settings row (admin UI) and points the health probe at the blob store.
+func mirrorInstanceEnv(ctx context.Context, app *App, cfg *config.Config, logger *slog.Logger) {
+	if app.InstanceSettingsRepo != nil {
+		if err := app.InstanceSettingsRepo.MirrorEnv(ctx, cfg.Email.Adapter, app.Email != nil, cfg.Email.FromAddress, "minio", app.BlobStore != nil); err != nil {
+			logger.Warn("mirror env into instance settings", "error", err)
+		}
+	}
+	if app.SystemHealth != nil && app.BlobStore != nil {
+		app.SystemHealth.Blobs = app.BlobStore
+	}
+}
+
+// wireAppCrypto builds the password hasher and the secret box.
+func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
+	app.PasswordHasher = auth.NewPasswordHasher(auth.PasswordParams{
+		Time:    cfg.Auth.Argon2Time,
+		Memory:  cfg.Auth.Argon2Memory,
+		Threads: cfg.Auth.Argon2Threads,
+		KeyLen:  cfg.Auth.Argon2KeyLen,
+	})
+	secretBox, err := auth.NewSecretBoxFromMasterKey(cfg.Auth.MasterEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	app.SecretBox = secretBox
+	return secretBox, nil
+}
+
+// wireOperatorAdmin builds the fleet and operations use cases, which need
+// package-main helpers (presence KV, NATS keys, the background geocoder).
+func wireOperatorAdmin(app *App, logger *slog.Logger) {
+	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
+		Live: func(ctx context.Context) []domain.WorkerHeartbeat { return scanWorkerHeartbeats(ctx, app, logger) }}
+	if app.WorkerPools != nil {
+		app.Fleet.Pools = app.WorkerPools
+	}
+	if app.WorkerEnrollments != nil {
+		app.Fleet.Enrollments = app.WorkerEnrollments
+	}
+	app.Ops = &instance.Ops{GeocodeBackfill: geocodeBackfillRunner(app, logger), Keys: natsKeyManager{app: app}, Audit: app.AuditLog}
+	app.WebhookTokens = &webhooks.Tokens{Audit: app.AuditLog}
+	if app.ExternalAccounts != nil {
+		app.WebhookTokens.Repo = app.ExternalAccounts
+	}
+	// Account removal is a user action but needs the audit recorder built above.
+	app.AccountRemover = &accountsuc.Remover{Accounts: app.ExternalAccounts, Activities: app.Activities, Audit: app.AuditLog}
+	if app.RecomputeActivity != nil {
+		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := app.RecomputeActivity.Execute(ctx, id)
+			return err
+		}
+	}
+	if app.Gear != nil {
+		app.Ops.Gear = app.Gear
+	}
+}
+
+// wireMaintenance builds the maintenance runner over the use-cases wired
+// above; it runs last so every optional stage is already in place. The
+// blob collector covers every key family an activity source or attachment
+// can reference (all rows store the full object key) plus the claim-check
+// transfer area; the map-image cache is left to its own lifecycle.
+func wireMaintenance(app *App, pool *pgxpool.Pool) {
+	r := &maintenance.Runner{Repo: postgres.NewMaintenanceRepo(pool), Jobs: postgres.NewMaintenanceJobRepo(pool), Audit: app.AuditLog, Log: slog.Default(),
+		BlobPrefixes: []string{"raw/", "attachments/", "uploads/", "users/", "shared/", "transfer/"}}
+	if app.BlobStore != nil {
+		r.Blobs = app.BlobStore
+		if lister, ok := app.BlobStore.(port.BlobLister); ok {
+			r.BlobList = lister
+		}
+	}
+	if app.MatchSegments != nil {
+		r.MatchSegments = func(ctx context.Context, id domain.SourceID) error {
+			_, err := app.MatchSegments.Execute(ctx, segment.Input{ActivitySourceID: id})
+			return err
+		}
+	}
+	if app.ComputeBestEfforts != nil {
+		r.ComputeBestEfforts = func(ctx context.Context, id domain.SourceID) error {
+			_, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{ActivitySourceID: id})
+			return err
+		}
+	}
+	if app.RecomputeActivity != nil {
+		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := app.RecomputeActivity.Execute(ctx, id)
+			return err
+		}
+	}
+	if app.ComputeTrainingLoad != nil {
+		r.TrainingLoad = func(ctx context.Context, id domain.UserID) error {
+			end := time.Now().UTC()
+			_, err := app.ComputeTrainingLoad.Execute(ctx, trainingload.Input{UserID: id, Start: end.AddDate(0, 0, -730), End: end, WarmUpDays: 42})
+			return err
+		}
+	}
+	app.Maintenance = r
+}
+
+// wireUserViews builds the small self-service reads shared by REST and Connect.
+func wireUserViews(app *App) {
+	var quotas port.QuotaRepo
+	if app.Quotas != nil {
+		quotas = app.Quotas
+	}
+	app.QuotaViews = view.NewQuota(app.Activities, quotas, app.QuotaMaxActivities)
+	app.NotificationPreferences = &notification.Preferences{}
+	if app.NotificationPrefs != nil {
+		app.NotificationPreferences.Repo = app.NotificationPrefs
+	}
 }

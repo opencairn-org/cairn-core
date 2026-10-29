@@ -109,50 +109,22 @@ func (h *shareLinksAPI) revoke(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// loadShared resolves an active link to its visible activity or writes an error.
-func (h *shareLinksAPI) loadShared(w http.ResponseWriter, r *http.Request) (domain.Activity, bool) {
-	link, err := h.app.ShareLinks.GetActive(r.Context(), r.PathValue("token"))
+func (h *shareLinksAPI) read(w http.ResponseWriter, r *http.Request) {
+	var viewerPtr *domain.UserID
+	if v, ok := optionalSessionUser(r, h.app); ok {
+		viewerPtr = &v
+	}
+	p, owner, err := h.app.Feeds.Shared(r.Context(), h.app.ShareLinks, r.PathValue("token"), viewerPtr)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			http.Error(w, "link not found or revoked", http.StatusNotFound)
-			return domain.Activity{}, false
+			return
 		}
-		http.Error(w, "load failed", http.StatusInternalServerError)
-		return domain.Activity{}, false
-	}
-	a, err := h.app.Activities.GetActivity(r.Context(), link.ActivityID)
-	if err != nil {
-		http.Error(w, "activity gone", http.StatusNotFound)
-		return a, false
-	}
-	if a.HiddenByAdmin {
-		http.Error(w, "unavailable", http.StatusNotFound)
-		return a, false
-	}
-	return a, true
-}
-
-func (h *shareLinksAPI) read(w http.ResponseWriter, r *http.Request) {
-	app := h.app
-	a, ok := h.loadShared(w, r)
-	if !ok {
+		writeActionError(w, err, "load failed")
 		return
 	}
-	// A share link is itself a trust signal: resolve as the 'link' audience.
-	var viewerPtr *domain.UserID
-	if v, ok := optionalSessionUser(r, app); ok {
-		viewerPtr = &v
-	}
-	cats := visibilityFor(r.Context(), app, a.UserID, viewerPtr, a.ID, true)
-	isOwner := viewerPtr != nil && *viewerPtr == a.UserID
-	if !isOwner && len(cats) == 0 {
-		http.Error(w, "not available", http.StatusForbidden)
-		return
-	}
-	act := projectActivityJSON(a, cats, ownerPrivacyZones(r.Context(), app, a.UserID, isOwner))
-	owner, _ := app.Users.GetUser(r.Context(), a.UserID)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"activity": act,
+		"activity": projectedJSON(p),
 		"owner":    userCardJSON(owner),
 		"shared":   true,
 	})

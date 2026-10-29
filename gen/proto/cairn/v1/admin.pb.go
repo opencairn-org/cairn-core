@@ -472,9 +472,12 @@ const (
 	MaintenanceOperation_MAINTENANCE_OPERATION_RECOMPUTE_ACTIVITY_MERGES MaintenanceOperation = 3
 	// Recompute daily CTL/ATL/TSB metrics for all users.
 	MaintenanceOperation_MAINTENANCE_OPERATION_RECOMPUTE_TRAINING_LOAD MaintenanceOperation = 4
-	// Purge expired soft-deleted records past retention.
+	// Hard-delete activities soft-deleted more than 30 days ago (sources and
+	// attachments cascade, their blobs are released).
 	MaintenanceOperation_MAINTENANCE_OPERATION_PURGE_SOFT_DELETED MaintenanceOperation = 5
-	// Reclaim S3 blobs orphaned by deleted sources (lifecycle-policy fallback).
+	// Delete objects older than a day that no source or attachment references
+	// any more, across every key family they can point at (REST and Connect
+	// uploads, worker-stored blobs, attachments, claim-check payloads).
 	MaintenanceOperation_MAINTENANCE_OPERATION_GARBAGE_COLLECT_BLOBS MaintenanceOperation = 6
 )
 
@@ -525,6 +528,116 @@ func (x MaintenanceOperation) Number() protoreflect.EnumNumber {
 // Deprecated: Use MaintenanceOperation.Descriptor instead.
 func (MaintenanceOperation) EnumDescriptor() ([]byte, []int) {
 	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+type MaintenanceJobStatus int32
+
+const (
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_UNSPECIFIED MaintenanceJobStatus = 0
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_QUEUED      MaintenanceJobStatus = 1
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_RUNNING     MaintenanceJobStatus = 2
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_SUCCEEDED   MaintenanceJobStatus = 3
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_FAILED      MaintenanceJobStatus = 4
+	MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_CANCELLED   MaintenanceJobStatus = 5
+)
+
+// Enum value maps for MaintenanceJobStatus.
+var (
+	MaintenanceJobStatus_name = map[int32]string{
+		0: "MAINTENANCE_JOB_STATUS_UNSPECIFIED",
+		1: "MAINTENANCE_JOB_STATUS_QUEUED",
+		2: "MAINTENANCE_JOB_STATUS_RUNNING",
+		3: "MAINTENANCE_JOB_STATUS_SUCCEEDED",
+		4: "MAINTENANCE_JOB_STATUS_FAILED",
+		5: "MAINTENANCE_JOB_STATUS_CANCELLED",
+	}
+	MaintenanceJobStatus_value = map[string]int32{
+		"MAINTENANCE_JOB_STATUS_UNSPECIFIED": 0,
+		"MAINTENANCE_JOB_STATUS_QUEUED":      1,
+		"MAINTENANCE_JOB_STATUS_RUNNING":     2,
+		"MAINTENANCE_JOB_STATUS_SUCCEEDED":   3,
+		"MAINTENANCE_JOB_STATUS_FAILED":      4,
+		"MAINTENANCE_JOB_STATUS_CANCELLED":   5,
+	}
+)
+
+func (x MaintenanceJobStatus) Enum() *MaintenanceJobStatus {
+	p := new(MaintenanceJobStatus)
+	*p = x
+	return p
+}
+
+func (x MaintenanceJobStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MaintenanceJobStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_admin_proto_enumTypes[8].Descriptor()
+}
+
+func (MaintenanceJobStatus) Type() protoreflect.EnumType {
+	return &file_cairn_v1_admin_proto_enumTypes[8]
+}
+
+func (x MaintenanceJobStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MaintenanceJobStatus.Descriptor instead.
+func (MaintenanceJobStatus) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+type ReportStatus int32
+
+const (
+	ReportStatus_REPORT_STATUS_UNSPECIFIED ReportStatus = 0
+	ReportStatus_REPORT_STATUS_OPEN        ReportStatus = 1
+	ReportStatus_REPORT_STATUS_REVIEWED    ReportStatus = 2
+	ReportStatus_REPORT_STATUS_DISMISSED   ReportStatus = 3
+)
+
+// Enum value maps for ReportStatus.
+var (
+	ReportStatus_name = map[int32]string{
+		0: "REPORT_STATUS_UNSPECIFIED",
+		1: "REPORT_STATUS_OPEN",
+		2: "REPORT_STATUS_REVIEWED",
+		3: "REPORT_STATUS_DISMISSED",
+	}
+	ReportStatus_value = map[string]int32{
+		"REPORT_STATUS_UNSPECIFIED": 0,
+		"REPORT_STATUS_OPEN":        1,
+		"REPORT_STATUS_REVIEWED":    2,
+		"REPORT_STATUS_DISMISSED":   3,
+	}
+)
+
+func (x ReportStatus) Enum() *ReportStatus {
+	p := new(ReportStatus)
+	*p = x
+	return p
+}
+
+func (x ReportStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReportStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_admin_proto_enumTypes[9].Descriptor()
+}
+
+func (ReportStatus) Type() protoreflect.EnumType {
+	return &file_cairn_v1_admin_proto_enumTypes[9]
+}
+
+func (x ReportStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReportStatus.Descriptor instead.
+func (ReportStatus) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 // OIDCClient is the read-only, env-configured (CAIRN_OIDC_*) view of one
@@ -4613,7 +4726,8 @@ func (x *BulkRotateWebhookSigningTokensRequest) GetExternalAccountIds() []string
 type BulkRotateWebhookSigningTokensResponse struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	RotatedCount int32                  `protobuf:"varint,1,opt,name=rotated_count,json=rotatedCount,proto3" json:"rotated_count,omitempty"`
-	// Per-account job ids for the resulting unregister+register cycles.
+	// One entry per rotated account. The job ids stay empty until a worker
+	// consumes the signing token and the subscription has to be re-registered.
 	RotationJobs  []*WebhookRotationJobs `protobuf:"bytes,2,rep,name=rotation_jobs,json=rotationJobs,proto3" json:"rotation_jobs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5119,13 +5233,315 @@ func (x *AdminEvent) GetJobId() string {
 	return ""
 }
 
+type MaintenanceJob struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Operation MaintenanceOperation   `protobuf:"varint,2,opt,name=operation,proto3,enum=cairn.v1.MaintenanceOperation" json:"operation,omitempty"`
+	UserIds   []string               `protobuf:"bytes,3,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	Status    MaintenanceJobStatus   `protobuf:"varint,4,opt,name=status,proto3,enum=cairn.v1.MaintenanceJobStatus" json:"status,omitempty"`
+	// Records the job will touch; -1 while unknown.
+	EstimatedRecordCount int64                  `protobuf:"varint,5,opt,name=estimated_record_count,json=estimatedRecordCount,proto3" json:"estimated_record_count,omitempty"`
+	ProcessedCount       int64                  `protobuf:"varint,6,opt,name=processed_count,json=processedCount,proto3" json:"processed_count,omitempty"`
+	FailedCount          int64                  `protobuf:"varint,7,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	ErrorMessage         string                 `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	TriggeredByUserId    *string                `protobuf:"bytes,9,opt,name=triggered_by_user_id,json=triggeredByUserId,proto3,oneof" json:"triggered_by_user_id,omitempty"`
+	QueuedAt             *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=queued_at,json=queuedAt,proto3" json:"queued_at,omitempty"`
+	StartedAt            *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	FinishedAt           *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *MaintenanceJob) Reset() {
+	*x = MaintenanceJob{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaintenanceJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaintenanceJob) ProtoMessage() {}
+
+func (x *MaintenanceJob) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaintenanceJob.ProtoReflect.Descriptor instead.
+func (*MaintenanceJob) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *MaintenanceJob) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *MaintenanceJob) GetOperation() MaintenanceOperation {
+	if x != nil {
+		return x.Operation
+	}
+	return MaintenanceOperation_MAINTENANCE_OPERATION_UNSPECIFIED
+}
+
+func (x *MaintenanceJob) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+func (x *MaintenanceJob) GetStatus() MaintenanceJobStatus {
+	if x != nil {
+		return x.Status
+	}
+	return MaintenanceJobStatus_MAINTENANCE_JOB_STATUS_UNSPECIFIED
+}
+
+func (x *MaintenanceJob) GetEstimatedRecordCount() int64 {
+	if x != nil {
+		return x.EstimatedRecordCount
+	}
+	return 0
+}
+
+func (x *MaintenanceJob) GetProcessedCount() int64 {
+	if x != nil {
+		return x.ProcessedCount
+	}
+	return 0
+}
+
+func (x *MaintenanceJob) GetFailedCount() int64 {
+	if x != nil {
+		return x.FailedCount
+	}
+	return 0
+}
+
+func (x *MaintenanceJob) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *MaintenanceJob) GetTriggeredByUserId() string {
+	if x != nil && x.TriggeredByUserId != nil {
+		return *x.TriggeredByUserId
+	}
+	return ""
+}
+
+func (x *MaintenanceJob) GetQueuedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.QueuedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceJob) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceJob) GetFinishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return nil
+}
+
+type ListMaintenanceJobsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMaintenanceJobsRequest) Reset() {
+	*x = ListMaintenanceJobsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMaintenanceJobsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMaintenanceJobsRequest) ProtoMessage() {}
+
+func (x *ListMaintenanceJobsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMaintenanceJobsRequest.ProtoReflect.Descriptor instead.
+func (*ListMaintenanceJobsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{70}
+}
+
+type ListMaintenanceJobsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Newest first.
+	Jobs          []*MaintenanceJob `protobuf:"bytes,1,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMaintenanceJobsResponse) Reset() {
+	*x = ListMaintenanceJobsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMaintenanceJobsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMaintenanceJobsResponse) ProtoMessage() {}
+
+func (x *ListMaintenanceJobsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMaintenanceJobsResponse.ProtoReflect.Descriptor instead.
+func (*ListMaintenanceJobsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *ListMaintenanceJobsResponse) GetJobs() []*MaintenanceJob {
+	if x != nil {
+		return x.Jobs
+	}
+	return nil
+}
+
+type CancelMaintenanceJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelMaintenanceJobRequest) Reset() {
+	*x = CancelMaintenanceJobRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelMaintenanceJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelMaintenanceJobRequest) ProtoMessage() {}
+
+func (x *CancelMaintenanceJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelMaintenanceJobRequest.ProtoReflect.Descriptor instead.
+func (*CancelMaintenanceJobRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *CancelMaintenanceJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+type CancelMaintenanceJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Job           *MaintenanceJob        `protobuf:"bytes,1,opt,name=job,proto3" json:"job,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelMaintenanceJobResponse) Reset() {
+	*x = CancelMaintenanceJobResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelMaintenanceJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelMaintenanceJobResponse) ProtoMessage() {}
+
+func (x *CancelMaintenanceJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelMaintenanceJobResponse.ProtoReflect.Descriptor instead.
+func (*CancelMaintenanceJobResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *CancelMaintenanceJobResponse) GetJob() *MaintenanceJob {
+	if x != nil {
+		return x.Job
+	}
+	return nil
+}
+
 type TriggerMaintenanceRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Operation MaintenanceOperation   `protobuf:"varint,1,opt,name=operation,proto3,enum=cairn.v1.MaintenanceOperation" json:"operation,omitempty"`
 	// Scope: empty = all users. Else only these users.
 	UserIds []string `protobuf:"bytes,2,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
-	// Confirmation phrase the admin must type ("RECOMPUTE" etc.). Server
-	// validates against an operation-specific expected phrase.
+	// Confirmation phrase the admin must type: the operation name in upper
+	// case without the enum prefix, e.g. "REMATCH_ALL_SEGMENTS".
 	ConfirmPhrase string `protobuf:"bytes,3,opt,name=confirm_phrase,json=confirmPhrase,proto3" json:"confirm_phrase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5133,7 +5549,7 @@ type TriggerMaintenanceRequest struct {
 
 func (x *TriggerMaintenanceRequest) Reset() {
 	*x = TriggerMaintenanceRequest{}
-	mi := &file_cairn_v1_admin_proto_msgTypes[69]
+	mi := &file_cairn_v1_admin_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5145,7 +5561,7 @@ func (x *TriggerMaintenanceRequest) String() string {
 func (*TriggerMaintenanceRequest) ProtoMessage() {}
 
 func (x *TriggerMaintenanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_admin_proto_msgTypes[69]
+	mi := &file_cairn_v1_admin_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5158,7 +5574,7 @@ func (x *TriggerMaintenanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerMaintenanceRequest.ProtoReflect.Descriptor instead.
 func (*TriggerMaintenanceRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{69}
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *TriggerMaintenanceRequest) GetOperation() MaintenanceOperation {
@@ -5193,7 +5609,7 @@ type TriggerMaintenanceResponse struct {
 
 func (x *TriggerMaintenanceResponse) Reset() {
 	*x = TriggerMaintenanceResponse{}
-	mi := &file_cairn_v1_admin_proto_msgTypes[70]
+	mi := &file_cairn_v1_admin_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5205,7 +5621,7 @@ func (x *TriggerMaintenanceResponse) String() string {
 func (*TriggerMaintenanceResponse) ProtoMessage() {}
 
 func (x *TriggerMaintenanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_admin_proto_msgTypes[70]
+	mi := &file_cairn_v1_admin_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5218,7 +5634,7 @@ func (x *TriggerMaintenanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerMaintenanceResponse.ProtoReflect.Descriptor instead.
 func (*TriggerMaintenanceResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{70}
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *TriggerMaintenanceResponse) GetJobId() string {
@@ -5235,11 +5651,2524 @@ func (x *TriggerMaintenanceResponse) GetEstimatedRecordCount() int64 {
 	return 0
 }
 
+type WorkerCapability struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Read          bool                   `protobuf:"varint,1,opt,name=read,proto3" json:"read,omitempty"`
+	Write         bool                   `protobuf:"varint,2,opt,name=write,proto3" json:"write,omitempty"`
+	Backfill      bool                   `protobuf:"varint,3,opt,name=backfill,proto3" json:"backfill,omitempty"`
+	Granularity   string                 `protobuf:"bytes,4,opt,name=granularity,proto3" json:"granularity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkerCapability) Reset() {
+	*x = WorkerCapability{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerCapability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerCapability) ProtoMessage() {}
+
+func (x *WorkerCapability) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerCapability.ProtoReflect.Descriptor instead.
+func (*WorkerCapability) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *WorkerCapability) GetRead() bool {
+	if x != nil {
+		return x.Read
+	}
+	return false
+}
+
+func (x *WorkerCapability) GetWrite() bool {
+	if x != nil {
+		return x.Write
+	}
+	return false
+}
+
+func (x *WorkerCapability) GetBackfill() bool {
+	if x != nil {
+		return x.Backfill
+	}
+	return false
+}
+
+func (x *WorkerCapability) GetGranularity() string {
+	if x != nil {
+		return x.Granularity
+	}
+	return ""
+}
+
+type LiveWorker struct {
+	state             protoimpl.MessageState       `protogen:"open.v1"`
+	WorkerName        string                       `protobuf:"bytes,1,opt,name=worker_name,json=workerName,proto3" json:"worker_name,omitempty"`
+	WorkerKey         string                       `protobuf:"bytes,2,opt,name=worker_key,json=workerKey,proto3" json:"worker_key,omitempty"`
+	InstanceId        string                       `protobuf:"bytes,3,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	Version           string                       `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Release           string                       `protobuf:"bytes,5,opt,name=release,proto3" json:"release,omitempty"`
+	ReleaseCompatible bool                         `protobuf:"varint,6,opt,name=release_compatible,json=releaseCompatible,proto3" json:"release_compatible,omitempty"`
+	ReleaseKnown      bool                         `protobuf:"varint,7,opt,name=release_known,json=releaseKnown,proto3" json:"release_known,omitempty"`
+	CoreRelease       string                       `protobuf:"bytes,8,opt,name=core_release,json=coreRelease,proto3" json:"core_release,omitempty"`
+	Provider          string                       `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
+	Package           string                       `protobuf:"bytes,10,opt,name=package,proto3" json:"package,omitempty"`
+	GoVersion         string                       `protobuf:"bytes,11,opt,name=go_version,json=goVersion,proto3" json:"go_version,omitempty"`
+	Commit            string                       `protobuf:"bytes,12,opt,name=commit,proto3" json:"commit,omitempty"`
+	BuildDate         string                       `protobuf:"bytes,13,opt,name=build_date,json=buildDate,proto3" json:"build_date,omitempty"`
+	Webhooks          bool                         `protobuf:"varint,14,opt,name=webhooks,proto3" json:"webhooks,omitempty"`
+	Capabilities      map[string]*WorkerCapability `protobuf:"bytes,15,rep,name=capabilities,proto3" json:"capabilities,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	LastSeen          *timestamppb.Timestamp       `protobuf:"bytes,16,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *LiveWorker) Reset() {
+	*x = LiveWorker{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LiveWorker) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LiveWorker) ProtoMessage() {}
+
+func (x *LiveWorker) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LiveWorker.ProtoReflect.Descriptor instead.
+func (*LiveWorker) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *LiveWorker) GetWorkerName() string {
+	if x != nil {
+		return x.WorkerName
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetWorkerKey() string {
+	if x != nil {
+		return x.WorkerKey
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetRelease() string {
+	if x != nil {
+		return x.Release
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetReleaseCompatible() bool {
+	if x != nil {
+		return x.ReleaseCompatible
+	}
+	return false
+}
+
+func (x *LiveWorker) GetReleaseKnown() bool {
+	if x != nil {
+		return x.ReleaseKnown
+	}
+	return false
+}
+
+func (x *LiveWorker) GetCoreRelease() string {
+	if x != nil {
+		return x.CoreRelease
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetGoVersion() string {
+	if x != nil {
+		return x.GoVersion
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetBuildDate() string {
+	if x != nil {
+		return x.BuildDate
+	}
+	return ""
+}
+
+func (x *LiveWorker) GetWebhooks() bool {
+	if x != nil {
+		return x.Webhooks
+	}
+	return false
+}
+
+func (x *LiveWorker) GetCapabilities() map[string]*WorkerCapability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *LiveWorker) GetLastSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
+type ListWorkersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkersRequest) Reset() {
+	*x = ListWorkersRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkersRequest) ProtoMessage() {}
+
+func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkersRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkersRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{78}
+}
+
+type ListWorkersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workers       []*LiveWorker          `protobuf:"bytes,1,rep,name=workers,proto3" json:"workers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkersResponse) Reset() {
+	*x = ListWorkersResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkersResponse) ProtoMessage() {}
+
+func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkersResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkersResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *ListWorkersResponse) GetWorkers() []*LiveWorker {
+	if x != nil {
+		return x.Workers
+	}
+	return nil
+}
+
+type WorkerPool struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Provider        string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Package         string                 `protobuf:"bytes,3,opt,name=package,proto3" json:"package,omitempty"`
+	FirstSeenAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=first_seen_at,json=firstSeenAt,proto3" json:"first_seen_at,omitempty"`
+	LastSeenAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
+	RetiredAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=retired_at,json=retiredAt,proto3,oneof" json:"retired_at,omitempty"`
+	OnlineInstances int32                  `protobuf:"varint,7,opt,name=online_instances,json=onlineInstances,proto3" json:"online_instances,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WorkerPool) Reset() {
+	*x = WorkerPool{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerPool) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerPool) ProtoMessage() {}
+
+func (x *WorkerPool) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerPool.ProtoReflect.Descriptor instead.
+func (*WorkerPool) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *WorkerPool) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *WorkerPool) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkerPool) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *WorkerPool) GetFirstSeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstSeenAt
+	}
+	return nil
+}
+
+func (x *WorkerPool) GetLastSeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeenAt
+	}
+	return nil
+}
+
+func (x *WorkerPool) GetRetiredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetiredAt
+	}
+	return nil
+}
+
+func (x *WorkerPool) GetOnlineInstances() int32 {
+	if x != nil {
+		return x.OnlineInstances
+	}
+	return 0
+}
+
+type ListWorkerPoolsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkerPoolsRequest) Reset() {
+	*x = ListWorkerPoolsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkerPoolsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkerPoolsRequest) ProtoMessage() {}
+
+func (x *ListWorkerPoolsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkerPoolsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkerPoolsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{81}
+}
+
+type ListWorkerPoolsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pools         []*WorkerPool          `protobuf:"bytes,1,rep,name=pools,proto3" json:"pools,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkerPoolsResponse) Reset() {
+	*x = ListWorkerPoolsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkerPoolsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkerPoolsResponse) ProtoMessage() {}
+
+func (x *ListWorkerPoolsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkerPoolsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkerPoolsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ListWorkerPoolsResponse) GetPools() []*WorkerPool {
+	if x != nil {
+		return x.Pools
+	}
+	return nil
+}
+
+type RetireWorkerPoolRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetireWorkerPoolRequest) Reset() {
+	*x = RetireWorkerPoolRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetireWorkerPoolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetireWorkerPoolRequest) ProtoMessage() {}
+
+func (x *RetireWorkerPoolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetireWorkerPoolRequest.ProtoReflect.Descriptor instead.
+func (*RetireWorkerPoolRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *RetireWorkerPoolRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *RetireWorkerPoolRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RetireWorkerPoolResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetireWorkerPoolResponse) Reset() {
+	*x = RetireWorkerPoolResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetireWorkerPoolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetireWorkerPoolResponse) ProtoMessage() {}
+
+func (x *RetireWorkerPoolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetireWorkerPoolResponse.ProtoReflect.Descriptor instead.
+func (*RetireWorkerPoolResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{84}
+}
+
+type WorkerEnrollment struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Provider           string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Name               string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Version            int32                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	WorkerKey          string                 `protobuf:"bytes,5,opt,name=worker_key,json=workerKey,proto3" json:"worker_key,omitempty"`
+	WorkerNamePattern  string                 `protobuf:"bytes,6,opt,name=worker_name_pattern,json=workerNamePattern,proto3" json:"worker_name_pattern,omitempty"`
+	PermissionTemplate string                 `protobuf:"bytes,7,opt,name=permission_template,json=permissionTemplate,proto3" json:"permission_template,omitempty"`
+	Note               string                 `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt          *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	MaxUses            int32                  `protobuf:"varint,11,opt,name=max_uses,json=maxUses,proto3" json:"max_uses,omitempty"`
+	Uses               int32                  `protobuf:"varint,12,opt,name=uses,proto3" json:"uses,omitempty"`
+	CreatedByUserId    *string                `protobuf:"bytes,13,opt,name=created_by_user_id,json=createdByUserId,proto3,oneof" json:"created_by_user_id,omitempty"`
+	RevokedAt          *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=revoked_at,json=revokedAt,proto3,oneof" json:"revoked_at,omitempty"`
+	RevokedReason      string                 `protobuf:"bytes,15,opt,name=revoked_reason,json=revokedReason,proto3" json:"revoked_reason,omitempty"`
+	RevokedByUserId    *string                `protobuf:"bytes,16,opt,name=revoked_by_user_id,json=revokedByUserId,proto3,oneof" json:"revoked_by_user_id,omitempty"`
+	IsRevoked          bool                   `protobuf:"varint,17,opt,name=is_revoked,json=isRevoked,proto3" json:"is_revoked,omitempty"`
+	ReenrollRequired   bool                   `protobuf:"varint,18,opt,name=reenroll_required,json=reenrollRequired,proto3" json:"reenroll_required,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *WorkerEnrollment) Reset() {
+	*x = WorkerEnrollment{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerEnrollment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerEnrollment) ProtoMessage() {}
+
+func (x *WorkerEnrollment) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerEnrollment.ProtoReflect.Descriptor instead.
+func (*WorkerEnrollment) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *WorkerEnrollment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *WorkerEnrollment) GetWorkerKey() string {
+	if x != nil {
+		return x.WorkerKey
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetWorkerNamePattern() string {
+	if x != nil {
+		return x.WorkerNamePattern
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetPermissionTemplate() string {
+	if x != nil {
+		return x.PermissionTemplate
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *WorkerEnrollment) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *WorkerEnrollment) GetMaxUses() int32 {
+	if x != nil {
+		return x.MaxUses
+	}
+	return 0
+}
+
+func (x *WorkerEnrollment) GetUses() int32 {
+	if x != nil {
+		return x.Uses
+	}
+	return 0
+}
+
+func (x *WorkerEnrollment) GetCreatedByUserId() string {
+	if x != nil && x.CreatedByUserId != nil {
+		return *x.CreatedByUserId
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetRevokedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevokedAt
+	}
+	return nil
+}
+
+func (x *WorkerEnrollment) GetRevokedReason() string {
+	if x != nil {
+		return x.RevokedReason
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetRevokedByUserId() string {
+	if x != nil && x.RevokedByUserId != nil {
+		return *x.RevokedByUserId
+	}
+	return ""
+}
+
+func (x *WorkerEnrollment) GetIsRevoked() bool {
+	if x != nil {
+		return x.IsRevoked
+	}
+	return false
+}
+
+func (x *WorkerEnrollment) GetReenrollRequired() bool {
+	if x != nil {
+		return x.ReenrollRequired
+	}
+	return false
+}
+
+type ListWorkerEnrollmentsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Provider       *string                `protobuf:"bytes,1,opt,name=provider,proto3,oneof" json:"provider,omitempty"`
+	IncludeRevoked bool                   `protobuf:"varint,2,opt,name=include_revoked,json=includeRevoked,proto3" json:"include_revoked,omitempty"`
+	IncludeExpired bool                   `protobuf:"varint,3,opt,name=include_expired,json=includeExpired,proto3" json:"include_expired,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListWorkerEnrollmentsRequest) Reset() {
+	*x = ListWorkerEnrollmentsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkerEnrollmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkerEnrollmentsRequest) ProtoMessage() {}
+
+func (x *ListWorkerEnrollmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkerEnrollmentsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkerEnrollmentsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *ListWorkerEnrollmentsRequest) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
+}
+
+func (x *ListWorkerEnrollmentsRequest) GetIncludeRevoked() bool {
+	if x != nil {
+		return x.IncludeRevoked
+	}
+	return false
+}
+
+func (x *ListWorkerEnrollmentsRequest) GetIncludeExpired() bool {
+	if x != nil {
+		return x.IncludeExpired
+	}
+	return false
+}
+
+type ListWorkerEnrollmentsResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Enrollments []*WorkerEnrollment    `protobuf:"bytes,1,rep,name=enrollments,proto3" json:"enrollments,omitempty"`
+	// Providers an enrollment may be scoped to.
+	Providers     []string `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkerEnrollmentsResponse) Reset() {
+	*x = ListWorkerEnrollmentsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkerEnrollmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkerEnrollmentsResponse) ProtoMessage() {}
+
+func (x *ListWorkerEnrollmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkerEnrollmentsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkerEnrollmentsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *ListWorkerEnrollmentsResponse) GetEnrollments() []*WorkerEnrollment {
+	if x != nil {
+		return x.Enrollments
+	}
+	return nil
+}
+
+func (x *ListWorkerEnrollmentsResponse) GetProviders() []string {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
+type CreateWorkerEnrollmentRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Provider string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	// Default (and cap) 365 days.
+	ExpiresIn     *durationpb.Duration `protobuf:"bytes,3,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
+	Note          string               `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkerEnrollmentRequest) Reset() {
+	*x = CreateWorkerEnrollmentRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkerEnrollmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkerEnrollmentRequest) ProtoMessage() {}
+
+func (x *CreateWorkerEnrollmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkerEnrollmentRequest.ProtoReflect.Descriptor instead.
+func (*CreateWorkerEnrollmentRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *CreateWorkerEnrollmentRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateWorkerEnrollmentRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *CreateWorkerEnrollmentRequest) GetExpiresIn() *durationpb.Duration {
+	if x != nil {
+		return x.ExpiresIn
+	}
+	return nil
+}
+
+func (x *CreateWorkerEnrollmentRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type CreateWorkerEnrollmentResponse struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Enrollment *WorkerEnrollment      `protobuf:"bytes,1,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
+	// Shown once.
+	Token         string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkerEnrollmentResponse) Reset() {
+	*x = CreateWorkerEnrollmentResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkerEnrollmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkerEnrollmentResponse) ProtoMessage() {}
+
+func (x *CreateWorkerEnrollmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkerEnrollmentResponse.ProtoReflect.Descriptor instead.
+func (*CreateWorkerEnrollmentResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *CreateWorkerEnrollmentResponse) GetEnrollment() *WorkerEnrollment {
+	if x != nil {
+		return x.Enrollment
+	}
+	return nil
+}
+
+func (x *CreateWorkerEnrollmentResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type RevokeWorkerEnrollmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeWorkerEnrollmentRequest) Reset() {
+	*x = RevokeWorkerEnrollmentRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeWorkerEnrollmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeWorkerEnrollmentRequest) ProtoMessage() {}
+
+func (x *RevokeWorkerEnrollmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeWorkerEnrollmentRequest.ProtoReflect.Descriptor instead.
+func (*RevokeWorkerEnrollmentRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *RevokeWorkerEnrollmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RevokeWorkerEnrollmentRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RevokeWorkerEnrollmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeWorkerEnrollmentResponse) Reset() {
+	*x = RevokeWorkerEnrollmentResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeWorkerEnrollmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeWorkerEnrollmentResponse) ProtoMessage() {}
+
+func (x *RevokeWorkerEnrollmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeWorkerEnrollmentResponse.ProtoReflect.Descriptor instead.
+func (*RevokeWorkerEnrollmentResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{91}
+}
+
+type ProlongWorkerEnrollmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExpiresIn     *durationpb.Duration   `protobuf:"bytes,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProlongWorkerEnrollmentRequest) Reset() {
+	*x = ProlongWorkerEnrollmentRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProlongWorkerEnrollmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProlongWorkerEnrollmentRequest) ProtoMessage() {}
+
+func (x *ProlongWorkerEnrollmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProlongWorkerEnrollmentRequest.ProtoReflect.Descriptor instead.
+func (*ProlongWorkerEnrollmentRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *ProlongWorkerEnrollmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProlongWorkerEnrollmentRequest) GetExpiresIn() *durationpb.Duration {
+	if x != nil {
+		return x.ExpiresIn
+	}
+	return nil
+}
+
+type ProlongWorkerEnrollmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProlongWorkerEnrollmentResponse) Reset() {
+	*x = ProlongWorkerEnrollmentResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProlongWorkerEnrollmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProlongWorkerEnrollmentResponse) ProtoMessage() {}
+
+func (x *ProlongWorkerEnrollmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProlongWorkerEnrollmentResponse.ProtoReflect.Descriptor instead.
+func (*ProlongWorkerEnrollmentResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *ProlongWorkerEnrollmentResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type ContentReport struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ReporterUserId   string                 `protobuf:"bytes,2,opt,name=reporter_user_id,json=reporterUserId,proto3" json:"reporter_user_id,omitempty"`
+	ReporterUsername string                 `protobuf:"bytes,3,opt,name=reporter_username,json=reporterUsername,proto3" json:"reporter_username,omitempty"`
+	// "activity", "comment" or "user".
+	TargetKind       string                 `protobuf:"bytes,4,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId         string                 `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Reason           string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	Status           ReportStatus           `protobuf:"varint,7,opt,name=status,proto3,enum=cairn.v1.ReportStatus" json:"status,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ReviewedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=reviewed_at,json=reviewedAt,proto3,oneof" json:"reviewed_at,omitempty"`
+	ReviewedByUserId *string                `protobuf:"bytes,10,opt,name=reviewed_by_user_id,json=reviewedByUserId,proto3,oneof" json:"reviewed_by_user_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ContentReport) Reset() {
+	*x = ContentReport{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentReport) ProtoMessage() {}
+
+func (x *ContentReport) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentReport.ProtoReflect.Descriptor instead.
+func (*ContentReport) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *ContentReport) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ContentReport) GetReporterUserId() string {
+	if x != nil {
+		return x.ReporterUserId
+	}
+	return ""
+}
+
+func (x *ContentReport) GetReporterUsername() string {
+	if x != nil {
+		return x.ReporterUsername
+	}
+	return ""
+}
+
+func (x *ContentReport) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *ContentReport) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ContentReport) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ContentReport) GetStatus() ReportStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ReportStatus_REPORT_STATUS_UNSPECIFIED
+}
+
+func (x *ContentReport) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ContentReport) GetReviewedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReviewedAt
+	}
+	return nil
+}
+
+func (x *ContentReport) GetReviewedByUserId() string {
+	if x != nil && x.ReviewedByUserId != nil {
+		return *x.ReviewedByUserId
+	}
+	return ""
+}
+
+type ListReportsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unspecified = open reports.
+	Status        ReportStatus `protobuf:"varint,1,opt,name=status,proto3,enum=cairn.v1.ReportStatus" json:"status,omitempty"`
+	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReportsRequest) Reset() {
+	*x = ListReportsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReportsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReportsRequest) ProtoMessage() {}
+
+func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReportsRequest.ProtoReflect.Descriptor instead.
+func (*ListReportsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *ListReportsRequest) GetStatus() ReportStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ReportStatus_REPORT_STATUS_UNSPECIFIED
+}
+
+func (x *ListReportsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListReportsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reports       []*ContentReport       `protobuf:"bytes,1,rep,name=reports,proto3" json:"reports,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReportsResponse) Reset() {
+	*x = ListReportsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReportsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReportsResponse) ProtoMessage() {}
+
+func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReportsResponse.ProtoReflect.Descriptor instead.
+func (*ListReportsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *ListReportsResponse) GetReports() []*ContentReport {
+	if x != nil {
+		return x.Reports
+	}
+	return nil
+}
+
+func (x *ListReportsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ResolveReportRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// REVIEWED (default) or DISMISSED.
+	Status        ReportStatus `protobuf:"varint,2,opt,name=status,proto3,enum=cairn.v1.ReportStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveReportRequest) Reset() {
+	*x = ResolveReportRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReportRequest) ProtoMessage() {}
+
+func (x *ResolveReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReportRequest.ProtoReflect.Descriptor instead.
+func (*ResolveReportRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *ResolveReportRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ResolveReportRequest) GetStatus() ReportStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ReportStatus_REPORT_STATUS_UNSPECIFIED
+}
+
+type ResolveReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        ReportStatus           `protobuf:"varint,1,opt,name=status,proto3,enum=cairn.v1.ReportStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveReportResponse) Reset() {
+	*x = ResolveReportResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReportResponse) ProtoMessage() {}
+
+func (x *ResolveReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReportResponse.ProtoReflect.Descriptor instead.
+func (*ResolveReportResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *ResolveReportResponse) GetStatus() ReportStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ReportStatus_REPORT_STATUS_UNSPECIFIED
+}
+
+type SetActivityHiddenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	Hidden        bool                   `protobuf:"varint,2,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetActivityHiddenRequest) Reset() {
+	*x = SetActivityHiddenRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetActivityHiddenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetActivityHiddenRequest) ProtoMessage() {}
+
+func (x *SetActivityHiddenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetActivityHiddenRequest.ProtoReflect.Descriptor instead.
+func (*SetActivityHiddenRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *SetActivityHiddenRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *SetActivityHiddenRequest) GetHidden() bool {
+	if x != nil {
+		return x.Hidden
+	}
+	return false
+}
+
+type SetActivityHiddenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetActivityHiddenResponse) Reset() {
+	*x = SetActivityHiddenResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetActivityHiddenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetActivityHiddenResponse) ProtoMessage() {}
+
+func (x *SetActivityHiddenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetActivityHiddenResponse.ProtoReflect.Descriptor instead.
+func (*SetActivityHiddenResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{100}
+}
+
+type SetUserQuotaRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Unset clears the per-user override (instance default applies); 0 means
+	// unlimited for this user; >0 caps the number of activities.
+	MaxActivities *int32 `protobuf:"varint,2,opt,name=max_activities,json=maxActivities,proto3,oneof" json:"max_activities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserQuotaRequest) Reset() {
+	*x = SetUserQuotaRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserQuotaRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserQuotaRequest) ProtoMessage() {}
+
+func (x *SetUserQuotaRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserQuotaRequest.ProtoReflect.Descriptor instead.
+func (*SetUserQuotaRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *SetUserQuotaRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SetUserQuotaRequest) GetMaxActivities() int32 {
+	if x != nil && x.MaxActivities != nil {
+		return *x.MaxActivities
+	}
+	return 0
+}
+
+type SetUserQuotaResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserQuotaResponse) Reset() {
+	*x = SetUserQuotaResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserQuotaResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserQuotaResponse) ProtoMessage() {}
+
+func (x *SetUserQuotaResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserQuotaResponse.ProtoReflect.Descriptor instead.
+func (*SetUserQuotaResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{102}
+}
+
+type BlockedDomain struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlockedDomain) Reset() {
+	*x = BlockedDomain{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlockedDomain) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlockedDomain) ProtoMessage() {}
+
+func (x *BlockedDomain) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlockedDomain.ProtoReflect.Descriptor instead.
+func (*BlockedDomain) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{103}
+}
+
+func (x *BlockedDomain) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *BlockedDomain) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *BlockedDomain) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListBlockedDomainsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBlockedDomainsRequest) Reset() {
+	*x = ListBlockedDomainsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBlockedDomainsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBlockedDomainsRequest) ProtoMessage() {}
+
+func (x *ListBlockedDomainsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBlockedDomainsRequest.ProtoReflect.Descriptor instead.
+func (*ListBlockedDomainsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{104}
+}
+
+type ListBlockedDomainsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domains       []*BlockedDomain       `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBlockedDomainsResponse) Reset() {
+	*x = ListBlockedDomainsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBlockedDomainsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBlockedDomainsResponse) ProtoMessage() {}
+
+func (x *ListBlockedDomainsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBlockedDomainsResponse.ProtoReflect.Descriptor instead.
+func (*ListBlockedDomainsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *ListBlockedDomainsResponse) GetDomains() []*BlockedDomain {
+	if x != nil {
+		return x.Domains
+	}
+	return nil
+}
+
+type BlockDomainRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlockDomainRequest) Reset() {
+	*x = BlockDomainRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlockDomainRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlockDomainRequest) ProtoMessage() {}
+
+func (x *BlockDomainRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlockDomainRequest.ProtoReflect.Descriptor instead.
+func (*BlockDomainRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *BlockDomainRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *BlockDomainRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type BlockDomainResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        *BlockedDomain         `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlockDomainResponse) Reset() {
+	*x = BlockDomainResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlockDomainResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlockDomainResponse) ProtoMessage() {}
+
+func (x *BlockDomainResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlockDomainResponse.ProtoReflect.Descriptor instead.
+func (*BlockDomainResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *BlockDomainResponse) GetDomain() *BlockedDomain {
+	if x != nil {
+		return x.Domain
+	}
+	return nil
+}
+
+type UnblockDomainRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnblockDomainRequest) Reset() {
+	*x = UnblockDomainRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnblockDomainRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnblockDomainRequest) ProtoMessage() {}
+
+func (x *UnblockDomainRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnblockDomainRequest.ProtoReflect.Descriptor instead.
+func (*UnblockDomainRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *UnblockDomainRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+type UnblockDomainResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnblockDomainResponse) Reset() {
+	*x = UnblockDomainResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnblockDomainResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnblockDomainResponse) ProtoMessage() {}
+
+func (x *UnblockDomainResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnblockDomainResponse.ProtoReflect.Descriptor instead.
+func (*UnblockDomainResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{109}
+}
+
+type GetInstanceMergeDefaultsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInstanceMergeDefaultsRequest) Reset() {
+	*x = GetInstanceMergeDefaultsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInstanceMergeDefaultsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInstanceMergeDefaultsRequest) ProtoMessage() {}
+
+func (x *GetInstanceMergeDefaultsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInstanceMergeDefaultsRequest.ProtoReflect.Descriptor instead.
+func (*GetInstanceMergeDefaultsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{110}
+}
+
+type GetInstanceMergeDefaultsResponse struct {
+	state         protoimpl.MessageState              `protogen:"open.v1"`
+	Policies      map[string]*ActivityTypeMergePolicy `protobuf:"bytes,1,rep,name=policies,proto3" json:"policies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	FieldGroups   []string                            `protobuf:"bytes,2,rep,name=field_groups,json=fieldGroups,proto3" json:"field_groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInstanceMergeDefaultsResponse) Reset() {
+	*x = GetInstanceMergeDefaultsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInstanceMergeDefaultsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInstanceMergeDefaultsResponse) ProtoMessage() {}
+
+func (x *GetInstanceMergeDefaultsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInstanceMergeDefaultsResponse.ProtoReflect.Descriptor instead.
+func (*GetInstanceMergeDefaultsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{111}
+}
+
+func (x *GetInstanceMergeDefaultsResponse) GetPolicies() map[string]*ActivityTypeMergePolicy {
+	if x != nil {
+		return x.Policies
+	}
+	return nil
+}
+
+func (x *GetInstanceMergeDefaultsResponse) GetFieldGroups() []string {
+	if x != nil {
+		return x.FieldGroups
+	}
+	return nil
+}
+
+type UpdateInstanceMergeDefaultsRequest struct {
+	state         protoimpl.MessageState              `protogen:"open.v1"`
+	Policies      map[string]*ActivityTypeMergePolicy `protobuf:"bytes,1,rep,name=policies,proto3" json:"policies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateInstanceMergeDefaultsRequest) Reset() {
+	*x = UpdateInstanceMergeDefaultsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[112]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateInstanceMergeDefaultsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateInstanceMergeDefaultsRequest) ProtoMessage() {}
+
+func (x *UpdateInstanceMergeDefaultsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[112]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateInstanceMergeDefaultsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateInstanceMergeDefaultsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{112}
+}
+
+func (x *UpdateInstanceMergeDefaultsRequest) GetPolicies() map[string]*ActivityTypeMergePolicy {
+	if x != nil {
+		return x.Policies
+	}
+	return nil
+}
+
+type UpdateInstanceMergeDefaultsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateInstanceMergeDefaultsResponse) Reset() {
+	*x = UpdateInstanceMergeDefaultsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateInstanceMergeDefaultsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateInstanceMergeDefaultsResponse) ProtoMessage() {}
+
+func (x *UpdateInstanceMergeDefaultsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateInstanceMergeDefaultsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateInstanceMergeDefaultsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{113}
+}
+
+type RunGeocodeBackfillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunGeocodeBackfillRequest) Reset() {
+	*x = RunGeocodeBackfillRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunGeocodeBackfillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunGeocodeBackfillRequest) ProtoMessage() {}
+
+func (x *RunGeocodeBackfillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunGeocodeBackfillRequest.ProtoReflect.Descriptor instead.
+func (*RunGeocodeBackfillRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *RunGeocodeBackfillRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type RunGeocodeBackfillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Started       bool                   `protobuf:"varint,1,opt,name=started,proto3" json:"started,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunGeocodeBackfillResponse) Reset() {
+	*x = RunGeocodeBackfillResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[115]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunGeocodeBackfillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunGeocodeBackfillResponse) ProtoMessage() {}
+
+func (x *RunGeocodeBackfillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[115]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunGeocodeBackfillResponse.ProtoReflect.Descriptor instead.
+func (*RunGeocodeBackfillResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{115}
+}
+
+func (x *RunGeocodeBackfillResponse) GetStarted() bool {
+	if x != nil {
+		return x.Started
+	}
+	return false
+}
+
+func (x *RunGeocodeBackfillResponse) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type RebuildGearTotalsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RebuildGearTotalsRequest) Reset() {
+	*x = RebuildGearTotalsRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RebuildGearTotalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RebuildGearTotalsRequest) ProtoMessage() {}
+
+func (x *RebuildGearTotalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RebuildGearTotalsRequest.ProtoReflect.Descriptor instead.
+func (*RebuildGearTotalsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{116}
+}
+
+type RebuildGearTotalsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         int32                  `protobuf:"varint,1,opt,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RebuildGearTotalsResponse) Reset() {
+	*x = RebuildGearTotalsResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[117]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RebuildGearTotalsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RebuildGearTotalsResponse) ProtoMessage() {}
+
+func (x *RebuildGearTotalsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[117]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RebuildGearTotalsResponse.ProtoReflect.Descriptor instead.
+func (*RebuildGearTotalsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{117}
+}
+
+func (x *RebuildGearTotalsResponse) GetUsers() int32 {
+	if x != nil {
+		return x.Users
+	}
+	return 0
+}
+
+type BootstrapNATSAccountKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BootstrapNATSAccountKeyRequest) Reset() {
+	*x = BootstrapNATSAccountKeyRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BootstrapNATSAccountKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BootstrapNATSAccountKeyRequest) ProtoMessage() {}
+
+func (x *BootstrapNATSAccountKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BootstrapNATSAccountKeyRequest.ProtoReflect.Descriptor instead.
+func (*BootstrapNATSAccountKeyRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{118}
+}
+
+type BootstrapNATSAccountKeyResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PublicKey string                 `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// "created" or "no_change".
+	Action        string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BootstrapNATSAccountKeyResponse) Reset() {
+	*x = BootstrapNATSAccountKeyResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BootstrapNATSAccountKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BootstrapNATSAccountKeyResponse) ProtoMessage() {}
+
+func (x *BootstrapNATSAccountKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BootstrapNATSAccountKeyResponse.ProtoReflect.Descriptor instead.
+func (*BootstrapNATSAccountKeyResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *BootstrapNATSAccountKeyResponse) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+func (x *BootstrapNATSAccountKeyResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *BootstrapNATSAccountKeyResponse) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+type RotateNATSAccountKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateNATSAccountKeyRequest) Reset() {
+	*x = RotateNATSAccountKeyRequest{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateNATSAccountKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateNATSAccountKeyRequest) ProtoMessage() {}
+
+func (x *RotateNATSAccountKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateNATSAccountKeyRequest.ProtoReflect.Descriptor instead.
+func (*RotateNATSAccountKeyRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{120}
+}
+
+type RotateNATSAccountKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NewPublicKey  string                 `protobuf:"bytes,1,opt,name=new_public_key,json=newPublicKey,proto3" json:"new_public_key,omitempty"`
+	OldPublicKey  string                 `protobuf:"bytes,2,opt,name=old_public_key,json=oldPublicKey,proto3" json:"old_public_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateNATSAccountKeyResponse) Reset() {
+	*x = RotateNATSAccountKeyResponse{}
+	mi := &file_cairn_v1_admin_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateNATSAccountKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateNATSAccountKeyResponse) ProtoMessage() {}
+
+func (x *RotateNATSAccountKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_admin_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateNATSAccountKeyResponse.ProtoReflect.Descriptor instead.
+func (*RotateNATSAccountKeyResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_admin_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *RotateNATSAccountKeyResponse) GetNewPublicKey() string {
+	if x != nil {
+		return x.NewPublicKey
+	}
+	return ""
+}
+
+func (x *RotateNATSAccountKeyResponse) GetOldPublicKey() string {
+	if x != nil {
+		return x.OldPublicKey
+	}
+	return ""
+}
+
 var File_cairn_v1_admin_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x14cairn/v1/admin.proto\x12\bcairn.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13cairn/v1/auth.proto\x1a\x15cairn/v1/common.proto\"\x91\x03\n" +
+	"\x14cairn/v1/admin.proto\x12\bcairn.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13cairn/v1/auth.proto\x1a\x15cairn/v1/common.proto\x1a\x16cairn/v1/metrics.proto\"\x91\x03\n" +
 	"\n" +
 	"OIDCClient\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
@@ -5678,14 +8607,238 @@ const file_cairn_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_idB\x0e\n" +
 	"\f_worker_nameB\t\n" +
-	"\a_job_id\"\x9b\x01\n" +
+	"\a_job_id\"\x81\x05\n" +
+	"\x0eMaintenanceJob\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12<\n" +
+	"\toperation\x18\x02 \x01(\x0e2\x1e.cairn.v1.MaintenanceOperationR\toperation\x12\x19\n" +
+	"\buser_ids\x18\x03 \x03(\tR\auserIds\x126\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x1e.cairn.v1.MaintenanceJobStatusR\x06status\x124\n" +
+	"\x16estimated_record_count\x18\x05 \x01(\x03R\x14estimatedRecordCount\x12'\n" +
+	"\x0fprocessed_count\x18\x06 \x01(\x03R\x0eprocessedCount\x12!\n" +
+	"\ffailed_count\x18\a \x01(\x03R\vfailedCount\x12#\n" +
+	"\rerror_message\x18\b \x01(\tR\ferrorMessage\x124\n" +
+	"\x14triggered_by_user_id\x18\t \x01(\tH\x00R\x11triggeredByUserId\x88\x01\x01\x127\n" +
+	"\tqueued_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\bqueuedAt\x12>\n" +
+	"\n" +
+	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tstartedAt\x88\x01\x01\x12@\n" +
+	"\vfinished_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x02R\n" +
+	"finishedAt\x88\x01\x01B\x17\n" +
+	"\x15_triggered_by_user_idB\r\n" +
+	"\v_started_atB\x0e\n" +
+	"\f_finished_at\"\x1c\n" +
+	"\x1aListMaintenanceJobsRequest\"K\n" +
+	"\x1bListMaintenanceJobsResponse\x12,\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x18.cairn.v1.MaintenanceJobR\x04jobs\"4\n" +
+	"\x1bCancelMaintenanceJobRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"J\n" +
+	"\x1cCancelMaintenanceJobResponse\x12*\n" +
+	"\x03job\x18\x01 \x01(\v2\x18.cairn.v1.MaintenanceJobR\x03job\"\x9b\x01\n" +
 	"\x19TriggerMaintenanceRequest\x12<\n" +
 	"\toperation\x18\x01 \x01(\x0e2\x1e.cairn.v1.MaintenanceOperationR\toperation\x12\x19\n" +
 	"\buser_ids\x18\x02 \x03(\tR\auserIds\x12%\n" +
 	"\x0econfirm_phrase\x18\x03 \x01(\tR\rconfirmPhrase\"i\n" +
 	"\x1aTriggerMaintenanceResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x124\n" +
-	"\x16estimated_record_count\x18\x02 \x01(\x03R\x14estimatedRecordCount*\xcb\x01\n" +
+	"\x16estimated_record_count\x18\x02 \x01(\x03R\x14estimatedRecordCount\"z\n" +
+	"\x10WorkerCapability\x12\x12\n" +
+	"\x04read\x18\x01 \x01(\bR\x04read\x12\x14\n" +
+	"\x05write\x18\x02 \x01(\bR\x05write\x12\x1a\n" +
+	"\bbackfill\x18\x03 \x01(\bR\bbackfill\x12 \n" +
+	"\vgranularity\x18\x04 \x01(\tR\vgranularity\"\xa2\x05\n" +
+	"\n" +
+	"LiveWorker\x12\x1f\n" +
+	"\vworker_name\x18\x01 \x01(\tR\n" +
+	"workerName\x12\x1d\n" +
+	"\n" +
+	"worker_key\x18\x02 \x01(\tR\tworkerKey\x12\x1f\n" +
+	"\vinstance_id\x18\x03 \x01(\tR\n" +
+	"instanceId\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x18\n" +
+	"\arelease\x18\x05 \x01(\tR\arelease\x12-\n" +
+	"\x12release_compatible\x18\x06 \x01(\bR\x11releaseCompatible\x12#\n" +
+	"\rrelease_known\x18\a \x01(\bR\freleaseKnown\x12!\n" +
+	"\fcore_release\x18\b \x01(\tR\vcoreRelease\x12\x1a\n" +
+	"\bprovider\x18\t \x01(\tR\bprovider\x12\x18\n" +
+	"\apackage\x18\n" +
+	" \x01(\tR\apackage\x12\x1d\n" +
+	"\n" +
+	"go_version\x18\v \x01(\tR\tgoVersion\x12\x16\n" +
+	"\x06commit\x18\f \x01(\tR\x06commit\x12\x1d\n" +
+	"\n" +
+	"build_date\x18\r \x01(\tR\tbuildDate\x12\x1a\n" +
+	"\bwebhooks\x18\x0e \x01(\bR\bwebhooks\x12J\n" +
+	"\fcapabilities\x18\x0f \x03(\v2&.cairn.v1.LiveWorker.CapabilitiesEntryR\fcapabilities\x127\n" +
+	"\tlast_seen\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\x1a[\n" +
+	"\x11CapabilitiesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.cairn.v1.WorkerCapabilityR\x05value:\x028\x01\"\x14\n" +
+	"\x12ListWorkersRequest\"E\n" +
+	"\x13ListWorkersResponse\x12.\n" +
+	"\aworkers\x18\x01 \x03(\v2\x14.cairn.v1.LiveWorkerR\aworkers\"\xce\x02\n" +
+	"\n" +
+	"WorkerPool\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\apackage\x18\x03 \x01(\tR\apackage\x12>\n" +
+	"\rfirst_seen_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vfirstSeenAt\x12<\n" +
+	"\flast_seen_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastSeenAt\x12>\n" +
+	"\n" +
+	"retired_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tretiredAt\x88\x01\x01\x12)\n" +
+	"\x10online_instances\x18\a \x01(\x05R\x0fonlineInstancesB\r\n" +
+	"\v_retired_at\"\x18\n" +
+	"\x16ListWorkerPoolsRequest\"E\n" +
+	"\x17ListWorkerPoolsResponse\x12*\n" +
+	"\x05pools\x18\x01 \x03(\v2\x14.cairn.v1.WorkerPoolR\x05pools\"I\n" +
+	"\x17RetireWorkerPoolRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x1a\n" +
+	"\x18RetireWorkerPoolResponse\"\xf9\x05\n" +
+	"\x10WorkerEnrollment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\x05R\aversion\x12\x1d\n" +
+	"\n" +
+	"worker_key\x18\x05 \x01(\tR\tworkerKey\x12.\n" +
+	"\x13worker_name_pattern\x18\x06 \x01(\tR\x11workerNamePattern\x12/\n" +
+	"\x13permission_template\x18\a \x01(\tR\x12permissionTemplate\x12\x12\n" +
+	"\x04note\x18\b \x01(\tR\x04note\x129\n" +
+	"\n" +
+	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x19\n" +
+	"\bmax_uses\x18\v \x01(\x05R\amaxUses\x12\x12\n" +
+	"\x04uses\x18\f \x01(\x05R\x04uses\x120\n" +
+	"\x12created_by_user_id\x18\r \x01(\tH\x00R\x0fcreatedByUserId\x88\x01\x01\x12>\n" +
+	"\n" +
+	"revoked_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x01R\trevokedAt\x88\x01\x01\x12%\n" +
+	"\x0erevoked_reason\x18\x0f \x01(\tR\rrevokedReason\x120\n" +
+	"\x12revoked_by_user_id\x18\x10 \x01(\tH\x02R\x0frevokedByUserId\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"is_revoked\x18\x11 \x01(\bR\tisRevoked\x12+\n" +
+	"\x11reenroll_required\x18\x12 \x01(\bR\x10reenrollRequiredB\x15\n" +
+	"\x13_created_by_user_idB\r\n" +
+	"\v_revoked_atB\x15\n" +
+	"\x13_revoked_by_user_id\"\x9e\x01\n" +
+	"\x1cListWorkerEnrollmentsRequest\x12\x1f\n" +
+	"\bprovider\x18\x01 \x01(\tH\x00R\bprovider\x88\x01\x01\x12'\n" +
+	"\x0finclude_revoked\x18\x02 \x01(\bR\x0eincludeRevoked\x12'\n" +
+	"\x0finclude_expired\x18\x03 \x01(\bR\x0eincludeExpiredB\v\n" +
+	"\t_provider\"{\n" +
+	"\x1dListWorkerEnrollmentsResponse\x12<\n" +
+	"\venrollments\x18\x01 \x03(\v2\x1a.cairn.v1.WorkerEnrollmentR\venrollments\x12\x1c\n" +
+	"\tproviders\x18\x02 \x03(\tR\tproviders\"\x9d\x01\n" +
+	"\x1dCreateWorkerEnrollmentRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\x128\n" +
+	"\n" +
+	"expires_in\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\texpiresIn\x12\x12\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\"r\n" +
+	"\x1eCreateWorkerEnrollmentResponse\x12:\n" +
+	"\n" +
+	"enrollment\x18\x01 \x01(\v2\x1a.cairn.v1.WorkerEnrollmentR\n" +
+	"enrollment\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"G\n" +
+	"\x1dRevokeWorkerEnrollmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\" \n" +
+	"\x1eRevokeWorkerEnrollmentResponse\"j\n" +
+	"\x1eProlongWorkerEnrollmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
+	"\n" +
+	"expires_in\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\texpiresIn\"\\\n" +
+	"\x1fProlongWorkerEnrollmentResponse\x129\n" +
+	"\n" +
+	"expires_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xd5\x03\n" +
+	"\rContentReport\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
+	"\x10reporter_user_id\x18\x02 \x01(\tR\x0ereporterUserId\x12+\n" +
+	"\x11reporter_username\x18\x03 \x01(\tR\x10reporterUsername\x12\x1f\n" +
+	"\vtarget_kind\x18\x04 \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\x05 \x01(\tR\btargetId\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\x12.\n" +
+	"\x06status\x18\a \x01(\x0e2\x16.cairn.v1.ReportStatusR\x06status\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12@\n" +
+	"\vreviewed_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x00R\n" +
+	"reviewedAt\x88\x01\x01\x122\n" +
+	"\x13reviewed_by_user_id\x18\n" +
+	" \x01(\tH\x01R\x10reviewedByUserId\x88\x01\x01B\x0e\n" +
+	"\f_reviewed_atB\x16\n" +
+	"\x14_reviewed_by_user_id\"o\n" +
+	"\x12ListReportsRequest\x12.\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x16.cairn.v1.ReportStatusR\x06status\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"t\n" +
+	"\x13ListReportsResponse\x121\n" +
+	"\areports\x18\x01 \x03(\v2\x17.cairn.v1.ContentReportR\areports\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"V\n" +
+	"\x14ResolveReportRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x16.cairn.v1.ReportStatusR\x06status\"G\n" +
+	"\x15ResolveReportResponse\x12.\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x16.cairn.v1.ReportStatusR\x06status\"S\n" +
+	"\x18SetActivityHiddenRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\x12\x16\n" +
+	"\x06hidden\x18\x02 \x01(\bR\x06hidden\"\x1b\n" +
+	"\x19SetActivityHiddenResponse\"m\n" +
+	"\x13SetUserQuotaRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12*\n" +
+	"\x0emax_activities\x18\x02 \x01(\x05H\x00R\rmaxActivities\x88\x01\x01B\x11\n" +
+	"\x0f_max_activities\"\x16\n" +
+	"\x14SetUserQuotaResponse\"z\n" +
+	"\rBlockedDomain\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x1b\n" +
+	"\x19ListBlockedDomainsRequest\"O\n" +
+	"\x1aListBlockedDomainsResponse\x121\n" +
+	"\adomains\x18\x01 \x03(\v2\x17.cairn.v1.BlockedDomainR\adomains\"D\n" +
+	"\x12BlockDomainRequest\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"F\n" +
+	"\x13BlockDomainResponse\x12/\n" +
+	"\x06domain\x18\x01 \x01(\v2\x17.cairn.v1.BlockedDomainR\x06domain\".\n" +
+	"\x14UnblockDomainRequest\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\"\x17\n" +
+	"\x15UnblockDomainResponse\"!\n" +
+	"\x1fGetInstanceMergeDefaultsRequest\"\xfb\x01\n" +
+	" GetInstanceMergeDefaultsResponse\x12T\n" +
+	"\bpolicies\x18\x01 \x03(\v28.cairn.v1.GetInstanceMergeDefaultsResponse.PoliciesEntryR\bpolicies\x12!\n" +
+	"\ffield_groups\x18\x02 \x03(\tR\vfieldGroups\x1a^\n" +
+	"\rPoliciesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x127\n" +
+	"\x05value\x18\x02 \x01(\v2!.cairn.v1.ActivityTypeMergePolicyR\x05value:\x028\x01\"\xdc\x01\n" +
+	"\"UpdateInstanceMergeDefaultsRequest\x12V\n" +
+	"\bpolicies\x18\x01 \x03(\v2:.cairn.v1.UpdateInstanceMergeDefaultsRequest.PoliciesEntryR\bpolicies\x1a^\n" +
+	"\rPoliciesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x127\n" +
+	"\x05value\x18\x02 \x01(\v2!.cairn.v1.ActivityTypeMergePolicyR\x05value:\x028\x01\"%\n" +
+	"#UpdateInstanceMergeDefaultsResponse\"1\n" +
+	"\x19RunGeocodeBackfillRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"L\n" +
+	"\x1aRunGeocodeBackfillResponse\x12\x18\n" +
+	"\astarted\x18\x01 \x01(\bR\astarted\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x1a\n" +
+	"\x18RebuildGearTotalsRequest\"1\n" +
+	"\x19RebuildGearTotalsResponse\x12\x14\n" +
+	"\x05users\x18\x01 \x01(\x05R\x05users\" \n" +
+	"\x1eBootstrapNATSAccountKeyRequest\"\x93\x01\n" +
+	"\x1fBootstrapNATSAccountKeyResponse\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x01 \x01(\tR\tpublicKey\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\"\x1d\n" +
+	"\x1bRotateNATSAccountKeyRequest\"j\n" +
+	"\x1cRotateNATSAccountKeyResponse\x12$\n" +
+	"\x0enew_public_key\x18\x01 \x01(\tR\fnewPublicKey\x12$\n" +
+	"\x0eold_public_key\x18\x02 \x01(\tR\foldPublicKey*\xcb\x01\n" +
 	"\x10EmailAdapterKind\x12\"\n" +
 	"\x1eEMAIL_ADAPTER_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17EMAIL_ADAPTER_KIND_NONE\x10\x01\x12\x1b\n" +
@@ -5743,7 +8896,19 @@ const file_cairn_v1_admin_proto_rawDesc = "" +
 	"/MAINTENANCE_OPERATION_RECOMPUTE_ACTIVITY_MERGES\x10\x03\x121\n" +
 	"-MAINTENANCE_OPERATION_RECOMPUTE_TRAINING_LOAD\x10\x04\x12,\n" +
 	"(MAINTENANCE_OPERATION_PURGE_SOFT_DELETED\x10\x05\x12/\n" +
-	"+MAINTENANCE_OPERATION_GARBAGE_COLLECT_BLOBS\x10\x062\xa5\x14\n" +
+	"+MAINTENANCE_OPERATION_GARBAGE_COLLECT_BLOBS\x10\x06*\xf4\x01\n" +
+	"\x14MaintenanceJobStatus\x12&\n" +
+	"\"MAINTENANCE_JOB_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dMAINTENANCE_JOB_STATUS_QUEUED\x10\x01\x12\"\n" +
+	"\x1eMAINTENANCE_JOB_STATUS_RUNNING\x10\x02\x12$\n" +
+	" MAINTENANCE_JOB_STATUS_SUCCEEDED\x10\x03\x12!\n" +
+	"\x1dMAINTENANCE_JOB_STATUS_FAILED\x10\x04\x12$\n" +
+	" MAINTENANCE_JOB_STATUS_CANCELLED\x10\x05*~\n" +
+	"\fReportStatus\x12\x1d\n" +
+	"\x19REPORT_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12REPORT_STATUS_OPEN\x10\x01\x12\x1a\n" +
+	"\x16REPORT_STATUS_REVIEWED\x10\x02\x12\x1b\n" +
+	"\x17REPORT_STATUS_DISMISSED\x10\x032\xf2$\n" +
 	"\fAdminService\x12V\n" +
 	"\x0fListOIDCClients\x12 .cairn.v1.ListOIDCClientsRequest\x1a!.cairn.v1.ListOIDCClientsResponse\x12b\n" +
 	"\x13GetInstanceSettings\x12$.cairn.v1.GetInstanceSettingsRequest\x1a%.cairn.v1.GetInstanceSettingsResponse\x12k\n" +
@@ -5777,7 +8942,29 @@ const file_cairn_v1_admin_proto_rawDesc = "" +
 	"\x1eBulkRotateWebhookSigningTokens\x12/.cairn.v1.BulkRotateWebhookSigningTokensRequest\x1a0.cairn.v1.BulkRotateWebhookSigningTokensResponse\x12V\n" +
 	"\x0fGetSystemHealth\x12 .cairn.v1.GetSystemHealthRequest\x1a!.cairn.v1.GetSystemHealthResponse\x12O\n" +
 	"\x11StreamAdminEvents\x12\".cairn.v1.StreamAdminEventsRequest\x1a\x14.cairn.v1.AdminEvent0\x01\x12_\n" +
-	"\x12TriggerMaintenance\x12#.cairn.v1.TriggerMaintenanceRequest\x1a$.cairn.v1.TriggerMaintenanceResponseB\x9b\x01\n" +
+	"\x12TriggerMaintenance\x12#.cairn.v1.TriggerMaintenanceRequest\x1a$.cairn.v1.TriggerMaintenanceResponse\x12b\n" +
+	"\x13ListMaintenanceJobs\x12$.cairn.v1.ListMaintenanceJobsRequest\x1a%.cairn.v1.ListMaintenanceJobsResponse\x12e\n" +
+	"\x14CancelMaintenanceJob\x12%.cairn.v1.CancelMaintenanceJobRequest\x1a&.cairn.v1.CancelMaintenanceJobResponse\x12J\n" +
+	"\vListWorkers\x12\x1c.cairn.v1.ListWorkersRequest\x1a\x1d.cairn.v1.ListWorkersResponse\x12V\n" +
+	"\x0fListWorkerPools\x12 .cairn.v1.ListWorkerPoolsRequest\x1a!.cairn.v1.ListWorkerPoolsResponse\x12Y\n" +
+	"\x10RetireWorkerPool\x12!.cairn.v1.RetireWorkerPoolRequest\x1a\".cairn.v1.RetireWorkerPoolResponse\x12h\n" +
+	"\x15ListWorkerEnrollments\x12&.cairn.v1.ListWorkerEnrollmentsRequest\x1a'.cairn.v1.ListWorkerEnrollmentsResponse\x12k\n" +
+	"\x16CreateWorkerEnrollment\x12'.cairn.v1.CreateWorkerEnrollmentRequest\x1a(.cairn.v1.CreateWorkerEnrollmentResponse\x12k\n" +
+	"\x16RevokeWorkerEnrollment\x12'.cairn.v1.RevokeWorkerEnrollmentRequest\x1a(.cairn.v1.RevokeWorkerEnrollmentResponse\x12n\n" +
+	"\x17ProlongWorkerEnrollment\x12(.cairn.v1.ProlongWorkerEnrollmentRequest\x1a).cairn.v1.ProlongWorkerEnrollmentResponse\x12J\n" +
+	"\vListReports\x12\x1c.cairn.v1.ListReportsRequest\x1a\x1d.cairn.v1.ListReportsResponse\x12P\n" +
+	"\rResolveReport\x12\x1e.cairn.v1.ResolveReportRequest\x1a\x1f.cairn.v1.ResolveReportResponse\x12\\\n" +
+	"\x11SetActivityHidden\x12\".cairn.v1.SetActivityHiddenRequest\x1a#.cairn.v1.SetActivityHiddenResponse\x12M\n" +
+	"\fSetUserQuota\x12\x1d.cairn.v1.SetUserQuotaRequest\x1a\x1e.cairn.v1.SetUserQuotaResponse\x12_\n" +
+	"\x12ListBlockedDomains\x12#.cairn.v1.ListBlockedDomainsRequest\x1a$.cairn.v1.ListBlockedDomainsResponse\x12J\n" +
+	"\vBlockDomain\x12\x1c.cairn.v1.BlockDomainRequest\x1a\x1d.cairn.v1.BlockDomainResponse\x12P\n" +
+	"\rUnblockDomain\x12\x1e.cairn.v1.UnblockDomainRequest\x1a\x1f.cairn.v1.UnblockDomainResponse\x12q\n" +
+	"\x18GetInstanceMergeDefaults\x12).cairn.v1.GetInstanceMergeDefaultsRequest\x1a*.cairn.v1.GetInstanceMergeDefaultsResponse\x12z\n" +
+	"\x1bUpdateInstanceMergeDefaults\x12,.cairn.v1.UpdateInstanceMergeDefaultsRequest\x1a-.cairn.v1.UpdateInstanceMergeDefaultsResponse\x12_\n" +
+	"\x12RunGeocodeBackfill\x12#.cairn.v1.RunGeocodeBackfillRequest\x1a$.cairn.v1.RunGeocodeBackfillResponse\x12\\\n" +
+	"\x11RebuildGearTotals\x12\".cairn.v1.RebuildGearTotalsRequest\x1a#.cairn.v1.RebuildGearTotalsResponse\x12n\n" +
+	"\x17BootstrapNATSAccountKey\x12(.cairn.v1.BootstrapNATSAccountKeyRequest\x1a).cairn.v1.BootstrapNATSAccountKeyResponse\x12e\n" +
+	"\x14RotateNATSAccountKey\x12%.cairn.v1.RotateNATSAccountKeyRequest\x1a&.cairn.v1.RotateNATSAccountKeyResponseB\x9b\x01\n" +
 	"\fcom.cairn.v1B\n" +
 	"AdminProtoP\x01Z>github.com/opencairn-org/cairn-core/gen/proto/cairn/v1;cairnv1\xa2\x02\x03CXX\xaa\x02\bCairn.V1\xca\x02\bCairn\\V1\xe2\x02\x14Cairn\\V1\\GPBMetadata\xea\x02\tCairn::V1b\x06proto3"
 
@@ -5793,8 +8980,8 @@ func file_cairn_v1_admin_proto_rawDescGZIP() []byte {
 	return file_cairn_v1_admin_proto_rawDescData
 }
 
-var file_cairn_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_cairn_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
+var file_cairn_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
+var file_cairn_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 129)
 var file_cairn_v1_admin_proto_goTypes = []any{
 	(EmailAdapterKind)(0),                          // 0: cairn.v1.EmailAdapterKind
 	(StorageAdapterKind)(0),                        // 1: cairn.v1.StorageAdapterKind
@@ -5804,256 +8991,397 @@ var file_cairn_v1_admin_proto_goTypes = []any{
 	(HealthState)(0),                               // 5: cairn.v1.HealthState
 	(AdminEventType)(0),                            // 6: cairn.v1.AdminEventType
 	(MaintenanceOperation)(0),                      // 7: cairn.v1.MaintenanceOperation
-	(*OIDCClient)(nil),                             // 8: cairn.v1.OIDCClient
-	(*ListOIDCClientsRequest)(nil),                 // 9: cairn.v1.ListOIDCClientsRequest
-	(*ListOIDCClientsResponse)(nil),                // 10: cairn.v1.ListOIDCClientsResponse
-	(*InstanceSettings)(nil),                       // 11: cairn.v1.InstanceSettings
-	(*GetInstanceSettingsRequest)(nil),             // 12: cairn.v1.GetInstanceSettingsRequest
-	(*GetInstanceSettingsResponse)(nil),            // 13: cairn.v1.GetInstanceSettingsResponse
-	(*UpdateInstanceSettingsRequest)(nil),          // 14: cairn.v1.UpdateInstanceSettingsRequest
-	(*UpdateInstanceSettingsResponse)(nil),         // 15: cairn.v1.UpdateInstanceSettingsResponse
-	(*SendTestEmailRequest)(nil),                   // 16: cairn.v1.SendTestEmailRequest
-	(*SendTestEmailResponse)(nil),                  // 17: cairn.v1.SendTestEmailResponse
-	(*ListUsersRequest)(nil),                       // 18: cairn.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),                      // 19: cairn.v1.ListUsersResponse
-	(*AdminUserSummary)(nil),                       // 20: cairn.v1.AdminUserSummary
-	(*GetUserRequest)(nil),                         // 21: cairn.v1.GetUserRequest
-	(*GetUserResponse)(nil),                        // 22: cairn.v1.GetUserResponse
-	(*CreateUserRequest)(nil),                      // 23: cairn.v1.CreateUserRequest
-	(*CreateUserResponse)(nil),                     // 24: cairn.v1.CreateUserResponse
-	(*UpdateUserRequest)(nil),                      // 25: cairn.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),                     // 26: cairn.v1.UpdateUserResponse
-	(*ChangeUserRoleRequest)(nil),                  // 27: cairn.v1.ChangeUserRoleRequest
-	(*ChangeUserRoleResponse)(nil),                 // 28: cairn.v1.ChangeUserRoleResponse
-	(*SetUserStatusRequest)(nil),                   // 29: cairn.v1.SetUserStatusRequest
-	(*SetUserStatusResponse)(nil),                  // 30: cairn.v1.SetUserStatusResponse
-	(*DeleteUserRequest)(nil),                      // 31: cairn.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),                     // 32: cairn.v1.DeleteUserResponse
-	(*ResetUserPasswordRequest)(nil),               // 33: cairn.v1.ResetUserPasswordRequest
-	(*ResetUserPasswordResponse)(nil),              // 34: cairn.v1.ResetUserPasswordResponse
-	(*RevokeUserCredentialsRequest)(nil),           // 35: cairn.v1.RevokeUserCredentialsRequest
-	(*RevokeUserCredentialsResponse)(nil),          // 36: cairn.v1.RevokeUserCredentialsResponse
-	(*Invite)(nil),                                 // 37: cairn.v1.Invite
-	(*ListInvitesRequest)(nil),                     // 38: cairn.v1.ListInvitesRequest
-	(*ListInvitesResponse)(nil),                    // 39: cairn.v1.ListInvitesResponse
-	(*CreateInviteRequest)(nil),                    // 40: cairn.v1.CreateInviteRequest
-	(*CreateInviteResponse)(nil),                   // 41: cairn.v1.CreateInviteResponse
-	(*RevokeInviteRequest)(nil),                    // 42: cairn.v1.RevokeInviteRequest
-	(*RevokeInviteResponse)(nil),                   // 43: cairn.v1.RevokeInviteResponse
-	(*ResendInviteRequest)(nil),                    // 44: cairn.v1.ResendInviteRequest
-	(*ResendInviteResponse)(nil),                   // 45: cairn.v1.ResendInviteResponse
-	(*AuditEntry)(nil),                             // 46: cairn.v1.AuditEntry
-	(*ListAuditEntriesRequest)(nil),                // 47: cairn.v1.ListAuditEntriesRequest
-	(*ListAuditEntriesResponse)(nil),               // 48: cairn.v1.ListAuditEntriesResponse
-	(*AdminJob)(nil),                               // 49: cairn.v1.AdminJob
-	(*ListJobsRequest)(nil),                        // 50: cairn.v1.ListJobsRequest
-	(*ListJobsResponse)(nil),                       // 51: cairn.v1.ListJobsResponse
-	(*GetJobRequest)(nil),                          // 52: cairn.v1.GetJobRequest
-	(*GetJobResponse)(nil),                         // 53: cairn.v1.GetJobResponse
-	(*JobAttempt)(nil),                             // 54: cairn.v1.JobAttempt
-	(*RetryJobRequest)(nil),                        // 55: cairn.v1.RetryJobRequest
-	(*RetryJobResponse)(nil),                       // 56: cairn.v1.RetryJobResponse
-	(*CancelJobRequest)(nil),                       // 57: cairn.v1.CancelJobRequest
-	(*CancelJobResponse)(nil),                      // 58: cairn.v1.CancelJobResponse
-	(*ListDeadLetterJobsRequest)(nil),              // 59: cairn.v1.ListDeadLetterJobsRequest
-	(*ListDeadLetterJobsResponse)(nil),             // 60: cairn.v1.ListDeadLetterJobsResponse
-	(*RequeueDeadLetterJobRequest)(nil),            // 61: cairn.v1.RequeueDeadLetterJobRequest
-	(*RequeueDeadLetterJobResponse)(nil),           // 62: cairn.v1.RequeueDeadLetterJobResponse
-	(*OrphanedSourceGroup)(nil),                    // 63: cairn.v1.OrphanedSourceGroup
-	(*ListOrphanedSourcesRequest)(nil),             // 64: cairn.v1.ListOrphanedSourcesRequest
-	(*ListOrphanedSourcesResponse)(nil),            // 65: cairn.v1.ListOrphanedSourcesResponse
-	(*WebhookSigningTokenInfo)(nil),                // 66: cairn.v1.WebhookSigningTokenInfo
-	(*ListWebhookSigningTokensRequest)(nil),        // 67: cairn.v1.ListWebhookSigningTokensRequest
-	(*ListWebhookSigningTokensResponse)(nil),       // 68: cairn.v1.ListWebhookSigningTokensResponse
-	(*BulkRotateWebhookSigningTokensRequest)(nil),  // 69: cairn.v1.BulkRotateWebhookSigningTokensRequest
-	(*BulkRotateWebhookSigningTokensResponse)(nil), // 70: cairn.v1.BulkRotateWebhookSigningTokensResponse
-	(*WebhookRotationJobs)(nil),                    // 71: cairn.v1.WebhookRotationJobs
-	(*GetSystemHealthRequest)(nil),                 // 72: cairn.v1.GetSystemHealthRequest
-	(*GetSystemHealthResponse)(nil),                // 73: cairn.v1.GetSystemHealthResponse
-	(*ComponentHealth)(nil),                        // 74: cairn.v1.ComponentHealth
-	(*StreamAdminEventsRequest)(nil),               // 75: cairn.v1.StreamAdminEventsRequest
-	(*AdminEvent)(nil),                             // 76: cairn.v1.AdminEvent
-	(*TriggerMaintenanceRequest)(nil),              // 77: cairn.v1.TriggerMaintenanceRequest
-	(*TriggerMaintenanceResponse)(nil),             // 78: cairn.v1.TriggerMaintenanceResponse
-	nil,                                            // 79: cairn.v1.AuditEntry.MetadataEntry
-	nil,                                            // 80: cairn.v1.ListJobsResponse.CountByStatusEntry
-	nil,                                            // 81: cairn.v1.ComponentHealth.MeasurementsEntry
-	nil,                                            // 82: cairn.v1.AdminEvent.I18nParamsEntry
-	(UserRole)(0),                                  // 83: cairn.v1.UserRole
-	(UnitSystem)(0),                                // 84: cairn.v1.UnitSystem
-	(*timestamppb.Timestamp)(nil),                  // 85: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                    // 86: google.protobuf.Duration
-	(UserStatus)(0),                                // 87: cairn.v1.UserStatus
-	(*PageRequest)(nil),                            // 88: cairn.v1.PageRequest
-	(*PageResponse)(nil),                           // 89: cairn.v1.PageResponse
-	(*User)(nil),                                   // 90: cairn.v1.User
-	(*LinkedIdentity)(nil),                         // 91: cairn.v1.LinkedIdentity
-	(*structpb.Struct)(nil),                        // 92: google.protobuf.Struct
-	(*TimeRange)(nil),                              // 93: cairn.v1.TimeRange
+	(MaintenanceJobStatus)(0),                      // 8: cairn.v1.MaintenanceJobStatus
+	(ReportStatus)(0),                              // 9: cairn.v1.ReportStatus
+	(*OIDCClient)(nil),                             // 10: cairn.v1.OIDCClient
+	(*ListOIDCClientsRequest)(nil),                 // 11: cairn.v1.ListOIDCClientsRequest
+	(*ListOIDCClientsResponse)(nil),                // 12: cairn.v1.ListOIDCClientsResponse
+	(*InstanceSettings)(nil),                       // 13: cairn.v1.InstanceSettings
+	(*GetInstanceSettingsRequest)(nil),             // 14: cairn.v1.GetInstanceSettingsRequest
+	(*GetInstanceSettingsResponse)(nil),            // 15: cairn.v1.GetInstanceSettingsResponse
+	(*UpdateInstanceSettingsRequest)(nil),          // 16: cairn.v1.UpdateInstanceSettingsRequest
+	(*UpdateInstanceSettingsResponse)(nil),         // 17: cairn.v1.UpdateInstanceSettingsResponse
+	(*SendTestEmailRequest)(nil),                   // 18: cairn.v1.SendTestEmailRequest
+	(*SendTestEmailResponse)(nil),                  // 19: cairn.v1.SendTestEmailResponse
+	(*ListUsersRequest)(nil),                       // 20: cairn.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),                      // 21: cairn.v1.ListUsersResponse
+	(*AdminUserSummary)(nil),                       // 22: cairn.v1.AdminUserSummary
+	(*GetUserRequest)(nil),                         // 23: cairn.v1.GetUserRequest
+	(*GetUserResponse)(nil),                        // 24: cairn.v1.GetUserResponse
+	(*CreateUserRequest)(nil),                      // 25: cairn.v1.CreateUserRequest
+	(*CreateUserResponse)(nil),                     // 26: cairn.v1.CreateUserResponse
+	(*UpdateUserRequest)(nil),                      // 27: cairn.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),                     // 28: cairn.v1.UpdateUserResponse
+	(*ChangeUserRoleRequest)(nil),                  // 29: cairn.v1.ChangeUserRoleRequest
+	(*ChangeUserRoleResponse)(nil),                 // 30: cairn.v1.ChangeUserRoleResponse
+	(*SetUserStatusRequest)(nil),                   // 31: cairn.v1.SetUserStatusRequest
+	(*SetUserStatusResponse)(nil),                  // 32: cairn.v1.SetUserStatusResponse
+	(*DeleteUserRequest)(nil),                      // 33: cairn.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),                     // 34: cairn.v1.DeleteUserResponse
+	(*ResetUserPasswordRequest)(nil),               // 35: cairn.v1.ResetUserPasswordRequest
+	(*ResetUserPasswordResponse)(nil),              // 36: cairn.v1.ResetUserPasswordResponse
+	(*RevokeUserCredentialsRequest)(nil),           // 37: cairn.v1.RevokeUserCredentialsRequest
+	(*RevokeUserCredentialsResponse)(nil),          // 38: cairn.v1.RevokeUserCredentialsResponse
+	(*Invite)(nil),                                 // 39: cairn.v1.Invite
+	(*ListInvitesRequest)(nil),                     // 40: cairn.v1.ListInvitesRequest
+	(*ListInvitesResponse)(nil),                    // 41: cairn.v1.ListInvitesResponse
+	(*CreateInviteRequest)(nil),                    // 42: cairn.v1.CreateInviteRequest
+	(*CreateInviteResponse)(nil),                   // 43: cairn.v1.CreateInviteResponse
+	(*RevokeInviteRequest)(nil),                    // 44: cairn.v1.RevokeInviteRequest
+	(*RevokeInviteResponse)(nil),                   // 45: cairn.v1.RevokeInviteResponse
+	(*ResendInviteRequest)(nil),                    // 46: cairn.v1.ResendInviteRequest
+	(*ResendInviteResponse)(nil),                   // 47: cairn.v1.ResendInviteResponse
+	(*AuditEntry)(nil),                             // 48: cairn.v1.AuditEntry
+	(*ListAuditEntriesRequest)(nil),                // 49: cairn.v1.ListAuditEntriesRequest
+	(*ListAuditEntriesResponse)(nil),               // 50: cairn.v1.ListAuditEntriesResponse
+	(*AdminJob)(nil),                               // 51: cairn.v1.AdminJob
+	(*ListJobsRequest)(nil),                        // 52: cairn.v1.ListJobsRequest
+	(*ListJobsResponse)(nil),                       // 53: cairn.v1.ListJobsResponse
+	(*GetJobRequest)(nil),                          // 54: cairn.v1.GetJobRequest
+	(*GetJobResponse)(nil),                         // 55: cairn.v1.GetJobResponse
+	(*JobAttempt)(nil),                             // 56: cairn.v1.JobAttempt
+	(*RetryJobRequest)(nil),                        // 57: cairn.v1.RetryJobRequest
+	(*RetryJobResponse)(nil),                       // 58: cairn.v1.RetryJobResponse
+	(*CancelJobRequest)(nil),                       // 59: cairn.v1.CancelJobRequest
+	(*CancelJobResponse)(nil),                      // 60: cairn.v1.CancelJobResponse
+	(*ListDeadLetterJobsRequest)(nil),              // 61: cairn.v1.ListDeadLetterJobsRequest
+	(*ListDeadLetterJobsResponse)(nil),             // 62: cairn.v1.ListDeadLetterJobsResponse
+	(*RequeueDeadLetterJobRequest)(nil),            // 63: cairn.v1.RequeueDeadLetterJobRequest
+	(*RequeueDeadLetterJobResponse)(nil),           // 64: cairn.v1.RequeueDeadLetterJobResponse
+	(*OrphanedSourceGroup)(nil),                    // 65: cairn.v1.OrphanedSourceGroup
+	(*ListOrphanedSourcesRequest)(nil),             // 66: cairn.v1.ListOrphanedSourcesRequest
+	(*ListOrphanedSourcesResponse)(nil),            // 67: cairn.v1.ListOrphanedSourcesResponse
+	(*WebhookSigningTokenInfo)(nil),                // 68: cairn.v1.WebhookSigningTokenInfo
+	(*ListWebhookSigningTokensRequest)(nil),        // 69: cairn.v1.ListWebhookSigningTokensRequest
+	(*ListWebhookSigningTokensResponse)(nil),       // 70: cairn.v1.ListWebhookSigningTokensResponse
+	(*BulkRotateWebhookSigningTokensRequest)(nil),  // 71: cairn.v1.BulkRotateWebhookSigningTokensRequest
+	(*BulkRotateWebhookSigningTokensResponse)(nil), // 72: cairn.v1.BulkRotateWebhookSigningTokensResponse
+	(*WebhookRotationJobs)(nil),                    // 73: cairn.v1.WebhookRotationJobs
+	(*GetSystemHealthRequest)(nil),                 // 74: cairn.v1.GetSystemHealthRequest
+	(*GetSystemHealthResponse)(nil),                // 75: cairn.v1.GetSystemHealthResponse
+	(*ComponentHealth)(nil),                        // 76: cairn.v1.ComponentHealth
+	(*StreamAdminEventsRequest)(nil),               // 77: cairn.v1.StreamAdminEventsRequest
+	(*AdminEvent)(nil),                             // 78: cairn.v1.AdminEvent
+	(*MaintenanceJob)(nil),                         // 79: cairn.v1.MaintenanceJob
+	(*ListMaintenanceJobsRequest)(nil),             // 80: cairn.v1.ListMaintenanceJobsRequest
+	(*ListMaintenanceJobsResponse)(nil),            // 81: cairn.v1.ListMaintenanceJobsResponse
+	(*CancelMaintenanceJobRequest)(nil),            // 82: cairn.v1.CancelMaintenanceJobRequest
+	(*CancelMaintenanceJobResponse)(nil),           // 83: cairn.v1.CancelMaintenanceJobResponse
+	(*TriggerMaintenanceRequest)(nil),              // 84: cairn.v1.TriggerMaintenanceRequest
+	(*TriggerMaintenanceResponse)(nil),             // 85: cairn.v1.TriggerMaintenanceResponse
+	(*WorkerCapability)(nil),                       // 86: cairn.v1.WorkerCapability
+	(*LiveWorker)(nil),                             // 87: cairn.v1.LiveWorker
+	(*ListWorkersRequest)(nil),                     // 88: cairn.v1.ListWorkersRequest
+	(*ListWorkersResponse)(nil),                    // 89: cairn.v1.ListWorkersResponse
+	(*WorkerPool)(nil),                             // 90: cairn.v1.WorkerPool
+	(*ListWorkerPoolsRequest)(nil),                 // 91: cairn.v1.ListWorkerPoolsRequest
+	(*ListWorkerPoolsResponse)(nil),                // 92: cairn.v1.ListWorkerPoolsResponse
+	(*RetireWorkerPoolRequest)(nil),                // 93: cairn.v1.RetireWorkerPoolRequest
+	(*RetireWorkerPoolResponse)(nil),               // 94: cairn.v1.RetireWorkerPoolResponse
+	(*WorkerEnrollment)(nil),                       // 95: cairn.v1.WorkerEnrollment
+	(*ListWorkerEnrollmentsRequest)(nil),           // 96: cairn.v1.ListWorkerEnrollmentsRequest
+	(*ListWorkerEnrollmentsResponse)(nil),          // 97: cairn.v1.ListWorkerEnrollmentsResponse
+	(*CreateWorkerEnrollmentRequest)(nil),          // 98: cairn.v1.CreateWorkerEnrollmentRequest
+	(*CreateWorkerEnrollmentResponse)(nil),         // 99: cairn.v1.CreateWorkerEnrollmentResponse
+	(*RevokeWorkerEnrollmentRequest)(nil),          // 100: cairn.v1.RevokeWorkerEnrollmentRequest
+	(*RevokeWorkerEnrollmentResponse)(nil),         // 101: cairn.v1.RevokeWorkerEnrollmentResponse
+	(*ProlongWorkerEnrollmentRequest)(nil),         // 102: cairn.v1.ProlongWorkerEnrollmentRequest
+	(*ProlongWorkerEnrollmentResponse)(nil),        // 103: cairn.v1.ProlongWorkerEnrollmentResponse
+	(*ContentReport)(nil),                          // 104: cairn.v1.ContentReport
+	(*ListReportsRequest)(nil),                     // 105: cairn.v1.ListReportsRequest
+	(*ListReportsResponse)(nil),                    // 106: cairn.v1.ListReportsResponse
+	(*ResolveReportRequest)(nil),                   // 107: cairn.v1.ResolveReportRequest
+	(*ResolveReportResponse)(nil),                  // 108: cairn.v1.ResolveReportResponse
+	(*SetActivityHiddenRequest)(nil),               // 109: cairn.v1.SetActivityHiddenRequest
+	(*SetActivityHiddenResponse)(nil),              // 110: cairn.v1.SetActivityHiddenResponse
+	(*SetUserQuotaRequest)(nil),                    // 111: cairn.v1.SetUserQuotaRequest
+	(*SetUserQuotaResponse)(nil),                   // 112: cairn.v1.SetUserQuotaResponse
+	(*BlockedDomain)(nil),                          // 113: cairn.v1.BlockedDomain
+	(*ListBlockedDomainsRequest)(nil),              // 114: cairn.v1.ListBlockedDomainsRequest
+	(*ListBlockedDomainsResponse)(nil),             // 115: cairn.v1.ListBlockedDomainsResponse
+	(*BlockDomainRequest)(nil),                     // 116: cairn.v1.BlockDomainRequest
+	(*BlockDomainResponse)(nil),                    // 117: cairn.v1.BlockDomainResponse
+	(*UnblockDomainRequest)(nil),                   // 118: cairn.v1.UnblockDomainRequest
+	(*UnblockDomainResponse)(nil),                  // 119: cairn.v1.UnblockDomainResponse
+	(*GetInstanceMergeDefaultsRequest)(nil),        // 120: cairn.v1.GetInstanceMergeDefaultsRequest
+	(*GetInstanceMergeDefaultsResponse)(nil),       // 121: cairn.v1.GetInstanceMergeDefaultsResponse
+	(*UpdateInstanceMergeDefaultsRequest)(nil),     // 122: cairn.v1.UpdateInstanceMergeDefaultsRequest
+	(*UpdateInstanceMergeDefaultsResponse)(nil),    // 123: cairn.v1.UpdateInstanceMergeDefaultsResponse
+	(*RunGeocodeBackfillRequest)(nil),              // 124: cairn.v1.RunGeocodeBackfillRequest
+	(*RunGeocodeBackfillResponse)(nil),             // 125: cairn.v1.RunGeocodeBackfillResponse
+	(*RebuildGearTotalsRequest)(nil),               // 126: cairn.v1.RebuildGearTotalsRequest
+	(*RebuildGearTotalsResponse)(nil),              // 127: cairn.v1.RebuildGearTotalsResponse
+	(*BootstrapNATSAccountKeyRequest)(nil),         // 128: cairn.v1.BootstrapNATSAccountKeyRequest
+	(*BootstrapNATSAccountKeyResponse)(nil),        // 129: cairn.v1.BootstrapNATSAccountKeyResponse
+	(*RotateNATSAccountKeyRequest)(nil),            // 130: cairn.v1.RotateNATSAccountKeyRequest
+	(*RotateNATSAccountKeyResponse)(nil),           // 131: cairn.v1.RotateNATSAccountKeyResponse
+	nil,                                            // 132: cairn.v1.AuditEntry.MetadataEntry
+	nil,                                            // 133: cairn.v1.ListJobsResponse.CountByStatusEntry
+	nil,                                            // 134: cairn.v1.ComponentHealth.MeasurementsEntry
+	nil,                                            // 135: cairn.v1.AdminEvent.I18nParamsEntry
+	nil,                                            // 136: cairn.v1.LiveWorker.CapabilitiesEntry
+	nil,                                            // 137: cairn.v1.GetInstanceMergeDefaultsResponse.PoliciesEntry
+	nil,                                            // 138: cairn.v1.UpdateInstanceMergeDefaultsRequest.PoliciesEntry
+	(UserRole)(0),                                  // 139: cairn.v1.UserRole
+	(UnitSystem)(0),                                // 140: cairn.v1.UnitSystem
+	(*timestamppb.Timestamp)(nil),                  // 141: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                    // 142: google.protobuf.Duration
+	(UserStatus)(0),                                // 143: cairn.v1.UserStatus
+	(*PageRequest)(nil),                            // 144: cairn.v1.PageRequest
+	(*PageResponse)(nil),                           // 145: cairn.v1.PageResponse
+	(*User)(nil),                                   // 146: cairn.v1.User
+	(*LinkedIdentity)(nil),                         // 147: cairn.v1.LinkedIdentity
+	(*structpb.Struct)(nil),                        // 148: google.protobuf.Struct
+	(*TimeRange)(nil),                              // 149: cairn.v1.TimeRange
+	(*ActivityTypeMergePolicy)(nil),                // 150: cairn.v1.ActivityTypeMergePolicy
 }
 var file_cairn_v1_admin_proto_depIdxs = []int32{
-	83,  // 0: cairn.v1.OIDCClient.auto_provision_role:type_name -> cairn.v1.UserRole
-	8,   // 1: cairn.v1.ListOIDCClientsResponse.clients:type_name -> cairn.v1.OIDCClient
-	84,  // 2: cairn.v1.InstanceSettings.default_units:type_name -> cairn.v1.UnitSystem
+	139, // 0: cairn.v1.OIDCClient.auto_provision_role:type_name -> cairn.v1.UserRole
+	10,  // 1: cairn.v1.ListOIDCClientsResponse.clients:type_name -> cairn.v1.OIDCClient
+	140, // 2: cairn.v1.InstanceSettings.default_units:type_name -> cairn.v1.UnitSystem
 	0,   // 3: cairn.v1.InstanceSettings.email_adapter:type_name -> cairn.v1.EmailAdapterKind
 	1,   // 4: cairn.v1.InstanceSettings.storage_adapter:type_name -> cairn.v1.StorageAdapterKind
-	85,  // 5: cairn.v1.InstanceSettings.updated_at:type_name -> google.protobuf.Timestamp
-	11,  // 6: cairn.v1.GetInstanceSettingsResponse.settings:type_name -> cairn.v1.InstanceSettings
-	11,  // 7: cairn.v1.UpdateInstanceSettingsRequest.settings:type_name -> cairn.v1.InstanceSettings
-	11,  // 8: cairn.v1.UpdateInstanceSettingsResponse.settings:type_name -> cairn.v1.InstanceSettings
-	86,  // 9: cairn.v1.SendTestEmailResponse.duration:type_name -> google.protobuf.Duration
-	83,  // 10: cairn.v1.ListUsersRequest.roles:type_name -> cairn.v1.UserRole
-	87,  // 11: cairn.v1.ListUsersRequest.statuses:type_name -> cairn.v1.UserStatus
-	88,  // 12: cairn.v1.ListUsersRequest.page:type_name -> cairn.v1.PageRequest
+	141, // 5: cairn.v1.InstanceSettings.updated_at:type_name -> google.protobuf.Timestamp
+	13,  // 6: cairn.v1.GetInstanceSettingsResponse.settings:type_name -> cairn.v1.InstanceSettings
+	13,  // 7: cairn.v1.UpdateInstanceSettingsRequest.settings:type_name -> cairn.v1.InstanceSettings
+	13,  // 8: cairn.v1.UpdateInstanceSettingsResponse.settings:type_name -> cairn.v1.InstanceSettings
+	142, // 9: cairn.v1.SendTestEmailResponse.duration:type_name -> google.protobuf.Duration
+	139, // 10: cairn.v1.ListUsersRequest.roles:type_name -> cairn.v1.UserRole
+	143, // 11: cairn.v1.ListUsersRequest.statuses:type_name -> cairn.v1.UserStatus
+	144, // 12: cairn.v1.ListUsersRequest.page:type_name -> cairn.v1.PageRequest
 	2,   // 13: cairn.v1.ListUsersRequest.sort:type_name -> cairn.v1.UserSort
-	20,  // 14: cairn.v1.ListUsersResponse.users:type_name -> cairn.v1.AdminUserSummary
-	89,  // 15: cairn.v1.ListUsersResponse.page:type_name -> cairn.v1.PageResponse
-	90,  // 16: cairn.v1.AdminUserSummary.user:type_name -> cairn.v1.User
-	85,  // 17: cairn.v1.AdminUserSummary.last_activity_at:type_name -> google.protobuf.Timestamp
-	90,  // 18: cairn.v1.GetUserResponse.user:type_name -> cairn.v1.User
-	91,  // 19: cairn.v1.GetUserResponse.identities:type_name -> cairn.v1.LinkedIdentity
-	83,  // 20: cairn.v1.CreateUserRequest.role:type_name -> cairn.v1.UserRole
-	84,  // 21: cairn.v1.CreateUserRequest.units:type_name -> cairn.v1.UnitSystem
-	90,  // 22: cairn.v1.CreateUserResponse.user:type_name -> cairn.v1.User
-	37,  // 23: cairn.v1.CreateUserResponse.invite:type_name -> cairn.v1.Invite
-	84,  // 24: cairn.v1.UpdateUserRequest.units:type_name -> cairn.v1.UnitSystem
-	90,  // 25: cairn.v1.UpdateUserResponse.user:type_name -> cairn.v1.User
-	83,  // 26: cairn.v1.ChangeUserRoleRequest.role:type_name -> cairn.v1.UserRole
-	90,  // 27: cairn.v1.ChangeUserRoleResponse.user:type_name -> cairn.v1.User
-	87,  // 28: cairn.v1.SetUserStatusRequest.status:type_name -> cairn.v1.UserStatus
-	90,  // 29: cairn.v1.SetUserStatusResponse.user:type_name -> cairn.v1.User
-	83,  // 30: cairn.v1.Invite.assigned_role:type_name -> cairn.v1.UserRole
-	85,  // 31: cairn.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
-	85,  // 32: cairn.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
-	85,  // 33: cairn.v1.Invite.used_at:type_name -> google.protobuf.Timestamp
-	88,  // 34: cairn.v1.ListInvitesRequest.page:type_name -> cairn.v1.PageRequest
-	37,  // 35: cairn.v1.ListInvitesResponse.invites:type_name -> cairn.v1.Invite
-	89,  // 36: cairn.v1.ListInvitesResponse.page:type_name -> cairn.v1.PageResponse
-	83,  // 37: cairn.v1.CreateInviteRequest.assigned_role:type_name -> cairn.v1.UserRole
-	85,  // 38: cairn.v1.CreateInviteRequest.expires_at:type_name -> google.protobuf.Timestamp
-	37,  // 39: cairn.v1.CreateInviteResponse.invite:type_name -> cairn.v1.Invite
-	85,  // 40: cairn.v1.AuditEntry.ts:type_name -> google.protobuf.Timestamp
+	22,  // 14: cairn.v1.ListUsersResponse.users:type_name -> cairn.v1.AdminUserSummary
+	145, // 15: cairn.v1.ListUsersResponse.page:type_name -> cairn.v1.PageResponse
+	146, // 16: cairn.v1.AdminUserSummary.user:type_name -> cairn.v1.User
+	141, // 17: cairn.v1.AdminUserSummary.last_activity_at:type_name -> google.protobuf.Timestamp
+	146, // 18: cairn.v1.GetUserResponse.user:type_name -> cairn.v1.User
+	147, // 19: cairn.v1.GetUserResponse.identities:type_name -> cairn.v1.LinkedIdentity
+	139, // 20: cairn.v1.CreateUserRequest.role:type_name -> cairn.v1.UserRole
+	140, // 21: cairn.v1.CreateUserRequest.units:type_name -> cairn.v1.UnitSystem
+	146, // 22: cairn.v1.CreateUserResponse.user:type_name -> cairn.v1.User
+	39,  // 23: cairn.v1.CreateUserResponse.invite:type_name -> cairn.v1.Invite
+	140, // 24: cairn.v1.UpdateUserRequest.units:type_name -> cairn.v1.UnitSystem
+	146, // 25: cairn.v1.UpdateUserResponse.user:type_name -> cairn.v1.User
+	139, // 26: cairn.v1.ChangeUserRoleRequest.role:type_name -> cairn.v1.UserRole
+	146, // 27: cairn.v1.ChangeUserRoleResponse.user:type_name -> cairn.v1.User
+	143, // 28: cairn.v1.SetUserStatusRequest.status:type_name -> cairn.v1.UserStatus
+	146, // 29: cairn.v1.SetUserStatusResponse.user:type_name -> cairn.v1.User
+	139, // 30: cairn.v1.Invite.assigned_role:type_name -> cairn.v1.UserRole
+	141, // 31: cairn.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	141, // 32: cairn.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
+	141, // 33: cairn.v1.Invite.used_at:type_name -> google.protobuf.Timestamp
+	144, // 34: cairn.v1.ListInvitesRequest.page:type_name -> cairn.v1.PageRequest
+	39,  // 35: cairn.v1.ListInvitesResponse.invites:type_name -> cairn.v1.Invite
+	145, // 36: cairn.v1.ListInvitesResponse.page:type_name -> cairn.v1.PageResponse
+	139, // 37: cairn.v1.CreateInviteRequest.assigned_role:type_name -> cairn.v1.UserRole
+	141, // 38: cairn.v1.CreateInviteRequest.expires_at:type_name -> google.protobuf.Timestamp
+	39,  // 39: cairn.v1.CreateInviteResponse.invite:type_name -> cairn.v1.Invite
+	141, // 40: cairn.v1.AuditEntry.ts:type_name -> google.protobuf.Timestamp
 	3,   // 41: cairn.v1.AuditEntry.severity:type_name -> cairn.v1.AuditSeverity
-	92,  // 42: cairn.v1.AuditEntry.diff:type_name -> google.protobuf.Struct
-	79,  // 43: cairn.v1.AuditEntry.metadata:type_name -> cairn.v1.AuditEntry.MetadataEntry
-	93,  // 44: cairn.v1.ListAuditEntriesRequest.time_range:type_name -> cairn.v1.TimeRange
+	148, // 42: cairn.v1.AuditEntry.diff:type_name -> google.protobuf.Struct
+	132, // 43: cairn.v1.AuditEntry.metadata:type_name -> cairn.v1.AuditEntry.MetadataEntry
+	149, // 44: cairn.v1.ListAuditEntriesRequest.time_range:type_name -> cairn.v1.TimeRange
 	3,   // 45: cairn.v1.ListAuditEntriesRequest.min_severity:type_name -> cairn.v1.AuditSeverity
-	88,  // 46: cairn.v1.ListAuditEntriesRequest.page:type_name -> cairn.v1.PageRequest
-	46,  // 47: cairn.v1.ListAuditEntriesResponse.entries:type_name -> cairn.v1.AuditEntry
-	89,  // 48: cairn.v1.ListAuditEntriesResponse.page:type_name -> cairn.v1.PageResponse
+	144, // 46: cairn.v1.ListAuditEntriesRequest.page:type_name -> cairn.v1.PageRequest
+	48,  // 47: cairn.v1.ListAuditEntriesResponse.entries:type_name -> cairn.v1.AuditEntry
+	145, // 48: cairn.v1.ListAuditEntriesResponse.page:type_name -> cairn.v1.PageResponse
 	4,   // 49: cairn.v1.AdminJob.status:type_name -> cairn.v1.AdminJobStatus
-	85,  // 50: cairn.v1.AdminJob.enqueued_at:type_name -> google.protobuf.Timestamp
-	85,  // 51: cairn.v1.AdminJob.started_at:type_name -> google.protobuf.Timestamp
-	85,  // 52: cairn.v1.AdminJob.finished_at:type_name -> google.protobuf.Timestamp
-	85,  // 53: cairn.v1.AdminJob.next_retry_at:type_name -> google.protobuf.Timestamp
+	141, // 50: cairn.v1.AdminJob.enqueued_at:type_name -> google.protobuf.Timestamp
+	141, // 51: cairn.v1.AdminJob.started_at:type_name -> google.protobuf.Timestamp
+	141, // 52: cairn.v1.AdminJob.finished_at:type_name -> google.protobuf.Timestamp
+	141, // 53: cairn.v1.AdminJob.next_retry_at:type_name -> google.protobuf.Timestamp
 	4,   // 54: cairn.v1.ListJobsRequest.statuses:type_name -> cairn.v1.AdminJobStatus
-	93,  // 55: cairn.v1.ListJobsRequest.enqueued_range:type_name -> cairn.v1.TimeRange
-	88,  // 56: cairn.v1.ListJobsRequest.page:type_name -> cairn.v1.PageRequest
-	49,  // 57: cairn.v1.ListJobsResponse.jobs:type_name -> cairn.v1.AdminJob
-	89,  // 58: cairn.v1.ListJobsResponse.page:type_name -> cairn.v1.PageResponse
-	80,  // 59: cairn.v1.ListJobsResponse.count_by_status:type_name -> cairn.v1.ListJobsResponse.CountByStatusEntry
-	49,  // 60: cairn.v1.GetJobResponse.job:type_name -> cairn.v1.AdminJob
-	92,  // 61: cairn.v1.GetJobResponse.payload_view:type_name -> google.protobuf.Struct
-	92,  // 62: cairn.v1.GetJobResponse.result_view:type_name -> google.protobuf.Struct
-	54,  // 63: cairn.v1.GetJobResponse.attempts:type_name -> cairn.v1.JobAttempt
-	85,  // 64: cairn.v1.JobAttempt.started_at:type_name -> google.protobuf.Timestamp
-	85,  // 65: cairn.v1.JobAttempt.finished_at:type_name -> google.protobuf.Timestamp
+	149, // 55: cairn.v1.ListJobsRequest.enqueued_range:type_name -> cairn.v1.TimeRange
+	144, // 56: cairn.v1.ListJobsRequest.page:type_name -> cairn.v1.PageRequest
+	51,  // 57: cairn.v1.ListJobsResponse.jobs:type_name -> cairn.v1.AdminJob
+	145, // 58: cairn.v1.ListJobsResponse.page:type_name -> cairn.v1.PageResponse
+	133, // 59: cairn.v1.ListJobsResponse.count_by_status:type_name -> cairn.v1.ListJobsResponse.CountByStatusEntry
+	51,  // 60: cairn.v1.GetJobResponse.job:type_name -> cairn.v1.AdminJob
+	148, // 61: cairn.v1.GetJobResponse.payload_view:type_name -> google.protobuf.Struct
+	148, // 62: cairn.v1.GetJobResponse.result_view:type_name -> google.protobuf.Struct
+	56,  // 63: cairn.v1.GetJobResponse.attempts:type_name -> cairn.v1.JobAttempt
+	141, // 64: cairn.v1.JobAttempt.started_at:type_name -> google.protobuf.Timestamp
+	141, // 65: cairn.v1.JobAttempt.finished_at:type_name -> google.protobuf.Timestamp
 	4,   // 66: cairn.v1.JobAttempt.status:type_name -> cairn.v1.AdminJobStatus
-	49,  // 67: cairn.v1.RetryJobResponse.job:type_name -> cairn.v1.AdminJob
-	49,  // 68: cairn.v1.CancelJobResponse.job:type_name -> cairn.v1.AdminJob
-	93,  // 69: cairn.v1.ListDeadLetterJobsRequest.failed_range:type_name -> cairn.v1.TimeRange
-	88,  // 70: cairn.v1.ListDeadLetterJobsRequest.page:type_name -> cairn.v1.PageRequest
-	49,  // 71: cairn.v1.ListDeadLetterJobsResponse.jobs:type_name -> cairn.v1.AdminJob
-	89,  // 72: cairn.v1.ListDeadLetterJobsResponse.page:type_name -> cairn.v1.PageResponse
-	49,  // 73: cairn.v1.RequeueDeadLetterJobResponse.job:type_name -> cairn.v1.AdminJob
-	85,  // 74: cairn.v1.OrphanedSourceGroup.oldest_imported_at:type_name -> google.protobuf.Timestamp
-	63,  // 75: cairn.v1.ListOrphanedSourcesResponse.groups:type_name -> cairn.v1.OrphanedSourceGroup
-	85,  // 76: cairn.v1.WebhookSigningTokenInfo.last_rotated_at:type_name -> google.protobuf.Timestamp
-	85,  // 77: cairn.v1.WebhookSigningTokenInfo.last_used_at:type_name -> google.protobuf.Timestamp
-	88,  // 78: cairn.v1.ListWebhookSigningTokensRequest.page:type_name -> cairn.v1.PageRequest
-	66,  // 79: cairn.v1.ListWebhookSigningTokensResponse.tokens:type_name -> cairn.v1.WebhookSigningTokenInfo
-	89,  // 80: cairn.v1.ListWebhookSigningTokensResponse.page:type_name -> cairn.v1.PageResponse
-	86,  // 81: cairn.v1.BulkRotateWebhookSigningTokensRequest.older_than:type_name -> google.protobuf.Duration
-	71,  // 82: cairn.v1.BulkRotateWebhookSigningTokensResponse.rotation_jobs:type_name -> cairn.v1.WebhookRotationJobs
+	51,  // 67: cairn.v1.RetryJobResponse.job:type_name -> cairn.v1.AdminJob
+	51,  // 68: cairn.v1.CancelJobResponse.job:type_name -> cairn.v1.AdminJob
+	149, // 69: cairn.v1.ListDeadLetterJobsRequest.failed_range:type_name -> cairn.v1.TimeRange
+	144, // 70: cairn.v1.ListDeadLetterJobsRequest.page:type_name -> cairn.v1.PageRequest
+	51,  // 71: cairn.v1.ListDeadLetterJobsResponse.jobs:type_name -> cairn.v1.AdminJob
+	145, // 72: cairn.v1.ListDeadLetterJobsResponse.page:type_name -> cairn.v1.PageResponse
+	51,  // 73: cairn.v1.RequeueDeadLetterJobResponse.job:type_name -> cairn.v1.AdminJob
+	141, // 74: cairn.v1.OrphanedSourceGroup.oldest_imported_at:type_name -> google.protobuf.Timestamp
+	65,  // 75: cairn.v1.ListOrphanedSourcesResponse.groups:type_name -> cairn.v1.OrphanedSourceGroup
+	141, // 76: cairn.v1.WebhookSigningTokenInfo.last_rotated_at:type_name -> google.protobuf.Timestamp
+	141, // 77: cairn.v1.WebhookSigningTokenInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	144, // 78: cairn.v1.ListWebhookSigningTokensRequest.page:type_name -> cairn.v1.PageRequest
+	68,  // 79: cairn.v1.ListWebhookSigningTokensResponse.tokens:type_name -> cairn.v1.WebhookSigningTokenInfo
+	145, // 80: cairn.v1.ListWebhookSigningTokensResponse.page:type_name -> cairn.v1.PageResponse
+	142, // 81: cairn.v1.BulkRotateWebhookSigningTokensRequest.older_than:type_name -> google.protobuf.Duration
+	73,  // 82: cairn.v1.BulkRotateWebhookSigningTokensResponse.rotation_jobs:type_name -> cairn.v1.WebhookRotationJobs
 	5,   // 83: cairn.v1.GetSystemHealthResponse.overall:type_name -> cairn.v1.HealthState
-	74,  // 84: cairn.v1.GetSystemHealthResponse.database:type_name -> cairn.v1.ComponentHealth
-	74,  // 85: cairn.v1.GetSystemHealthResponse.queue:type_name -> cairn.v1.ComponentHealth
-	74,  // 86: cairn.v1.GetSystemHealthResponse.storage:type_name -> cairn.v1.ComponentHealth
-	74,  // 87: cairn.v1.GetSystemHealthResponse.email:type_name -> cairn.v1.ComponentHealth
-	85,  // 88: cairn.v1.GetSystemHealthResponse.checked_at:type_name -> google.protobuf.Timestamp
+	76,  // 84: cairn.v1.GetSystemHealthResponse.database:type_name -> cairn.v1.ComponentHealth
+	76,  // 85: cairn.v1.GetSystemHealthResponse.queue:type_name -> cairn.v1.ComponentHealth
+	76,  // 86: cairn.v1.GetSystemHealthResponse.storage:type_name -> cairn.v1.ComponentHealth
+	76,  // 87: cairn.v1.GetSystemHealthResponse.email:type_name -> cairn.v1.ComponentHealth
+	141, // 88: cairn.v1.GetSystemHealthResponse.checked_at:type_name -> google.protobuf.Timestamp
 	5,   // 89: cairn.v1.ComponentHealth.state:type_name -> cairn.v1.HealthState
-	81,  // 90: cairn.v1.ComponentHealth.measurements:type_name -> cairn.v1.ComponentHealth.MeasurementsEntry
+	134, // 90: cairn.v1.ComponentHealth.measurements:type_name -> cairn.v1.ComponentHealth.MeasurementsEntry
 	6,   // 91: cairn.v1.StreamAdminEventsRequest.types:type_name -> cairn.v1.AdminEventType
 	6,   // 92: cairn.v1.AdminEvent.type:type_name -> cairn.v1.AdminEventType
 	3,   // 93: cairn.v1.AdminEvent.severity:type_name -> cairn.v1.AuditSeverity
-	85,  // 94: cairn.v1.AdminEvent.ts:type_name -> google.protobuf.Timestamp
-	82,  // 95: cairn.v1.AdminEvent.i18n_params:type_name -> cairn.v1.AdminEvent.I18nParamsEntry
-	7,   // 96: cairn.v1.TriggerMaintenanceRequest.operation:type_name -> cairn.v1.MaintenanceOperation
-	9,   // 97: cairn.v1.AdminService.ListOIDCClients:input_type -> cairn.v1.ListOIDCClientsRequest
-	12,  // 98: cairn.v1.AdminService.GetInstanceSettings:input_type -> cairn.v1.GetInstanceSettingsRequest
-	14,  // 99: cairn.v1.AdminService.UpdateInstanceSettings:input_type -> cairn.v1.UpdateInstanceSettingsRequest
-	16,  // 100: cairn.v1.AdminService.SendTestEmail:input_type -> cairn.v1.SendTestEmailRequest
-	18,  // 101: cairn.v1.AdminService.ListUsers:input_type -> cairn.v1.ListUsersRequest
-	21,  // 102: cairn.v1.AdminService.GetUser:input_type -> cairn.v1.GetUserRequest
-	23,  // 103: cairn.v1.AdminService.CreateUser:input_type -> cairn.v1.CreateUserRequest
-	25,  // 104: cairn.v1.AdminService.UpdateUser:input_type -> cairn.v1.UpdateUserRequest
-	27,  // 105: cairn.v1.AdminService.ChangeUserRole:input_type -> cairn.v1.ChangeUserRoleRequest
-	29,  // 106: cairn.v1.AdminService.SetUserStatus:input_type -> cairn.v1.SetUserStatusRequest
-	31,  // 107: cairn.v1.AdminService.DeleteUser:input_type -> cairn.v1.DeleteUserRequest
-	33,  // 108: cairn.v1.AdminService.ResetUserPassword:input_type -> cairn.v1.ResetUserPasswordRequest
-	35,  // 109: cairn.v1.AdminService.RevokeUserCredentials:input_type -> cairn.v1.RevokeUserCredentialsRequest
-	38,  // 110: cairn.v1.AdminService.ListInvites:input_type -> cairn.v1.ListInvitesRequest
-	40,  // 111: cairn.v1.AdminService.CreateInvite:input_type -> cairn.v1.CreateInviteRequest
-	42,  // 112: cairn.v1.AdminService.RevokeInvite:input_type -> cairn.v1.RevokeInviteRequest
-	44,  // 113: cairn.v1.AdminService.ResendInvite:input_type -> cairn.v1.ResendInviteRequest
-	47,  // 114: cairn.v1.AdminService.ListAuditEntries:input_type -> cairn.v1.ListAuditEntriesRequest
-	50,  // 115: cairn.v1.AdminService.ListJobs:input_type -> cairn.v1.ListJobsRequest
-	52,  // 116: cairn.v1.AdminService.GetJob:input_type -> cairn.v1.GetJobRequest
-	55,  // 117: cairn.v1.AdminService.RetryJob:input_type -> cairn.v1.RetryJobRequest
-	57,  // 118: cairn.v1.AdminService.CancelJob:input_type -> cairn.v1.CancelJobRequest
-	59,  // 119: cairn.v1.AdminService.ListDeadLetterJobs:input_type -> cairn.v1.ListDeadLetterJobsRequest
-	61,  // 120: cairn.v1.AdminService.RequeueDeadLetterJob:input_type -> cairn.v1.RequeueDeadLetterJobRequest
-	64,  // 121: cairn.v1.AdminService.ListOrphanedSources:input_type -> cairn.v1.ListOrphanedSourcesRequest
-	67,  // 122: cairn.v1.AdminService.ListWebhookSigningTokens:input_type -> cairn.v1.ListWebhookSigningTokensRequest
-	69,  // 123: cairn.v1.AdminService.BulkRotateWebhookSigningTokens:input_type -> cairn.v1.BulkRotateWebhookSigningTokensRequest
-	72,  // 124: cairn.v1.AdminService.GetSystemHealth:input_type -> cairn.v1.GetSystemHealthRequest
-	75,  // 125: cairn.v1.AdminService.StreamAdminEvents:input_type -> cairn.v1.StreamAdminEventsRequest
-	77,  // 126: cairn.v1.AdminService.TriggerMaintenance:input_type -> cairn.v1.TriggerMaintenanceRequest
-	10,  // 127: cairn.v1.AdminService.ListOIDCClients:output_type -> cairn.v1.ListOIDCClientsResponse
-	13,  // 128: cairn.v1.AdminService.GetInstanceSettings:output_type -> cairn.v1.GetInstanceSettingsResponse
-	15,  // 129: cairn.v1.AdminService.UpdateInstanceSettings:output_type -> cairn.v1.UpdateInstanceSettingsResponse
-	17,  // 130: cairn.v1.AdminService.SendTestEmail:output_type -> cairn.v1.SendTestEmailResponse
-	19,  // 131: cairn.v1.AdminService.ListUsers:output_type -> cairn.v1.ListUsersResponse
-	22,  // 132: cairn.v1.AdminService.GetUser:output_type -> cairn.v1.GetUserResponse
-	24,  // 133: cairn.v1.AdminService.CreateUser:output_type -> cairn.v1.CreateUserResponse
-	26,  // 134: cairn.v1.AdminService.UpdateUser:output_type -> cairn.v1.UpdateUserResponse
-	28,  // 135: cairn.v1.AdminService.ChangeUserRole:output_type -> cairn.v1.ChangeUserRoleResponse
-	30,  // 136: cairn.v1.AdminService.SetUserStatus:output_type -> cairn.v1.SetUserStatusResponse
-	32,  // 137: cairn.v1.AdminService.DeleteUser:output_type -> cairn.v1.DeleteUserResponse
-	34,  // 138: cairn.v1.AdminService.ResetUserPassword:output_type -> cairn.v1.ResetUserPasswordResponse
-	36,  // 139: cairn.v1.AdminService.RevokeUserCredentials:output_type -> cairn.v1.RevokeUserCredentialsResponse
-	39,  // 140: cairn.v1.AdminService.ListInvites:output_type -> cairn.v1.ListInvitesResponse
-	41,  // 141: cairn.v1.AdminService.CreateInvite:output_type -> cairn.v1.CreateInviteResponse
-	43,  // 142: cairn.v1.AdminService.RevokeInvite:output_type -> cairn.v1.RevokeInviteResponse
-	45,  // 143: cairn.v1.AdminService.ResendInvite:output_type -> cairn.v1.ResendInviteResponse
-	48,  // 144: cairn.v1.AdminService.ListAuditEntries:output_type -> cairn.v1.ListAuditEntriesResponse
-	51,  // 145: cairn.v1.AdminService.ListJobs:output_type -> cairn.v1.ListJobsResponse
-	53,  // 146: cairn.v1.AdminService.GetJob:output_type -> cairn.v1.GetJobResponse
-	56,  // 147: cairn.v1.AdminService.RetryJob:output_type -> cairn.v1.RetryJobResponse
-	58,  // 148: cairn.v1.AdminService.CancelJob:output_type -> cairn.v1.CancelJobResponse
-	60,  // 149: cairn.v1.AdminService.ListDeadLetterJobs:output_type -> cairn.v1.ListDeadLetterJobsResponse
-	62,  // 150: cairn.v1.AdminService.RequeueDeadLetterJob:output_type -> cairn.v1.RequeueDeadLetterJobResponse
-	65,  // 151: cairn.v1.AdminService.ListOrphanedSources:output_type -> cairn.v1.ListOrphanedSourcesResponse
-	68,  // 152: cairn.v1.AdminService.ListWebhookSigningTokens:output_type -> cairn.v1.ListWebhookSigningTokensResponse
-	70,  // 153: cairn.v1.AdminService.BulkRotateWebhookSigningTokens:output_type -> cairn.v1.BulkRotateWebhookSigningTokensResponse
-	73,  // 154: cairn.v1.AdminService.GetSystemHealth:output_type -> cairn.v1.GetSystemHealthResponse
-	76,  // 155: cairn.v1.AdminService.StreamAdminEvents:output_type -> cairn.v1.AdminEvent
-	78,  // 156: cairn.v1.AdminService.TriggerMaintenance:output_type -> cairn.v1.TriggerMaintenanceResponse
-	127, // [127:157] is the sub-list for method output_type
-	97,  // [97:127] is the sub-list for method input_type
-	97,  // [97:97] is the sub-list for extension type_name
-	97,  // [97:97] is the sub-list for extension extendee
-	0,   // [0:97] is the sub-list for field type_name
+	141, // 94: cairn.v1.AdminEvent.ts:type_name -> google.protobuf.Timestamp
+	135, // 95: cairn.v1.AdminEvent.i18n_params:type_name -> cairn.v1.AdminEvent.I18nParamsEntry
+	7,   // 96: cairn.v1.MaintenanceJob.operation:type_name -> cairn.v1.MaintenanceOperation
+	8,   // 97: cairn.v1.MaintenanceJob.status:type_name -> cairn.v1.MaintenanceJobStatus
+	141, // 98: cairn.v1.MaintenanceJob.queued_at:type_name -> google.protobuf.Timestamp
+	141, // 99: cairn.v1.MaintenanceJob.started_at:type_name -> google.protobuf.Timestamp
+	141, // 100: cairn.v1.MaintenanceJob.finished_at:type_name -> google.protobuf.Timestamp
+	79,  // 101: cairn.v1.ListMaintenanceJobsResponse.jobs:type_name -> cairn.v1.MaintenanceJob
+	79,  // 102: cairn.v1.CancelMaintenanceJobResponse.job:type_name -> cairn.v1.MaintenanceJob
+	7,   // 103: cairn.v1.TriggerMaintenanceRequest.operation:type_name -> cairn.v1.MaintenanceOperation
+	136, // 104: cairn.v1.LiveWorker.capabilities:type_name -> cairn.v1.LiveWorker.CapabilitiesEntry
+	141, // 105: cairn.v1.LiveWorker.last_seen:type_name -> google.protobuf.Timestamp
+	87,  // 106: cairn.v1.ListWorkersResponse.workers:type_name -> cairn.v1.LiveWorker
+	141, // 107: cairn.v1.WorkerPool.first_seen_at:type_name -> google.protobuf.Timestamp
+	141, // 108: cairn.v1.WorkerPool.last_seen_at:type_name -> google.protobuf.Timestamp
+	141, // 109: cairn.v1.WorkerPool.retired_at:type_name -> google.protobuf.Timestamp
+	90,  // 110: cairn.v1.ListWorkerPoolsResponse.pools:type_name -> cairn.v1.WorkerPool
+	141, // 111: cairn.v1.WorkerEnrollment.created_at:type_name -> google.protobuf.Timestamp
+	141, // 112: cairn.v1.WorkerEnrollment.expires_at:type_name -> google.protobuf.Timestamp
+	141, // 113: cairn.v1.WorkerEnrollment.revoked_at:type_name -> google.protobuf.Timestamp
+	95,  // 114: cairn.v1.ListWorkerEnrollmentsResponse.enrollments:type_name -> cairn.v1.WorkerEnrollment
+	142, // 115: cairn.v1.CreateWorkerEnrollmentRequest.expires_in:type_name -> google.protobuf.Duration
+	95,  // 116: cairn.v1.CreateWorkerEnrollmentResponse.enrollment:type_name -> cairn.v1.WorkerEnrollment
+	142, // 117: cairn.v1.ProlongWorkerEnrollmentRequest.expires_in:type_name -> google.protobuf.Duration
+	141, // 118: cairn.v1.ProlongWorkerEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
+	9,   // 119: cairn.v1.ContentReport.status:type_name -> cairn.v1.ReportStatus
+	141, // 120: cairn.v1.ContentReport.created_at:type_name -> google.protobuf.Timestamp
+	141, // 121: cairn.v1.ContentReport.reviewed_at:type_name -> google.protobuf.Timestamp
+	9,   // 122: cairn.v1.ListReportsRequest.status:type_name -> cairn.v1.ReportStatus
+	144, // 123: cairn.v1.ListReportsRequest.page:type_name -> cairn.v1.PageRequest
+	104, // 124: cairn.v1.ListReportsResponse.reports:type_name -> cairn.v1.ContentReport
+	145, // 125: cairn.v1.ListReportsResponse.page:type_name -> cairn.v1.PageResponse
+	9,   // 126: cairn.v1.ResolveReportRequest.status:type_name -> cairn.v1.ReportStatus
+	9,   // 127: cairn.v1.ResolveReportResponse.status:type_name -> cairn.v1.ReportStatus
+	141, // 128: cairn.v1.BlockedDomain.created_at:type_name -> google.protobuf.Timestamp
+	113, // 129: cairn.v1.ListBlockedDomainsResponse.domains:type_name -> cairn.v1.BlockedDomain
+	113, // 130: cairn.v1.BlockDomainResponse.domain:type_name -> cairn.v1.BlockedDomain
+	137, // 131: cairn.v1.GetInstanceMergeDefaultsResponse.policies:type_name -> cairn.v1.GetInstanceMergeDefaultsResponse.PoliciesEntry
+	138, // 132: cairn.v1.UpdateInstanceMergeDefaultsRequest.policies:type_name -> cairn.v1.UpdateInstanceMergeDefaultsRequest.PoliciesEntry
+	141, // 133: cairn.v1.BootstrapNATSAccountKeyResponse.created_at:type_name -> google.protobuf.Timestamp
+	86,  // 134: cairn.v1.LiveWorker.CapabilitiesEntry.value:type_name -> cairn.v1.WorkerCapability
+	150, // 135: cairn.v1.GetInstanceMergeDefaultsResponse.PoliciesEntry.value:type_name -> cairn.v1.ActivityTypeMergePolicy
+	150, // 136: cairn.v1.UpdateInstanceMergeDefaultsRequest.PoliciesEntry.value:type_name -> cairn.v1.ActivityTypeMergePolicy
+	11,  // 137: cairn.v1.AdminService.ListOIDCClients:input_type -> cairn.v1.ListOIDCClientsRequest
+	14,  // 138: cairn.v1.AdminService.GetInstanceSettings:input_type -> cairn.v1.GetInstanceSettingsRequest
+	16,  // 139: cairn.v1.AdminService.UpdateInstanceSettings:input_type -> cairn.v1.UpdateInstanceSettingsRequest
+	18,  // 140: cairn.v1.AdminService.SendTestEmail:input_type -> cairn.v1.SendTestEmailRequest
+	20,  // 141: cairn.v1.AdminService.ListUsers:input_type -> cairn.v1.ListUsersRequest
+	23,  // 142: cairn.v1.AdminService.GetUser:input_type -> cairn.v1.GetUserRequest
+	25,  // 143: cairn.v1.AdminService.CreateUser:input_type -> cairn.v1.CreateUserRequest
+	27,  // 144: cairn.v1.AdminService.UpdateUser:input_type -> cairn.v1.UpdateUserRequest
+	29,  // 145: cairn.v1.AdminService.ChangeUserRole:input_type -> cairn.v1.ChangeUserRoleRequest
+	31,  // 146: cairn.v1.AdminService.SetUserStatus:input_type -> cairn.v1.SetUserStatusRequest
+	33,  // 147: cairn.v1.AdminService.DeleteUser:input_type -> cairn.v1.DeleteUserRequest
+	35,  // 148: cairn.v1.AdminService.ResetUserPassword:input_type -> cairn.v1.ResetUserPasswordRequest
+	37,  // 149: cairn.v1.AdminService.RevokeUserCredentials:input_type -> cairn.v1.RevokeUserCredentialsRequest
+	40,  // 150: cairn.v1.AdminService.ListInvites:input_type -> cairn.v1.ListInvitesRequest
+	42,  // 151: cairn.v1.AdminService.CreateInvite:input_type -> cairn.v1.CreateInviteRequest
+	44,  // 152: cairn.v1.AdminService.RevokeInvite:input_type -> cairn.v1.RevokeInviteRequest
+	46,  // 153: cairn.v1.AdminService.ResendInvite:input_type -> cairn.v1.ResendInviteRequest
+	49,  // 154: cairn.v1.AdminService.ListAuditEntries:input_type -> cairn.v1.ListAuditEntriesRequest
+	52,  // 155: cairn.v1.AdminService.ListJobs:input_type -> cairn.v1.ListJobsRequest
+	54,  // 156: cairn.v1.AdminService.GetJob:input_type -> cairn.v1.GetJobRequest
+	57,  // 157: cairn.v1.AdminService.RetryJob:input_type -> cairn.v1.RetryJobRequest
+	59,  // 158: cairn.v1.AdminService.CancelJob:input_type -> cairn.v1.CancelJobRequest
+	61,  // 159: cairn.v1.AdminService.ListDeadLetterJobs:input_type -> cairn.v1.ListDeadLetterJobsRequest
+	63,  // 160: cairn.v1.AdminService.RequeueDeadLetterJob:input_type -> cairn.v1.RequeueDeadLetterJobRequest
+	66,  // 161: cairn.v1.AdminService.ListOrphanedSources:input_type -> cairn.v1.ListOrphanedSourcesRequest
+	69,  // 162: cairn.v1.AdminService.ListWebhookSigningTokens:input_type -> cairn.v1.ListWebhookSigningTokensRequest
+	71,  // 163: cairn.v1.AdminService.BulkRotateWebhookSigningTokens:input_type -> cairn.v1.BulkRotateWebhookSigningTokensRequest
+	74,  // 164: cairn.v1.AdminService.GetSystemHealth:input_type -> cairn.v1.GetSystemHealthRequest
+	77,  // 165: cairn.v1.AdminService.StreamAdminEvents:input_type -> cairn.v1.StreamAdminEventsRequest
+	84,  // 166: cairn.v1.AdminService.TriggerMaintenance:input_type -> cairn.v1.TriggerMaintenanceRequest
+	80,  // 167: cairn.v1.AdminService.ListMaintenanceJobs:input_type -> cairn.v1.ListMaintenanceJobsRequest
+	82,  // 168: cairn.v1.AdminService.CancelMaintenanceJob:input_type -> cairn.v1.CancelMaintenanceJobRequest
+	88,  // 169: cairn.v1.AdminService.ListWorkers:input_type -> cairn.v1.ListWorkersRequest
+	91,  // 170: cairn.v1.AdminService.ListWorkerPools:input_type -> cairn.v1.ListWorkerPoolsRequest
+	93,  // 171: cairn.v1.AdminService.RetireWorkerPool:input_type -> cairn.v1.RetireWorkerPoolRequest
+	96,  // 172: cairn.v1.AdminService.ListWorkerEnrollments:input_type -> cairn.v1.ListWorkerEnrollmentsRequest
+	98,  // 173: cairn.v1.AdminService.CreateWorkerEnrollment:input_type -> cairn.v1.CreateWorkerEnrollmentRequest
+	100, // 174: cairn.v1.AdminService.RevokeWorkerEnrollment:input_type -> cairn.v1.RevokeWorkerEnrollmentRequest
+	102, // 175: cairn.v1.AdminService.ProlongWorkerEnrollment:input_type -> cairn.v1.ProlongWorkerEnrollmentRequest
+	105, // 176: cairn.v1.AdminService.ListReports:input_type -> cairn.v1.ListReportsRequest
+	107, // 177: cairn.v1.AdminService.ResolveReport:input_type -> cairn.v1.ResolveReportRequest
+	109, // 178: cairn.v1.AdminService.SetActivityHidden:input_type -> cairn.v1.SetActivityHiddenRequest
+	111, // 179: cairn.v1.AdminService.SetUserQuota:input_type -> cairn.v1.SetUserQuotaRequest
+	114, // 180: cairn.v1.AdminService.ListBlockedDomains:input_type -> cairn.v1.ListBlockedDomainsRequest
+	116, // 181: cairn.v1.AdminService.BlockDomain:input_type -> cairn.v1.BlockDomainRequest
+	118, // 182: cairn.v1.AdminService.UnblockDomain:input_type -> cairn.v1.UnblockDomainRequest
+	120, // 183: cairn.v1.AdminService.GetInstanceMergeDefaults:input_type -> cairn.v1.GetInstanceMergeDefaultsRequest
+	122, // 184: cairn.v1.AdminService.UpdateInstanceMergeDefaults:input_type -> cairn.v1.UpdateInstanceMergeDefaultsRequest
+	124, // 185: cairn.v1.AdminService.RunGeocodeBackfill:input_type -> cairn.v1.RunGeocodeBackfillRequest
+	126, // 186: cairn.v1.AdminService.RebuildGearTotals:input_type -> cairn.v1.RebuildGearTotalsRequest
+	128, // 187: cairn.v1.AdminService.BootstrapNATSAccountKey:input_type -> cairn.v1.BootstrapNATSAccountKeyRequest
+	130, // 188: cairn.v1.AdminService.RotateNATSAccountKey:input_type -> cairn.v1.RotateNATSAccountKeyRequest
+	12,  // 189: cairn.v1.AdminService.ListOIDCClients:output_type -> cairn.v1.ListOIDCClientsResponse
+	15,  // 190: cairn.v1.AdminService.GetInstanceSettings:output_type -> cairn.v1.GetInstanceSettingsResponse
+	17,  // 191: cairn.v1.AdminService.UpdateInstanceSettings:output_type -> cairn.v1.UpdateInstanceSettingsResponse
+	19,  // 192: cairn.v1.AdminService.SendTestEmail:output_type -> cairn.v1.SendTestEmailResponse
+	21,  // 193: cairn.v1.AdminService.ListUsers:output_type -> cairn.v1.ListUsersResponse
+	24,  // 194: cairn.v1.AdminService.GetUser:output_type -> cairn.v1.GetUserResponse
+	26,  // 195: cairn.v1.AdminService.CreateUser:output_type -> cairn.v1.CreateUserResponse
+	28,  // 196: cairn.v1.AdminService.UpdateUser:output_type -> cairn.v1.UpdateUserResponse
+	30,  // 197: cairn.v1.AdminService.ChangeUserRole:output_type -> cairn.v1.ChangeUserRoleResponse
+	32,  // 198: cairn.v1.AdminService.SetUserStatus:output_type -> cairn.v1.SetUserStatusResponse
+	34,  // 199: cairn.v1.AdminService.DeleteUser:output_type -> cairn.v1.DeleteUserResponse
+	36,  // 200: cairn.v1.AdminService.ResetUserPassword:output_type -> cairn.v1.ResetUserPasswordResponse
+	38,  // 201: cairn.v1.AdminService.RevokeUserCredentials:output_type -> cairn.v1.RevokeUserCredentialsResponse
+	41,  // 202: cairn.v1.AdminService.ListInvites:output_type -> cairn.v1.ListInvitesResponse
+	43,  // 203: cairn.v1.AdminService.CreateInvite:output_type -> cairn.v1.CreateInviteResponse
+	45,  // 204: cairn.v1.AdminService.RevokeInvite:output_type -> cairn.v1.RevokeInviteResponse
+	47,  // 205: cairn.v1.AdminService.ResendInvite:output_type -> cairn.v1.ResendInviteResponse
+	50,  // 206: cairn.v1.AdminService.ListAuditEntries:output_type -> cairn.v1.ListAuditEntriesResponse
+	53,  // 207: cairn.v1.AdminService.ListJobs:output_type -> cairn.v1.ListJobsResponse
+	55,  // 208: cairn.v1.AdminService.GetJob:output_type -> cairn.v1.GetJobResponse
+	58,  // 209: cairn.v1.AdminService.RetryJob:output_type -> cairn.v1.RetryJobResponse
+	60,  // 210: cairn.v1.AdminService.CancelJob:output_type -> cairn.v1.CancelJobResponse
+	62,  // 211: cairn.v1.AdminService.ListDeadLetterJobs:output_type -> cairn.v1.ListDeadLetterJobsResponse
+	64,  // 212: cairn.v1.AdminService.RequeueDeadLetterJob:output_type -> cairn.v1.RequeueDeadLetterJobResponse
+	67,  // 213: cairn.v1.AdminService.ListOrphanedSources:output_type -> cairn.v1.ListOrphanedSourcesResponse
+	70,  // 214: cairn.v1.AdminService.ListWebhookSigningTokens:output_type -> cairn.v1.ListWebhookSigningTokensResponse
+	72,  // 215: cairn.v1.AdminService.BulkRotateWebhookSigningTokens:output_type -> cairn.v1.BulkRotateWebhookSigningTokensResponse
+	75,  // 216: cairn.v1.AdminService.GetSystemHealth:output_type -> cairn.v1.GetSystemHealthResponse
+	78,  // 217: cairn.v1.AdminService.StreamAdminEvents:output_type -> cairn.v1.AdminEvent
+	85,  // 218: cairn.v1.AdminService.TriggerMaintenance:output_type -> cairn.v1.TriggerMaintenanceResponse
+	81,  // 219: cairn.v1.AdminService.ListMaintenanceJobs:output_type -> cairn.v1.ListMaintenanceJobsResponse
+	83,  // 220: cairn.v1.AdminService.CancelMaintenanceJob:output_type -> cairn.v1.CancelMaintenanceJobResponse
+	89,  // 221: cairn.v1.AdminService.ListWorkers:output_type -> cairn.v1.ListWorkersResponse
+	92,  // 222: cairn.v1.AdminService.ListWorkerPools:output_type -> cairn.v1.ListWorkerPoolsResponse
+	94,  // 223: cairn.v1.AdminService.RetireWorkerPool:output_type -> cairn.v1.RetireWorkerPoolResponse
+	97,  // 224: cairn.v1.AdminService.ListWorkerEnrollments:output_type -> cairn.v1.ListWorkerEnrollmentsResponse
+	99,  // 225: cairn.v1.AdminService.CreateWorkerEnrollment:output_type -> cairn.v1.CreateWorkerEnrollmentResponse
+	101, // 226: cairn.v1.AdminService.RevokeWorkerEnrollment:output_type -> cairn.v1.RevokeWorkerEnrollmentResponse
+	103, // 227: cairn.v1.AdminService.ProlongWorkerEnrollment:output_type -> cairn.v1.ProlongWorkerEnrollmentResponse
+	106, // 228: cairn.v1.AdminService.ListReports:output_type -> cairn.v1.ListReportsResponse
+	108, // 229: cairn.v1.AdminService.ResolveReport:output_type -> cairn.v1.ResolveReportResponse
+	110, // 230: cairn.v1.AdminService.SetActivityHidden:output_type -> cairn.v1.SetActivityHiddenResponse
+	112, // 231: cairn.v1.AdminService.SetUserQuota:output_type -> cairn.v1.SetUserQuotaResponse
+	115, // 232: cairn.v1.AdminService.ListBlockedDomains:output_type -> cairn.v1.ListBlockedDomainsResponse
+	117, // 233: cairn.v1.AdminService.BlockDomain:output_type -> cairn.v1.BlockDomainResponse
+	119, // 234: cairn.v1.AdminService.UnblockDomain:output_type -> cairn.v1.UnblockDomainResponse
+	121, // 235: cairn.v1.AdminService.GetInstanceMergeDefaults:output_type -> cairn.v1.GetInstanceMergeDefaultsResponse
+	123, // 236: cairn.v1.AdminService.UpdateInstanceMergeDefaults:output_type -> cairn.v1.UpdateInstanceMergeDefaultsResponse
+	125, // 237: cairn.v1.AdminService.RunGeocodeBackfill:output_type -> cairn.v1.RunGeocodeBackfillResponse
+	127, // 238: cairn.v1.AdminService.RebuildGearTotals:output_type -> cairn.v1.RebuildGearTotalsResponse
+	129, // 239: cairn.v1.AdminService.BootstrapNATSAccountKey:output_type -> cairn.v1.BootstrapNATSAccountKeyResponse
+	131, // 240: cairn.v1.AdminService.RotateNATSAccountKey:output_type -> cairn.v1.RotateNATSAccountKeyResponse
+	189, // [189:241] is the sub-list for method output_type
+	137, // [137:189] is the sub-list for method input_type
+	137, // [137:137] is the sub-list for extension type_name
+	137, // [137:137] is the sub-list for extension extendee
+	0,   // [0:137] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_admin_proto_init() }
@@ -6063,6 +9391,7 @@ func file_cairn_v1_admin_proto_init() {
 	}
 	file_cairn_v1_auth_proto_init()
 	file_cairn_v1_common_proto_init()
+	file_cairn_v1_metrics_proto_init()
 	file_cairn_v1_admin_proto_msgTypes[3].OneofWrappers = []any{}
 	file_cairn_v1_admin_proto_msgTypes[9].OneofWrappers = []any{}
 	file_cairn_v1_admin_proto_msgTypes[12].OneofWrappers = []any{}
@@ -6085,13 +9414,19 @@ func file_cairn_v1_admin_proto_init() {
 	file_cairn_v1_admin_proto_msgTypes[59].OneofWrappers = []any{}
 	file_cairn_v1_admin_proto_msgTypes[61].OneofWrappers = []any{}
 	file_cairn_v1_admin_proto_msgTypes[68].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[69].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[80].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[85].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[86].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[94].OneofWrappers = []any{}
+	file_cairn_v1_admin_proto_msgTypes[101].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_admin_proto_rawDesc), len(file_cairn_v1_admin_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   75,
+			NumEnums:      10,
+			NumMessages:   129,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

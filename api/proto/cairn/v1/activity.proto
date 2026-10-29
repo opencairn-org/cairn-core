@@ -178,6 +178,17 @@ message Activity {
   GearSetBy gear_set_by = 31;
   // Denormalised for list rendering; empty when no gear is attached.
   string gear_name = 32;
+
+  // Static course image (PNG), set when the activity has a renderable GPS
+  // track. Rendered on demand and cached; non-owners get the privacy-zone
+  // trimmed variant. See ContentUrl for caching rules.
+  ContentUrl map_image = 33;
+  // Changes when the course image would render differently (track or style
+  // version); cache the image under id + this value.
+  string map_image_etag = 34;
+  // No gear attached and the user has not decided "no gear" either, while
+  // they do own gear: a hint to prompt for it. False when the user has no gear.
+  bool gear_unset = 35;
 }
 
 enum Privacy {
@@ -375,6 +386,9 @@ message ActivityLap {
   optional int32 avg_cadence = 11;
   optional double elevation_gain_m = 12;
   string label = 13;                  // provider-supplied lap name
+  // Seconds from the activity start to the lap start.
+  int64 start_offset_s = 14;
+  optional double elevation_loss_m = 15;
 }
 
 message StreamSummary {
@@ -567,42 +581,76 @@ message CustomBestEffort {
 service ActivityService {
   // List activities for the calling user. Supports filtering by time range,
   // type, discipline, tag, and source-provider.
+  // Scope: activities:read.
   rpc ListActivities(ListActivitiesRequest) returns (ListActivitiesResponse);
 
+  // The filterable, sortable, faceted activity list (the web feed): every
+  // filter of the filter bar, facets for the selectors and paging. The
+  // replacement for GET /api/activities/feed; ListActivities stays as the
+  // simple time-window list.
+  // Scope: activities:read.
+  rpc SearchActivities(SearchActivitiesRequest) returns (SearchActivitiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Get a single activity by id, including sources.
+  // Scope: activities:read.
   rpc GetActivity(GetActivityRequest) returns (GetActivityResponse);
 
   // Update user-editable fields (title, description, tags, type override).
   // Does NOT touch source data — only the merged Activity overrides.
+  // Scope: activities:write.
   rpc UpdateActivity(UpdateActivityRequest) returns (UpdateActivityResponse);
 
   // Soft-delete an activity. Sources are detached, raw blobs retained per
   // S3 lifecycle policy.
+  // Scope: activities:write.
   rpc DeleteActivity(DeleteActivityRequest) returns (DeleteActivityResponse);
 
-  // Server-streaming feed of activity-related events for the caller. Used
-  // by the UI for live import progress, new-PR toasts, etc.
+  // Server-streaming feed of activity-related events for the caller: import
+  // and reimport outcomes, created/updated/deleted activities, attached and
+  // detached sources, new personal records. Every 30 s an event with
+  // ACTIVITY_EVENT_TYPE_UNSPECIFIED and only `ts` set is a heartbeat.
+  // Events are live-only (nothing is replayed on connect); IMPORT_PROGRESS
+  // is not emitted yet.
+  // Scope: activities:read.
   rpc StreamActivityEvents(StreamActivityEventsRequest) returns (stream ActivityEvent);
 
   // Source management — attach/detach/reorder sources, trigger reimports.
+  // Scope: activities:read.
   rpc ListActivitySources(ListActivitySourcesRequest) returns (ListActivitySourcesResponse);
 
   // Trigger a reimport of one source. Returns a job id; observe progress
   // via StreamActivityEvents or via the job status endpoints in admin.proto.
+  // Scope: activities:write.
   rpc ReimportSource(ReimportSourceRequest) returns (ReimportSourceResponse);
 
-  // Dry-run reimport: fetches fresh source data, computes the merge it would
-  // produce, returns the diff WITHOUT committing. The preview is stored
-  // with a TTL (default 1h) and can be either committed or discarded.
+  // Dry-run reimport: dispatches a refetch (or local reparse) whose result
+  // is held as a preview instead of being ingested. The preview starts
+  // PENDING; once the worker answers it turns READY with the diffs of the
+  // source payload and of the merged activity (GetSourcePreview, or watch
+  // StreamActivityEvents for `activity.preview_ready`). It expires after
+  // one hour and can be committed or discarded.
+  // Scope: activities:write.
   rpc PreviewSourceReimport(PreviewSourceReimportRequest) returns (PreviewSourceReimportResponse);
+  // Scope: activities:read.
+  rpc GetSourcePreview(GetSourcePreviewRequest) returns (GetSourcePreviewResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Ingests the held result through the normal reimport path.
+  // Scope: activities:write.
   rpc CommitSourcePreview(CommitSourcePreviewRequest) returns (CommitSourcePreviewResponse);
+  // Scope: activities:write.
   rpc DiscardSourcePreview(DiscardSourcePreviewRequest) returns (DiscardSourcePreviewResponse);
 
   // Manual source-linking when dedup misses or mistakes.
+  // Scope: activities:write.
   rpc LinkSourceToActivity(LinkSourceToActivityRequest) returns (LinkSourceToActivityResponse);
+  // Scope: activities:write.
   rpc DetachSource(DetachSourceRequest) returns (DetachSourceResponse);
 
   // Streams — full fidelity or downsampled.
+  // Scope: activities:read.
   rpc GetActivityStream(GetActivityStreamRequest) returns (GetActivityStreamResponse);
 
 
@@ -611,17 +659,127 @@ service ActivityService {
   // The client uploads the FIT/GPX/TCX file directly to S3, then calls
   // UploadActivity with the returned blob_id. Separating presign from
   // upload keeps large bodies off the Core entirely.
+  // Scope: activities:write.
   rpc PresignActivityUpload(PresignActivityUploadRequest) returns (PresignActivityUploadResponse);
 
   // Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
   // generic-fit-parser worker processes the upload, dedup happens
   // afterwards. UI surfaces progress via StreamActivityEvents.
+  // Scope: activities:write.
   rpc UploadActivity(UploadActivityRequest) returns (UploadActivityResponse);
 
+  // ---- Per-activity detail reads (owner only unless noted) ----
+
+  // Provider-reported laps (splits) of the source that carries the most.
+  // Scope: activities:read.
+  rpc ListLaps(ListLapsRequest) returns (ListLapsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Time in heart-rate and power zones against the athlete's thresholds as
+  // of the activity's date, plus aerobic decoupling for steady efforts.
+  // Scope: activities:read.
+  rpc GetActivityZones(GetActivityZonesRequest) returns (GetActivityZonesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Segment efforts of the activity joined to their segments, located on the
+  // stream by time and distance offsets.
+  // Scope: activities:read.
+  rpc ListActivitySegmentEfforts(ListActivitySegmentEffortsRequest) returns (ListActivitySegmentEffortsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Other activities over the same route (shared segment efforts) with the
+  // metrics a progression view needs, the reference activity included.
+  // Scope: activities:read.
+  rpc ListSimilarActivities(ListSimilarActivitiesRequest) returns (ListSimilarActivitiesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The per-channel merged, aligned, resampled stream: best source per
+  // channel across the activity's sources on a common 5 s grid.
+  // Scope: activities:read.
+  rpc GetMergedStream(GetMergedStreamRequest) returns (GetMergedStreamResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Kudos on an activity; the caller must be the owner or hold the "social"
+  // visibility category (PermissionDenied otherwise).
+  // Scope: activities:read.
+  rpc ListKudos(ListKudosRequest) returns (ListKudosResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Comments on an activity, oldest first, federated replies included. Same
+  // gate as ListKudos.
+  // Scope: activities:read.
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The technical manage view: every source (detached included) with its
+  // parser provenance, re-parse eligibility and offered upgrade, and the
+  // per-field merge provenance.
+  // Scope: activities:read.
+  rpc GetActivityManageInfo(GetActivityManageInfoRequest) returns (GetActivityManageInfoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // A source's normalised payload as stored.
+  // Scope: activities:read.
+  rpc GetParsedSource(GetParsedSourceRequest) returns (GetParsedSourceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // ---- Photos, course image, exports ----
+
+  // Photos of an activity with signed URLs per variant. Owner, or a viewer
+  // the owner shares photos with (visibility category "photos").
+  // Scope: activities:read.
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Signed URL of the static course image, trimmed by the owner's privacy
+  // zones for non-owners. NotFound when the activity has no GPS track or the
+  // map is not shared with the caller.
+  // Scope: activities:read.
+  rpc GetActivityMapImage(GetActivityMapImageRequest) returns (GetActivityMapImageResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Which export features the activity carries (gps, heart_rate, …), so a
+  // client can offer the exclude toggles. Owner only.
+  // Scope: activities:read.
+  rpc GetExportOptions(GetExportOptionsRequest) returns (GetExportOptionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+  // GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+  // read verb) although it mints a URL.
+  // Scope: activities:read.
+  rpc ExportActivity(ExportActivityRequest) returns (ExportActivityResponse);
+
   // Best efforts and records.
+  // Scope: activities:read.
   rpc ListBestEfforts(ListBestEffortsRequest) returns (ListBestEffortsResponse);
+  // Scope: activities:read.
   rpc ListRecords(ListRecordsRequest) returns (ListRecordsResponse);
+  // User-defined best-effort windows (e.g. 7.5 km) computed next to the
+  // standard set for one activity type. Distance windows take the pace
+  // metric, duration windows speed, power, heart_rate or vam. Creating one
+  // backfills the user's activities of that type in the background
+  // (GET /api/records/custom on REST).
+  // Scope: activities:write.
   rpc CreateCustomBestEffort(CreateCustomBestEffortRequest) returns (CreateCustomBestEffortResponse);
+  // Scope: activities:read.
+  rpc ListCustomBestEfforts(ListCustomBestEffortsRequest) returns (ListCustomBestEffortsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Deleting a window also deletes the efforts computed for it.
+  // Scope: activities:write.
   rpc DeleteCustomBestEffort(DeleteCustomBestEffortRequest) returns (DeleteCustomBestEffortResponse);
 }
 
@@ -649,6 +807,72 @@ enum ActivitySort {
   ACTIVITY_SORT_START_TIME_ASC = 2;
   ACTIVITY_SORT_DISTANCE_DESC = 3;
   ACTIVITY_SORT_DURATION_DESC = 4;
+  ACTIVITY_SORT_ELEVATION_DESC = 5;
+  ACTIVITY_SORT_SPEED_DESC = 6;
+}
+
+// The activity filter bar, shared by SearchActivities and the heatmap so the
+// same filter means the same thing everywhere. Empty / unset = any.
+message ActivityFilter {
+  // Activity types to include; at most one is supported today (more →
+  // InvalidArgument), the field is repeated for forward compatibility.
+  repeated ActivityType types = 1;
+  // Disciplines as their raw enum strings ("ride_road"); at most one today.
+  repeated string disciplines = 2;
+  // Half-open start_time range [from, to).
+  TimeRange time_range = 3;
+  // Gear ids the activity must be attached to (any of); max 50.
+  repeated string gear_ids = 4;
+  // Tri-state classification flags.
+  enum Flag {
+    FLAG_UNSPECIFIED = 0; // any
+    FLAG_ONLY = 1;        // must be set
+    FLAG_EXCLUDE = 2;     // must be unset
+  }
+  Flag virtual = 5;
+  Flag ebike = 6;
+  Flag commute = 7;
+  Flag race = 8;
+  // Inclusive numeric ranges in SI units; an activity with no value for the
+  // column never matches a bounded range.
+  optional double distance_min_m = 9;
+  optional double distance_max_m = 10;
+  optional double duration_min_s = 11;  // elapsed
+  optional double duration_max_s = 12;
+  optional double elevation_min_m = 13;
+  optional double elevation_max_m = 14;
+  optional double speed_min_mps = 15;   // average
+  optional double speed_max_mps = 16;
+  optional double hr_min_bpm = 17;      // average
+  optional double hr_max_bpm = 18;
+  optional double power_min_w = 19;     // average
+  optional double power_max_w = 20;
+}
+
+// Facets of a search: only values the user actually has, so a filter UI
+// never offers impossible options. types and disciplines respect every
+// filter except their own dimension; years are unfiltered.
+message ActivityFacets {
+  repeated Facet types = 1;
+  repeated Facet disciplines = 2;
+  repeated Facet years = 3;
+}
+
+message SearchActivitiesRequest {
+  ActivityFilter filter = 1;
+  // ACTIVITY_SORT_START_TIME_DESC when unset.
+  ActivitySort sort = 2;
+  // limit default 50, max 200.
+  PageRequest page = 3;
+}
+message SearchActivitiesResponse {
+  // Without sources; GetActivity has them.
+  repeated Activity activities = 1;
+  ActivityFacets facets = 2;
+  // total: every activity of the user; matched: those matching the filter.
+  int32 total = 3;
+  int32 matched = 4;
+  PageResponse page = 5;
 }
 
 message ListActivitiesResponse {
@@ -775,6 +999,40 @@ message PreviewSourceReimportResponse {
   string job_id = 2;
 }
 
+enum SourcePreviewStatus {
+  SOURCE_PREVIEW_STATUS_UNSPECIFIED = 0;
+  SOURCE_PREVIEW_STATUS_PENDING = 1;   // waiting for the worker result
+  SOURCE_PREVIEW_STATUS_READY = 2;     // diffs available; commit or discard
+}
+
+// One changed field of a preview diff, rendered as strings.
+message FieldChange {
+  string field = 1;
+  string before = 2;
+  string after = 3;
+}
+
+message SourcePreview {
+  string id = 1;
+  string activity_source_id = 2;
+  string activity_id = 3;
+  string job_id = 4;
+  SourcePreviewStatus status = 5;
+  // What the fresh payload changes on the source itself.
+  repeated FieldChange source_diff = 6;
+  // What committing would change on the merged activity.
+  repeated FieldChange merged_diff = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp expires_at = 9;
+}
+
+message GetSourcePreviewRequest {
+  string preview_id = 1;
+}
+message GetSourcePreviewResponse {
+  SourcePreview preview = 1;
+}
+
 message CommitSourcePreviewRequest {
   string preview_id = 1;
 }
@@ -866,6 +1124,273 @@ message UploadActivityResponse {
   string activity_id = 2;
 }
 
+// ---- Per-activity detail reads ----
+
+message ListLapsRequest {
+  string activity_id = 1;
+}
+message ListLapsResponse {
+  repeated ActivityLap laps = 1;
+  // The source the laps come from; empty when the activity has none.
+  string source_id = 2;
+}
+
+message GetActivityZonesRequest {
+  string activity_id = 1;
+}
+message ZoneBand {
+  string label = 1;
+  // Bounds as a fraction of the reference (1.0 = reference).
+  double low_pct = 2;
+  double high_pct = 3;
+  int32 seconds = 4;
+}
+message ZoneSummary {
+  // "lthr" or "max" for heart rate, "ftp" for power.
+  string basis = 1;
+  double reference = 2;
+  int32 total_seconds = 3;
+  repeated ZoneBand zones = 4;
+}
+message Decoupling {
+  // Cardiac drift in percent, one decimal.
+  double pct = 1;
+  // "power" (rides) or "pace" (runs).
+  string basis = 2;
+  // Below 5 %: the effort was aerobically coupled.
+  bool coupled = 3;
+}
+message GetActivityZonesResponse {
+  // Unset when the activity has no heart-rate samples or no threshold.
+  optional ZoneSummary hr = 1;
+  // Unset when the activity has no power samples or no FTP.
+  optional ZoneSummary power = 2;
+  // Unset unless the effort was long and steady enough to be meaningful.
+  optional Decoupling decoupling = 3;
+}
+
+message ListActivitySegmentEffortsRequest {
+  string activity_id = 1;
+}
+message ActivitySegmentEffort {
+  string segment_id = 1;
+  string segment_name = 2;
+  double segment_distance_m = 3;
+  // Climb category as its stored string ("4" … "1", "hc"); unset when none.
+  optional string climb_category = 4;
+  double elapsed_s = 5;
+  double moving_s = 6;
+  optional int32 avg_heart_rate = 7;
+  optional int32 avg_power = 8;
+  bool is_personal_record = 9;
+  int32 personal_rank = 10;
+  // Position on the source stream: seconds since stream start and
+  // cumulative distance; unset when the stream is unavailable.
+  optional double start_offset_s = 11;
+  optional double end_offset_s = 12;
+  optional double start_distance_m = 13;
+  optional double end_distance_m = 14;
+}
+message ListActivitySegmentEffortsResponse {
+  repeated ActivitySegmentEffort efforts = 1;
+}
+
+message ListSimilarActivitiesRequest {
+  string activity_id = 1;
+}
+message SimilarActivity {
+  string id = 1;
+  bool is_current = 2;
+  string title = 3;
+  ActivityType type = 4;
+  google.protobuf.Timestamp start_time = 5;
+  optional double distance_m = 6;
+  int64 moving_s = 7;
+  int64 elapsed_s = 8;
+  optional int32 avg_heart_rate = 9;
+  optional int32 avg_power = 10;
+  // Moving seconds per km; unset without distance or time.
+  optional double pace_s_per_km = 11;
+  // Segments shared with the reference activity, and that as a fraction of
+  // the reference's segments (0..1).
+  int32 shared_segments = 12;
+  double overlap_pct = 13;
+}
+message ListSimilarActivitiesResponse {
+  // Distinct segments on the reference activity.
+  int32 target_segments = 1;
+  // Chronological, the reference activity included (is_current).
+  repeated SimilarActivity activities = 2;
+  int32 count = 3;
+  int64 best_moving_s = 4;
+  int64 current_moving_s = 5;
+  // 1-based rank of the reference by moving time (faster = better).
+  int32 current_rank = 6;
+  bool is_best = 7;
+}
+
+message GetMergedStreamRequest {
+  string activity_id = 1;
+}
+message MergedChannel {
+  // One value per grid point; NaN where no source had a value.
+  repeated double values = 1;
+  // The source the channel's values come from.
+  string source_id = 2;
+}
+message GetMergedStreamResponse {
+  // Grid timestamps (unix seconds), empty when no source has a stream.
+  repeated int64 grid_unix_s = 1;
+  // Channel name (StreamChannel enum string, lower case) → values.
+  map<string, MergedChannel> channels = 2;
+}
+
+message ListKudosRequest {
+  string activity_id = 1;
+}
+message ListKudosResponse {
+  int32 count = 1;
+  // The caller gave kudos.
+  bool has_kudos = 2;
+  // Local users first, then federated actors (remote = true); capped.
+  repeated UserCard kudosers = 3;
+}
+
+message ListCommentsRequest {
+  string activity_id = 1;
+}
+message Comment {
+  // A local comment id, or the ActivityPub id of a federated reply.
+  string id = 1;
+  string body = 2;
+  google.protobuf.Timestamp created_at = 3;
+  UserCard author = 4;
+}
+message ListCommentsResponse {
+  // Oldest first.
+  repeated Comment comments = 1;
+}
+
+message GetActivityManageInfoRequest {
+  string activity_id = 1;
+}
+message SourceInsight {
+  ActivitySource source = 1;
+  string worker_release = 2;
+  // Parser N.M, or the raw version when it is not one; dataset "" then.
+  string parser_version = 3;
+  string dataset_version = 4;
+  // Parser version of the live worker that would re-parse; empty when none.
+  string reparse_with = 5;
+  // "" | "new_parser" | "new_dataset": what the live workers offer.
+  string upgrade = 6;
+  string worker_package = 7;
+  bool reparse_eligible = 8;
+  bool has_blob = 9;
+  string raw_content_type = 10;
+  int64 raw_size_bytes = 11;
+  bool has_stream = 12;
+  int32 lap_count = 13;
+  string status_reason = 14;
+  string reimport_reason = 15;
+  optional google.protobuf.Timestamp last_reimported_at = 16;
+  bool is_primary = 17;
+  // Labels of the field groups this source won in the merge.
+  repeated string won_field_groups = 18;
+}
+message FieldProvenance {
+  // Field group key and its label.
+  string field = 1;
+  string field_label = 2;
+  string source_id = 3;
+  string provider = 4;
+  // "rule" (merge policy) or "manual" (user pin).
+  string decided_by = 5;
+  google.protobuf.Timestamp synced_at = 6;
+}
+message GetActivityManageInfoResponse {
+  google.protobuf.Timestamp merged_at = 1;
+  string primary_source_id = 2;
+  // Every source, detached ones included.
+  repeated SourceInsight sources = 3;
+  repeated FieldProvenance provenance = 4;
+}
+
+message GetParsedSourceRequest {
+  string activity_id = 1;
+  string source_id = 2;
+}
+message GetParsedSourceResponse {
+  ActivitySourcePayload payload = 1;
+}
+
+// ---- Photos, course image, exports ----
+
+message Attachment {
+  // Stable id; cache variants under it.
+  string id = 1;
+  string activity_id = 2;
+  // Signed URLs. original is always set; medium is unset when the original
+  // is already within the medium bound (use original); thumb and blurhash
+  // are unset until the variants were derived (older rows, backfill pending).
+  ContentUrl original = 3;
+  ContentUrl medium = 4;
+  ContentUrl thumb = 5;
+  // Pixel size of the original (0 when unknown).
+  int32 width = 6;
+  int32 height = 7;
+  // Blurhash placeholder of the photo; empty when not derived yet.
+  string blurhash = 8;
+  string caption = 9;
+  string content_type = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message ListAttachmentsRequest {
+  string activity_id = 1;
+}
+message ListAttachmentsResponse {
+  repeated Attachment attachments = 1;
+}
+
+message GetActivityMapImageRequest {
+  string activity_id = 1;
+}
+message GetActivityMapImageResponse {
+  ContentUrl image = 1;
+  // Cache key for the image, see Activity.map_image_etag.
+  string etag = 2;
+}
+
+message GetExportOptionsRequest {
+  string activity_id = 1;
+}
+message GetExportOptionsResponse {
+  // Feature → present, e.g. {"gps": true, "heart_rate": false}. Keys are
+  // the tokens ExportActivityRequest.exclude accepts.
+  map<string, bool> available = 1;
+}
+
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_GPX = 1;
+  EXPORT_FORMAT_TCX = 2;
+  EXPORT_FORMAT_FIT = 3;
+}
+
+message ExportActivityRequest {
+  string activity_id = 1;
+  ExportFormat format = 2;
+  // Export features to drop; tokens from GetExportOptionsResponse.available.
+  repeated string exclude = 3;
+}
+message ExportActivityResponse {
+  ContentUrl file = 1;
+  // Suggested filename, e.g. "2026-10-28-morning-ride.gpx".
+  string filename = 2;
+  string content_type = 3;
+}
+
 // ---- Best efforts and records ----
 
 message ListBestEffortsRequest {
@@ -899,6 +1424,11 @@ message CreateCustomBestEffortRequest {
 }
 message CreateCustomBestEffortResponse {
   CustomBestEffort custom_best_effort = 1;
+}
+
+message ListCustomBestEffortsRequest {}
+message ListCustomBestEffortsResponse {
+  repeated CustomBestEffort custom_best_efforts = 1;
 }
 
 message DeleteCustomBestEffortRequest {

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -21,24 +22,46 @@ import (
 // Scope catalog. Access tokens carry a space-separated subset; the API and the
 // MCP server enforce them. Read-only is the safe default for agents.
 const (
-	ScopeActivitiesRead  = "activities:read"
-	ScopeActivitiesWrite = "activities:write"
-	ScopeProfileRead     = "profile:read"
-	ScopeSocialRead      = "social:read"
-	ScopeSocialWrite     = "social:write"
-	ScopeSegmentsRead    = "segments:read"
-	ScopeTrainingRead    = "training:read"
+	ScopeActivitiesRead     = "activities:read"
+	ScopeActivitiesWrite    = "activities:write"
+	ScopeProfileRead        = "profile:read"
+	ScopeProfileWrite       = "profile:write"
+	ScopeSocialRead         = "social:read"
+	ScopeSocialWrite        = "social:write"
+	ScopeSegmentsRead       = "segments:read"
+	ScopeSegmentsWrite      = "segments:write"
+	ScopeTrainingRead       = "training:read" // training load, best efforts, health and athlete metrics
+	ScopeTrainingWrite      = "training:write"
+	ScopeGearRead           = "gear:read"
+	ScopeGearWrite          = "gear:write"
+	ScopeNotificationsRead  = "notifications:read"
+	ScopeNotificationsWrite = "notifications:write"
+	ScopeConnectionsRead    = "connections:read" // provider connections and sync status
+	ScopeConnectionsWrite   = "connections:write"
+	// ScopeDevicesRead / ScopeDevicesWrite live in oauth_device.go.
 )
 
-// SupportedScopes is the full catalog advertised in AS metadata.
+// SupportedScopes is the full catalog advertised in AS metadata. Every family
+// has a read and a write scope; docs/api-scopes.md maps RPCs to them.
 var SupportedScopes = []string{
 	ScopeActivitiesRead,
 	ScopeActivitiesWrite,
 	ScopeProfileRead,
+	ScopeProfileWrite,
 	ScopeSocialRead,
 	ScopeSocialWrite,
 	ScopeSegmentsRead,
+	ScopeSegmentsWrite,
 	ScopeTrainingRead,
+	ScopeTrainingWrite,
+	ScopeGearRead,
+	ScopeGearWrite,
+	ScopeNotificationsRead,
+	ScopeNotificationsWrite,
+	ScopeConnectionsRead,
+	ScopeConnectionsWrite,
+	ScopeDevicesRead,
+	ScopeDevicesWrite,
 }
 
 // ReadOnlyScopes is the default grant for agents (no write capability).
@@ -48,6 +71,32 @@ var ReadOnlyScopes = []string{
 	ScopeSocialRead,
 	ScopeSegmentsRead,
 	ScopeTrainingRead,
+	ScopeGearRead,
+	ScopeNotificationsRead,
+	ScopeConnectionsRead,
+}
+
+// ScopeFamily returns the part before the colon ("activities" for
+// "activities:read"); "" when s has no family.
+func ScopeFamily(s string) string {
+	if i := strings.IndexByte(s, ':'); i > 0 {
+		return s[:i]
+	}
+	return ""
+}
+
+// ScopesGrant reports whether scopes allow an operation on family: a read
+// needs family:read or family:write, a write needs family:write.
+func ScopesGrant(scopes []string, family string, write bool) bool {
+	for _, s := range scopes {
+		if s == family+":write" {
+			return true
+		}
+		if !write && s == family+":read" {
+			return true
+		}
+	}
+	return false
 }
 
 // ScopeSupported reports whether s is a known scope.
@@ -137,28 +186,63 @@ type OAuthClient struct {
 	Scopes                  []string // scopes the client may request
 	TokenEndpointAuthMethod string   // none | client_secret_basic | client_secret_post
 	IsDynamic               bool
-	CreatedBy               *UserID
-	CreatedAt               time.Time
+	// SoftwareID / SoftwareVersion identify the application behind a dynamic
+	// registration (RFC 7591 §2), e.g. "org.opencairn.cairn" / "1.4.0", so an
+	// "authorized apps" view can show which app a client row belongs to.
+	SoftwareID      string
+	SoftwareVersion string
+	CreatedBy       *UserID
+	CreatedAt       time.Time
 }
 
 // IsPublic reports whether the client has no secret (PKCE-only).
 func (c OAuthClient) IsPublic() bool { return len(c.SecretHash) == 0 }
 
-// AllowsRedirectURI reports whether uri exactly matches a registered redirect.
+// AllowsRedirectURI reports whether uri matches a registered redirect.
 func (c OAuthClient) AllowsRedirectURI(uri string) bool {
 	_, ok := c.RegisteredRedirectURI(uri)
 	return ok
 }
 
-// RegisteredRedirectURI returns the registered redirect equal to uri, so callers redirect to the
-// stored value rather than to request input.
+// RegisteredRedirectURI returns the redirect target for uri: the stored value on
+// an exact match, so callers redirect to registered input rather than request
+// input. Loopback redirects (RFC 8252 §7.3: http scheme, host 127.0.0.1 or
+// [::1]) match a registered loopback redirect regardless of port, and the
+// target is then the requested uri, because a native app listens on whatever
+// port it could bind. "localhost" and custom schemes stay exact.
 func (c OAuthClient) RegisteredRedirectURI(uri string) (string, bool) {
+	if uri == "" {
+		return "", false
+	}
 	for _, u := range c.RedirectURIs {
 		if u == uri && u != "" {
 			return u, true
 		}
 	}
+	req, ok := loopbackRedirect(uri)
+	if !ok {
+		return "", false
+	}
+	for _, u := range c.RedirectURIs {
+		reg, ok := loopbackRedirect(u)
+		if ok && reg.Hostname() == req.Hostname() && reg.Path == req.Path && reg.RawQuery == req.RawQuery {
+			return uri, true
+		}
+	}
 	return "", false
+}
+
+// loopbackRedirect parses uri when it is an http loopback-IP redirect.
+func loopbackRedirect(uri string) (*url.URL, bool) {
+	u, err := url.Parse(uri)
+	if err != nil || u.Scheme != "http" || u.Fragment != "" || u.User != nil {
+		return nil, false
+	}
+	switch u.Hostname() {
+	case "127.0.0.1", "::1":
+		return u, true
+	}
+	return nil, false
 }
 
 // AllowsGrant reports whether the client may use grant type g.
@@ -262,4 +346,19 @@ func SortedScopeString(scopes []string) string {
 	cp := append([]string(nil), scopes...)
 	sort.Strings(cp)
 	return strings.Join(cp, " ")
+}
+
+// OAuthGrant is one client's standing access to a user: what the user sees
+// on the "authorized apps" page and can revoke as a whole.
+type OAuthGrant struct {
+	ClientID        string
+	ClientName      string
+	SoftwareID      string
+	SoftwareVersion string
+	// Scopes is the union of the client's live token scopes.
+	Scopes []string
+	// GrantedAt is the oldest live token; LastIssuedAt the newest.
+	GrantedAt    time.Time
+	LastIssuedAt time.Time
+	ActiveTokens int
 }

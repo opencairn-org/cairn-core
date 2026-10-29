@@ -84,6 +84,9 @@ type NotificationRepo interface {
 		userID domain.UserID,
 	) (int, error)
 
+	// CountUnreadForUser counts the user's unread events (the badge number).
+	CountUnreadForUser(ctx context.Context, userID domain.UserID) (int, error)
+
 	// GetByID returns a single notification scoped to its owning user.
 	// Returns domain.ErrNotFound when the row doesn't exist OR when
 	// it belongs to a different user — the two cases are indistinguishable

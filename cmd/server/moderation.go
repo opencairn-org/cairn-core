@@ -36,7 +36,9 @@ func mountModeration(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 	if app.Reports != nil {
 		mux.HandleFunc("POST /api/reports", h.createReport)
-		mountModerationAdmin(mux, app)
+		if app.ModReports != nil {
+			mountModerationAdmin(mux, app)
+		}
 	}
 
 	logger.Info("moderation (block + report) endpoints mounted")
@@ -78,18 +80,12 @@ func (h *moderationAPI) listBlocks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	ids, err := h.app.Blocks.ListBlocked(r.Context(), me)
+	users, err := h.app.ProfileViews.Blocked(r.Context(), me)
 	if err != nil {
 		http.Error(w, "load failed", http.StatusInternalServerError)
 		return
 	}
-	out := make([]map[string]any, 0, len(ids))
-	for _, id := range ids {
-		if u, err := h.app.Users.GetUser(r.Context(), id); err == nil {
-			out = append(out, userCardJSON(u))
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"users": out})
+	writeJSON(w, http.StatusOK, map[string]any{"users": userCardsJSON(users)})
 }
 
 func (h *moderationAPI) createReport(w http.ResponseWriter, r *http.Request) {
@@ -150,22 +146,17 @@ func (h *moderationAPI) listReports(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	status := domain.ReportStatus(r.URL.Query().Get("status"))
-	reports, err := h.app.Reports.List(r.Context(), status,
+	rows, err := h.app.ModReports.List(r.Context(), domain.ReportStatus(r.URL.Query().Get("status")),
 		parseIntQuery(r, "limit", 50), parseIntQuery(r, "offset", 0))
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
-	out := make([]map[string]any, 0, len(reports))
-	for _, rep := range reports {
-		reporter := ""
-		if u, err := h.app.Users.GetUser(r.Context(), rep.ReporterID); err == nil {
-			reporter = u.Username
-		}
+	out := make([]map[string]any, 0, len(rows))
+	for _, rep := range rows {
 		out = append(out, map[string]any{
 			"id":          rep.ID.String(),
-			"reporter":    reporter,
+			"reporter":    rep.ReporterUsername,
 			"target_kind": string(rep.TargetKind),
 			"target_id":   rep.TargetID.String(),
 			"reason":      rep.Reason,
@@ -191,12 +182,9 @@ func (h *moderationAPI) resolveReport(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	_ = decodeJSONBody(r, &body)
-	status := domain.ReportStatus(body.Status)
-	if status != domain.ReportReviewed && status != domain.ReportDismissed {
-		status = domain.ReportReviewed
-	}
-	if err := h.app.Reports.UpdateStatus(r.Context(), id, status, admin.ID); err != nil {
-		http.Error(w, "update failed", http.StatusInternalServerError)
+	status, err := h.app.ModReports.Resolve(r.Context(), restActor(r, admin), id, domain.ReportStatus(body.Status))
+	if err != nil {
+		writeActionError(w, err, "update failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": string(status)})
@@ -224,15 +212,21 @@ func (h *moderationAPI) setRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid role", http.StatusBadRequest)
 		return
 	}
-	if err := h.app.Users.UpdateUserRole(r.Context(), target, role); err != nil {
-		http.Error(w, "update failed", http.StatusInternalServerError)
+	admin, _ := resolveAdminUser(r, h.app)
+	if h.app.UserAdmin == nil {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err := h.app.UserAdmin.ChangeRole(r.Context(), restActor(r, admin), target, role); err != nil {
+		writeActionError(w, err, "update failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"role": string(role)})
 }
 
 func (h *moderationAPI) hideActivity(w http.ResponseWriter, r *http.Request) {
-	if _, ok := resolveModeratorUser(r, h.app); !ok {
+	admin, ok := resolveModeratorUser(r, h.app)
+	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -245,8 +239,8 @@ func (h *moderationAPI) hideActivity(w http.ResponseWriter, r *http.Request) {
 		Hidden bool `json:"hidden"`
 	}
 	_ = decodeJSONBody(r, &body)
-	if err := h.app.Moderation.SetActivityHidden(r.Context(), id, body.Hidden); err != nil {
-		http.Error(w, "update failed", http.StatusInternalServerError)
+	if err := h.app.ModReports.SetActivityHidden(r.Context(), restActor(r, admin), id, body.Hidden); err != nil {
+		writeActionError(w, err, "update failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"hidden": body.Hidden})

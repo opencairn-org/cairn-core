@@ -23,7 +23,8 @@ func (r *AttachmentRepo) ListForActivity(ctx context.Context, activityID domain.
 	db := dbtx(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, activity_id, source_id, user_id, blob_id, external_url,
-		        content_type, caption, width, height, position, created_at
+		        content_type, caption, width, height, position, created_at,
+		        thumb_blob_id, medium_blob_id, blurhash
 		   FROM activity_attachments
 		  WHERE activity_id = $1
 		  ORDER BY position, created_at`,
@@ -48,7 +49,8 @@ func (r *AttachmentRepo) Get(ctx context.Context, id domain.AttachmentID) (domai
 	db := dbtx(ctx, r.pool)
 	row := db.QueryRow(ctx,
 		`SELECT id, activity_id, source_id, user_id, blob_id, external_url,
-		        content_type, caption, width, height, position, created_at
+		        content_type, caption, width, height, position, created_at,
+		        thumb_blob_id, medium_blob_id, blurhash
 		   FROM activity_attachments WHERE id = $1`,
 		id.UUID(),
 	)
@@ -70,10 +72,12 @@ func (r *AttachmentRepo) Add(ctx context.Context, a domain.Attachment) error {
 	}
 	_, err := db.Exec(ctx,
 		`INSERT INTO activity_attachments
-		   (activity_id, source_id, user_id, blob_id, external_url, content_type, caption, width, height, position)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		   (activity_id, source_id, user_id, blob_id, external_url, content_type, caption, width, height, position,
+		    thumb_blob_id, medium_blob_id, blurhash)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		a.ActivityID.UUID(), src, a.UserID.UUID(), a.BlobID, a.ExternalURL,
 		a.ContentType, a.Caption, a.Width, a.Height, a.Position,
+		a.ThumbBlobID, a.MediumBlobID, a.Blurhash,
 	)
 	if err != nil {
 		return fmt.Errorf("add attachment: %w", err)
@@ -118,6 +122,47 @@ func (r *AttachmentRepo) Delete(ctx context.Context, id domain.AttachmentID) (st
 	return blobID, nil
 }
 
+func (r *AttachmentRepo) SetVariants(ctx context.Context, id domain.AttachmentID, thumbBlobID, mediumBlobID, blurhash string, width, height int) error {
+	db := dbtx(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`UPDATE activity_attachments
+		    SET thumb_blob_id = $2, medium_blob_id = $3, blurhash = $4, width = $5, height = $6
+		  WHERE id = $1`,
+		id.UUID(), thumbBlobID, mediumBlobID, blurhash, width, height,
+	)
+	if err != nil {
+		return fmt.Errorf("set attachment variants: %w", err)
+	}
+	return nil
+}
+
+func (r *AttachmentRepo) ListWithoutVariants(ctx context.Context, limit int) ([]domain.Attachment, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT id, activity_id, source_id, user_id, blob_id, external_url,
+		        content_type, caption, width, height, position, created_at,
+		        thumb_blob_id, medium_blob_id, blurhash
+		   FROM activity_attachments
+		  WHERE thumb_blob_id = '' OR blurhash = ''
+		  ORDER BY created_at
+		  LIMIT $1`,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list attachments without variants: %w", err)
+	}
+	defer rows.Close()
+	var out []domain.Attachment
+	for rows.Next() {
+		a, err := scanAttachment(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 func scanAttachment(row rowScanner) (domain.Attachment, error) {
 	var (
 		id, aid, uid uuid.UUID
@@ -125,7 +170,8 @@ func scanAttachment(row rowScanner) (domain.Attachment, error) {
 		a            domain.Attachment
 	)
 	if err := row.Scan(&id, &aid, &sid, &uid, &a.BlobID, &a.ExternalURL,
-		&a.ContentType, &a.Caption, &a.Width, &a.Height, &a.Position, &a.CreatedAt); err != nil {
+		&a.ContentType, &a.Caption, &a.Width, &a.Height, &a.Position, &a.CreatedAt,
+		&a.ThumbBlobID, &a.MediumBlobID, &a.Blurhash); err != nil {
 		return domain.Attachment{}, err
 	}
 	a.ID = domain.AttachmentID(id)

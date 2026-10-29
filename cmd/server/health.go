@@ -4,10 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
-
-	"github.com/opencairn-org/cairn-core/internal/domain/capability"
-	"github.com/opencairn-org/cairn-core/internal/domain/health"
 )
 
 // mountHealth serves merged daily health metrics (raw per-provider samples
@@ -24,30 +20,14 @@ func mountHealth(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		dt := capability.DataType(r.URL.Query().Get("type"))
-		if dt.CategoryOf() != capability.CategoryTimeSeries {
-			http.Error(w, "type must be a time-series health data type", http.StatusBadRequest)
-			return
-		}
-		days := 90
-		if d := r.URL.Query().Get("days"); d != "" {
-			if n, err := strconv.Atoi(d); err == nil && n > 0 && n <= 3650 {
-				days = n
-			}
-		}
-		to := time.Now().UTC()
-		from := to.AddDate(0, 0, -days)
-
-		samples, err := app.Health.ListSamples(r.Context(), userID, dt, from, to)
+		dt := r.URL.Query().Get("type")
+		days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+		merged, err := app.HealthViews.Series(r.Context(), userID, dt, days)
 		if err != nil {
 			logger.Error("list health samples failed", "user_id", userID, "type", dt, "error", err)
-			http.Error(w, "load failed", http.StatusInternalServerError)
+			writeActionError(w, err, "load failed")
 			return
 		}
-		// Provider cascade for health is the AnyProvider default for now (latest
-		// wins); a per-type health priority can layer on later like merge policy.
-		merged := health.MergeDaily(samples, nil)
-
 		out := make([]map[string]any, 0, len(merged))
 		for _, m := range merged {
 			out = append(out, map[string]any{
@@ -57,6 +37,6 @@ func mountHealth(mux *http.ServeMux, app *App, logger *slog.Logger) {
 				"provider": m.Provider,
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"type": string(dt), "series": out})
+		writeJSON(w, http.StatusOK, map[string]any{"type": dt, "series": out})
 	})
 }

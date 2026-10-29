@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // mountSocial wires the follow-graph endpoints (multi-user v1).
@@ -98,51 +100,38 @@ func (h *socialAPI) followState(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	following, _ := h.app.Follows.IsFollowing(r.Context(), me, target)
-	counts, err := h.app.Follows.Counts(r.Context(), target)
+	st, err := h.app.ProfileViews.FollowState(r.Context(), me, target)
 	if err != nil {
 		http.Error(w, "load failed", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"following":       following,
-		"followers_count": counts.Followers,
-		"following_count": counts.Following,
-		"is_self":         me == target,
+		"following":       st.Following,
+		"followers_count": st.Counts.Followers,
+		"following_count": st.Counts.Following,
+		"is_self":         st.IsSelf,
 	})
 }
 
 // listHandler serves the followers ("followers") or following list of a user.
 func (h *socialAPI) listHandler(which string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		app := h.app
 		_, target, ok := h.meAndTarget(w, r)
 		if !ok {
 			return
 		}
 		limit := parseIntQuery(r, "limit", 50)
 		offset := parseIntQuery(r, "offset", 0)
-		var ids []domain.UserID
-		var err error
+		list := h.app.ProfileViews.Following
 		if which == "followers" {
-			ids, err = app.Follows.ListFollowers(r.Context(), target, limit, offset)
-		} else {
-			ids, err = app.Follows.ListFollowing(r.Context(), target, limit, offset)
+			list = h.app.ProfileViews.Followers
 		}
+		users, err := list(r.Context(), target, limit, offset)
 		if err != nil {
 			http.Error(w, "load failed", http.StatusInternalServerError)
 			return
 		}
-		out := make([]map[string]any, 0, len(ids))
-		for _, id := range ids {
-			u, err := app.Users.GetUser(r.Context(), id)
-			if err != nil {
-				h.logger.Warn("follow list: load user failed", "user_id", id, "error", err)
-				continue
-			}
-			out = append(out, userCardJSON(u))
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"users": out})
+		writeJSON(w, http.StatusOK, map[string]any{"users": userCardsJSON(users)})
 	}
 }
 
@@ -152,96 +141,74 @@ func (h *socialAPI) followingFeed(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	limit := parseIntQuery(r, "limit", 30)
-	if limit > 100 {
-		limit = 100
+	limit := parseIntQuery(r, "limit", view.FeedDefaultLimit)
+	if limit > view.FeedMaxLimit {
+		limit = view.FeedMaxLimit
 	}
 	offset := parseIntQuery(r, "offset", 0)
-	acts, err := h.app.Activities.ListFollowingFeed(r.Context(), me, limit, offset)
-	if err != nil {
-		h.logger.Error("following feed failed", "error", err)
-		http.Error(w, "feed failed", http.StatusInternalServerError)
-		return
+	items := h.app.Feeds.Following(r.Context(), me, limit, offset)
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, projectedFeedJSON(it))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"activities": h.feedItems(r, me, acts),
+		"activities": out,
 		"offset":     offset,
 		"limit":      limit,
 		// has_more reflects whether the DB returned a full page, independent
 		// of how many survived the visibility filter.
-		"has_more": len(acts) == limit,
+		"has_more": len(items) == limit,
 	})
 }
 
-// feedItems projects feed rows for the viewer, dropping ones they may not see.
-func (h *socialAPI) feedItems(r *http.Request, me domain.UserID, acts []domain.Activity) []map[string]any {
-	app := h.app
-	// Every row goes through the visibility choke-point (visibilityFor +
-	// projectActivityJSON), exactly like the single-activity projected path,
-	// so per-field policy + privacy zones are enforced — not just the coarse
-	// privacy flag. Owner cards + zones are cached per owner.
-	viewerPtr := &me
-	owners := map[domain.UserID]map[string]any{}
-	zonesByOwner := map[domain.UserID][]domain.PrivacyZone{}
-	out := make([]map[string]any, 0, len(acts))
-	for _, a := range acts {
-		cats := visibilityFor(r.Context(), app, a.UserID, viewerPtr, a.ID, false)
-		if len(cats) == 0 {
-			continue // blocked, or the owner's policy shares nothing with this viewer
-		}
-		owner, cached := owners[a.UserID]
-		if !cached {
-			if u, err := app.Users.GetUser(r.Context(), a.UserID); err == nil {
-				owner = userCardJSON(u)
-			}
-			owners[a.UserID] = owner
-			zonesByOwner[a.UserID] = ownerPrivacyZones(r.Context(), app, a.UserID, false)
-		}
-		item := projectActivityJSON(a, cats, zonesByOwner[a.UserID])
-		item["owner"] = owner
-		out = append(out, item)
+// projectedFeedJSON renders a projected (or own) feed row with its owner card.
+func projectedFeedJSON(it view.FeedItem) map[string]any {
+	var m map[string]any
+	if it.Own != nil {
+		m = projectActivityJSON(*it.Own, domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true}), nil)
+	} else {
+		m = projectedJSON(*it.Projected)
 	}
-	return out
+	m["owner"] = userCardJSON(it.Owner)
+	return m
 }
 
 func (h *socialAPI) projected(w http.ResponseWriter, r *http.Request) {
-	app := h.app
 	actID, err := domain.ParseUUID[domain.ActivityID](r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "bad id", http.StatusBadRequest)
 		return
 	}
-	a, err := app.Activities.GetActivity(r.Context(), actID)
-	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
 	var viewerPtr *domain.UserID
-	if v, ok := optionalSessionUser(r, app); ok {
+	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewerPtr = &v
 	}
-	isOwner := viewerPtr != nil && *viewerPtr == a.UserID
-	// Non-owners can never see a strictly-private or admin-hidden activity.
-	if !isOwner && (a.Privacy == domain.PrivacyPrivate || a.HiddenByAdmin) {
-		http.Error(w, "not permitted", http.StatusForbidden)
+	p, owner, isOwner, err := h.app.Feeds.Projected(r.Context(), actID, viewerPtr, false)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		writeActionError(w, err, "load failed")
 		return
 	}
-	cats := visibilityFor(r.Context(), app, a.UserID, viewerPtr, a.ID, false)
-	// An empty grant (e.g. a block, or a policy that shares nothing with
-	// this audience) means the viewer may not see the activity at all.
-	if !isOwner && len(cats) == 0 {
-		http.Error(w, "not permitted", http.StatusForbidden)
-		return
-	}
-	owner, _ := app.Users.GetUser(r.Context(), a.UserID)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"activity": projectActivityJSON(a, cats, ownerPrivacyZones(r.Context(), app, a.UserID, isOwner)),
+		"activity": projectedJSON(p),
 		"owner":    userCardJSON(owner),
 		"is_owner": isOwner,
 	})
 }
 
 // userCardJSON is the compact public-facing shape of a user in social lists.
+// userCardsJSON renders a list of user cards.
+func userCardsJSON(users []domain.User) []map[string]any {
+	out := make([]map[string]any, 0, len(users))
+	for _, u := range users {
+		out = append(out, userCardJSON(u))
+	}
+	return out
+}
+
 func userCardJSON(u domain.User) map[string]any {
 	return map[string]any{
 		"id":           u.ID.String(),

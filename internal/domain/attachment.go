@@ -20,4 +20,14 @@ type Attachment struct {
 	Height      int
 	Position    int
 	CreatedAt   time.Time
+
+	// Derived display variants (JPEG keys in blob storage) and a blurhash
+	// placeholder; empty until generated. MediumBlobID stays empty when the
+	// original is already within the medium bound (serve the original).
+	ThumbBlobID  string
+	MediumBlobID string
+	Blurhash     string
 }
+
+// HasVariants reports whether the display variants were generated.
+func (a Attachment) HasVariants() bool { return a.ThumbBlobID != "" && a.Blurhash != "" }

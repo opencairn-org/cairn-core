@@ -260,6 +260,17 @@ func (c *itestClient) post(path string, body any, want ...int) map[string]any {
 	return m
 }
 
+// put sends a JSON PUT and decodes the object it returns.
+func (c *itestClient) put(path string, body any, want ...int) map[string]any {
+	c.env.t.Helper()
+	raw := c.do(http.MethodPut, path, body, want...)
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		c.env.t.Errorf("PUT %s: not a JSON object: %.200s", path, raw)
+	}
+	return m
+}
+
 // rpc calls a Connect unary method with the JSON codec.
 func (c *itestClient) rpc(procedure string, body any, want ...int) {
 	c.env.t.Helper()
@@ -495,6 +506,33 @@ func TestAPI_EndToEnd(t *testing.T) {
 		adm.do(http.MethodGet, p, nil)
 		bob.do(http.MethodGet, p, nil, http.StatusForbidden, http.StatusUnauthorized, http.StatusServiceUnavailable)
 	}
+	// Admin user management + audit log (REST and RPC twins).
+	created := adm.post("/api/admin/users", map[string]any{"username": "dana", "email": "dana@example.com", "display_name": "Dana", "role": "user"}, http.StatusCreated)
+	dana, _ := created["user"].(map[string]any)
+	danaID := str(dana, "id")
+	if danaID == "" || created["invite"] == nil {
+		t.Fatalf("create user without password must mint an invite: %v", created)
+	}
+	adm.do(http.MethodGet, "/api/admin/users?limit=5", nil, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/users/"+danaID, nil, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID, map[string]any{"display_name": "Caroline", "timezone": "Europe/Berlin"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID+"/status", map[string]any{"status": "suspended", "reason": "test"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/users/"+danaID+"/status", map[string]any{"status": "active"}, http.StatusOK)
+	adm.do(http.MethodPost, "/api/admin/users/"+danaID+"/reset-password", nil, http.StatusOK)
+	adm.do(http.MethodPost, "/api/admin/users/"+danaID+"/revoke-credentials", map[string]any{"sessions": true}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetUser", map[string]any{"id": danaID}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ChangeUserRole", map[string]any{"id": danaID, "role": "USER_ROLE_ADMIN"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListAuditEntries", map[string]any{"resourceId": danaID}, http.StatusOK)
+	bob.rpc("/cairn.v1.AdminService/GetUser", map[string]any{"id": danaID}, http.StatusForbidden, http.StatusUnauthorized)
+	adm.do(http.MethodDelete, "/api/admin/users/"+danaID+"?confirm_username=wrong", nil, http.StatusBadRequest)
+	adm.do(http.MethodDelete, "/api/admin/users/"+danaID+"?confirm_username=dana&hard=true", nil, http.StatusOK)
+	var trail struct {
+		Entries []map[string]any `json:"entries"`
+	}
+	_ = json.Unmarshal(adm.do(http.MethodGet, "/api/admin/audit?resource_id="+danaID, nil, http.StatusOK), &trail)
+	if len(trail.Entries) < 5 {
+		t.Fatalf("audit trail for dana = %d entries", len(trail.Entries))
+	}
 	adm.do(http.MethodPost, "/api/admin/reports/"+str(rep, "id")+"/resolve", map[string]any{"status": "resolved"})
 	adm.do(http.MethodPost, "/api/admin/activities/"+bobAct+"/hide", map[string]any{"hidden": true})
 	adm.do(http.MethodPost, "/api/admin/federation/blocks", map[string]any{"domain": "evil.example", "reason": "spam"})
@@ -505,6 +543,49 @@ func TestAPI_EndToEnd(t *testing.T) {
 	adm.do(http.MethodPost, "/api/admin/geocode/backfill", nil, http.StatusServiceUnavailable)
 	adm.rpc("/cairn.v1.AdminService/ListUsers", nil, http.StatusOK)
 	adm.rpc("/cairn.v1.AdminService/ListOIDCClients", nil, http.StatusOK)
+	// Instance settings, health and outbound email on both surfaces.
+	adm.do(http.MethodGet, "/api/admin/instance/settings", nil, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/instance/settings", map[string]any{"instance_name": "IT Cairn", "primary_color": "#112233"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/instance/settings", map[string]any{"primary_color": "red"}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/GetInstanceSettings", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UpdateInstanceSettings", map[string]any{"fieldMask": []string{"instance_name"}, "settings": map[string]any{"instanceName": "Cairn"}}, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/health", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetSystemHealth", nil, http.StatusOK)
+	bob.do(http.MethodGet, "/api/admin/health", nil, http.StatusForbidden)
+	adm.rpc("/cairn.v1.AdminService/SendTestEmail", map[string]any{"toAddress": "itadmin@example.com"}, http.StatusOK, http.StatusServiceUnavailable)
+	adm.rpc("/cairn.v1.AdminService/ListInvites", map[string]any{"includeUsed": true}, http.StatusOK)
+	// Jobs, dead letters and orphaned sources.
+	adm.do(http.MethodGet, "/api/admin/jobs?limit=10", nil, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/jobs/"+uuid.NewString(), nil, http.StatusNotFound)
+	adm.do(http.MethodGet, "/api/admin/sources/orphaned", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListDeadLetterJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListOrphanedSources", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetJob", map[string]any{"id": uuid.NewString()}, http.StatusNotFound)
+	// Fleet, moderation, quota, federation blocks, merge defaults and ops twins.
+	for _, proc := range []string{"ListWorkers", "ListWorkerPools", "ListWorkerEnrollments", "ListReports", "ListBlockedDomains", "GetInstanceMergeDefaults"} {
+		adm.rpc("/cairn.v1.AdminService/"+proc, map[string]any{}, http.StatusOK)
+		bob.rpc("/cairn.v1.AdminService/"+proc, map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
+	}
+	adm.rpc("/cairn.v1.AdminService/BlockDomain", map[string]any{"domain": "Bad.Example", "reason": "rpc"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UnblockDomain", map[string]any{"domain": "bad.example"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/SetUserQuota", map[string]any{"userId": bobID, "maxActivities": 50}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/SetUserQuota", map[string]any{"userId": bobID}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UpdateInstanceMergeDefaults", map[string]any{"policies": map[string]any{"ride": map[string]any{"defaultProviders": []string{"strava"}}}}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RebuildGearTotals", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RunGeocodeBackfill", map[string]any{"limit": 5}, http.StatusServiceUnavailable)
+	adm.rpc("/cairn.v1.AdminService/CreateWorkerEnrollment", map[string]any{"name": "rpc-worker", "provider": "strava"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/RetireWorkerPool", map[string]any{"provider": "strava", "name": "nope"}, http.StatusNotFound)
+	adm.rpc("/cairn.v1.AdminService/SetActivityHidden", map[string]any{"activityId": bobAct, "hidden": false}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListWebhookSigningTokens", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/BulkRotateWebhookSigningTokens", map[string]any{"provider": "strava", "olderThan": "86400s"}, http.StatusOK)
+	bob.rpc("/cairn.v1.AdminService/ListWebhookSigningTokens", map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
+	adm.rpc("/cairn.v1.AdminService/TriggerMaintenance", map[string]any{"operation": "MAINTENANCE_OPERATION_PURGE_SOFT_DELETED", "confirmPhrase": "nope"}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/TriggerMaintenance", map[string]any{"operation": "MAINTENANCE_OPERATION_PURGE_SOFT_DELETED", "confirmPhrase": "PURGE_SOFT_DELETED"}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListMaintenanceJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/CancelMaintenanceJob", map[string]any{"jobId": "missing"}, http.StatusNotFound)
+	bob.rpc("/cairn.v1.AdminService/ListMaintenanceJobs", map[string]any{}, http.StatusForbidden, http.StatusUnauthorized)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)
@@ -516,7 +597,10 @@ func TestAPI_EndToEnd(t *testing.T) {
 	}, http.StatusOK)
 	carol.do(http.MethodGet, "/api/overview", nil, http.StatusOK)
 	carol.do(http.MethodPost, "/auth/invite/redeem", map[string]any{"code": str(inv, "code"), "username": "x", "email": "x@example.com", "password": "another good password"}, http.StatusBadRequest)
+	adm.do(http.MethodPost, "/api/admin/invites/"+str(inv, "id")+"/resend", nil, http.StatusBadRequest, http.StatusServiceUnavailable)
 	adm.do(http.MethodPost, "/api/admin/invites/"+str(inv, "id")+"/revoke", nil)
+	adm.rpc("/cairn.v1.AdminService/RevokeInvite", map[string]any{"id": str(inv, "id")}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/CreateInvite", map[string]any{"assignedRole": "USER_ROLE_USER"}, http.StatusOK)
 
 	// Password recovery and login failures never leak account existence.
 	anon.do(http.MethodPost, "/auth/password/forgot", map[string]any{"email": "italice@example.com"}, http.StatusOK)
@@ -577,6 +661,18 @@ func TestAPI_EndToEnd(t *testing.T) {
 			anon.do(http.MethodGet, "/mcp", nil)
 			oc.do(http.MethodPost, "/api/activities/"+actID+"/reviewed", nil, http.StatusUnauthorized, http.StatusForbidden)
 			anon.do(http.MethodPost, "/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {str(tok, "refresh_token")}, "client_id": {cid}}, http.StatusOK)
+			// Authorized apps: the client shows up with live tokens, then revoking it ends them.
+			var apps struct {
+				Apps []map[string]any `json:"apps"`
+			}
+			_ = json.Unmarshal(alice.do(http.MethodGet, "/api/oauth/apps", nil, http.StatusOK), &apps)
+			if len(apps.Apps) != 1 {
+				t.Fatalf("authorized apps = %v", apps)
+			}
+			alice.rpc("/cairn.v1.AuthService/ListAuthorizedApps", map[string]any{}, http.StatusOK)
+			alice.do(http.MethodDelete, "/api/oauth/apps/"+cid, nil, http.StatusOK)
+			alice.do(http.MethodDelete, "/api/oauth/apps/"+cid, nil, http.StatusNotFound)
+			oc.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
 			anon.do(http.MethodPost, "/oauth/revoke", url.Values{"token": {str(tok, "access_token")}, "client_id": {cid}})
 		}
 	}
@@ -651,6 +747,12 @@ func TestAPI_EndToEnd(t *testing.T) {
 	}
 	alice.do(http.MethodPost, "/api/activities/"+actID+"/sources/"+srcID+"/reimport", map[string]any{"mode": "replace"}, http.StatusServiceUnavailable)
 	alice.do(http.MethodPost, "/api/activities/"+actID+"/sources/"+srcID+"/detach", map[string]any{"reason": "duplicate"})
+	// DELETE soft-deletes through the shared use case: gone from reads, a
+	// second delete is 404, and another user's activity is invisible.
+	alice.do(http.MethodDelete, "/api/activities/"+act2, nil)
+	alice.do(http.MethodGet, "/api/activities/"+act2+"/manage", nil, http.StatusNotFound)
+	alice.do(http.MethodDelete, "/api/activities/"+act2, nil, http.StatusNotFound)
+	bob.do(http.MethodDelete, "/api/activities/"+actID, nil, http.StatusNotFound)
 
 	itestConnections(t, alice)
 

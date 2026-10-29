@@ -51,6 +51,9 @@ const (
 	// SegmentServiceListSegmentsProcedure is the procedure name of the SegmentService's ListSegments
 	// RPC.
 	SegmentServiceListSegmentsProcedure = "/cairn.v1.SegmentService/ListSegments"
+	// SegmentServiceListMySegmentsProcedure is the procedure name of the SegmentService's
+	// ListMySegments RPC.
+	SegmentServiceListMySegmentsProcedure = "/cairn.v1.SegmentService/ListMySegments"
 	// SegmentServiceGetSegmentProcedure is the procedure name of the SegmentService's GetSegment RPC.
 	SegmentServiceGetSegmentProcedure = "/cairn.v1.SegmentService/GetSegment"
 	// SegmentServiceCreateSegmentProcedure is the procedure name of the SegmentService's CreateSegment
@@ -88,6 +91,14 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_segment_proto.Services().ByName("SegmentService").Methods().ByName("ListSegments"),
 			Procedure:  SegmentServiceListSegmentsProcedure,
+		}
+	})
+	segmentServiceListMySegmentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_segment_proto.Services().ByName("SegmentService").Methods().ByName("ListMySegments"),
+			Procedure:        SegmentServiceListMySegmentsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	segmentServiceGetSegmentSpec = sync.OnceValue(func() connect.Spec {
@@ -164,32 +175,56 @@ var (
 
 // SegmentServiceClient is a client for the cairn.v1.SegmentService service.
 type SegmentServiceClient interface {
-	// List segments visible to the caller (their own private + their starred
-	// Strava mirrors + instance-shared).
+	// List segments visible to the caller (their own native ones, mirrors of
+	// their accounts, instance-shared ones) with filters and sort.
+	// Scope: segments:read.
 	ListSegments(context.Context, *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error)
+	// The caller's segments landing page: a headline status block and the
+	// segments they have efforts on, most attempted first (GET /api/segments).
+	// Scope: segments:read.
+	ListMySegments(context.Context, *v1.ListMySegmentsRequest) (*v1.ListMySegmentsResponse, error)
+	// Scope: segments:read.
 	GetSegment(context.Context, *v1.GetSegmentRequest) (*v1.GetSegmentResponse, error)
-	// Create a Cairn-native segment (source="cairn").
+	// Create a Cairn-native segment (source="native"); distance is derived
+	// from the polyline. backfill_efforts starts a background rematch of the
+	// caller's activities of that type. REST: POST /api/segments.
+	// Scope: segments:write.
 	CreateSegment(context.Context, *v1.CreateSegmentRequest) (*v1.CreateSegmentResponse, error)
-	// Update a Cairn-native segment. Strava-mirrored segments are read-only
-	// except for the starred flag (which propagates back to Strava via a job).
+	// Update a Cairn-native segment. Provider-mirrored segments are read-only
+	// except for the starred flag, which is stored locally (no push back to
+	// the provider). The polyline is locked once efforts exist.
+	// Scope: segments:write.
 	UpdateSegment(context.Context, *v1.UpdateSegmentRequest) (*v1.UpdateSegmentResponse, error)
+	// Delete the caller's native segment; its efforts go with it
+	// (keep_efforts=true is refused).
+	// Scope: segments:write.
 	DeleteSegment(context.Context, *v1.DeleteSegmentRequest) (*v1.DeleteSegmentResponse, error)
 	// Spatial search — used by the map view "show segments in this area".
+	// Scope: segments:read.
 	SearchSegmentsInBoundingBox(context.Context, *v1.SearchSegmentsInBoundingBoxRequest) (*v1.SearchSegmentsInBoundingBoxResponse, error)
 	// List efforts against a segment, with paging. For SCOPE_INSTANCE, all
-	// users' efforts; for SCOPE_PRIVATE, owner-only.
+	// users' efforts; otherwise only the caller's own.
+	// Scope: segments:read.
 	ListSegmentEfforts(context.Context, *v1.ListSegmentEffortsRequest) (*v1.ListSegmentEffortsResponse, error)
 	// List the calling user's efforts on a segment ordered by elapsed time
 	// ascending — the "my history" view.
+	// Scope: segments:read.
 	ListMySegmentEfforts(context.Context, *v1.ListMySegmentEffortsRequest) (*v1.ListMySegmentEffortsResponse, error)
-	// Leaderboard for instance-scoped segments.
+	// Leaderboard: each athlete's best effort in the window, ranked. On a
+	// private or mirrored segment the board holds only the caller. The
+	// biological_sex filter is refused (profiles do not share it).
+	// Scope: segments:read.
 	GetSegmentLeaderboard(context.Context, *v1.GetSegmentLeaderboardRequest) (*v1.GetSegmentLeaderboardResponse, error)
-	// Re-run matching for a single activity against all eligible segments.
-	// Useful after creating a new segment that overlaps existing rides.
+	// Re-run matching for a single activity against all eligible segments
+	// (synchronous; segment_ids is accepted but the full candidate set is
+	// always evaluated). Useful after creating a segment that overlaps
+	// existing rides.
+	// Scope: segments:write.
 	RematchActivity(context.Context, *v1.RematchActivityRequest) (*v1.RematchActivityResponse, error)
-	// Re-run matching for all of the caller's activities against a single
-	// segment. Used after creating a Cairn-native segment to backfill
-	// historical efforts. Queued as a background job.
+	// Re-run matching for all of the caller's activities of the segment's
+	// type (optionally within time_range). Runs in the background; the job
+	// id is informational.
+	// Scope: segments:write.
 	RematchSegment(context.Context, *v1.RematchSegmentRequest) (*v1.RematchSegmentResponse, error)
 }
 
@@ -201,32 +236,56 @@ func NewSegmentServiceClient(client *connect.Client) SegmentServiceClient {
 
 // SegmentServiceHandler is an implementation of the cairn.v1.SegmentService service.
 type SegmentServiceHandler interface {
-	// List segments visible to the caller (their own private + their starred
-	// Strava mirrors + instance-shared).
+	// List segments visible to the caller (their own native ones, mirrors of
+	// their accounts, instance-shared ones) with filters and sort.
+	// Scope: segments:read.
 	ListSegments(context.Context, *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error)
+	// The caller's segments landing page: a headline status block and the
+	// segments they have efforts on, most attempted first (GET /api/segments).
+	// Scope: segments:read.
+	ListMySegments(context.Context, *v1.ListMySegmentsRequest) (*v1.ListMySegmentsResponse, error)
+	// Scope: segments:read.
 	GetSegment(context.Context, *v1.GetSegmentRequest) (*v1.GetSegmentResponse, error)
-	// Create a Cairn-native segment (source="cairn").
+	// Create a Cairn-native segment (source="native"); distance is derived
+	// from the polyline. backfill_efforts starts a background rematch of the
+	// caller's activities of that type. REST: POST /api/segments.
+	// Scope: segments:write.
 	CreateSegment(context.Context, *v1.CreateSegmentRequest) (*v1.CreateSegmentResponse, error)
-	// Update a Cairn-native segment. Strava-mirrored segments are read-only
-	// except for the starred flag (which propagates back to Strava via a job).
+	// Update a Cairn-native segment. Provider-mirrored segments are read-only
+	// except for the starred flag, which is stored locally (no push back to
+	// the provider). The polyline is locked once efforts exist.
+	// Scope: segments:write.
 	UpdateSegment(context.Context, *v1.UpdateSegmentRequest) (*v1.UpdateSegmentResponse, error)
+	// Delete the caller's native segment; its efforts go with it
+	// (keep_efforts=true is refused).
+	// Scope: segments:write.
 	DeleteSegment(context.Context, *v1.DeleteSegmentRequest) (*v1.DeleteSegmentResponse, error)
 	// Spatial search — used by the map view "show segments in this area".
+	// Scope: segments:read.
 	SearchSegmentsInBoundingBox(context.Context, *v1.SearchSegmentsInBoundingBoxRequest) (*v1.SearchSegmentsInBoundingBoxResponse, error)
 	// List efforts against a segment, with paging. For SCOPE_INSTANCE, all
-	// users' efforts; for SCOPE_PRIVATE, owner-only.
+	// users' efforts; otherwise only the caller's own.
+	// Scope: segments:read.
 	ListSegmentEfforts(context.Context, *v1.ListSegmentEffortsRequest) (*v1.ListSegmentEffortsResponse, error)
 	// List the calling user's efforts on a segment ordered by elapsed time
 	// ascending — the "my history" view.
+	// Scope: segments:read.
 	ListMySegmentEfforts(context.Context, *v1.ListMySegmentEffortsRequest) (*v1.ListMySegmentEffortsResponse, error)
-	// Leaderboard for instance-scoped segments.
+	// Leaderboard: each athlete's best effort in the window, ranked. On a
+	// private or mirrored segment the board holds only the caller. The
+	// biological_sex filter is refused (profiles do not share it).
+	// Scope: segments:read.
 	GetSegmentLeaderboard(context.Context, *v1.GetSegmentLeaderboardRequest) (*v1.GetSegmentLeaderboardResponse, error)
-	// Re-run matching for a single activity against all eligible segments.
-	// Useful after creating a new segment that overlaps existing rides.
+	// Re-run matching for a single activity against all eligible segments
+	// (synchronous; segment_ids is accepted but the full candidate set is
+	// always evaluated). Useful after creating a segment that overlaps
+	// existing rides.
+	// Scope: segments:write.
 	RematchActivity(context.Context, *v1.RematchActivityRequest) (*v1.RematchActivityResponse, error)
-	// Re-run matching for all of the caller's activities against a single
-	// segment. Used after creating a Cairn-native segment to backfill
-	// historical efforts. Queued as a background job.
+	// Re-run matching for all of the caller's activities of the segment's
+	// type (optionally within time_range). Runs in the background; the job
+	// id is informational.
+	// Scope: segments:write.
 	RematchSegment(context.Context, *v1.RematchSegmentRequest) (*v1.RematchSegmentResponse, error)
 }
 
@@ -236,6 +295,7 @@ func RegisterSegmentServiceHandler(server *connect.Server, svc SegmentServiceHan
 	adapter := segmentServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: segmentServiceListSegmentsSpec(), Handler: adapter.listSegments},
+		connect.Method{Spec: segmentServiceListMySegmentsSpec(), Handler: adapter.listMySegments},
 		connect.Method{Spec: segmentServiceGetSegmentSpec(), Handler: adapter.getSegment},
 		connect.Method{Spec: segmentServiceCreateSegmentSpec(), Handler: adapter.createSegment},
 		connect.Method{Spec: segmentServiceUpdateSegmentSpec(), Handler: adapter.updateSegment},
@@ -254,6 +314,10 @@ type UnimplementedSegmentServiceHandler struct{}
 
 func (UnimplementedSegmentServiceHandler) ListSegments(context.Context, *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SegmentService.ListSegments is not implemented")
+}
+
+func (UnimplementedSegmentServiceHandler) ListMySegments(context.Context, *v1.ListMySegmentsRequest) (*v1.ListMySegmentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.SegmentService.ListMySegments is not implemented")
 }
 
 func (UnimplementedSegmentServiceHandler) GetSegment(context.Context, *v1.GetSegmentRequest) (*v1.GetSegmentResponse, error) {
@@ -303,6 +367,14 @@ type segmentServiceClient struct {
 func (c *segmentServiceClient) ListSegments(ctx context.Context, req *v1.ListSegmentsRequest) (*v1.ListSegmentsResponse, error) {
 	var res v1.ListSegmentsResponse
 	if err := c.client.CallUnary(ctx, segmentServiceListSegmentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *segmentServiceClient) ListMySegments(ctx context.Context, req *v1.ListMySegmentsRequest) (*v1.ListMySegmentsResponse, error) {
+	var res v1.ListMySegmentsResponse
+	if err := c.client.CallUnary(ctx, segmentServiceListMySegmentsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -396,6 +468,18 @@ func (h segmentServiceHandler) listSegments(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.ListSegments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h segmentServiceHandler) listMySegments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListMySegmentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListMySegments(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -674,6 +674,8 @@ const (
 	ActivitySort_ACTIVITY_SORT_START_TIME_ASC  ActivitySort = 2
 	ActivitySort_ACTIVITY_SORT_DISTANCE_DESC   ActivitySort = 3
 	ActivitySort_ACTIVITY_SORT_DURATION_DESC   ActivitySort = 4
+	ActivitySort_ACTIVITY_SORT_ELEVATION_DESC  ActivitySort = 5
+	ActivitySort_ACTIVITY_SORT_SPEED_DESC      ActivitySort = 6
 )
 
 // Enum value maps for ActivitySort.
@@ -684,6 +686,8 @@ var (
 		2: "ACTIVITY_SORT_START_TIME_ASC",
 		3: "ACTIVITY_SORT_DISTANCE_DESC",
 		4: "ACTIVITY_SORT_DURATION_DESC",
+		5: "ACTIVITY_SORT_ELEVATION_DESC",
+		6: "ACTIVITY_SORT_SPEED_DESC",
 	}
 	ActivitySort_value = map[string]int32{
 		"ACTIVITY_SORT_UNSPECIFIED":     0,
@@ -691,6 +695,8 @@ var (
 		"ACTIVITY_SORT_START_TIME_ASC":  2,
 		"ACTIVITY_SORT_DISTANCE_DESC":   3,
 		"ACTIVITY_SORT_DURATION_DESC":   4,
+		"ACTIVITY_SORT_ELEVATION_DESC":  5,
+		"ACTIVITY_SORT_SPEED_DESC":      6,
 	}
 )
 
@@ -806,6 +812,157 @@ func (ActivityEventType) EnumDescriptor() ([]byte, []int) {
 	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{10}
 }
 
+type SourcePreviewStatus int32
+
+const (
+	SourcePreviewStatus_SOURCE_PREVIEW_STATUS_UNSPECIFIED SourcePreviewStatus = 0
+	SourcePreviewStatus_SOURCE_PREVIEW_STATUS_PENDING     SourcePreviewStatus = 1 // waiting for the worker result
+	SourcePreviewStatus_SOURCE_PREVIEW_STATUS_READY       SourcePreviewStatus = 2 // diffs available; commit or discard
+)
+
+// Enum value maps for SourcePreviewStatus.
+var (
+	SourcePreviewStatus_name = map[int32]string{
+		0: "SOURCE_PREVIEW_STATUS_UNSPECIFIED",
+		1: "SOURCE_PREVIEW_STATUS_PENDING",
+		2: "SOURCE_PREVIEW_STATUS_READY",
+	}
+	SourcePreviewStatus_value = map[string]int32{
+		"SOURCE_PREVIEW_STATUS_UNSPECIFIED": 0,
+		"SOURCE_PREVIEW_STATUS_PENDING":     1,
+		"SOURCE_PREVIEW_STATUS_READY":       2,
+	}
+)
+
+func (x SourcePreviewStatus) Enum() *SourcePreviewStatus {
+	p := new(SourcePreviewStatus)
+	*p = x
+	return p
+}
+
+func (x SourcePreviewStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SourcePreviewStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_activity_proto_enumTypes[11].Descriptor()
+}
+
+func (SourcePreviewStatus) Type() protoreflect.EnumType {
+	return &file_cairn_v1_activity_proto_enumTypes[11]
+}
+
+func (x SourcePreviewStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SourcePreviewStatus.Descriptor instead.
+func (SourcePreviewStatus) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{11}
+}
+
+type ExportFormat int32
+
+const (
+	ExportFormat_EXPORT_FORMAT_UNSPECIFIED ExportFormat = 0
+	ExportFormat_EXPORT_FORMAT_GPX         ExportFormat = 1
+	ExportFormat_EXPORT_FORMAT_TCX         ExportFormat = 2
+	ExportFormat_EXPORT_FORMAT_FIT         ExportFormat = 3
+)
+
+// Enum value maps for ExportFormat.
+var (
+	ExportFormat_name = map[int32]string{
+		0: "EXPORT_FORMAT_UNSPECIFIED",
+		1: "EXPORT_FORMAT_GPX",
+		2: "EXPORT_FORMAT_TCX",
+		3: "EXPORT_FORMAT_FIT",
+	}
+	ExportFormat_value = map[string]int32{
+		"EXPORT_FORMAT_UNSPECIFIED": 0,
+		"EXPORT_FORMAT_GPX":         1,
+		"EXPORT_FORMAT_TCX":         2,
+		"EXPORT_FORMAT_FIT":         3,
+	}
+)
+
+func (x ExportFormat) Enum() *ExportFormat {
+	p := new(ExportFormat)
+	*p = x
+	return p
+}
+
+func (x ExportFormat) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExportFormat) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_activity_proto_enumTypes[12].Descriptor()
+}
+
+func (ExportFormat) Type() protoreflect.EnumType {
+	return &file_cairn_v1_activity_proto_enumTypes[12]
+}
+
+func (x ExportFormat) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExportFormat.Descriptor instead.
+func (ExportFormat) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{12}
+}
+
+// Tri-state classification flags.
+type ActivityFilter_Flag int32
+
+const (
+	ActivityFilter_FLAG_UNSPECIFIED ActivityFilter_Flag = 0 // any
+	ActivityFilter_FLAG_ONLY        ActivityFilter_Flag = 1 // must be set
+	ActivityFilter_FLAG_EXCLUDE     ActivityFilter_Flag = 2 // must be unset
+)
+
+// Enum value maps for ActivityFilter_Flag.
+var (
+	ActivityFilter_Flag_name = map[int32]string{
+		0: "FLAG_UNSPECIFIED",
+		1: "FLAG_ONLY",
+		2: "FLAG_EXCLUDE",
+	}
+	ActivityFilter_Flag_value = map[string]int32{
+		"FLAG_UNSPECIFIED": 0,
+		"FLAG_ONLY":        1,
+		"FLAG_EXCLUDE":     2,
+	}
+)
+
+func (x ActivityFilter_Flag) Enum() *ActivityFilter_Flag {
+	p := new(ActivityFilter_Flag)
+	*p = x
+	return p
+}
+
+func (x ActivityFilter_Flag) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityFilter_Flag) Descriptor() protoreflect.EnumDescriptor {
+	return file_cairn_v1_activity_proto_enumTypes[13].Descriptor()
+}
+
+func (ActivityFilter_Flag) Type() protoreflect.EnumType {
+	return &file_cairn_v1_activity_proto_enumTypes[13]
+}
+
+func (x ActivityFilter_Flag) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityFilter_Flag.Descriptor instead.
+func (ActivityFilter_Flag) EnumDescriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{13, 0}
+}
+
 type Activity struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -869,7 +1026,17 @@ type Activity struct {
 	// UpdateActivity; recompute never touches it).
 	GearSetBy GearSetBy `protobuf:"varint,31,opt,name=gear_set_by,json=gearSetBy,proto3,enum=cairn.v1.GearSetBy" json:"gear_set_by,omitempty"`
 	// Denormalised for list rendering; empty when no gear is attached.
-	GearName      string `protobuf:"bytes,32,opt,name=gear_name,json=gearName,proto3" json:"gear_name,omitempty"`
+	GearName string `protobuf:"bytes,32,opt,name=gear_name,json=gearName,proto3" json:"gear_name,omitempty"`
+	// Static course image (PNG), set when the activity has a renderable GPS
+	// track. Rendered on demand and cached; non-owners get the privacy-zone
+	// trimmed variant. See ContentUrl for caching rules.
+	MapImage *ContentUrl `protobuf:"bytes,33,opt,name=map_image,json=mapImage,proto3" json:"map_image,omitempty"`
+	// Changes when the course image would render differently (track or style
+	// version); cache the image under id + this value.
+	MapImageEtag string `protobuf:"bytes,34,opt,name=map_image_etag,json=mapImageEtag,proto3" json:"map_image_etag,omitempty"`
+	// No gear attached and the user has not decided "no gear" either, while
+	// they do own gear: a hint to prompt for it. False when the user has no gear.
+	GearUnset     bool `protobuf:"varint,35,opt,name=gear_unset,json=gearUnset,proto3" json:"gear_unset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1126,6 +1293,27 @@ func (x *Activity) GetGearName() string {
 		return x.GearName
 	}
 	return ""
+}
+
+func (x *Activity) GetMapImage() *ContentUrl {
+	if x != nil {
+		return x.MapImage
+	}
+	return nil
+}
+
+func (x *Activity) GetMapImageEtag() string {
+	if x != nil {
+		return x.MapImageEtag
+	}
+	return ""
+}
+
+func (x *Activity) GetGearUnset() bool {
+	if x != nil {
+		return x.GearUnset
+	}
+	return false
 }
 
 type ActivitySummary struct {
@@ -1812,8 +2000,11 @@ type ActivityLap struct {
 	AvgCadence      *int32                 `protobuf:"varint,11,opt,name=avg_cadence,json=avgCadence,proto3,oneof" json:"avg_cadence,omitempty"`
 	ElevationGainM  *float64               `protobuf:"fixed64,12,opt,name=elevation_gain_m,json=elevationGainM,proto3,oneof" json:"elevation_gain_m,omitempty"`
 	Label           string                 `protobuf:"bytes,13,opt,name=label,proto3" json:"label,omitempty"` // provider-supplied lap name
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Seconds from the activity start to the lap start.
+	StartOffsetS   int64    `protobuf:"varint,14,opt,name=start_offset_s,json=startOffsetS,proto3" json:"start_offset_s,omitempty"`
+	ElevationLossM *float64 `protobuf:"fixed64,15,opt,name=elevation_loss_m,json=elevationLossM,proto3,oneof" json:"elevation_loss_m,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ActivityLap) Reset() {
@@ -1935,6 +2126,20 @@ func (x *ActivityLap) GetLabel() string {
 		return x.Label
 	}
 	return ""
+}
+
+func (x *ActivityLap) GetStartOffsetS() int64 {
+	if x != nil {
+		return x.StartOffsetS
+	}
+	return 0
+}
+
+func (x *ActivityLap) GetElevationLossM() float64 {
+	if x != nil && x.ElevationLossM != nil {
+		return *x.ElevationLossM
+	}
+	return 0
 }
 
 type StreamSummary struct {
@@ -2847,6 +3052,414 @@ func (x *ListActivitiesRequest) GetIncludeSources() bool {
 	return false
 }
 
+// The activity filter bar, shared by SearchActivities and the heatmap so the
+// same filter means the same thing everywhere. Empty / unset = any.
+type ActivityFilter struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Activity types to include; at most one is supported today (more →
+	// InvalidArgument), the field is repeated for forward compatibility.
+	Types []ActivityType `protobuf:"varint,1,rep,packed,name=types,proto3,enum=cairn.v1.ActivityType" json:"types,omitempty"`
+	// Disciplines as their raw enum strings ("ride_road"); at most one today.
+	Disciplines []string `protobuf:"bytes,2,rep,name=disciplines,proto3" json:"disciplines,omitempty"`
+	// Half-open start_time range [from, to).
+	TimeRange *TimeRange `protobuf:"bytes,3,opt,name=time_range,json=timeRange,proto3" json:"time_range,omitempty"`
+	// Gear ids the activity must be attached to (any of); max 50.
+	GearIds []string            `protobuf:"bytes,4,rep,name=gear_ids,json=gearIds,proto3" json:"gear_ids,omitempty"`
+	Virtual ActivityFilter_Flag `protobuf:"varint,5,opt,name=virtual,proto3,enum=cairn.v1.ActivityFilter_Flag" json:"virtual,omitempty"`
+	Ebike   ActivityFilter_Flag `protobuf:"varint,6,opt,name=ebike,proto3,enum=cairn.v1.ActivityFilter_Flag" json:"ebike,omitempty"`
+	Commute ActivityFilter_Flag `protobuf:"varint,7,opt,name=commute,proto3,enum=cairn.v1.ActivityFilter_Flag" json:"commute,omitempty"`
+	Race    ActivityFilter_Flag `protobuf:"varint,8,opt,name=race,proto3,enum=cairn.v1.ActivityFilter_Flag" json:"race,omitempty"`
+	// Inclusive numeric ranges in SI units; an activity with no value for the
+	// column never matches a bounded range.
+	DistanceMinM  *float64 `protobuf:"fixed64,9,opt,name=distance_min_m,json=distanceMinM,proto3,oneof" json:"distance_min_m,omitempty"`
+	DistanceMaxM  *float64 `protobuf:"fixed64,10,opt,name=distance_max_m,json=distanceMaxM,proto3,oneof" json:"distance_max_m,omitempty"`
+	DurationMinS  *float64 `protobuf:"fixed64,11,opt,name=duration_min_s,json=durationMinS,proto3,oneof" json:"duration_min_s,omitempty"` // elapsed
+	DurationMaxS  *float64 `protobuf:"fixed64,12,opt,name=duration_max_s,json=durationMaxS,proto3,oneof" json:"duration_max_s,omitempty"`
+	ElevationMinM *float64 `protobuf:"fixed64,13,opt,name=elevation_min_m,json=elevationMinM,proto3,oneof" json:"elevation_min_m,omitempty"`
+	ElevationMaxM *float64 `protobuf:"fixed64,14,opt,name=elevation_max_m,json=elevationMaxM,proto3,oneof" json:"elevation_max_m,omitempty"`
+	SpeedMinMps   *float64 `protobuf:"fixed64,15,opt,name=speed_min_mps,json=speedMinMps,proto3,oneof" json:"speed_min_mps,omitempty"` // average
+	SpeedMaxMps   *float64 `protobuf:"fixed64,16,opt,name=speed_max_mps,json=speedMaxMps,proto3,oneof" json:"speed_max_mps,omitempty"`
+	HrMinBpm      *float64 `protobuf:"fixed64,17,opt,name=hr_min_bpm,json=hrMinBpm,proto3,oneof" json:"hr_min_bpm,omitempty"` // average
+	HrMaxBpm      *float64 `protobuf:"fixed64,18,opt,name=hr_max_bpm,json=hrMaxBpm,proto3,oneof" json:"hr_max_bpm,omitempty"`
+	PowerMinW     *float64 `protobuf:"fixed64,19,opt,name=power_min_w,json=powerMinW,proto3,oneof" json:"power_min_w,omitempty"` // average
+	PowerMaxW     *float64 `protobuf:"fixed64,20,opt,name=power_max_w,json=powerMaxW,proto3,oneof" json:"power_max_w,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityFilter) Reset() {
+	*x = ActivityFilter{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityFilter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityFilter) ProtoMessage() {}
+
+func (x *ActivityFilter) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityFilter.ProtoReflect.Descriptor instead.
+func (*ActivityFilter) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ActivityFilter) GetTypes() []ActivityType {
+	if x != nil {
+		return x.Types
+	}
+	return nil
+}
+
+func (x *ActivityFilter) GetDisciplines() []string {
+	if x != nil {
+		return x.Disciplines
+	}
+	return nil
+}
+
+func (x *ActivityFilter) GetTimeRange() *TimeRange {
+	if x != nil {
+		return x.TimeRange
+	}
+	return nil
+}
+
+func (x *ActivityFilter) GetGearIds() []string {
+	if x != nil {
+		return x.GearIds
+	}
+	return nil
+}
+
+func (x *ActivityFilter) GetVirtual() ActivityFilter_Flag {
+	if x != nil {
+		return x.Virtual
+	}
+	return ActivityFilter_FLAG_UNSPECIFIED
+}
+
+func (x *ActivityFilter) GetEbike() ActivityFilter_Flag {
+	if x != nil {
+		return x.Ebike
+	}
+	return ActivityFilter_FLAG_UNSPECIFIED
+}
+
+func (x *ActivityFilter) GetCommute() ActivityFilter_Flag {
+	if x != nil {
+		return x.Commute
+	}
+	return ActivityFilter_FLAG_UNSPECIFIED
+}
+
+func (x *ActivityFilter) GetRace() ActivityFilter_Flag {
+	if x != nil {
+		return x.Race
+	}
+	return ActivityFilter_FLAG_UNSPECIFIED
+}
+
+func (x *ActivityFilter) GetDistanceMinM() float64 {
+	if x != nil && x.DistanceMinM != nil {
+		return *x.DistanceMinM
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetDistanceMaxM() float64 {
+	if x != nil && x.DistanceMaxM != nil {
+		return *x.DistanceMaxM
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetDurationMinS() float64 {
+	if x != nil && x.DurationMinS != nil {
+		return *x.DurationMinS
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetDurationMaxS() float64 {
+	if x != nil && x.DurationMaxS != nil {
+		return *x.DurationMaxS
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetElevationMinM() float64 {
+	if x != nil && x.ElevationMinM != nil {
+		return *x.ElevationMinM
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetElevationMaxM() float64 {
+	if x != nil && x.ElevationMaxM != nil {
+		return *x.ElevationMaxM
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetSpeedMinMps() float64 {
+	if x != nil && x.SpeedMinMps != nil {
+		return *x.SpeedMinMps
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetSpeedMaxMps() float64 {
+	if x != nil && x.SpeedMaxMps != nil {
+		return *x.SpeedMaxMps
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetHrMinBpm() float64 {
+	if x != nil && x.HrMinBpm != nil {
+		return *x.HrMinBpm
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetHrMaxBpm() float64 {
+	if x != nil && x.HrMaxBpm != nil {
+		return *x.HrMaxBpm
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetPowerMinW() float64 {
+	if x != nil && x.PowerMinW != nil {
+		return *x.PowerMinW
+	}
+	return 0
+}
+
+func (x *ActivityFilter) GetPowerMaxW() float64 {
+	if x != nil && x.PowerMaxW != nil {
+		return *x.PowerMaxW
+	}
+	return 0
+}
+
+// Facets of a search: only values the user actually has, so a filter UI
+// never offers impossible options. types and disciplines respect every
+// filter except their own dimension; years are unfiltered.
+type ActivityFacets struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Types         []*Facet               `protobuf:"bytes,1,rep,name=types,proto3" json:"types,omitempty"`
+	Disciplines   []*Facet               `protobuf:"bytes,2,rep,name=disciplines,proto3" json:"disciplines,omitempty"`
+	Years         []*Facet               `protobuf:"bytes,3,rep,name=years,proto3" json:"years,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityFacets) Reset() {
+	*x = ActivityFacets{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityFacets) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityFacets) ProtoMessage() {}
+
+func (x *ActivityFacets) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityFacets.ProtoReflect.Descriptor instead.
+func (*ActivityFacets) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ActivityFacets) GetTypes() []*Facet {
+	if x != nil {
+		return x.Types
+	}
+	return nil
+}
+
+func (x *ActivityFacets) GetDisciplines() []*Facet {
+	if x != nil {
+		return x.Disciplines
+	}
+	return nil
+}
+
+func (x *ActivityFacets) GetYears() []*Facet {
+	if x != nil {
+		return x.Years
+	}
+	return nil
+}
+
+type SearchActivitiesRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Filter *ActivityFilter        `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	// ACTIVITY_SORT_START_TIME_DESC when unset.
+	Sort ActivitySort `protobuf:"varint,2,opt,name=sort,proto3,enum=cairn.v1.ActivitySort" json:"sort,omitempty"`
+	// limit default 50, max 200.
+	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchActivitiesRequest) Reset() {
+	*x = SearchActivitiesRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchActivitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchActivitiesRequest) ProtoMessage() {}
+
+func (x *SearchActivitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchActivitiesRequest.ProtoReflect.Descriptor instead.
+func (*SearchActivitiesRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SearchActivitiesRequest) GetFilter() *ActivityFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *SearchActivitiesRequest) GetSort() ActivitySort {
+	if x != nil {
+		return x.Sort
+	}
+	return ActivitySort_ACTIVITY_SORT_UNSPECIFIED
+}
+
+func (x *SearchActivitiesRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type SearchActivitiesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Without sources; GetActivity has them.
+	Activities []*Activity     `protobuf:"bytes,1,rep,name=activities,proto3" json:"activities,omitempty"`
+	Facets     *ActivityFacets `protobuf:"bytes,2,opt,name=facets,proto3" json:"facets,omitempty"`
+	// total: every activity of the user; matched: those matching the filter.
+	Total         int32         `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	Matched       int32         `protobuf:"varint,4,opt,name=matched,proto3" json:"matched,omitempty"`
+	Page          *PageResponse `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchActivitiesResponse) Reset() {
+	*x = SearchActivitiesResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchActivitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchActivitiesResponse) ProtoMessage() {}
+
+func (x *SearchActivitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchActivitiesResponse.ProtoReflect.Descriptor instead.
+func (*SearchActivitiesResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SearchActivitiesResponse) GetActivities() []*Activity {
+	if x != nil {
+		return x.Activities
+	}
+	return nil
+}
+
+func (x *SearchActivitiesResponse) GetFacets() *ActivityFacets {
+	if x != nil {
+		return x.Facets
+	}
+	return nil
+}
+
+func (x *SearchActivitiesResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *SearchActivitiesResponse) GetMatched() int32 {
+	if x != nil {
+		return x.Matched
+	}
+	return 0
+}
+
+func (x *SearchActivitiesResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
 type ListActivitiesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Activities    []*Activity            `protobuf:"bytes,1,rep,name=activities,proto3" json:"activities,omitempty"`
@@ -2857,7 +3470,7 @@ type ListActivitiesResponse struct {
 
 func (x *ListActivitiesResponse) Reset() {
 	*x = ListActivitiesResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[13]
+	mi := &file_cairn_v1_activity_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2869,7 +3482,7 @@ func (x *ListActivitiesResponse) String() string {
 func (*ListActivitiesResponse) ProtoMessage() {}
 
 func (x *ListActivitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[13]
+	mi := &file_cairn_v1_activity_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2882,7 +3495,7 @@ func (x *ListActivitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActivitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListActivitiesResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{13}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListActivitiesResponse) GetActivities() []*Activity {
@@ -2908,7 +3521,7 @@ type GetActivityRequest struct {
 
 func (x *GetActivityRequest) Reset() {
 	*x = GetActivityRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[14]
+	mi := &file_cairn_v1_activity_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2920,7 +3533,7 @@ func (x *GetActivityRequest) String() string {
 func (*GetActivityRequest) ProtoMessage() {}
 
 func (x *GetActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[14]
+	mi := &file_cairn_v1_activity_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2933,7 +3546,7 @@ func (x *GetActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActivityRequest.ProtoReflect.Descriptor instead.
 func (*GetActivityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{14}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetActivityRequest) GetId() string {
@@ -2952,7 +3565,7 @@ type GetActivityResponse struct {
 
 func (x *GetActivityResponse) Reset() {
 	*x = GetActivityResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[15]
+	mi := &file_cairn_v1_activity_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2964,7 +3577,7 @@ func (x *GetActivityResponse) String() string {
 func (*GetActivityResponse) ProtoMessage() {}
 
 func (x *GetActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[15]
+	mi := &file_cairn_v1_activity_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2977,7 +3590,7 @@ func (x *GetActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActivityResponse.ProtoReflect.Descriptor instead.
 func (*GetActivityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{15}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetActivityResponse) GetActivity() *Activity {
@@ -3024,7 +3637,7 @@ type UpdateActivityRequest struct {
 
 func (x *UpdateActivityRequest) Reset() {
 	*x = UpdateActivityRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[16]
+	mi := &file_cairn_v1_activity_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3036,7 +3649,7 @@ func (x *UpdateActivityRequest) String() string {
 func (*UpdateActivityRequest) ProtoMessage() {}
 
 func (x *UpdateActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[16]
+	mi := &file_cairn_v1_activity_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3049,7 +3662,7 @@ func (x *UpdateActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateActivityRequest.ProtoReflect.Descriptor instead.
 func (*UpdateActivityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{16}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateActivityRequest) GetId() string {
@@ -3187,7 +3800,7 @@ type UpdateActivityResponse struct {
 
 func (x *UpdateActivityResponse) Reset() {
 	*x = UpdateActivityResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[17]
+	mi := &file_cairn_v1_activity_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3199,7 +3812,7 @@ func (x *UpdateActivityResponse) String() string {
 func (*UpdateActivityResponse) ProtoMessage() {}
 
 func (x *UpdateActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[17]
+	mi := &file_cairn_v1_activity_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3212,7 +3825,7 @@ func (x *UpdateActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateActivityResponse.ProtoReflect.Descriptor instead.
 func (*UpdateActivityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{17}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateActivityResponse) GetActivity() *Activity {
@@ -3231,7 +3844,7 @@ type DeleteActivityRequest struct {
 
 func (x *DeleteActivityRequest) Reset() {
 	*x = DeleteActivityRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[18]
+	mi := &file_cairn_v1_activity_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3243,7 +3856,7 @@ func (x *DeleteActivityRequest) String() string {
 func (*DeleteActivityRequest) ProtoMessage() {}
 
 func (x *DeleteActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[18]
+	mi := &file_cairn_v1_activity_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3256,7 +3869,7 @@ func (x *DeleteActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteActivityRequest.ProtoReflect.Descriptor instead.
 func (*DeleteActivityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{18}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteActivityRequest) GetId() string {
@@ -3274,7 +3887,7 @@ type DeleteActivityResponse struct {
 
 func (x *DeleteActivityResponse) Reset() {
 	*x = DeleteActivityResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[19]
+	mi := &file_cairn_v1_activity_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3286,7 +3899,7 @@ func (x *DeleteActivityResponse) String() string {
 func (*DeleteActivityResponse) ProtoMessage() {}
 
 func (x *DeleteActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[19]
+	mi := &file_cairn_v1_activity_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3299,7 +3912,7 @@ func (x *DeleteActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteActivityResponse.ProtoReflect.Descriptor instead.
 func (*DeleteActivityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{19}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{23}
 }
 
 type StreamActivityEventsRequest struct {
@@ -3312,7 +3925,7 @@ type StreamActivityEventsRequest struct {
 
 func (x *StreamActivityEventsRequest) Reset() {
 	*x = StreamActivityEventsRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[20]
+	mi := &file_cairn_v1_activity_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3324,7 +3937,7 @@ func (x *StreamActivityEventsRequest) String() string {
 func (*StreamActivityEventsRequest) ProtoMessage() {}
 
 func (x *StreamActivityEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[20]
+	mi := &file_cairn_v1_activity_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3337,7 +3950,7 @@ func (x *StreamActivityEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamActivityEventsRequest.ProtoReflect.Descriptor instead.
 func (*StreamActivityEventsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{20}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *StreamActivityEventsRequest) GetTypes() []ActivityEventType {
@@ -3367,7 +3980,7 @@ type ActivityEvent struct {
 
 func (x *ActivityEvent) Reset() {
 	*x = ActivityEvent{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[21]
+	mi := &file_cairn_v1_activity_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3379,7 +3992,7 @@ func (x *ActivityEvent) String() string {
 func (*ActivityEvent) ProtoMessage() {}
 
 func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[21]
+	mi := &file_cairn_v1_activity_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3392,7 +4005,7 @@ func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivityEvent.ProtoReflect.Descriptor instead.
 func (*ActivityEvent) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{21}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ActivityEvent) GetType() ActivityEventType {
@@ -3467,7 +4080,7 @@ type ListActivitySourcesRequest struct {
 
 func (x *ListActivitySourcesRequest) Reset() {
 	*x = ListActivitySourcesRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[22]
+	mi := &file_cairn_v1_activity_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3479,7 +4092,7 @@ func (x *ListActivitySourcesRequest) String() string {
 func (*ListActivitySourcesRequest) ProtoMessage() {}
 
 func (x *ListActivitySourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[22]
+	mi := &file_cairn_v1_activity_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3492,7 +4105,7 @@ func (x *ListActivitySourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActivitySourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListActivitySourcesRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{22}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListActivitySourcesRequest) GetActivityId() string {
@@ -3511,7 +4124,7 @@ type ListActivitySourcesResponse struct {
 
 func (x *ListActivitySourcesResponse) Reset() {
 	*x = ListActivitySourcesResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[23]
+	mi := &file_cairn_v1_activity_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3523,7 +4136,7 @@ func (x *ListActivitySourcesResponse) String() string {
 func (*ListActivitySourcesResponse) ProtoMessage() {}
 
 func (x *ListActivitySourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[23]
+	mi := &file_cairn_v1_activity_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3536,7 +4149,7 @@ func (x *ListActivitySourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActivitySourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListActivitySourcesResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{23}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListActivitySourcesResponse) GetSources() []*ActivitySource {
@@ -3558,7 +4171,7 @@ type ReimportSourceRequest struct {
 
 func (x *ReimportSourceRequest) Reset() {
 	*x = ReimportSourceRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[24]
+	mi := &file_cairn_v1_activity_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3570,7 +4183,7 @@ func (x *ReimportSourceRequest) String() string {
 func (*ReimportSourceRequest) ProtoMessage() {}
 
 func (x *ReimportSourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[24]
+	mi := &file_cairn_v1_activity_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3583,7 +4196,7 @@ func (x *ReimportSourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReimportSourceRequest.ProtoReflect.Descriptor instead.
 func (*ReimportSourceRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{24}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReimportSourceRequest) GetActivitySourceId() string {
@@ -3609,7 +4222,7 @@ type ReimportSourceResponse struct {
 
 func (x *ReimportSourceResponse) Reset() {
 	*x = ReimportSourceResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[25]
+	mi := &file_cairn_v1_activity_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3621,7 +4234,7 @@ func (x *ReimportSourceResponse) String() string {
 func (*ReimportSourceResponse) ProtoMessage() {}
 
 func (x *ReimportSourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[25]
+	mi := &file_cairn_v1_activity_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3634,7 +4247,7 @@ func (x *ReimportSourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReimportSourceResponse.ProtoReflect.Descriptor instead.
 func (*ReimportSourceResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{25}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ReimportSourceResponse) GetJobId() string {
@@ -3654,7 +4267,7 @@ type PreviewSourceReimportRequest struct {
 
 func (x *PreviewSourceReimportRequest) Reset() {
 	*x = PreviewSourceReimportRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[26]
+	mi := &file_cairn_v1_activity_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3666,7 +4279,7 @@ func (x *PreviewSourceReimportRequest) String() string {
 func (*PreviewSourceReimportRequest) ProtoMessage() {}
 
 func (x *PreviewSourceReimportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[26]
+	mi := &file_cairn_v1_activity_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3679,7 +4292,7 @@ func (x *PreviewSourceReimportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewSourceReimportRequest.ProtoReflect.Descriptor instead.
 func (*PreviewSourceReimportRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{26}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *PreviewSourceReimportRequest) GetActivitySourceId() string {
@@ -3706,7 +4319,7 @@ type PreviewSourceReimportResponse struct {
 
 func (x *PreviewSourceReimportResponse) Reset() {
 	*x = PreviewSourceReimportResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[27]
+	mi := &file_cairn_v1_activity_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3718,7 +4331,7 @@ func (x *PreviewSourceReimportResponse) String() string {
 func (*PreviewSourceReimportResponse) ProtoMessage() {}
 
 func (x *PreviewSourceReimportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[27]
+	mi := &file_cairn_v1_activity_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3731,7 +4344,7 @@ func (x *PreviewSourceReimportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewSourceReimportResponse.ProtoReflect.Descriptor instead.
 func (*PreviewSourceReimportResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{27}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *PreviewSourceReimportResponse) GetPreviewId() string {
@@ -3748,6 +4361,265 @@ func (x *PreviewSourceReimportResponse) GetJobId() string {
 	return ""
 }
 
+// One changed field of a preview diff, rendered as strings.
+type FieldChange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Before        string                 `protobuf:"bytes,2,opt,name=before,proto3" json:"before,omitempty"`
+	After         string                 `protobuf:"bytes,3,opt,name=after,proto3" json:"after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FieldChange) Reset() {
+	*x = FieldChange{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FieldChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FieldChange) ProtoMessage() {}
+
+func (x *FieldChange) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FieldChange.ProtoReflect.Descriptor instead.
+func (*FieldChange) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *FieldChange) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *FieldChange) GetBefore() string {
+	if x != nil {
+		return x.Before
+	}
+	return ""
+}
+
+func (x *FieldChange) GetAfter() string {
+	if x != nil {
+		return x.After
+	}
+	return ""
+}
+
+type SourcePreview struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActivitySourceId string                 `protobuf:"bytes,2,opt,name=activity_source_id,json=activitySourceId,proto3" json:"activity_source_id,omitempty"`
+	ActivityId       string                 `protobuf:"bytes,3,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	JobId            string                 `protobuf:"bytes,4,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	Status           SourcePreviewStatus    `protobuf:"varint,5,opt,name=status,proto3,enum=cairn.v1.SourcePreviewStatus" json:"status,omitempty"`
+	// What the fresh payload changes on the source itself.
+	SourceDiff []*FieldChange `protobuf:"bytes,6,rep,name=source_diff,json=sourceDiff,proto3" json:"source_diff,omitempty"`
+	// What committing would change on the merged activity.
+	MergedDiff    []*FieldChange         `protobuf:"bytes,7,rep,name=merged_diff,json=mergedDiff,proto3" json:"merged_diff,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourcePreview) Reset() {
+	*x = SourcePreview{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourcePreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourcePreview) ProtoMessage() {}
+
+func (x *SourcePreview) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourcePreview.ProtoReflect.Descriptor instead.
+func (*SourcePreview) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *SourcePreview) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SourcePreview) GetActivitySourceId() string {
+	if x != nil {
+		return x.ActivitySourceId
+	}
+	return ""
+}
+
+func (x *SourcePreview) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *SourcePreview) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *SourcePreview) GetStatus() SourcePreviewStatus {
+	if x != nil {
+		return x.Status
+	}
+	return SourcePreviewStatus_SOURCE_PREVIEW_STATUS_UNSPECIFIED
+}
+
+func (x *SourcePreview) GetSourceDiff() []*FieldChange {
+	if x != nil {
+		return x.SourceDiff
+	}
+	return nil
+}
+
+func (x *SourcePreview) GetMergedDiff() []*FieldChange {
+	if x != nil {
+		return x.MergedDiff
+	}
+	return nil
+}
+
+func (x *SourcePreview) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SourcePreview) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type GetSourcePreviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PreviewId     string                 `protobuf:"bytes,1,opt,name=preview_id,json=previewId,proto3" json:"preview_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSourcePreviewRequest) Reset() {
+	*x = GetSourcePreviewRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSourcePreviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSourcePreviewRequest) ProtoMessage() {}
+
+func (x *GetSourcePreviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSourcePreviewRequest.ProtoReflect.Descriptor instead.
+func (*GetSourcePreviewRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetSourcePreviewRequest) GetPreviewId() string {
+	if x != nil {
+		return x.PreviewId
+	}
+	return ""
+}
+
+type GetSourcePreviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preview       *SourcePreview         `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSourcePreviewResponse) Reset() {
+	*x = GetSourcePreviewResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSourcePreviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSourcePreviewResponse) ProtoMessage() {}
+
+func (x *GetSourcePreviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSourcePreviewResponse.ProtoReflect.Descriptor instead.
+func (*GetSourcePreviewResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetSourcePreviewResponse) GetPreview() *SourcePreview {
+	if x != nil {
+		return x.Preview
+	}
+	return nil
+}
+
 type CommitSourcePreviewRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PreviewId     string                 `protobuf:"bytes,1,opt,name=preview_id,json=previewId,proto3" json:"preview_id,omitempty"`
@@ -3757,7 +4629,7 @@ type CommitSourcePreviewRequest struct {
 
 func (x *CommitSourcePreviewRequest) Reset() {
 	*x = CommitSourcePreviewRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[28]
+	mi := &file_cairn_v1_activity_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3769,7 +4641,7 @@ func (x *CommitSourcePreviewRequest) String() string {
 func (*CommitSourcePreviewRequest) ProtoMessage() {}
 
 func (x *CommitSourcePreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[28]
+	mi := &file_cairn_v1_activity_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3782,7 +4654,7 @@ func (x *CommitSourcePreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitSourcePreviewRequest.ProtoReflect.Descriptor instead.
 func (*CommitSourcePreviewRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{28}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CommitSourcePreviewRequest) GetPreviewId() string {
@@ -3801,7 +4673,7 @@ type CommitSourcePreviewResponse struct {
 
 func (x *CommitSourcePreviewResponse) Reset() {
 	*x = CommitSourcePreviewResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[29]
+	mi := &file_cairn_v1_activity_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3813,7 +4685,7 @@ func (x *CommitSourcePreviewResponse) String() string {
 func (*CommitSourcePreviewResponse) ProtoMessage() {}
 
 func (x *CommitSourcePreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[29]
+	mi := &file_cairn_v1_activity_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3826,7 +4698,7 @@ func (x *CommitSourcePreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitSourcePreviewResponse.ProtoReflect.Descriptor instead.
 func (*CommitSourcePreviewResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{29}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CommitSourcePreviewResponse) GetActivity() *Activity {
@@ -3845,7 +4717,7 @@ type DiscardSourcePreviewRequest struct {
 
 func (x *DiscardSourcePreviewRequest) Reset() {
 	*x = DiscardSourcePreviewRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[30]
+	mi := &file_cairn_v1_activity_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3857,7 +4729,7 @@ func (x *DiscardSourcePreviewRequest) String() string {
 func (*DiscardSourcePreviewRequest) ProtoMessage() {}
 
 func (x *DiscardSourcePreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[30]
+	mi := &file_cairn_v1_activity_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3870,7 +4742,7 @@ func (x *DiscardSourcePreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscardSourcePreviewRequest.ProtoReflect.Descriptor instead.
 func (*DiscardSourcePreviewRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{30}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *DiscardSourcePreviewRequest) GetPreviewId() string {
@@ -3888,7 +4760,7 @@ type DiscardSourcePreviewResponse struct {
 
 func (x *DiscardSourcePreviewResponse) Reset() {
 	*x = DiscardSourcePreviewResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[31]
+	mi := &file_cairn_v1_activity_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3900,7 +4772,7 @@ func (x *DiscardSourcePreviewResponse) String() string {
 func (*DiscardSourcePreviewResponse) ProtoMessage() {}
 
 func (x *DiscardSourcePreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[31]
+	mi := &file_cairn_v1_activity_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3913,7 +4785,7 @@ func (x *DiscardSourcePreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscardSourcePreviewResponse.ProtoReflect.Descriptor instead.
 func (*DiscardSourcePreviewResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{31}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{39}
 }
 
 type LinkSourceToActivityRequest struct {
@@ -3929,7 +4801,7 @@ type LinkSourceToActivityRequest struct {
 
 func (x *LinkSourceToActivityRequest) Reset() {
 	*x = LinkSourceToActivityRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[32]
+	mi := &file_cairn_v1_activity_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3941,7 +4813,7 @@ func (x *LinkSourceToActivityRequest) String() string {
 func (*LinkSourceToActivityRequest) ProtoMessage() {}
 
 func (x *LinkSourceToActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[32]
+	mi := &file_cairn_v1_activity_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3954,7 +4826,7 @@ func (x *LinkSourceToActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkSourceToActivityRequest.ProtoReflect.Descriptor instead.
 func (*LinkSourceToActivityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{32}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *LinkSourceToActivityRequest) GetActivitySourceId() string {
@@ -3987,7 +4859,7 @@ type LinkSourceToActivityResponse struct {
 
 func (x *LinkSourceToActivityResponse) Reset() {
 	*x = LinkSourceToActivityResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[33]
+	mi := &file_cairn_v1_activity_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3999,7 +4871,7 @@ func (x *LinkSourceToActivityResponse) String() string {
 func (*LinkSourceToActivityResponse) ProtoMessage() {}
 
 func (x *LinkSourceToActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[33]
+	mi := &file_cairn_v1_activity_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4012,7 +4884,7 @@ func (x *LinkSourceToActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkSourceToActivityResponse.ProtoReflect.Descriptor instead.
 func (*LinkSourceToActivityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{33}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *LinkSourceToActivityResponse) GetActivity() *Activity {
@@ -4034,7 +4906,7 @@ type DetachSourceRequest struct {
 
 func (x *DetachSourceRequest) Reset() {
 	*x = DetachSourceRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[34]
+	mi := &file_cairn_v1_activity_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4046,7 +4918,7 @@ func (x *DetachSourceRequest) String() string {
 func (*DetachSourceRequest) ProtoMessage() {}
 
 func (x *DetachSourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[34]
+	mi := &file_cairn_v1_activity_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4059,7 +4931,7 @@ func (x *DetachSourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DetachSourceRequest.ProtoReflect.Descriptor instead.
 func (*DetachSourceRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{34}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *DetachSourceRequest) GetActivitySourceId() string {
@@ -4086,7 +4958,7 @@ type DetachSourceResponse struct {
 
 func (x *DetachSourceResponse) Reset() {
 	*x = DetachSourceResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[35]
+	mi := &file_cairn_v1_activity_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4098,7 +4970,7 @@ func (x *DetachSourceResponse) String() string {
 func (*DetachSourceResponse) ProtoMessage() {}
 
 func (x *DetachSourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[35]
+	mi := &file_cairn_v1_activity_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4111,7 +4983,7 @@ func (x *DetachSourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DetachSourceResponse.ProtoReflect.Descriptor instead.
 func (*DetachSourceResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{35}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *DetachSourceResponse) GetNewActivity() *Activity {
@@ -4137,7 +5009,7 @@ type GetActivityStreamRequest struct {
 
 func (x *GetActivityStreamRequest) Reset() {
 	*x = GetActivityStreamRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[36]
+	mi := &file_cairn_v1_activity_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4149,7 +5021,7 @@ func (x *GetActivityStreamRequest) String() string {
 func (*GetActivityStreamRequest) ProtoMessage() {}
 
 func (x *GetActivityStreamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[36]
+	mi := &file_cairn_v1_activity_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4162,7 +5034,7 @@ func (x *GetActivityStreamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActivityStreamRequest.ProtoReflect.Descriptor instead.
 func (*GetActivityStreamRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{36}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetActivityStreamRequest) GetActivitySourceId() string {
@@ -4202,7 +5074,7 @@ type GetActivityStreamResponse struct {
 
 func (x *GetActivityStreamResponse) Reset() {
 	*x = GetActivityStreamResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[37]
+	mi := &file_cairn_v1_activity_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4214,7 +5086,7 @@ func (x *GetActivityStreamResponse) String() string {
 func (*GetActivityStreamResponse) ProtoMessage() {}
 
 func (x *GetActivityStreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[37]
+	mi := &file_cairn_v1_activity_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4227,7 +5099,7 @@ func (x *GetActivityStreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActivityStreamResponse.ProtoReflect.Descriptor instead.
 func (*GetActivityStreamResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{37}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetActivityStreamResponse) GetStream() *ActivityStream {
@@ -4252,7 +5124,7 @@ type PresignActivityUploadRequest struct {
 
 func (x *PresignActivityUploadRequest) Reset() {
 	*x = PresignActivityUploadRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[38]
+	mi := &file_cairn_v1_activity_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4264,7 +5136,7 @@ func (x *PresignActivityUploadRequest) String() string {
 func (*PresignActivityUploadRequest) ProtoMessage() {}
 
 func (x *PresignActivityUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[38]
+	mi := &file_cairn_v1_activity_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4277,7 +5149,7 @@ func (x *PresignActivityUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresignActivityUploadRequest.ProtoReflect.Descriptor instead.
 func (*PresignActivityUploadRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{38}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *PresignActivityUploadRequest) GetExtension() string {
@@ -4316,7 +5188,7 @@ type PresignActivityUploadResponse struct {
 
 func (x *PresignActivityUploadResponse) Reset() {
 	*x = PresignActivityUploadResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[39]
+	mi := &file_cairn_v1_activity_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4328,7 +5200,7 @@ func (x *PresignActivityUploadResponse) String() string {
 func (*PresignActivityUploadResponse) ProtoMessage() {}
 
 func (x *PresignActivityUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[39]
+	mi := &file_cairn_v1_activity_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4341,7 +5213,7 @@ func (x *PresignActivityUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresignActivityUploadResponse.ProtoReflect.Descriptor instead.
 func (*PresignActivityUploadResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{39}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *PresignActivityUploadResponse) GetBlobId() string {
@@ -4390,7 +5262,7 @@ type UploadActivityRequest struct {
 
 func (x *UploadActivityRequest) Reset() {
 	*x = UploadActivityRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[40]
+	mi := &file_cairn_v1_activity_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4402,7 +5274,7 @@ func (x *UploadActivityRequest) String() string {
 func (*UploadActivityRequest) ProtoMessage() {}
 
 func (x *UploadActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[40]
+	mi := &file_cairn_v1_activity_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4415,7 +5287,7 @@ func (x *UploadActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadActivityRequest.ProtoReflect.Descriptor instead.
 func (*UploadActivityRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{40}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *UploadActivityRequest) GetBlobId() string {
@@ -4472,7 +5344,7 @@ type UploadActivityResponse struct {
 
 func (x *UploadActivityResponse) Reset() {
 	*x = UploadActivityResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[41]
+	mi := &file_cairn_v1_activity_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4484,7 +5356,7 @@ func (x *UploadActivityResponse) String() string {
 func (*UploadActivityResponse) ProtoMessage() {}
 
 func (x *UploadActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[41]
+	mi := &file_cairn_v1_activity_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4497,7 +5369,7 @@ func (x *UploadActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadActivityResponse.ProtoReflect.Descriptor instead.
 func (*UploadActivityResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{41}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *UploadActivityResponse) GetJobId() string {
@@ -4514,6 +5386,2354 @@ func (x *UploadActivityResponse) GetActivityId() string {
 	return ""
 }
 
+type ListLapsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLapsRequest) Reset() {
+	*x = ListLapsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLapsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLapsRequest) ProtoMessage() {}
+
+func (x *ListLapsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLapsRequest.ProtoReflect.Descriptor instead.
+func (*ListLapsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ListLapsRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type ListLapsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Laps  []*ActivityLap         `protobuf:"bytes,1,rep,name=laps,proto3" json:"laps,omitempty"`
+	// The source the laps come from; empty when the activity has none.
+	SourceId      string `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLapsResponse) Reset() {
+	*x = ListLapsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLapsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLapsResponse) ProtoMessage() {}
+
+func (x *ListLapsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLapsResponse.ProtoReflect.Descriptor instead.
+func (*ListLapsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ListLapsResponse) GetLaps() []*ActivityLap {
+	if x != nil {
+		return x.Laps
+	}
+	return nil
+}
+
+func (x *ListLapsResponse) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+type GetActivityZonesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityZonesRequest) Reset() {
+	*x = GetActivityZonesRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityZonesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityZonesRequest) ProtoMessage() {}
+
+func (x *GetActivityZonesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityZonesRequest.ProtoReflect.Descriptor instead.
+func (*GetActivityZonesRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *GetActivityZonesRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type ZoneBand struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Label string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// Bounds as a fraction of the reference (1.0 = reference).
+	LowPct        float64 `protobuf:"fixed64,2,opt,name=low_pct,json=lowPct,proto3" json:"low_pct,omitempty"`
+	HighPct       float64 `protobuf:"fixed64,3,opt,name=high_pct,json=highPct,proto3" json:"high_pct,omitempty"`
+	Seconds       int32   `protobuf:"varint,4,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZoneBand) Reset() {
+	*x = ZoneBand{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZoneBand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZoneBand) ProtoMessage() {}
+
+func (x *ZoneBand) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZoneBand.ProtoReflect.Descriptor instead.
+func (*ZoneBand) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ZoneBand) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ZoneBand) GetLowPct() float64 {
+	if x != nil {
+		return x.LowPct
+	}
+	return 0
+}
+
+func (x *ZoneBand) GetHighPct() float64 {
+	if x != nil {
+		return x.HighPct
+	}
+	return 0
+}
+
+func (x *ZoneBand) GetSeconds() int32 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+type ZoneSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "lthr" or "max" for heart rate, "ftp" for power.
+	Basis         string      `protobuf:"bytes,1,opt,name=basis,proto3" json:"basis,omitempty"`
+	Reference     float64     `protobuf:"fixed64,2,opt,name=reference,proto3" json:"reference,omitempty"`
+	TotalSeconds  int32       `protobuf:"varint,3,opt,name=total_seconds,json=totalSeconds,proto3" json:"total_seconds,omitempty"`
+	Zones         []*ZoneBand `protobuf:"bytes,4,rep,name=zones,proto3" json:"zones,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZoneSummary) Reset() {
+	*x = ZoneSummary{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZoneSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZoneSummary) ProtoMessage() {}
+
+func (x *ZoneSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZoneSummary.ProtoReflect.Descriptor instead.
+func (*ZoneSummary) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ZoneSummary) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *ZoneSummary) GetReference() float64 {
+	if x != nil {
+		return x.Reference
+	}
+	return 0
+}
+
+func (x *ZoneSummary) GetTotalSeconds() int32 {
+	if x != nil {
+		return x.TotalSeconds
+	}
+	return 0
+}
+
+func (x *ZoneSummary) GetZones() []*ZoneBand {
+	if x != nil {
+		return x.Zones
+	}
+	return nil
+}
+
+type Decoupling struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Cardiac drift in percent, one decimal.
+	Pct float64 `protobuf:"fixed64,1,opt,name=pct,proto3" json:"pct,omitempty"`
+	// "power" (rides) or "pace" (runs).
+	Basis string `protobuf:"bytes,2,opt,name=basis,proto3" json:"basis,omitempty"`
+	// Below 5 %: the effort was aerobically coupled.
+	Coupled       bool `protobuf:"varint,3,opt,name=coupled,proto3" json:"coupled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Decoupling) Reset() {
+	*x = Decoupling{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Decoupling) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Decoupling) ProtoMessage() {}
+
+func (x *Decoupling) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Decoupling.ProtoReflect.Descriptor instead.
+func (*Decoupling) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *Decoupling) GetPct() float64 {
+	if x != nil {
+		return x.Pct
+	}
+	return 0
+}
+
+func (x *Decoupling) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *Decoupling) GetCoupled() bool {
+	if x != nil {
+		return x.Coupled
+	}
+	return false
+}
+
+type GetActivityZonesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset when the activity has no heart-rate samples or no threshold.
+	Hr *ZoneSummary `protobuf:"bytes,1,opt,name=hr,proto3,oneof" json:"hr,omitempty"`
+	// Unset when the activity has no power samples or no FTP.
+	Power *ZoneSummary `protobuf:"bytes,2,opt,name=power,proto3,oneof" json:"power,omitempty"`
+	// Unset unless the effort was long and steady enough to be meaningful.
+	Decoupling    *Decoupling `protobuf:"bytes,3,opt,name=decoupling,proto3,oneof" json:"decoupling,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityZonesResponse) Reset() {
+	*x = GetActivityZonesResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityZonesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityZonesResponse) ProtoMessage() {}
+
+func (x *GetActivityZonesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityZonesResponse.ProtoReflect.Descriptor instead.
+func (*GetActivityZonesResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GetActivityZonesResponse) GetHr() *ZoneSummary {
+	if x != nil {
+		return x.Hr
+	}
+	return nil
+}
+
+func (x *GetActivityZonesResponse) GetPower() *ZoneSummary {
+	if x != nil {
+		return x.Power
+	}
+	return nil
+}
+
+func (x *GetActivityZonesResponse) GetDecoupling() *Decoupling {
+	if x != nil {
+		return x.Decoupling
+	}
+	return nil
+}
+
+type ListActivitySegmentEffortsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListActivitySegmentEffortsRequest) Reset() {
+	*x = ListActivitySegmentEffortsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListActivitySegmentEffortsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListActivitySegmentEffortsRequest) ProtoMessage() {}
+
+func (x *ListActivitySegmentEffortsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListActivitySegmentEffortsRequest.ProtoReflect.Descriptor instead.
+func (*ListActivitySegmentEffortsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *ListActivitySegmentEffortsRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type ActivitySegmentEffort struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SegmentId        string                 `protobuf:"bytes,1,opt,name=segment_id,json=segmentId,proto3" json:"segment_id,omitempty"`
+	SegmentName      string                 `protobuf:"bytes,2,opt,name=segment_name,json=segmentName,proto3" json:"segment_name,omitempty"`
+	SegmentDistanceM float64                `protobuf:"fixed64,3,opt,name=segment_distance_m,json=segmentDistanceM,proto3" json:"segment_distance_m,omitempty"`
+	// Climb category as its stored string ("4" … "1", "hc"); unset when none.
+	ClimbCategory    *string `protobuf:"bytes,4,opt,name=climb_category,json=climbCategory,proto3,oneof" json:"climb_category,omitempty"`
+	ElapsedS         float64 `protobuf:"fixed64,5,opt,name=elapsed_s,json=elapsedS,proto3" json:"elapsed_s,omitempty"`
+	MovingS          float64 `protobuf:"fixed64,6,opt,name=moving_s,json=movingS,proto3" json:"moving_s,omitempty"`
+	AvgHeartRate     *int32  `protobuf:"varint,7,opt,name=avg_heart_rate,json=avgHeartRate,proto3,oneof" json:"avg_heart_rate,omitempty"`
+	AvgPower         *int32  `protobuf:"varint,8,opt,name=avg_power,json=avgPower,proto3,oneof" json:"avg_power,omitempty"`
+	IsPersonalRecord bool    `protobuf:"varint,9,opt,name=is_personal_record,json=isPersonalRecord,proto3" json:"is_personal_record,omitempty"`
+	PersonalRank     int32   `protobuf:"varint,10,opt,name=personal_rank,json=personalRank,proto3" json:"personal_rank,omitempty"`
+	// Position on the source stream: seconds since stream start and
+	// cumulative distance; unset when the stream is unavailable.
+	StartOffsetS   *float64 `protobuf:"fixed64,11,opt,name=start_offset_s,json=startOffsetS,proto3,oneof" json:"start_offset_s,omitempty"`
+	EndOffsetS     *float64 `protobuf:"fixed64,12,opt,name=end_offset_s,json=endOffsetS,proto3,oneof" json:"end_offset_s,omitempty"`
+	StartDistanceM *float64 `protobuf:"fixed64,13,opt,name=start_distance_m,json=startDistanceM,proto3,oneof" json:"start_distance_m,omitempty"`
+	EndDistanceM   *float64 `protobuf:"fixed64,14,opt,name=end_distance_m,json=endDistanceM,proto3,oneof" json:"end_distance_m,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ActivitySegmentEffort) Reset() {
+	*x = ActivitySegmentEffort{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySegmentEffort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySegmentEffort) ProtoMessage() {}
+
+func (x *ActivitySegmentEffort) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySegmentEffort.ProtoReflect.Descriptor instead.
+func (*ActivitySegmentEffort) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *ActivitySegmentEffort) GetSegmentId() string {
+	if x != nil {
+		return x.SegmentId
+	}
+	return ""
+}
+
+func (x *ActivitySegmentEffort) GetSegmentName() string {
+	if x != nil {
+		return x.SegmentName
+	}
+	return ""
+}
+
+func (x *ActivitySegmentEffort) GetSegmentDistanceM() float64 {
+	if x != nil {
+		return x.SegmentDistanceM
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetClimbCategory() string {
+	if x != nil && x.ClimbCategory != nil {
+		return *x.ClimbCategory
+	}
+	return ""
+}
+
+func (x *ActivitySegmentEffort) GetElapsedS() float64 {
+	if x != nil {
+		return x.ElapsedS
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetMovingS() float64 {
+	if x != nil {
+		return x.MovingS
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetAvgHeartRate() int32 {
+	if x != nil && x.AvgHeartRate != nil {
+		return *x.AvgHeartRate
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetAvgPower() int32 {
+	if x != nil && x.AvgPower != nil {
+		return *x.AvgPower
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetIsPersonalRecord() bool {
+	if x != nil {
+		return x.IsPersonalRecord
+	}
+	return false
+}
+
+func (x *ActivitySegmentEffort) GetPersonalRank() int32 {
+	if x != nil {
+		return x.PersonalRank
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetStartOffsetS() float64 {
+	if x != nil && x.StartOffsetS != nil {
+		return *x.StartOffsetS
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetEndOffsetS() float64 {
+	if x != nil && x.EndOffsetS != nil {
+		return *x.EndOffsetS
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetStartDistanceM() float64 {
+	if x != nil && x.StartDistanceM != nil {
+		return *x.StartDistanceM
+	}
+	return 0
+}
+
+func (x *ActivitySegmentEffort) GetEndDistanceM() float64 {
+	if x != nil && x.EndDistanceM != nil {
+		return *x.EndDistanceM
+	}
+	return 0
+}
+
+type ListActivitySegmentEffortsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Efforts       []*ActivitySegmentEffort `protobuf:"bytes,1,rep,name=efforts,proto3" json:"efforts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListActivitySegmentEffortsResponse) Reset() {
+	*x = ListActivitySegmentEffortsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListActivitySegmentEffortsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListActivitySegmentEffortsResponse) ProtoMessage() {}
+
+func (x *ListActivitySegmentEffortsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListActivitySegmentEffortsResponse.ProtoReflect.Descriptor instead.
+func (*ListActivitySegmentEffortsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ListActivitySegmentEffortsResponse) GetEfforts() []*ActivitySegmentEffort {
+	if x != nil {
+		return x.Efforts
+	}
+	return nil
+}
+
+type ListSimilarActivitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSimilarActivitiesRequest) Reset() {
+	*x = ListSimilarActivitiesRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSimilarActivitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSimilarActivitiesRequest) ProtoMessage() {}
+
+func (x *ListSimilarActivitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSimilarActivitiesRequest.ProtoReflect.Descriptor instead.
+func (*ListSimilarActivitiesRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ListSimilarActivitiesRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type SimilarActivity struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	IsCurrent    bool                   `protobuf:"varint,2,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	Title        string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Type         ActivityType           `protobuf:"varint,4,opt,name=type,proto3,enum=cairn.v1.ActivityType" json:"type,omitempty"`
+	StartTime    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	DistanceM    *float64               `protobuf:"fixed64,6,opt,name=distance_m,json=distanceM,proto3,oneof" json:"distance_m,omitempty"`
+	MovingS      int64                  `protobuf:"varint,7,opt,name=moving_s,json=movingS,proto3" json:"moving_s,omitempty"`
+	ElapsedS     int64                  `protobuf:"varint,8,opt,name=elapsed_s,json=elapsedS,proto3" json:"elapsed_s,omitempty"`
+	AvgHeartRate *int32                 `protobuf:"varint,9,opt,name=avg_heart_rate,json=avgHeartRate,proto3,oneof" json:"avg_heart_rate,omitempty"`
+	AvgPower     *int32                 `protobuf:"varint,10,opt,name=avg_power,json=avgPower,proto3,oneof" json:"avg_power,omitempty"`
+	// Moving seconds per km; unset without distance or time.
+	PaceSPerKm *float64 `protobuf:"fixed64,11,opt,name=pace_s_per_km,json=paceSPerKm,proto3,oneof" json:"pace_s_per_km,omitempty"`
+	// Segments shared with the reference activity, and that as a fraction of
+	// the reference's segments (0..1).
+	SharedSegments int32   `protobuf:"varint,12,opt,name=shared_segments,json=sharedSegments,proto3" json:"shared_segments,omitempty"`
+	OverlapPct     float64 `protobuf:"fixed64,13,opt,name=overlap_pct,json=overlapPct,proto3" json:"overlap_pct,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SimilarActivity) Reset() {
+	*x = SimilarActivity{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SimilarActivity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SimilarActivity) ProtoMessage() {}
+
+func (x *SimilarActivity) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SimilarActivity.ProtoReflect.Descriptor instead.
+func (*SimilarActivity) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *SimilarActivity) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SimilarActivity) GetIsCurrent() bool {
+	if x != nil {
+		return x.IsCurrent
+	}
+	return false
+}
+
+func (x *SimilarActivity) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *SimilarActivity) GetType() ActivityType {
+	if x != nil {
+		return x.Type
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *SimilarActivity) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *SimilarActivity) GetDistanceM() float64 {
+	if x != nil && x.DistanceM != nil {
+		return *x.DistanceM
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetMovingS() int64 {
+	if x != nil {
+		return x.MovingS
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetElapsedS() int64 {
+	if x != nil {
+		return x.ElapsedS
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetAvgHeartRate() int32 {
+	if x != nil && x.AvgHeartRate != nil {
+		return *x.AvgHeartRate
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetAvgPower() int32 {
+	if x != nil && x.AvgPower != nil {
+		return *x.AvgPower
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetPaceSPerKm() float64 {
+	if x != nil && x.PaceSPerKm != nil {
+		return *x.PaceSPerKm
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetSharedSegments() int32 {
+	if x != nil {
+		return x.SharedSegments
+	}
+	return 0
+}
+
+func (x *SimilarActivity) GetOverlapPct() float64 {
+	if x != nil {
+		return x.OverlapPct
+	}
+	return 0
+}
+
+type ListSimilarActivitiesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Distinct segments on the reference activity.
+	TargetSegments int32 `protobuf:"varint,1,opt,name=target_segments,json=targetSegments,proto3" json:"target_segments,omitempty"`
+	// Chronological, the reference activity included (is_current).
+	Activities     []*SimilarActivity `protobuf:"bytes,2,rep,name=activities,proto3" json:"activities,omitempty"`
+	Count          int32              `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	BestMovingS    int64              `protobuf:"varint,4,opt,name=best_moving_s,json=bestMovingS,proto3" json:"best_moving_s,omitempty"`
+	CurrentMovingS int64              `protobuf:"varint,5,opt,name=current_moving_s,json=currentMovingS,proto3" json:"current_moving_s,omitempty"`
+	// 1-based rank of the reference by moving time (faster = better).
+	CurrentRank   int32 `protobuf:"varint,6,opt,name=current_rank,json=currentRank,proto3" json:"current_rank,omitempty"`
+	IsBest        bool  `protobuf:"varint,7,opt,name=is_best,json=isBest,proto3" json:"is_best,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSimilarActivitiesResponse) Reset() {
+	*x = ListSimilarActivitiesResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSimilarActivitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSimilarActivitiesResponse) ProtoMessage() {}
+
+func (x *ListSimilarActivitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSimilarActivitiesResponse.ProtoReflect.Descriptor instead.
+func (*ListSimilarActivitiesResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *ListSimilarActivitiesResponse) GetTargetSegments() int32 {
+	if x != nil {
+		return x.TargetSegments
+	}
+	return 0
+}
+
+func (x *ListSimilarActivitiesResponse) GetActivities() []*SimilarActivity {
+	if x != nil {
+		return x.Activities
+	}
+	return nil
+}
+
+func (x *ListSimilarActivitiesResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ListSimilarActivitiesResponse) GetBestMovingS() int64 {
+	if x != nil {
+		return x.BestMovingS
+	}
+	return 0
+}
+
+func (x *ListSimilarActivitiesResponse) GetCurrentMovingS() int64 {
+	if x != nil {
+		return x.CurrentMovingS
+	}
+	return 0
+}
+
+func (x *ListSimilarActivitiesResponse) GetCurrentRank() int32 {
+	if x != nil {
+		return x.CurrentRank
+	}
+	return 0
+}
+
+func (x *ListSimilarActivitiesResponse) GetIsBest() bool {
+	if x != nil {
+		return x.IsBest
+	}
+	return false
+}
+
+type GetMergedStreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMergedStreamRequest) Reset() {
+	*x = GetMergedStreamRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMergedStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMergedStreamRequest) ProtoMessage() {}
+
+func (x *GetMergedStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMergedStreamRequest.ProtoReflect.Descriptor instead.
+func (*GetMergedStreamRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *GetMergedStreamRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type MergedChannel struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One value per grid point; NaN where no source had a value.
+	Values []float64 `protobuf:"fixed64,1,rep,packed,name=values,proto3" json:"values,omitempty"`
+	// The source the channel's values come from.
+	SourceId      string `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MergedChannel) Reset() {
+	*x = MergedChannel{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergedChannel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergedChannel) ProtoMessage() {}
+
+func (x *MergedChannel) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergedChannel.ProtoReflect.Descriptor instead.
+func (*MergedChannel) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *MergedChannel) GetValues() []float64 {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+func (x *MergedChannel) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+type GetMergedStreamResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Grid timestamps (unix seconds), empty when no source has a stream.
+	GridUnixS []int64 `protobuf:"varint,1,rep,packed,name=grid_unix_s,json=gridUnixS,proto3" json:"grid_unix_s,omitempty"`
+	// Channel name (StreamChannel enum string, lower case) → values.
+	Channels      map[string]*MergedChannel `protobuf:"bytes,2,rep,name=channels,proto3" json:"channels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMergedStreamResponse) Reset() {
+	*x = GetMergedStreamResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMergedStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMergedStreamResponse) ProtoMessage() {}
+
+func (x *GetMergedStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMergedStreamResponse.ProtoReflect.Descriptor instead.
+func (*GetMergedStreamResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *GetMergedStreamResponse) GetGridUnixS() []int64 {
+	if x != nil {
+		return x.GridUnixS
+	}
+	return nil
+}
+
+func (x *GetMergedStreamResponse) GetChannels() map[string]*MergedChannel {
+	if x != nil {
+		return x.Channels
+	}
+	return nil
+}
+
+type ListKudosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListKudosRequest) Reset() {
+	*x = ListKudosRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListKudosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListKudosRequest) ProtoMessage() {}
+
+func (x *ListKudosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListKudosRequest.ProtoReflect.Descriptor instead.
+func (*ListKudosRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *ListKudosRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type ListKudosResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Count int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// The caller gave kudos.
+	HasKudos bool `protobuf:"varint,2,opt,name=has_kudos,json=hasKudos,proto3" json:"has_kudos,omitempty"`
+	// Local users first, then federated actors (remote = true); capped.
+	Kudosers      []*UserCard `protobuf:"bytes,3,rep,name=kudosers,proto3" json:"kudosers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListKudosResponse) Reset() {
+	*x = ListKudosResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListKudosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListKudosResponse) ProtoMessage() {}
+
+func (x *ListKudosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListKudosResponse.ProtoReflect.Descriptor instead.
+func (*ListKudosResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *ListKudosResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ListKudosResponse) GetHasKudos() bool {
+	if x != nil {
+		return x.HasKudos
+	}
+	return false
+}
+
+func (x *ListKudosResponse) GetKudosers() []*UserCard {
+	if x != nil {
+		return x.Kudosers
+	}
+	return nil
+}
+
+type ListCommentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCommentsRequest) Reset() {
+	*x = ListCommentsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCommentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCommentsRequest) ProtoMessage() {}
+
+func (x *ListCommentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCommentsRequest.ProtoReflect.Descriptor instead.
+func (*ListCommentsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *ListCommentsRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type Comment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A local comment id, or the ActivityPub id of a federated reply.
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Author        *UserCard              `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Comment) Reset() {
+	*x = Comment{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Comment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Comment) ProtoMessage() {}
+
+func (x *Comment) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Comment.ProtoReflect.Descriptor instead.
+func (*Comment) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *Comment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Comment) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Comment) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Comment) GetAuthor() *UserCard {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+type ListCommentsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Oldest first.
+	Comments      []*Comment `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCommentsResponse) Reset() {
+	*x = ListCommentsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCommentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCommentsResponse) ProtoMessage() {}
+
+func (x *ListCommentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCommentsResponse.ProtoReflect.Descriptor instead.
+func (*ListCommentsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *ListCommentsResponse) GetComments() []*Comment {
+	if x != nil {
+		return x.Comments
+	}
+	return nil
+}
+
+type GetActivityManageInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityManageInfoRequest) Reset() {
+	*x = GetActivityManageInfoRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityManageInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityManageInfoRequest) ProtoMessage() {}
+
+func (x *GetActivityManageInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityManageInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetActivityManageInfoRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *GetActivityManageInfoRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type SourceInsight struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        *ActivitySource        `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	WorkerRelease string                 `protobuf:"bytes,2,opt,name=worker_release,json=workerRelease,proto3" json:"worker_release,omitempty"`
+	// Parser N.M, or the raw version when it is not one; dataset "" then.
+	ParserVersion  string `protobuf:"bytes,3,opt,name=parser_version,json=parserVersion,proto3" json:"parser_version,omitempty"`
+	DatasetVersion string `protobuf:"bytes,4,opt,name=dataset_version,json=datasetVersion,proto3" json:"dataset_version,omitempty"`
+	// Parser version of the live worker that would re-parse; empty when none.
+	ReparseWith string `protobuf:"bytes,5,opt,name=reparse_with,json=reparseWith,proto3" json:"reparse_with,omitempty"`
+	// "" | "new_parser" | "new_dataset": what the live workers offer.
+	Upgrade          string                 `protobuf:"bytes,6,opt,name=upgrade,proto3" json:"upgrade,omitempty"`
+	WorkerPackage    string                 `protobuf:"bytes,7,opt,name=worker_package,json=workerPackage,proto3" json:"worker_package,omitempty"`
+	ReparseEligible  bool                   `protobuf:"varint,8,opt,name=reparse_eligible,json=reparseEligible,proto3" json:"reparse_eligible,omitempty"`
+	HasBlob          bool                   `protobuf:"varint,9,opt,name=has_blob,json=hasBlob,proto3" json:"has_blob,omitempty"`
+	RawContentType   string                 `protobuf:"bytes,10,opt,name=raw_content_type,json=rawContentType,proto3" json:"raw_content_type,omitempty"`
+	RawSizeBytes     int64                  `protobuf:"varint,11,opt,name=raw_size_bytes,json=rawSizeBytes,proto3" json:"raw_size_bytes,omitempty"`
+	HasStream        bool                   `protobuf:"varint,12,opt,name=has_stream,json=hasStream,proto3" json:"has_stream,omitempty"`
+	LapCount         int32                  `protobuf:"varint,13,opt,name=lap_count,json=lapCount,proto3" json:"lap_count,omitempty"`
+	StatusReason     string                 `protobuf:"bytes,14,opt,name=status_reason,json=statusReason,proto3" json:"status_reason,omitempty"`
+	ReimportReason   string                 `protobuf:"bytes,15,opt,name=reimport_reason,json=reimportReason,proto3" json:"reimport_reason,omitempty"`
+	LastReimportedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=last_reimported_at,json=lastReimportedAt,proto3,oneof" json:"last_reimported_at,omitempty"`
+	IsPrimary        bool                   `protobuf:"varint,17,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
+	// Labels of the field groups this source won in the merge.
+	WonFieldGroups []string `protobuf:"bytes,18,rep,name=won_field_groups,json=wonFieldGroups,proto3" json:"won_field_groups,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SourceInsight) Reset() {
+	*x = SourceInsight{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceInsight) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceInsight) ProtoMessage() {}
+
+func (x *SourceInsight) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceInsight.ProtoReflect.Descriptor instead.
+func (*SourceInsight) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *SourceInsight) GetSource() *ActivitySource {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *SourceInsight) GetWorkerRelease() string {
+	if x != nil {
+		return x.WorkerRelease
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetParserVersion() string {
+	if x != nil {
+		return x.ParserVersion
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetDatasetVersion() string {
+	if x != nil {
+		return x.DatasetVersion
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetReparseWith() string {
+	if x != nil {
+		return x.ReparseWith
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetUpgrade() string {
+	if x != nil {
+		return x.Upgrade
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetWorkerPackage() string {
+	if x != nil {
+		return x.WorkerPackage
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetReparseEligible() bool {
+	if x != nil {
+		return x.ReparseEligible
+	}
+	return false
+}
+
+func (x *SourceInsight) GetHasBlob() bool {
+	if x != nil {
+		return x.HasBlob
+	}
+	return false
+}
+
+func (x *SourceInsight) GetRawContentType() string {
+	if x != nil {
+		return x.RawContentType
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetRawSizeBytes() int64 {
+	if x != nil {
+		return x.RawSizeBytes
+	}
+	return 0
+}
+
+func (x *SourceInsight) GetHasStream() bool {
+	if x != nil {
+		return x.HasStream
+	}
+	return false
+}
+
+func (x *SourceInsight) GetLapCount() int32 {
+	if x != nil {
+		return x.LapCount
+	}
+	return 0
+}
+
+func (x *SourceInsight) GetStatusReason() string {
+	if x != nil {
+		return x.StatusReason
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetReimportReason() string {
+	if x != nil {
+		return x.ReimportReason
+	}
+	return ""
+}
+
+func (x *SourceInsight) GetLastReimportedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReimportedAt
+	}
+	return nil
+}
+
+func (x *SourceInsight) GetIsPrimary() bool {
+	if x != nil {
+		return x.IsPrimary
+	}
+	return false
+}
+
+func (x *SourceInsight) GetWonFieldGroups() []string {
+	if x != nil {
+		return x.WonFieldGroups
+	}
+	return nil
+}
+
+type FieldProvenance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Field group key and its label.
+	Field      string `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	FieldLabel string `protobuf:"bytes,2,opt,name=field_label,json=fieldLabel,proto3" json:"field_label,omitempty"`
+	SourceId   string `protobuf:"bytes,3,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Provider   string `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	// "rule" (merge policy) or "manual" (user pin).
+	DecidedBy     string                 `protobuf:"bytes,5,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
+	SyncedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=synced_at,json=syncedAt,proto3" json:"synced_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FieldProvenance) Reset() {
+	*x = FieldProvenance{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FieldProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FieldProvenance) ProtoMessage() {}
+
+func (x *FieldProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FieldProvenance.ProtoReflect.Descriptor instead.
+func (*FieldProvenance) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *FieldProvenance) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *FieldProvenance) GetFieldLabel() string {
+	if x != nil {
+		return x.FieldLabel
+	}
+	return ""
+}
+
+func (x *FieldProvenance) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *FieldProvenance) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *FieldProvenance) GetDecidedBy() string {
+	if x != nil {
+		return x.DecidedBy
+	}
+	return ""
+}
+
+func (x *FieldProvenance) GetSyncedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SyncedAt
+	}
+	return nil
+}
+
+type GetActivityManageInfoResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	MergedAt        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=merged_at,json=mergedAt,proto3" json:"merged_at,omitempty"`
+	PrimarySourceId string                 `protobuf:"bytes,2,opt,name=primary_source_id,json=primarySourceId,proto3" json:"primary_source_id,omitempty"`
+	// Every source, detached ones included.
+	Sources       []*SourceInsight   `protobuf:"bytes,3,rep,name=sources,proto3" json:"sources,omitempty"`
+	Provenance    []*FieldProvenance `protobuf:"bytes,4,rep,name=provenance,proto3" json:"provenance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityManageInfoResponse) Reset() {
+	*x = GetActivityManageInfoResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityManageInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityManageInfoResponse) ProtoMessage() {}
+
+func (x *GetActivityManageInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityManageInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetActivityManageInfoResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *GetActivityManageInfoResponse) GetMergedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MergedAt
+	}
+	return nil
+}
+
+func (x *GetActivityManageInfoResponse) GetPrimarySourceId() string {
+	if x != nil {
+		return x.PrimarySourceId
+	}
+	return ""
+}
+
+func (x *GetActivityManageInfoResponse) GetSources() []*SourceInsight {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *GetActivityManageInfoResponse) GetProvenance() []*FieldProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+type GetParsedSourceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetParsedSourceRequest) Reset() {
+	*x = GetParsedSourceRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetParsedSourceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetParsedSourceRequest) ProtoMessage() {}
+
+func (x *GetParsedSourceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetParsedSourceRequest.ProtoReflect.Descriptor instead.
+func (*GetParsedSourceRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *GetParsedSourceRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *GetParsedSourceRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+type GetParsedSourceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Payload       *ActivitySourcePayload `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetParsedSourceResponse) Reset() {
+	*x = GetParsedSourceResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetParsedSourceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetParsedSourceResponse) ProtoMessage() {}
+
+func (x *GetParsedSourceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetParsedSourceResponse.ProtoReflect.Descriptor instead.
+func (*GetParsedSourceResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *GetParsedSourceResponse) GetPayload() *ActivitySourcePayload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+type Attachment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable id; cache variants under it.
+	Id         string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActivityId string `protobuf:"bytes,2,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	// Signed URLs. original is always set; medium is unset when the original
+	// is already within the medium bound (use original); thumb and blurhash
+	// are unset until the variants were derived (older rows, backfill pending).
+	Original *ContentUrl `protobuf:"bytes,3,opt,name=original,proto3" json:"original,omitempty"`
+	Medium   *ContentUrl `protobuf:"bytes,4,opt,name=medium,proto3" json:"medium,omitempty"`
+	Thumb    *ContentUrl `protobuf:"bytes,5,opt,name=thumb,proto3" json:"thumb,omitempty"`
+	// Pixel size of the original (0 when unknown).
+	Width  int32 `protobuf:"varint,6,opt,name=width,proto3" json:"width,omitempty"`
+	Height int32 `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
+	// Blurhash placeholder of the photo; empty when not derived yet.
+	Blurhash      string                 `protobuf:"bytes,8,opt,name=blurhash,proto3" json:"blurhash,omitempty"`
+	Caption       string                 `protobuf:"bytes,9,opt,name=caption,proto3" json:"caption,omitempty"`
+	ContentType   string                 `protobuf:"bytes,10,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Attachment) Reset() {
+	*x = Attachment{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Attachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Attachment) ProtoMessage() {}
+
+func (x *Attachment) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
+func (*Attachment) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *Attachment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Attachment) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *Attachment) GetOriginal() *ContentUrl {
+	if x != nil {
+		return x.Original
+	}
+	return nil
+}
+
+func (x *Attachment) GetMedium() *ContentUrl {
+	if x != nil {
+		return x.Medium
+	}
+	return nil
+}
+
+func (x *Attachment) GetThumb() *ContentUrl {
+	if x != nil {
+		return x.Thumb
+	}
+	return nil
+}
+
+func (x *Attachment) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Attachment) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *Attachment) GetBlurhash() string {
+	if x != nil {
+		return x.Blurhash
+	}
+	return ""
+}
+
+func (x *Attachment) GetCaption() string {
+	if x != nil {
+		return x.Caption
+	}
+	return ""
+}
+
+func (x *Attachment) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *Attachment) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListAttachmentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAttachmentsRequest) Reset() {
+	*x = ListAttachmentsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAttachmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAttachmentsRequest) ProtoMessage() {}
+
+func (x *ListAttachmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAttachmentsRequest.ProtoReflect.Descriptor instead.
+func (*ListAttachmentsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *ListAttachmentsRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type ListAttachmentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attachments   []*Attachment          `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAttachmentsResponse) Reset() {
+	*x = ListAttachmentsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAttachmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAttachmentsResponse) ProtoMessage() {}
+
+func (x *ListAttachmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAttachmentsResponse.ProtoReflect.Descriptor instead.
+func (*ListAttachmentsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *ListAttachmentsResponse) GetAttachments() []*Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+type GetActivityMapImageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityMapImageRequest) Reset() {
+	*x = GetActivityMapImageRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityMapImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityMapImageRequest) ProtoMessage() {}
+
+func (x *GetActivityMapImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityMapImageRequest.ProtoReflect.Descriptor instead.
+func (*GetActivityMapImageRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *GetActivityMapImageRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type GetActivityMapImageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Image *ContentUrl            `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	// Cache key for the image, see Activity.map_image_etag.
+	Etag          string `protobuf:"bytes,2,opt,name=etag,proto3" json:"etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivityMapImageResponse) Reset() {
+	*x = GetActivityMapImageResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivityMapImageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivityMapImageResponse) ProtoMessage() {}
+
+func (x *GetActivityMapImageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivityMapImageResponse.ProtoReflect.Descriptor instead.
+func (*GetActivityMapImageResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *GetActivityMapImageResponse) GetImage() *ContentUrl {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
+func (x *GetActivityMapImageResponse) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+type GetExportOptionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId    string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExportOptionsRequest) Reset() {
+	*x = GetExportOptionsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExportOptionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExportOptionsRequest) ProtoMessage() {}
+
+func (x *GetExportOptionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExportOptionsRequest.ProtoReflect.Descriptor instead.
+func (*GetExportOptionsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetExportOptionsRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+type GetExportOptionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Feature → present, e.g. {"gps": true, "heart_rate": false}. Keys are
+	// the tokens ExportActivityRequest.exclude accepts.
+	Available     map[string]bool `protobuf:"bytes,1,rep,name=available,proto3" json:"available,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExportOptionsResponse) Reset() {
+	*x = GetExportOptionsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExportOptionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExportOptionsResponse) ProtoMessage() {}
+
+func (x *GetExportOptionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExportOptionsResponse.ProtoReflect.Descriptor instead.
+func (*GetExportOptionsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *GetExportOptionsResponse) GetAvailable() map[string]bool {
+	if x != nil {
+		return x.Available
+	}
+	return nil
+}
+
+type ExportActivityRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ActivityId string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
+	Format     ExportFormat           `protobuf:"varint,2,opt,name=format,proto3,enum=cairn.v1.ExportFormat" json:"format,omitempty"`
+	// Export features to drop; tokens from GetExportOptionsResponse.available.
+	Exclude       []string `protobuf:"bytes,3,rep,name=exclude,proto3" json:"exclude,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportActivityRequest) Reset() {
+	*x = ExportActivityRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportActivityRequest) ProtoMessage() {}
+
+func (x *ExportActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportActivityRequest.ProtoReflect.Descriptor instead.
+func (*ExportActivityRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *ExportActivityRequest) GetActivityId() string {
+	if x != nil {
+		return x.ActivityId
+	}
+	return ""
+}
+
+func (x *ExportActivityRequest) GetFormat() ExportFormat {
+	if x != nil {
+		return x.Format
+	}
+	return ExportFormat_EXPORT_FORMAT_UNSPECIFIED
+}
+
+func (x *ExportActivityRequest) GetExclude() []string {
+	if x != nil {
+		return x.Exclude
+	}
+	return nil
+}
+
+type ExportActivityResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	File  *ContentUrl            `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	// Suggested filename, e.g. "2026-10-28-morning-ride.gpx".
+	Filename      string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType   string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportActivityResponse) Reset() {
+	*x = ExportActivityResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportActivityResponse) ProtoMessage() {}
+
+func (x *ExportActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportActivityResponse.ProtoReflect.Descriptor instead.
+func (*ExportActivityResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *ExportActivityResponse) GetFile() *ContentUrl {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+func (x *ExportActivityResponse) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *ExportActivityResponse) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
 type ListBestEffortsRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	ActivityId string                 `protobuf:"bytes,1,opt,name=activity_id,json=activityId,proto3" json:"activity_id,omitempty"`
@@ -4525,7 +7745,7 @@ type ListBestEffortsRequest struct {
 
 func (x *ListBestEffortsRequest) Reset() {
 	*x = ListBestEffortsRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[42]
+	mi := &file_cairn_v1_activity_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4537,7 +7757,7 @@ func (x *ListBestEffortsRequest) String() string {
 func (*ListBestEffortsRequest) ProtoMessage() {}
 
 func (x *ListBestEffortsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[42]
+	mi := &file_cairn_v1_activity_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4550,7 +7770,7 @@ func (x *ListBestEffortsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBestEffortsRequest.ProtoReflect.Descriptor instead.
 func (*ListBestEffortsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{42}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *ListBestEffortsRequest) GetActivityId() string {
@@ -4576,7 +7796,7 @@ type ListBestEffortsResponse struct {
 
 func (x *ListBestEffortsResponse) Reset() {
 	*x = ListBestEffortsResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[43]
+	mi := &file_cairn_v1_activity_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4588,7 +7808,7 @@ func (x *ListBestEffortsResponse) String() string {
 func (*ListBestEffortsResponse) ProtoMessage() {}
 
 func (x *ListBestEffortsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[43]
+	mi := &file_cairn_v1_activity_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4601,7 +7821,7 @@ func (x *ListBestEffortsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBestEffortsResponse.ProtoReflect.Descriptor instead.
 func (*ListBestEffortsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{43}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ListBestEffortsResponse) GetEfforts() []*BestEffort {
@@ -4626,7 +7846,7 @@ type ListRecordsRequest struct {
 
 func (x *ListRecordsRequest) Reset() {
 	*x = ListRecordsRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[44]
+	mi := &file_cairn_v1_activity_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4638,7 +7858,7 @@ func (x *ListRecordsRequest) String() string {
 func (*ListRecordsRequest) ProtoMessage() {}
 
 func (x *ListRecordsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[44]
+	mi := &file_cairn_v1_activity_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4651,7 +7871,7 @@ func (x *ListRecordsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecordsRequest.ProtoReflect.Descriptor instead.
 func (*ListRecordsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{44}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListRecordsRequest) GetActivityType() ActivityType {
@@ -4691,7 +7911,7 @@ type ListRecordsResponse struct {
 
 func (x *ListRecordsResponse) Reset() {
 	*x = ListRecordsResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[45]
+	mi := &file_cairn_v1_activity_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4703,7 +7923,7 @@ func (x *ListRecordsResponse) String() string {
 func (*ListRecordsResponse) ProtoMessage() {}
 
 func (x *ListRecordsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[45]
+	mi := &file_cairn_v1_activity_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4716,7 +7936,7 @@ func (x *ListRecordsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecordsResponse.ProtoReflect.Descriptor instead.
 func (*ListRecordsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{45}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ListRecordsResponse) GetRecords() []*UserRecord {
@@ -4739,7 +7959,7 @@ type CreateCustomBestEffortRequest struct {
 
 func (x *CreateCustomBestEffortRequest) Reset() {
 	*x = CreateCustomBestEffortRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[46]
+	mi := &file_cairn_v1_activity_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4751,7 +7971,7 @@ func (x *CreateCustomBestEffortRequest) String() string {
 func (*CreateCustomBestEffortRequest) ProtoMessage() {}
 
 func (x *CreateCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[46]
+	mi := &file_cairn_v1_activity_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4764,7 +7984,7 @@ func (x *CreateCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCustomBestEffortRequest.ProtoReflect.Descriptor instead.
 func (*CreateCustomBestEffortRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{46}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *CreateCustomBestEffortRequest) GetActivityType() ActivityType {
@@ -4811,7 +8031,7 @@ type CreateCustomBestEffortResponse struct {
 
 func (x *CreateCustomBestEffortResponse) Reset() {
 	*x = CreateCustomBestEffortResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[47]
+	mi := &file_cairn_v1_activity_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4823,7 +8043,7 @@ func (x *CreateCustomBestEffortResponse) String() string {
 func (*CreateCustomBestEffortResponse) ProtoMessage() {}
 
 func (x *CreateCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[47]
+	mi := &file_cairn_v1_activity_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4836,12 +8056,92 @@ func (x *CreateCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCustomBestEffortResponse.ProtoReflect.Descriptor instead.
 func (*CreateCustomBestEffortResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{47}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *CreateCustomBestEffortResponse) GetCustomBestEffort() *CustomBestEffort {
 	if x != nil {
 		return x.CustomBestEffort
+	}
+	return nil
+}
+
+type ListCustomBestEffortsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCustomBestEffortsRequest) Reset() {
+	*x = ListCustomBestEffortsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomBestEffortsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomBestEffortsRequest) ProtoMessage() {}
+
+func (x *ListCustomBestEffortsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomBestEffortsRequest.ProtoReflect.Descriptor instead.
+func (*ListCustomBestEffortsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{92}
+}
+
+type ListCustomBestEffortsResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	CustomBestEfforts []*CustomBestEffort    `protobuf:"bytes,1,rep,name=custom_best_efforts,json=customBestEfforts,proto3" json:"custom_best_efforts,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ListCustomBestEffortsResponse) Reset() {
+	*x = ListCustomBestEffortsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomBestEffortsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomBestEffortsResponse) ProtoMessage() {}
+
+func (x *ListCustomBestEffortsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomBestEffortsResponse.ProtoReflect.Descriptor instead.
+func (*ListCustomBestEffortsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *ListCustomBestEffortsResponse) GetCustomBestEfforts() []*CustomBestEffort {
+	if x != nil {
+		return x.CustomBestEfforts
 	}
 	return nil
 }
@@ -4855,7 +8155,7 @@ type DeleteCustomBestEffortRequest struct {
 
 func (x *DeleteCustomBestEffortRequest) Reset() {
 	*x = DeleteCustomBestEffortRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[48]
+	mi := &file_cairn_v1_activity_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4867,7 +8167,7 @@ func (x *DeleteCustomBestEffortRequest) String() string {
 func (*DeleteCustomBestEffortRequest) ProtoMessage() {}
 
 func (x *DeleteCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[48]
+	mi := &file_cairn_v1_activity_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4880,7 +8180,7 @@ func (x *DeleteCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCustomBestEffortRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCustomBestEffortRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{48}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *DeleteCustomBestEffortRequest) GetId() string {
@@ -4898,7 +8198,7 @@ type DeleteCustomBestEffortResponse struct {
 
 func (x *DeleteCustomBestEffortResponse) Reset() {
 	*x = DeleteCustomBestEffortResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[49]
+	mi := &file_cairn_v1_activity_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4910,7 +8210,7 @@ func (x *DeleteCustomBestEffortResponse) String() string {
 func (*DeleteCustomBestEffortResponse) ProtoMessage() {}
 
 func (x *DeleteCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[49]
+	mi := &file_cairn_v1_activity_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4923,14 +8223,14 @@ func (x *DeleteCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCustomBestEffortResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCustomBestEffortResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{49}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{95}
 }
 
 var File_cairn_v1_activity_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\n" +
-	"\x17cairn/v1/activity.proto\x12\bcairn.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15cairn/v1/common.proto\"\xe3\v\n" +
+	"\x17cairn/v1/activity.proto\x12\bcairn.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15cairn/v1/common.proto\"\xdb\f\n" +
 	"\bActivity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12*\n" +
@@ -4973,7 +8273,11 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\tstart_lat\x18\x1d \x01(\x01H\x01R\bstartLat\x88\x01\x01\x12 \n" +
 	"\tstart_lng\x18\x1e \x01(\x01H\x02R\bstartLng\x88\x01\x01\x123\n" +
 	"\vgear_set_by\x18\x1f \x01(\x0e2\x13.cairn.v1.GearSetByR\tgearSetBy\x12\x1b\n" +
-	"\tgear_name\x18  \x01(\tR\bgearName\x1aB\n" +
+	"\tgear_name\x18  \x01(\tR\bgearName\x121\n" +
+	"\tmap_image\x18! \x01(\v2\x14.cairn.v1.ContentUrlR\bmapImage\x12$\n" +
+	"\x0emap_image_etag\x18\" \x01(\tR\fmapImageEtag\x12\x1d\n" +
+	"\n" +
+	"gear_unset\x18# \x01(\bR\tgearUnset\x1aB\n" +
 	"\x14MergeProvenanceEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
@@ -5092,7 +8396,7 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\n" +
 	"ExtraEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe2\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xcc\x06\n" +
 	"\vActivityLap\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x129\n" +
 	"\n" +
@@ -5110,7 +8414,9 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\vavg_cadence\x18\v \x01(\x05H\x06R\n" +
 	"avgCadence\x88\x01\x01\x12-\n" +
 	"\x10elevation_gain_m\x18\f \x01(\x01H\aR\x0eelevationGainM\x88\x01\x01\x12\x14\n" +
-	"\x05label\x18\r \x01(\tR\x05labelB\r\n" +
+	"\x05label\x18\r \x01(\tR\x05label\x12$\n" +
+	"\x0estart_offset_s\x18\x0e \x01(\x03R\fstartOffsetS\x12-\n" +
+	"\x10elevation_loss_m\x18\x0f \x01(\x01H\bR\x0eelevationLossM\x88\x01\x01B\r\n" +
 	"\v_distance_mB\x15\n" +
 	"\x13_avg_heart_rate_bpmB\x15\n" +
 	"\x13_max_heart_rate_bpmB\x0e\n" +
@@ -5118,7 +8424,8 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\f_max_power_wB\x10\n" +
 	"\x0e_avg_speed_mpsB\x0e\n" +
 	"\f_avg_cadenceB\x13\n" +
-	"\x11_elevation_gain_m\"\xdd\x01\n" +
+	"\x11_elevation_gain_mB\x13\n" +
+	"\x11_elevation_loss_m\"\xdd\x01\n" +
 	"\rStreamSummary\x123\n" +
 	"\bchannels\x18\x01 \x03(\x0e2\x17.cairn.v1.StreamChannelR\bchannels\x12!\n" +
 	"\fsample_count\x18\x02 \x01(\x05R\vsampleCount\x12$\n" +
@@ -5229,7 +8536,65 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12*\n" +
 	"\x04sort\x18\x06 \x01(\x0e2\x16.cairn.v1.ActivitySortR\x04sort\x12)\n" +
 	"\x04page\x18\a \x01(\v2\x15.cairn.v1.PageRequestR\x04page\x12'\n" +
-	"\x0finclude_sources\x18\b \x01(\bR\x0eincludeSources\"x\n" +
+	"\x0finclude_sources\x18\b \x01(\bR\x0eincludeSources\"\x86\t\n" +
+	"\x0eActivityFilter\x12,\n" +
+	"\x05types\x18\x01 \x03(\x0e2\x16.cairn.v1.ActivityTypeR\x05types\x12 \n" +
+	"\vdisciplines\x18\x02 \x03(\tR\vdisciplines\x122\n" +
+	"\n" +
+	"time_range\x18\x03 \x01(\v2\x13.cairn.v1.TimeRangeR\ttimeRange\x12\x19\n" +
+	"\bgear_ids\x18\x04 \x03(\tR\agearIds\x127\n" +
+	"\avirtual\x18\x05 \x01(\x0e2\x1d.cairn.v1.ActivityFilter.FlagR\avirtual\x123\n" +
+	"\x05ebike\x18\x06 \x01(\x0e2\x1d.cairn.v1.ActivityFilter.FlagR\x05ebike\x127\n" +
+	"\acommute\x18\a \x01(\x0e2\x1d.cairn.v1.ActivityFilter.FlagR\acommute\x121\n" +
+	"\x04race\x18\b \x01(\x0e2\x1d.cairn.v1.ActivityFilter.FlagR\x04race\x12)\n" +
+	"\x0edistance_min_m\x18\t \x01(\x01H\x00R\fdistanceMinM\x88\x01\x01\x12)\n" +
+	"\x0edistance_max_m\x18\n" +
+	" \x01(\x01H\x01R\fdistanceMaxM\x88\x01\x01\x12)\n" +
+	"\x0eduration_min_s\x18\v \x01(\x01H\x02R\fdurationMinS\x88\x01\x01\x12)\n" +
+	"\x0eduration_max_s\x18\f \x01(\x01H\x03R\fdurationMaxS\x88\x01\x01\x12+\n" +
+	"\x0felevation_min_m\x18\r \x01(\x01H\x04R\relevationMinM\x88\x01\x01\x12+\n" +
+	"\x0felevation_max_m\x18\x0e \x01(\x01H\x05R\relevationMaxM\x88\x01\x01\x12'\n" +
+	"\rspeed_min_mps\x18\x0f \x01(\x01H\x06R\vspeedMinMps\x88\x01\x01\x12'\n" +
+	"\rspeed_max_mps\x18\x10 \x01(\x01H\aR\vspeedMaxMps\x88\x01\x01\x12!\n" +
+	"\n" +
+	"hr_min_bpm\x18\x11 \x01(\x01H\bR\bhrMinBpm\x88\x01\x01\x12!\n" +
+	"\n" +
+	"hr_max_bpm\x18\x12 \x01(\x01H\tR\bhrMaxBpm\x88\x01\x01\x12#\n" +
+	"\vpower_min_w\x18\x13 \x01(\x01H\n" +
+	"R\tpowerMinW\x88\x01\x01\x12#\n" +
+	"\vpower_max_w\x18\x14 \x01(\x01H\vR\tpowerMaxW\x88\x01\x01\"=\n" +
+	"\x04Flag\x12\x14\n" +
+	"\x10FLAG_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tFLAG_ONLY\x10\x01\x12\x10\n" +
+	"\fFLAG_EXCLUDE\x10\x02B\x11\n" +
+	"\x0f_distance_min_mB\x11\n" +
+	"\x0f_distance_max_mB\x11\n" +
+	"\x0f_duration_min_sB\x11\n" +
+	"\x0f_duration_max_sB\x12\n" +
+	"\x10_elevation_min_mB\x12\n" +
+	"\x10_elevation_max_mB\x10\n" +
+	"\x0e_speed_min_mpsB\x10\n" +
+	"\x0e_speed_max_mpsB\r\n" +
+	"\v_hr_min_bpmB\r\n" +
+	"\v_hr_max_bpmB\x0e\n" +
+	"\f_power_min_wB\x0e\n" +
+	"\f_power_max_w\"\x91\x01\n" +
+	"\x0eActivityFacets\x12%\n" +
+	"\x05types\x18\x01 \x03(\v2\x0f.cairn.v1.FacetR\x05types\x121\n" +
+	"\vdisciplines\x18\x02 \x03(\v2\x0f.cairn.v1.FacetR\vdisciplines\x12%\n" +
+	"\x05years\x18\x03 \x03(\v2\x0f.cairn.v1.FacetR\x05years\"\xa2\x01\n" +
+	"\x17SearchActivitiesRequest\x120\n" +
+	"\x06filter\x18\x01 \x01(\v2\x18.cairn.v1.ActivityFilterR\x06filter\x12*\n" +
+	"\x04sort\x18\x02 \x01(\x0e2\x16.cairn.v1.ActivitySortR\x04sort\x12)\n" +
+	"\x04page\x18\x03 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"\xdc\x01\n" +
+	"\x18SearchActivitiesResponse\x122\n" +
+	"\n" +
+	"activities\x18\x01 \x03(\v2\x12.cairn.v1.ActivityR\n" +
+	"activities\x120\n" +
+	"\x06facets\x18\x02 \x01(\v2\x18.cairn.v1.ActivityFacetsR\x06facets\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\x12\x18\n" +
+	"\amatched\x18\x04 \x01(\x05R\amatched\x12*\n" +
+	"\x04page\x18\x05 \x01(\v2\x16.cairn.v1.PageResponseR\x04page\"x\n" +
 	"\x16ListActivitiesResponse\x122\n" +
 	"\n" +
 	"activities\x18\x01 \x03(\v2\x12.cairn.v1.ActivityR\n" +
@@ -5327,7 +8692,31 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x1dPreviewSourceReimportResponse\x12\x1d\n" +
 	"\n" +
 	"preview_id\x18\x01 \x01(\tR\tpreviewId\x12\x15\n" +
-	"\x06job_id\x18\x02 \x01(\tR\x05jobId\";\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\"Q\n" +
+	"\vFieldChange\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x16\n" +
+	"\x06before\x18\x02 \x01(\tR\x06before\x12\x14\n" +
+	"\x05after\x18\x03 \x01(\tR\x05after\"\xa2\x03\n" +
+	"\rSourcePreview\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12,\n" +
+	"\x12activity_source_id\x18\x02 \x01(\tR\x10activitySourceId\x12\x1f\n" +
+	"\vactivity_id\x18\x03 \x01(\tR\n" +
+	"activityId\x12\x15\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\x125\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1d.cairn.v1.SourcePreviewStatusR\x06status\x126\n" +
+	"\vsource_diff\x18\x06 \x03(\v2\x15.cairn.v1.FieldChangeR\n" +
+	"sourceDiff\x126\n" +
+	"\vmerged_diff\x18\a \x03(\v2\x15.cairn.v1.FieldChangeR\n" +
+	"mergedDiff\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"8\n" +
+	"\x17GetSourcePreviewRequest\x12\x1d\n" +
+	"\n" +
+	"preview_id\x18\x01 \x01(\tR\tpreviewId\"M\n" +
+	"\x18GetSourcePreviewResponse\x121\n" +
+	"\apreview\x18\x01 \x01(\v2\x17.cairn.v1.SourcePreviewR\apreview\";\n" +
 	"\x1aCommitSourcePreviewRequest\x12\x1d\n" +
 	"\n" +
 	"preview_id\x18\x01 \x01(\tR\tpreviewId\"M\n" +
@@ -5384,7 +8773,231 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x16UploadActivityResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1f\n" +
 	"\vactivity_id\x18\x02 \x01(\tR\n" +
-	"activityId\"o\n" +
+	"activityId\"2\n" +
+	"\x0fListLapsRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"Z\n" +
+	"\x10ListLapsResponse\x12)\n" +
+	"\x04laps\x18\x01 \x03(\v2\x15.cairn.v1.ActivityLapR\x04laps\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\":\n" +
+	"\x17GetActivityZonesRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"n\n" +
+	"\bZoneBand\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x17\n" +
+	"\alow_pct\x18\x02 \x01(\x01R\x06lowPct\x12\x19\n" +
+	"\bhigh_pct\x18\x03 \x01(\x01R\ahighPct\x12\x18\n" +
+	"\aseconds\x18\x04 \x01(\x05R\aseconds\"\x90\x01\n" +
+	"\vZoneSummary\x12\x14\n" +
+	"\x05basis\x18\x01 \x01(\tR\x05basis\x12\x1c\n" +
+	"\treference\x18\x02 \x01(\x01R\treference\x12#\n" +
+	"\rtotal_seconds\x18\x03 \x01(\x05R\ftotalSeconds\x12(\n" +
+	"\x05zones\x18\x04 \x03(\v2\x12.cairn.v1.ZoneBandR\x05zones\"N\n" +
+	"\n" +
+	"Decoupling\x12\x10\n" +
+	"\x03pct\x18\x01 \x01(\x01R\x03pct\x12\x14\n" +
+	"\x05basis\x18\x02 \x01(\tR\x05basis\x12\x18\n" +
+	"\acoupled\x18\x03 \x01(\bR\acoupled\"\xd3\x01\n" +
+	"\x18GetActivityZonesResponse\x12*\n" +
+	"\x02hr\x18\x01 \x01(\v2\x15.cairn.v1.ZoneSummaryH\x00R\x02hr\x88\x01\x01\x120\n" +
+	"\x05power\x18\x02 \x01(\v2\x15.cairn.v1.ZoneSummaryH\x01R\x05power\x88\x01\x01\x129\n" +
+	"\n" +
+	"decoupling\x18\x03 \x01(\v2\x14.cairn.v1.DecouplingH\x02R\n" +
+	"decoupling\x88\x01\x01B\x05\n" +
+	"\x03_hrB\b\n" +
+	"\x06_powerB\r\n" +
+	"\v_decoupling\"D\n" +
+	"!ListActivitySegmentEffortsRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\xb7\x05\n" +
+	"\x15ActivitySegmentEffort\x12\x1d\n" +
+	"\n" +
+	"segment_id\x18\x01 \x01(\tR\tsegmentId\x12!\n" +
+	"\fsegment_name\x18\x02 \x01(\tR\vsegmentName\x12,\n" +
+	"\x12segment_distance_m\x18\x03 \x01(\x01R\x10segmentDistanceM\x12*\n" +
+	"\x0eclimb_category\x18\x04 \x01(\tH\x00R\rclimbCategory\x88\x01\x01\x12\x1b\n" +
+	"\telapsed_s\x18\x05 \x01(\x01R\belapsedS\x12\x19\n" +
+	"\bmoving_s\x18\x06 \x01(\x01R\amovingS\x12)\n" +
+	"\x0eavg_heart_rate\x18\a \x01(\x05H\x01R\favgHeartRate\x88\x01\x01\x12 \n" +
+	"\tavg_power\x18\b \x01(\x05H\x02R\bavgPower\x88\x01\x01\x12,\n" +
+	"\x12is_personal_record\x18\t \x01(\bR\x10isPersonalRecord\x12#\n" +
+	"\rpersonal_rank\x18\n" +
+	" \x01(\x05R\fpersonalRank\x12)\n" +
+	"\x0estart_offset_s\x18\v \x01(\x01H\x03R\fstartOffsetS\x88\x01\x01\x12%\n" +
+	"\fend_offset_s\x18\f \x01(\x01H\x04R\n" +
+	"endOffsetS\x88\x01\x01\x12-\n" +
+	"\x10start_distance_m\x18\r \x01(\x01H\x05R\x0estartDistanceM\x88\x01\x01\x12)\n" +
+	"\x0eend_distance_m\x18\x0e \x01(\x01H\x06R\fendDistanceM\x88\x01\x01B\x11\n" +
+	"\x0f_climb_categoryB\x11\n" +
+	"\x0f_avg_heart_rateB\f\n" +
+	"\n" +
+	"_avg_powerB\x11\n" +
+	"\x0f_start_offset_sB\x0f\n" +
+	"\r_end_offset_sB\x13\n" +
+	"\x11_start_distance_mB\x11\n" +
+	"\x0f_end_distance_m\"_\n" +
+	"\"ListActivitySegmentEffortsResponse\x129\n" +
+	"\aefforts\x18\x01 \x03(\v2\x1f.cairn.v1.ActivitySegmentEffortR\aefforts\"?\n" +
+	"\x1cListSimilarActivitiesRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\x9a\x04\n" +
+	"\x0fSimilarActivity\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"is_current\x18\x02 \x01(\bR\tisCurrent\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12*\n" +
+	"\x04type\x18\x04 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x129\n" +
+	"\n" +
+	"start_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12\"\n" +
+	"\n" +
+	"distance_m\x18\x06 \x01(\x01H\x00R\tdistanceM\x88\x01\x01\x12\x19\n" +
+	"\bmoving_s\x18\a \x01(\x03R\amovingS\x12\x1b\n" +
+	"\telapsed_s\x18\b \x01(\x03R\belapsedS\x12)\n" +
+	"\x0eavg_heart_rate\x18\t \x01(\x05H\x01R\favgHeartRate\x88\x01\x01\x12 \n" +
+	"\tavg_power\x18\n" +
+	" \x01(\x05H\x02R\bavgPower\x88\x01\x01\x12&\n" +
+	"\rpace_s_per_km\x18\v \x01(\x01H\x03R\n" +
+	"paceSPerKm\x88\x01\x01\x12'\n" +
+	"\x0fshared_segments\x18\f \x01(\x05R\x0esharedSegments\x12\x1f\n" +
+	"\voverlap_pct\x18\r \x01(\x01R\n" +
+	"overlapPctB\r\n" +
+	"\v_distance_mB\x11\n" +
+	"\x0f_avg_heart_rateB\f\n" +
+	"\n" +
+	"_avg_powerB\x10\n" +
+	"\x0e_pace_s_per_km\"\xa3\x02\n" +
+	"\x1dListSimilarActivitiesResponse\x12'\n" +
+	"\x0ftarget_segments\x18\x01 \x01(\x05R\x0etargetSegments\x129\n" +
+	"\n" +
+	"activities\x18\x02 \x03(\v2\x19.cairn.v1.SimilarActivityR\n" +
+	"activities\x12\x14\n" +
+	"\x05count\x18\x03 \x01(\x05R\x05count\x12\"\n" +
+	"\rbest_moving_s\x18\x04 \x01(\x03R\vbestMovingS\x12(\n" +
+	"\x10current_moving_s\x18\x05 \x01(\x03R\x0ecurrentMovingS\x12!\n" +
+	"\fcurrent_rank\x18\x06 \x01(\x05R\vcurrentRank\x12\x17\n" +
+	"\ais_best\x18\a \x01(\bR\x06isBest\"9\n" +
+	"\x16GetMergedStreamRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"D\n" +
+	"\rMergedChannel\x12\x16\n" +
+	"\x06values\x18\x01 \x03(\x01R\x06values\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\"\xdc\x01\n" +
+	"\x17GetMergedStreamResponse\x12\x1e\n" +
+	"\vgrid_unix_s\x18\x01 \x03(\x03R\tgridUnixS\x12K\n" +
+	"\bchannels\x18\x02 \x03(\v2/.cairn.v1.GetMergedStreamResponse.ChannelsEntryR\bchannels\x1aT\n" +
+	"\rChannelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.cairn.v1.MergedChannelR\x05value:\x028\x01\"3\n" +
+	"\x10ListKudosRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"v\n" +
+	"\x11ListKudosResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x1b\n" +
+	"\thas_kudos\x18\x02 \x01(\bR\bhasKudos\x12.\n" +
+	"\bkudosers\x18\x03 \x03(\v2\x12.cairn.v1.UserCardR\bkudosers\"6\n" +
+	"\x13ListCommentsRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\x94\x01\n" +
+	"\aComment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12*\n" +
+	"\x06author\x18\x04 \x01(\v2\x12.cairn.v1.UserCardR\x06author\"E\n" +
+	"\x14ListCommentsResponse\x12-\n" +
+	"\bcomments\x18\x01 \x03(\v2\x11.cairn.v1.CommentR\bcomments\"?\n" +
+	"\x1cGetActivityManageInfoRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\xeb\x05\n" +
+	"\rSourceInsight\x120\n" +
+	"\x06source\x18\x01 \x01(\v2\x18.cairn.v1.ActivitySourceR\x06source\x12%\n" +
+	"\x0eworker_release\x18\x02 \x01(\tR\rworkerRelease\x12%\n" +
+	"\x0eparser_version\x18\x03 \x01(\tR\rparserVersion\x12'\n" +
+	"\x0fdataset_version\x18\x04 \x01(\tR\x0edatasetVersion\x12!\n" +
+	"\freparse_with\x18\x05 \x01(\tR\vreparseWith\x12\x18\n" +
+	"\aupgrade\x18\x06 \x01(\tR\aupgrade\x12%\n" +
+	"\x0eworker_package\x18\a \x01(\tR\rworkerPackage\x12)\n" +
+	"\x10reparse_eligible\x18\b \x01(\bR\x0freparseEligible\x12\x19\n" +
+	"\bhas_blob\x18\t \x01(\bR\ahasBlob\x12(\n" +
+	"\x10raw_content_type\x18\n" +
+	" \x01(\tR\x0erawContentType\x12$\n" +
+	"\x0eraw_size_bytes\x18\v \x01(\x03R\frawSizeBytes\x12\x1d\n" +
+	"\n" +
+	"has_stream\x18\f \x01(\bR\thasStream\x12\x1b\n" +
+	"\tlap_count\x18\r \x01(\x05R\blapCount\x12#\n" +
+	"\rstatus_reason\x18\x0e \x01(\tR\fstatusReason\x12'\n" +
+	"\x0freimport_reason\x18\x0f \x01(\tR\x0ereimportReason\x12M\n" +
+	"\x12last_reimported_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x10lastReimportedAt\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"is_primary\x18\x11 \x01(\bR\tisPrimary\x12(\n" +
+	"\x10won_field_groups\x18\x12 \x03(\tR\x0ewonFieldGroupsB\x15\n" +
+	"\x13_last_reimported_at\"\xd9\x01\n" +
+	"\x0fFieldProvenance\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x1f\n" +
+	"\vfield_label\x18\x02 \x01(\tR\n" +
+	"fieldLabel\x12\x1b\n" +
+	"\tsource_id\x18\x03 \x01(\tR\bsourceId\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bprovider\x12\x1d\n" +
+	"\n" +
+	"decided_by\x18\x05 \x01(\tR\tdecidedBy\x127\n" +
+	"\tsynced_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bsyncedAt\"\xf2\x01\n" +
+	"\x1dGetActivityManageInfoResponse\x127\n" +
+	"\tmerged_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bmergedAt\x12*\n" +
+	"\x11primary_source_id\x18\x02 \x01(\tR\x0fprimarySourceId\x121\n" +
+	"\asources\x18\x03 \x03(\v2\x17.cairn.v1.SourceInsightR\asources\x129\n" +
+	"\n" +
+	"provenance\x18\x04 \x03(\v2\x19.cairn.v1.FieldProvenanceR\n" +
+	"provenance\"V\n" +
+	"\x16GetParsedSourceRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\"T\n" +
+	"\x17GetParsedSourceResponse\x129\n" +
+	"\apayload\x18\x01 \x01(\v2\x1f.cairn.v1.ActivitySourcePayloadR\apayload\"\x8b\x03\n" +
+	"\n" +
+	"Attachment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vactivity_id\x18\x02 \x01(\tR\n" +
+	"activityId\x120\n" +
+	"\boriginal\x18\x03 \x01(\v2\x14.cairn.v1.ContentUrlR\boriginal\x12,\n" +
+	"\x06medium\x18\x04 \x01(\v2\x14.cairn.v1.ContentUrlR\x06medium\x12*\n" +
+	"\x05thumb\x18\x05 \x01(\v2\x14.cairn.v1.ContentUrlR\x05thumb\x12\x14\n" +
+	"\x05width\x18\x06 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\a \x01(\x05R\x06height\x12\x1a\n" +
+	"\bblurhash\x18\b \x01(\tR\bblurhash\x12\x18\n" +
+	"\acaption\x18\t \x01(\tR\acaption\x12!\n" +
+	"\fcontent_type\x18\n" +
+	" \x01(\tR\vcontentType\x129\n" +
+	"\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"9\n" +
+	"\x16ListAttachmentsRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"Q\n" +
+	"\x17ListAttachmentsResponse\x126\n" +
+	"\vattachments\x18\x01 \x03(\v2\x14.cairn.v1.AttachmentR\vattachments\"=\n" +
+	"\x1aGetActivityMapImageRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"]\n" +
+	"\x1bGetActivityMapImageResponse\x12*\n" +
+	"\x05image\x18\x01 \x01(\v2\x14.cairn.v1.ContentUrlR\x05image\x12\x12\n" +
+	"\x04etag\x18\x02 \x01(\tR\x04etag\":\n" +
+	"\x17GetExportOptionsRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\"\xa9\x01\n" +
+	"\x18GetExportOptionsResponse\x12O\n" +
+	"\tavailable\x18\x01 \x03(\v21.cairn.v1.GetExportOptionsResponse.AvailableEntryR\tavailable\x1a<\n" +
+	"\x0eAvailableEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\x82\x01\n" +
+	"\x15ExportActivityRequest\x12\x1f\n" +
+	"\vactivity_id\x18\x01 \x01(\tR\n" +
+	"activityId\x12.\n" +
+	"\x06format\x18\x02 \x01(\x0e2\x16.cairn.v1.ExportFormatR\x06format\x12\x18\n" +
+	"\aexclude\x18\x03 \x03(\tR\aexclude\"\x81\x01\n" +
+	"\x16ExportActivityResponse\x12(\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.cairn.v1.ContentUrlR\x04file\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"o\n" +
 	"\x16ListBestEffortsRequest\x12\x1f\n" +
 	"\vactivity_id\x18\x01 \x01(\tR\n" +
 	"activityId\x124\n" +
@@ -5411,7 +9024,10 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\fwindow_value\x18\x04 \x01(\x05R\vwindowValue\x12\x14\n" +
 	"\x05label\x18\x05 \x01(\tR\x05label\"j\n" +
 	"\x1eCreateCustomBestEffortResponse\x12H\n" +
-	"\x12custom_best_effort\x18\x01 \x01(\v2\x1a.cairn.v1.CustomBestEffortR\x10customBestEffort\"/\n" +
+	"\x12custom_best_effort\x18\x01 \x01(\v2\x1a.cairn.v1.CustomBestEffortR\x10customBestEffort\"\x1e\n" +
+	"\x1cListCustomBestEffortsRequest\"k\n" +
+	"\x1dListCustomBestEffortsResponse\x12J\n" +
+	"\x13custom_best_efforts\x18\x01 \x03(\v2\x1a.cairn.v1.CustomBestEffortR\x11customBestEfforts\"/\n" +
 	"\x1dDeleteCustomBestEffortRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\" \n" +
 	"\x1eDeleteCustomBestEffortResponse*U\n" +
@@ -5510,13 +9126,15 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x14BestEffortWindowKind\x12'\n" +
 	"#BEST_EFFORT_WINDOW_KIND_UNSPECIFIED\x10\x00\x12$\n" +
 	" BEST_EFFORT_WINDOW_KIND_DISTANCE\x10\x01\x12$\n" +
-	" BEST_EFFORT_WINDOW_KIND_DURATION\x10\x02*\xb4\x01\n" +
+	" BEST_EFFORT_WINDOW_KIND_DURATION\x10\x02*\xf4\x01\n" +
 	"\fActivitySort\x12\x1d\n" +
 	"\x19ACTIVITY_SORT_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dACTIVITY_SORT_START_TIME_DESC\x10\x01\x12 \n" +
 	"\x1cACTIVITY_SORT_START_TIME_ASC\x10\x02\x12\x1f\n" +
 	"\x1bACTIVITY_SORT_DISTANCE_DESC\x10\x03\x12\x1f\n" +
-	"\x1bACTIVITY_SORT_DURATION_DESC\x10\x04*\xed\x04\n" +
+	"\x1bACTIVITY_SORT_DURATION_DESC\x10\x04\x12 \n" +
+	"\x1cACTIVITY_SORT_ELEVATION_DESC\x10\x05\x12\x1c\n" +
+	"\x18ACTIVITY_SORT_SPEED_DESC\x10\x06*\xed\x04\n" +
 	"\x11ActivityEventType\x12#\n" +
 	"\x1fACTIVITY_EVENT_TYPE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"ACTIVITY_EVENT_TYPE_IMPORT_STARTED\x10\x01\x12'\n" +
@@ -5533,26 +9151,51 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"&ACTIVITY_EVENT_TYPE_REIMPORT_COMPLETED\x10\v\x12'\n" +
 	"#ACTIVITY_EVENT_TYPE_REIMPORT_FAILED\x10\f\x12\x1e\n" +
 	"\x1aACTIVITY_EVENT_TYPE_NEW_PR\x10\r\x12\"\n" +
-	"\x1eACTIVITY_EVENT_TYPE_SEGMENT_PR\x10\x0e2\xf5\r\n" +
+	"\x1eACTIVITY_EVENT_TYPE_SEGMENT_PR\x10\x0e*\x80\x01\n" +
+	"\x13SourcePreviewStatus\x12%\n" +
+	"!SOURCE_PREVIEW_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dSOURCE_PREVIEW_STATUS_PENDING\x10\x01\x12\x1f\n" +
+	"\x1bSOURCE_PREVIEW_STATUS_READY\x10\x02*r\n" +
+	"\fExportFormat\x12\x1d\n" +
+	"\x19EXPORT_FORMAT_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11EXPORT_FORMAT_GPX\x10\x01\x12\x15\n" +
+	"\x11EXPORT_FORMAT_TCX\x10\x02\x12\x15\n" +
+	"\x11EXPORT_FORMAT_FIT\x10\x032\xfc\x19\n" +
 	"\x0fActivityService\x12S\n" +
-	"\x0eListActivities\x12\x1f.cairn.v1.ListActivitiesRequest\x1a .cairn.v1.ListActivitiesResponse\x12J\n" +
+	"\x0eListActivities\x12\x1f.cairn.v1.ListActivitiesRequest\x1a .cairn.v1.ListActivitiesResponse\x12^\n" +
+	"\x10SearchActivities\x12!.cairn.v1.SearchActivitiesRequest\x1a\".cairn.v1.SearchActivitiesResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\vGetActivity\x12\x1c.cairn.v1.GetActivityRequest\x1a\x1d.cairn.v1.GetActivityResponse\x12S\n" +
 	"\x0eUpdateActivity\x12\x1f.cairn.v1.UpdateActivityRequest\x1a .cairn.v1.UpdateActivityResponse\x12S\n" +
 	"\x0eDeleteActivity\x12\x1f.cairn.v1.DeleteActivityRequest\x1a .cairn.v1.DeleteActivityResponse\x12X\n" +
 	"\x14StreamActivityEvents\x12%.cairn.v1.StreamActivityEventsRequest\x1a\x17.cairn.v1.ActivityEvent0\x01\x12b\n" +
 	"\x13ListActivitySources\x12$.cairn.v1.ListActivitySourcesRequest\x1a%.cairn.v1.ListActivitySourcesResponse\x12S\n" +
 	"\x0eReimportSource\x12\x1f.cairn.v1.ReimportSourceRequest\x1a .cairn.v1.ReimportSourceResponse\x12h\n" +
-	"\x15PreviewSourceReimport\x12&.cairn.v1.PreviewSourceReimportRequest\x1a'.cairn.v1.PreviewSourceReimportResponse\x12b\n" +
+	"\x15PreviewSourceReimport\x12&.cairn.v1.PreviewSourceReimportRequest\x1a'.cairn.v1.PreviewSourceReimportResponse\x12^\n" +
+	"\x10GetSourcePreview\x12!.cairn.v1.GetSourcePreviewRequest\x1a\".cairn.v1.GetSourcePreviewResponse\"\x03\x90\x02\x01\x12b\n" +
 	"\x13CommitSourcePreview\x12$.cairn.v1.CommitSourcePreviewRequest\x1a%.cairn.v1.CommitSourcePreviewResponse\x12e\n" +
 	"\x14DiscardSourcePreview\x12%.cairn.v1.DiscardSourcePreviewRequest\x1a&.cairn.v1.DiscardSourcePreviewResponse\x12e\n" +
 	"\x14LinkSourceToActivity\x12%.cairn.v1.LinkSourceToActivityRequest\x1a&.cairn.v1.LinkSourceToActivityResponse\x12M\n" +
 	"\fDetachSource\x12\x1d.cairn.v1.DetachSourceRequest\x1a\x1e.cairn.v1.DetachSourceResponse\x12\\\n" +
 	"\x11GetActivityStream\x12\".cairn.v1.GetActivityStreamRequest\x1a#.cairn.v1.GetActivityStreamResponse\x12h\n" +
 	"\x15PresignActivityUpload\x12&.cairn.v1.PresignActivityUploadRequest\x1a'.cairn.v1.PresignActivityUploadResponse\x12S\n" +
-	"\x0eUploadActivity\x12\x1f.cairn.v1.UploadActivityRequest\x1a .cairn.v1.UploadActivityResponse\x12V\n" +
+	"\x0eUploadActivity\x12\x1f.cairn.v1.UploadActivityRequest\x1a .cairn.v1.UploadActivityResponse\x12F\n" +
+	"\bListLaps\x12\x19.cairn.v1.ListLapsRequest\x1a\x1a.cairn.v1.ListLapsResponse\"\x03\x90\x02\x01\x12^\n" +
+	"\x10GetActivityZones\x12!.cairn.v1.GetActivityZonesRequest\x1a\".cairn.v1.GetActivityZonesResponse\"\x03\x90\x02\x01\x12|\n" +
+	"\x1aListActivitySegmentEfforts\x12+.cairn.v1.ListActivitySegmentEffortsRequest\x1a,.cairn.v1.ListActivitySegmentEffortsResponse\"\x03\x90\x02\x01\x12m\n" +
+	"\x15ListSimilarActivities\x12&.cairn.v1.ListSimilarActivitiesRequest\x1a'.cairn.v1.ListSimilarActivitiesResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fGetMergedStream\x12 .cairn.v1.GetMergedStreamRequest\x1a!.cairn.v1.GetMergedStreamResponse\"\x03\x90\x02\x01\x12I\n" +
+	"\tListKudos\x12\x1a.cairn.v1.ListKudosRequest\x1a\x1b.cairn.v1.ListKudosResponse\"\x03\x90\x02\x01\x12R\n" +
+	"\fListComments\x12\x1d.cairn.v1.ListCommentsRequest\x1a\x1e.cairn.v1.ListCommentsResponse\"\x03\x90\x02\x01\x12m\n" +
+	"\x15GetActivityManageInfo\x12&.cairn.v1.GetActivityManageInfoRequest\x1a'.cairn.v1.GetActivityManageInfoResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fGetParsedSource\x12 .cairn.v1.GetParsedSourceRequest\x1a!.cairn.v1.GetParsedSourceResponse\"\x03\x90\x02\x01\x12[\n" +
+	"\x0fListAttachments\x12 .cairn.v1.ListAttachmentsRequest\x1a!.cairn.v1.ListAttachmentsResponse\"\x03\x90\x02\x01\x12g\n" +
+	"\x13GetActivityMapImage\x12$.cairn.v1.GetActivityMapImageRequest\x1a%.cairn.v1.GetActivityMapImageResponse\"\x03\x90\x02\x01\x12^\n" +
+	"\x10GetExportOptions\x12!.cairn.v1.GetExportOptionsRequest\x1a\".cairn.v1.GetExportOptionsResponse\"\x03\x90\x02\x01\x12S\n" +
+	"\x0eExportActivity\x12\x1f.cairn.v1.ExportActivityRequest\x1a .cairn.v1.ExportActivityResponse\x12V\n" +
 	"\x0fListBestEfforts\x12 .cairn.v1.ListBestEffortsRequest\x1a!.cairn.v1.ListBestEffortsResponse\x12J\n" +
 	"\vListRecords\x12\x1c.cairn.v1.ListRecordsRequest\x1a\x1d.cairn.v1.ListRecordsResponse\x12k\n" +
-	"\x16CreateCustomBestEffort\x12'.cairn.v1.CreateCustomBestEffortRequest\x1a(.cairn.v1.CreateCustomBestEffortResponse\x12k\n" +
+	"\x16CreateCustomBestEffort\x12'.cairn.v1.CreateCustomBestEffortRequest\x1a(.cairn.v1.CreateCustomBestEffortResponse\x12m\n" +
+	"\x15ListCustomBestEfforts\x12&.cairn.v1.ListCustomBestEffortsRequest\x1a'.cairn.v1.ListCustomBestEffortsResponse\"\x03\x90\x02\x01\x12k\n" +
 	"\x16DeleteCustomBestEffort\x12'.cairn.v1.DeleteCustomBestEffortRequest\x1a(.cairn.v1.DeleteCustomBestEffortResponseB\x9e\x01\n" +
 	"\fcom.cairn.v1B\rActivityProtoP\x01Z>github.com/opencairn-org/cairn-core/gen/proto/cairn/v1;cairnv1\xa2\x02\x03CXX\xaa\x02\bCairn.V1\xca\x02\bCairn\\V1\xe2\x02\x14Cairn\\V1\\GPBMetadata\xea\x02\tCairn::V1b\x06proto3"
 
@@ -5568,220 +9211,360 @@ func file_cairn_v1_activity_proto_rawDescGZIP() []byte {
 	return file_cairn_v1_activity_proto_rawDescData
 }
 
-var file_cairn_v1_activity_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_cairn_v1_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
+var file_cairn_v1_activity_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
+var file_cairn_v1_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 102)
 var file_cairn_v1_activity_proto_goTypes = []any{
-	(GearSetBy)(0),                         // 0: cairn.v1.GearSetBy
-	(ActivityType)(0),                      // 1: cairn.v1.ActivityType
-	(Discipline)(0),                        // 2: cairn.v1.Discipline
-	(Privacy)(0),                           // 3: cairn.v1.Privacy
-	(ActivitySourceStatus)(0),              // 4: cairn.v1.ActivitySourceStatus
-	(ReimportStatus)(0),                    // 5: cairn.v1.ReimportStatus
-	(StreamChannel)(0),                     // 6: cairn.v1.StreamChannel
-	(BestEffortMetric)(0),                  // 7: cairn.v1.BestEffortMetric
-	(BestEffortWindowKind)(0),              // 8: cairn.v1.BestEffortWindowKind
-	(ActivitySort)(0),                      // 9: cairn.v1.ActivitySort
-	(ActivityEventType)(0),                 // 10: cairn.v1.ActivityEventType
-	(*Activity)(nil),                       // 11: cairn.v1.Activity
-	(*ActivitySummary)(nil),                // 12: cairn.v1.ActivitySummary
-	(*ActivitySource)(nil),                 // 13: cairn.v1.ActivitySource
-	(*ActivitySourcePayload)(nil),          // 14: cairn.v1.ActivitySourcePayload
-	(*ActivityLap)(nil),                    // 15: cairn.v1.ActivityLap
-	(*StreamSummary)(nil),                  // 16: cairn.v1.StreamSummary
-	(*ProviderSegmentEffort)(nil),          // 17: cairn.v1.ProviderSegmentEffort
-	(*ProviderBestEffort)(nil),             // 18: cairn.v1.ProviderBestEffort
-	(*ActivityStream)(nil),                 // 19: cairn.v1.ActivityStream
-	(*BestEffort)(nil),                     // 20: cairn.v1.BestEffort
-	(*UserRecord)(nil),                     // 21: cairn.v1.UserRecord
-	(*CustomBestEffort)(nil),               // 22: cairn.v1.CustomBestEffort
-	(*ListActivitiesRequest)(nil),          // 23: cairn.v1.ListActivitiesRequest
-	(*ListActivitiesResponse)(nil),         // 24: cairn.v1.ListActivitiesResponse
-	(*GetActivityRequest)(nil),             // 25: cairn.v1.GetActivityRequest
-	(*GetActivityResponse)(nil),            // 26: cairn.v1.GetActivityResponse
-	(*UpdateActivityRequest)(nil),          // 27: cairn.v1.UpdateActivityRequest
-	(*UpdateActivityResponse)(nil),         // 28: cairn.v1.UpdateActivityResponse
-	(*DeleteActivityRequest)(nil),          // 29: cairn.v1.DeleteActivityRequest
-	(*DeleteActivityResponse)(nil),         // 30: cairn.v1.DeleteActivityResponse
-	(*StreamActivityEventsRequest)(nil),    // 31: cairn.v1.StreamActivityEventsRequest
-	(*ActivityEvent)(nil),                  // 32: cairn.v1.ActivityEvent
-	(*ListActivitySourcesRequest)(nil),     // 33: cairn.v1.ListActivitySourcesRequest
-	(*ListActivitySourcesResponse)(nil),    // 34: cairn.v1.ListActivitySourcesResponse
-	(*ReimportSourceRequest)(nil),          // 35: cairn.v1.ReimportSourceRequest
-	(*ReimportSourceResponse)(nil),         // 36: cairn.v1.ReimportSourceResponse
-	(*PreviewSourceReimportRequest)(nil),   // 37: cairn.v1.PreviewSourceReimportRequest
-	(*PreviewSourceReimportResponse)(nil),  // 38: cairn.v1.PreviewSourceReimportResponse
-	(*CommitSourcePreviewRequest)(nil),     // 39: cairn.v1.CommitSourcePreviewRequest
-	(*CommitSourcePreviewResponse)(nil),    // 40: cairn.v1.CommitSourcePreviewResponse
-	(*DiscardSourcePreviewRequest)(nil),    // 41: cairn.v1.DiscardSourcePreviewRequest
-	(*DiscardSourcePreviewResponse)(nil),   // 42: cairn.v1.DiscardSourcePreviewResponse
-	(*LinkSourceToActivityRequest)(nil),    // 43: cairn.v1.LinkSourceToActivityRequest
-	(*LinkSourceToActivityResponse)(nil),   // 44: cairn.v1.LinkSourceToActivityResponse
-	(*DetachSourceRequest)(nil),            // 45: cairn.v1.DetachSourceRequest
-	(*DetachSourceResponse)(nil),           // 46: cairn.v1.DetachSourceResponse
-	(*GetActivityStreamRequest)(nil),       // 47: cairn.v1.GetActivityStreamRequest
-	(*GetActivityStreamResponse)(nil),      // 48: cairn.v1.GetActivityStreamResponse
-	(*PresignActivityUploadRequest)(nil),   // 49: cairn.v1.PresignActivityUploadRequest
-	(*PresignActivityUploadResponse)(nil),  // 50: cairn.v1.PresignActivityUploadResponse
-	(*UploadActivityRequest)(nil),          // 51: cairn.v1.UploadActivityRequest
-	(*UploadActivityResponse)(nil),         // 52: cairn.v1.UploadActivityResponse
-	(*ListBestEffortsRequest)(nil),         // 53: cairn.v1.ListBestEffortsRequest
-	(*ListBestEffortsResponse)(nil),        // 54: cairn.v1.ListBestEffortsResponse
-	(*ListRecordsRequest)(nil),             // 55: cairn.v1.ListRecordsRequest
-	(*ListRecordsResponse)(nil),            // 56: cairn.v1.ListRecordsResponse
-	(*CreateCustomBestEffortRequest)(nil),  // 57: cairn.v1.CreateCustomBestEffortRequest
-	(*CreateCustomBestEffortResponse)(nil), // 58: cairn.v1.CreateCustomBestEffortResponse
-	(*DeleteCustomBestEffortRequest)(nil),  // 59: cairn.v1.DeleteCustomBestEffortRequest
-	(*DeleteCustomBestEffortResponse)(nil), // 60: cairn.v1.DeleteCustomBestEffortResponse
-	nil,                                    // 61: cairn.v1.Activity.MergeProvenanceEntry
-	nil,                                    // 62: cairn.v1.ActivitySourcePayload.ExtraEntry
-	nil,                                    // 63: cairn.v1.ActivityEvent.I18nParamsEntry
-	nil,                                    // 64: cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
-	(*timestamppb.Timestamp)(nil),          // 65: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),            // 66: google.protobuf.Duration
-	(*EncodedPolyline)(nil),                // 67: cairn.v1.EncodedPolyline
-	(*TimeRange)(nil),                      // 68: cairn.v1.TimeRange
-	(*PageRequest)(nil),                    // 69: cairn.v1.PageRequest
-	(*PageResponse)(nil),                   // 70: cairn.v1.PageResponse
+	(GearSetBy)(0),                             // 0: cairn.v1.GearSetBy
+	(ActivityType)(0),                          // 1: cairn.v1.ActivityType
+	(Discipline)(0),                            // 2: cairn.v1.Discipline
+	(Privacy)(0),                               // 3: cairn.v1.Privacy
+	(ActivitySourceStatus)(0),                  // 4: cairn.v1.ActivitySourceStatus
+	(ReimportStatus)(0),                        // 5: cairn.v1.ReimportStatus
+	(StreamChannel)(0),                         // 6: cairn.v1.StreamChannel
+	(BestEffortMetric)(0),                      // 7: cairn.v1.BestEffortMetric
+	(BestEffortWindowKind)(0),                  // 8: cairn.v1.BestEffortWindowKind
+	(ActivitySort)(0),                          // 9: cairn.v1.ActivitySort
+	(ActivityEventType)(0),                     // 10: cairn.v1.ActivityEventType
+	(SourcePreviewStatus)(0),                   // 11: cairn.v1.SourcePreviewStatus
+	(ExportFormat)(0),                          // 12: cairn.v1.ExportFormat
+	(ActivityFilter_Flag)(0),                   // 13: cairn.v1.ActivityFilter.Flag
+	(*Activity)(nil),                           // 14: cairn.v1.Activity
+	(*ActivitySummary)(nil),                    // 15: cairn.v1.ActivitySummary
+	(*ActivitySource)(nil),                     // 16: cairn.v1.ActivitySource
+	(*ActivitySourcePayload)(nil),              // 17: cairn.v1.ActivitySourcePayload
+	(*ActivityLap)(nil),                        // 18: cairn.v1.ActivityLap
+	(*StreamSummary)(nil),                      // 19: cairn.v1.StreamSummary
+	(*ProviderSegmentEffort)(nil),              // 20: cairn.v1.ProviderSegmentEffort
+	(*ProviderBestEffort)(nil),                 // 21: cairn.v1.ProviderBestEffort
+	(*ActivityStream)(nil),                     // 22: cairn.v1.ActivityStream
+	(*BestEffort)(nil),                         // 23: cairn.v1.BestEffort
+	(*UserRecord)(nil),                         // 24: cairn.v1.UserRecord
+	(*CustomBestEffort)(nil),                   // 25: cairn.v1.CustomBestEffort
+	(*ListActivitiesRequest)(nil),              // 26: cairn.v1.ListActivitiesRequest
+	(*ActivityFilter)(nil),                     // 27: cairn.v1.ActivityFilter
+	(*ActivityFacets)(nil),                     // 28: cairn.v1.ActivityFacets
+	(*SearchActivitiesRequest)(nil),            // 29: cairn.v1.SearchActivitiesRequest
+	(*SearchActivitiesResponse)(nil),           // 30: cairn.v1.SearchActivitiesResponse
+	(*ListActivitiesResponse)(nil),             // 31: cairn.v1.ListActivitiesResponse
+	(*GetActivityRequest)(nil),                 // 32: cairn.v1.GetActivityRequest
+	(*GetActivityResponse)(nil),                // 33: cairn.v1.GetActivityResponse
+	(*UpdateActivityRequest)(nil),              // 34: cairn.v1.UpdateActivityRequest
+	(*UpdateActivityResponse)(nil),             // 35: cairn.v1.UpdateActivityResponse
+	(*DeleteActivityRequest)(nil),              // 36: cairn.v1.DeleteActivityRequest
+	(*DeleteActivityResponse)(nil),             // 37: cairn.v1.DeleteActivityResponse
+	(*StreamActivityEventsRequest)(nil),        // 38: cairn.v1.StreamActivityEventsRequest
+	(*ActivityEvent)(nil),                      // 39: cairn.v1.ActivityEvent
+	(*ListActivitySourcesRequest)(nil),         // 40: cairn.v1.ListActivitySourcesRequest
+	(*ListActivitySourcesResponse)(nil),        // 41: cairn.v1.ListActivitySourcesResponse
+	(*ReimportSourceRequest)(nil),              // 42: cairn.v1.ReimportSourceRequest
+	(*ReimportSourceResponse)(nil),             // 43: cairn.v1.ReimportSourceResponse
+	(*PreviewSourceReimportRequest)(nil),       // 44: cairn.v1.PreviewSourceReimportRequest
+	(*PreviewSourceReimportResponse)(nil),      // 45: cairn.v1.PreviewSourceReimportResponse
+	(*FieldChange)(nil),                        // 46: cairn.v1.FieldChange
+	(*SourcePreview)(nil),                      // 47: cairn.v1.SourcePreview
+	(*GetSourcePreviewRequest)(nil),            // 48: cairn.v1.GetSourcePreviewRequest
+	(*GetSourcePreviewResponse)(nil),           // 49: cairn.v1.GetSourcePreviewResponse
+	(*CommitSourcePreviewRequest)(nil),         // 50: cairn.v1.CommitSourcePreviewRequest
+	(*CommitSourcePreviewResponse)(nil),        // 51: cairn.v1.CommitSourcePreviewResponse
+	(*DiscardSourcePreviewRequest)(nil),        // 52: cairn.v1.DiscardSourcePreviewRequest
+	(*DiscardSourcePreviewResponse)(nil),       // 53: cairn.v1.DiscardSourcePreviewResponse
+	(*LinkSourceToActivityRequest)(nil),        // 54: cairn.v1.LinkSourceToActivityRequest
+	(*LinkSourceToActivityResponse)(nil),       // 55: cairn.v1.LinkSourceToActivityResponse
+	(*DetachSourceRequest)(nil),                // 56: cairn.v1.DetachSourceRequest
+	(*DetachSourceResponse)(nil),               // 57: cairn.v1.DetachSourceResponse
+	(*GetActivityStreamRequest)(nil),           // 58: cairn.v1.GetActivityStreamRequest
+	(*GetActivityStreamResponse)(nil),          // 59: cairn.v1.GetActivityStreamResponse
+	(*PresignActivityUploadRequest)(nil),       // 60: cairn.v1.PresignActivityUploadRequest
+	(*PresignActivityUploadResponse)(nil),      // 61: cairn.v1.PresignActivityUploadResponse
+	(*UploadActivityRequest)(nil),              // 62: cairn.v1.UploadActivityRequest
+	(*UploadActivityResponse)(nil),             // 63: cairn.v1.UploadActivityResponse
+	(*ListLapsRequest)(nil),                    // 64: cairn.v1.ListLapsRequest
+	(*ListLapsResponse)(nil),                   // 65: cairn.v1.ListLapsResponse
+	(*GetActivityZonesRequest)(nil),            // 66: cairn.v1.GetActivityZonesRequest
+	(*ZoneBand)(nil),                           // 67: cairn.v1.ZoneBand
+	(*ZoneSummary)(nil),                        // 68: cairn.v1.ZoneSummary
+	(*Decoupling)(nil),                         // 69: cairn.v1.Decoupling
+	(*GetActivityZonesResponse)(nil),           // 70: cairn.v1.GetActivityZonesResponse
+	(*ListActivitySegmentEffortsRequest)(nil),  // 71: cairn.v1.ListActivitySegmentEffortsRequest
+	(*ActivitySegmentEffort)(nil),              // 72: cairn.v1.ActivitySegmentEffort
+	(*ListActivitySegmentEffortsResponse)(nil), // 73: cairn.v1.ListActivitySegmentEffortsResponse
+	(*ListSimilarActivitiesRequest)(nil),       // 74: cairn.v1.ListSimilarActivitiesRequest
+	(*SimilarActivity)(nil),                    // 75: cairn.v1.SimilarActivity
+	(*ListSimilarActivitiesResponse)(nil),      // 76: cairn.v1.ListSimilarActivitiesResponse
+	(*GetMergedStreamRequest)(nil),             // 77: cairn.v1.GetMergedStreamRequest
+	(*MergedChannel)(nil),                      // 78: cairn.v1.MergedChannel
+	(*GetMergedStreamResponse)(nil),            // 79: cairn.v1.GetMergedStreamResponse
+	(*ListKudosRequest)(nil),                   // 80: cairn.v1.ListKudosRequest
+	(*ListKudosResponse)(nil),                  // 81: cairn.v1.ListKudosResponse
+	(*ListCommentsRequest)(nil),                // 82: cairn.v1.ListCommentsRequest
+	(*Comment)(nil),                            // 83: cairn.v1.Comment
+	(*ListCommentsResponse)(nil),               // 84: cairn.v1.ListCommentsResponse
+	(*GetActivityManageInfoRequest)(nil),       // 85: cairn.v1.GetActivityManageInfoRequest
+	(*SourceInsight)(nil),                      // 86: cairn.v1.SourceInsight
+	(*FieldProvenance)(nil),                    // 87: cairn.v1.FieldProvenance
+	(*GetActivityManageInfoResponse)(nil),      // 88: cairn.v1.GetActivityManageInfoResponse
+	(*GetParsedSourceRequest)(nil),             // 89: cairn.v1.GetParsedSourceRequest
+	(*GetParsedSourceResponse)(nil),            // 90: cairn.v1.GetParsedSourceResponse
+	(*Attachment)(nil),                         // 91: cairn.v1.Attachment
+	(*ListAttachmentsRequest)(nil),             // 92: cairn.v1.ListAttachmentsRequest
+	(*ListAttachmentsResponse)(nil),            // 93: cairn.v1.ListAttachmentsResponse
+	(*GetActivityMapImageRequest)(nil),         // 94: cairn.v1.GetActivityMapImageRequest
+	(*GetActivityMapImageResponse)(nil),        // 95: cairn.v1.GetActivityMapImageResponse
+	(*GetExportOptionsRequest)(nil),            // 96: cairn.v1.GetExportOptionsRequest
+	(*GetExportOptionsResponse)(nil),           // 97: cairn.v1.GetExportOptionsResponse
+	(*ExportActivityRequest)(nil),              // 98: cairn.v1.ExportActivityRequest
+	(*ExportActivityResponse)(nil),             // 99: cairn.v1.ExportActivityResponse
+	(*ListBestEffortsRequest)(nil),             // 100: cairn.v1.ListBestEffortsRequest
+	(*ListBestEffortsResponse)(nil),            // 101: cairn.v1.ListBestEffortsResponse
+	(*ListRecordsRequest)(nil),                 // 102: cairn.v1.ListRecordsRequest
+	(*ListRecordsResponse)(nil),                // 103: cairn.v1.ListRecordsResponse
+	(*CreateCustomBestEffortRequest)(nil),      // 104: cairn.v1.CreateCustomBestEffortRequest
+	(*CreateCustomBestEffortResponse)(nil),     // 105: cairn.v1.CreateCustomBestEffortResponse
+	(*ListCustomBestEffortsRequest)(nil),       // 106: cairn.v1.ListCustomBestEffortsRequest
+	(*ListCustomBestEffortsResponse)(nil),      // 107: cairn.v1.ListCustomBestEffortsResponse
+	(*DeleteCustomBestEffortRequest)(nil),      // 108: cairn.v1.DeleteCustomBestEffortRequest
+	(*DeleteCustomBestEffortResponse)(nil),     // 109: cairn.v1.DeleteCustomBestEffortResponse
+	nil,                                        // 110: cairn.v1.Activity.MergeProvenanceEntry
+	nil,                                        // 111: cairn.v1.ActivitySourcePayload.ExtraEntry
+	nil,                                        // 112: cairn.v1.ActivityEvent.I18nParamsEntry
+	nil,                                        // 113: cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
+	nil,                                        // 114: cairn.v1.GetMergedStreamResponse.ChannelsEntry
+	nil,                                        // 115: cairn.v1.GetExportOptionsResponse.AvailableEntry
+	(*timestamppb.Timestamp)(nil),              // 116: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                // 117: google.protobuf.Duration
+	(*ContentUrl)(nil),                         // 118: cairn.v1.ContentUrl
+	(*EncodedPolyline)(nil),                    // 119: cairn.v1.EncodedPolyline
+	(*TimeRange)(nil),                          // 120: cairn.v1.TimeRange
+	(*PageRequest)(nil),                        // 121: cairn.v1.PageRequest
+	(*Facet)(nil),                              // 122: cairn.v1.Facet
+	(*PageResponse)(nil),                       // 123: cairn.v1.PageResponse
+	(*UserCard)(nil),                           // 124: cairn.v1.UserCard
 }
 var file_cairn_v1_activity_proto_depIdxs = []int32{
 	1,   // 0: cairn.v1.Activity.type:type_name -> cairn.v1.ActivityType
 	2,   // 1: cairn.v1.Activity.discipline:type_name -> cairn.v1.Discipline
-	65,  // 2: cairn.v1.Activity.start_time:type_name -> google.protobuf.Timestamp
-	65,  // 3: cairn.v1.Activity.end_time:type_name -> google.protobuf.Timestamp
-	66,  // 4: cairn.v1.Activity.elapsed_duration:type_name -> google.protobuf.Duration
-	66,  // 5: cairn.v1.Activity.moving_duration:type_name -> google.protobuf.Duration
-	12,  // 6: cairn.v1.Activity.summary:type_name -> cairn.v1.ActivitySummary
-	13,  // 7: cairn.v1.Activity.sources:type_name -> cairn.v1.ActivitySource
-	61,  // 8: cairn.v1.Activity.merge_provenance:type_name -> cairn.v1.Activity.MergeProvenanceEntry
-	65,  // 9: cairn.v1.Activity.merged_at:type_name -> google.protobuf.Timestamp
-	65,  // 10: cairn.v1.Activity.created_at:type_name -> google.protobuf.Timestamp
-	65,  // 11: cairn.v1.Activity.updated_at:type_name -> google.protobuf.Timestamp
+	116, // 2: cairn.v1.Activity.start_time:type_name -> google.protobuf.Timestamp
+	116, // 3: cairn.v1.Activity.end_time:type_name -> google.protobuf.Timestamp
+	117, // 4: cairn.v1.Activity.elapsed_duration:type_name -> google.protobuf.Duration
+	117, // 5: cairn.v1.Activity.moving_duration:type_name -> google.protobuf.Duration
+	15,  // 6: cairn.v1.Activity.summary:type_name -> cairn.v1.ActivitySummary
+	16,  // 7: cairn.v1.Activity.sources:type_name -> cairn.v1.ActivitySource
+	110, // 8: cairn.v1.Activity.merge_provenance:type_name -> cairn.v1.Activity.MergeProvenanceEntry
+	116, // 9: cairn.v1.Activity.merged_at:type_name -> google.protobuf.Timestamp
+	116, // 10: cairn.v1.Activity.created_at:type_name -> google.protobuf.Timestamp
+	116, // 11: cairn.v1.Activity.updated_at:type_name -> google.protobuf.Timestamp
 	3,   // 12: cairn.v1.Activity.privacy:type_name -> cairn.v1.Privacy
-	65,  // 13: cairn.v1.Activity.deleted_at:type_name -> google.protobuf.Timestamp
+	116, // 13: cairn.v1.Activity.deleted_at:type_name -> google.protobuf.Timestamp
 	0,   // 14: cairn.v1.Activity.gear_set_by:type_name -> cairn.v1.GearSetBy
-	14,  // 15: cairn.v1.ActivitySource.parsed:type_name -> cairn.v1.ActivitySourcePayload
-	4,   // 16: cairn.v1.ActivitySource.status:type_name -> cairn.v1.ActivitySourceStatus
-	5,   // 17: cairn.v1.ActivitySource.reimport_status:type_name -> cairn.v1.ReimportStatus
-	65,  // 18: cairn.v1.ActivitySource.imported_at:type_name -> google.protobuf.Timestamp
-	65,  // 19: cairn.v1.ActivitySource.last_reimported_at:type_name -> google.protobuf.Timestamp
-	65,  // 20: cairn.v1.ActivitySource.updated_at:type_name -> google.protobuf.Timestamp
-	1,   // 21: cairn.v1.ActivitySourcePayload.type:type_name -> cairn.v1.ActivityType
-	2,   // 22: cairn.v1.ActivitySourcePayload.discipline:type_name -> cairn.v1.Discipline
-	65,  // 23: cairn.v1.ActivitySourcePayload.start_time:type_name -> google.protobuf.Timestamp
-	65,  // 24: cairn.v1.ActivitySourcePayload.end_time:type_name -> google.protobuf.Timestamp
-	66,  // 25: cairn.v1.ActivitySourcePayload.elapsed_duration:type_name -> google.protobuf.Duration
-	66,  // 26: cairn.v1.ActivitySourcePayload.moving_duration:type_name -> google.protobuf.Duration
-	12,  // 27: cairn.v1.ActivitySourcePayload.summary:type_name -> cairn.v1.ActivitySummary
-	15,  // 28: cairn.v1.ActivitySourcePayload.laps:type_name -> cairn.v1.ActivityLap
-	16,  // 29: cairn.v1.ActivitySourcePayload.stream_summary:type_name -> cairn.v1.StreamSummary
-	17,  // 30: cairn.v1.ActivitySourcePayload.provider_segment_efforts:type_name -> cairn.v1.ProviderSegmentEffort
-	18,  // 31: cairn.v1.ActivitySourcePayload.provider_best_efforts:type_name -> cairn.v1.ProviderBestEffort
-	62,  // 32: cairn.v1.ActivitySourcePayload.extra:type_name -> cairn.v1.ActivitySourcePayload.ExtraEntry
-	65,  // 33: cairn.v1.ActivityLap.start_time:type_name -> google.protobuf.Timestamp
-	66,  // 34: cairn.v1.ActivityLap.elapsed_duration:type_name -> google.protobuf.Duration
-	66,  // 35: cairn.v1.ActivityLap.moving_duration:type_name -> google.protobuf.Duration
-	6,   // 36: cairn.v1.StreamSummary.channels:type_name -> cairn.v1.StreamChannel
-	67,  // 37: cairn.v1.StreamSummary.polyline:type_name -> cairn.v1.EncodedPolyline
-	65,  // 38: cairn.v1.ProviderSegmentEffort.start_time:type_name -> google.protobuf.Timestamp
-	66,  // 39: cairn.v1.ProviderSegmentEffort.elapsed:type_name -> google.protobuf.Duration
-	66,  // 40: cairn.v1.ProviderBestEffort.elapsed:type_name -> google.protobuf.Duration
-	6,   // 41: cairn.v1.ActivityStream.channels:type_name -> cairn.v1.StreamChannel
-	1,   // 42: cairn.v1.BestEffort.activity_type:type_name -> cairn.v1.ActivityType
-	2,   // 43: cairn.v1.BestEffort.discipline:type_name -> cairn.v1.Discipline
-	7,   // 44: cairn.v1.BestEffort.metric:type_name -> cairn.v1.BestEffortMetric
-	8,   // 45: cairn.v1.BestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	66,  // 46: cairn.v1.BestEffort.duration:type_name -> google.protobuf.Duration
-	65,  // 47: cairn.v1.BestEffort.ts:type_name -> google.protobuf.Timestamp
-	1,   // 48: cairn.v1.UserRecord.activity_type:type_name -> cairn.v1.ActivityType
-	2,   // 49: cairn.v1.UserRecord.discipline:type_name -> cairn.v1.Discipline
-	7,   // 50: cairn.v1.UserRecord.metric:type_name -> cairn.v1.BestEffortMetric
-	8,   // 51: cairn.v1.UserRecord.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	65,  // 52: cairn.v1.UserRecord.ts:type_name -> google.protobuf.Timestamp
-	65,  // 53: cairn.v1.UserRecord.previous_ts:type_name -> google.protobuf.Timestamp
-	1,   // 54: cairn.v1.CustomBestEffort.activity_type:type_name -> cairn.v1.ActivityType
-	7,   // 55: cairn.v1.CustomBestEffort.metric:type_name -> cairn.v1.BestEffortMetric
-	8,   // 56: cairn.v1.CustomBestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	65,  // 57: cairn.v1.CustomBestEffort.created_at:type_name -> google.protobuf.Timestamp
-	68,  // 58: cairn.v1.ListActivitiesRequest.time_range:type_name -> cairn.v1.TimeRange
-	1,   // 59: cairn.v1.ListActivitiesRequest.types:type_name -> cairn.v1.ActivityType
-	2,   // 60: cairn.v1.ListActivitiesRequest.disciplines:type_name -> cairn.v1.Discipline
-	9,   // 61: cairn.v1.ListActivitiesRequest.sort:type_name -> cairn.v1.ActivitySort
-	69,  // 62: cairn.v1.ListActivitiesRequest.page:type_name -> cairn.v1.PageRequest
-	11,  // 63: cairn.v1.ListActivitiesResponse.activities:type_name -> cairn.v1.Activity
-	70,  // 64: cairn.v1.ListActivitiesResponse.page:type_name -> cairn.v1.PageResponse
-	11,  // 65: cairn.v1.GetActivityResponse.activity:type_name -> cairn.v1.Activity
-	1,   // 66: cairn.v1.UpdateActivityRequest.type:type_name -> cairn.v1.ActivityType
-	2,   // 67: cairn.v1.UpdateActivityRequest.discipline:type_name -> cairn.v1.Discipline
-	3,   // 68: cairn.v1.UpdateActivityRequest.privacy:type_name -> cairn.v1.Privacy
-	11,  // 69: cairn.v1.UpdateActivityResponse.activity:type_name -> cairn.v1.Activity
-	10,  // 70: cairn.v1.StreamActivityEventsRequest.types:type_name -> cairn.v1.ActivityEventType
-	10,  // 71: cairn.v1.ActivityEvent.type:type_name -> cairn.v1.ActivityEventType
-	65,  // 72: cairn.v1.ActivityEvent.ts:type_name -> google.protobuf.Timestamp
-	63,  // 73: cairn.v1.ActivityEvent.i18n_params:type_name -> cairn.v1.ActivityEvent.I18nParamsEntry
-	13,  // 74: cairn.v1.ListActivitySourcesResponse.sources:type_name -> cairn.v1.ActivitySource
-	11,  // 75: cairn.v1.CommitSourcePreviewResponse.activity:type_name -> cairn.v1.Activity
-	11,  // 76: cairn.v1.LinkSourceToActivityResponse.activity:type_name -> cairn.v1.Activity
-	11,  // 77: cairn.v1.DetachSourceResponse.new_activity:type_name -> cairn.v1.Activity
-	6,   // 78: cairn.v1.GetActivityStreamRequest.channels:type_name -> cairn.v1.StreamChannel
-	19,  // 79: cairn.v1.GetActivityStreamResponse.stream:type_name -> cairn.v1.ActivityStream
-	64,  // 80: cairn.v1.PresignActivityUploadResponse.required_headers:type_name -> cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
-	65,  // 81: cairn.v1.PresignActivityUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
-	1,   // 82: cairn.v1.UploadActivityRequest.type_hint:type_name -> cairn.v1.ActivityType
-	2,   // 83: cairn.v1.UploadActivityRequest.discipline_hint:type_name -> cairn.v1.Discipline
-	7,   // 84: cairn.v1.ListBestEffortsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
-	20,  // 85: cairn.v1.ListBestEffortsResponse.efforts:type_name -> cairn.v1.BestEffort
-	1,   // 86: cairn.v1.ListRecordsRequest.activity_type:type_name -> cairn.v1.ActivityType
-	2,   // 87: cairn.v1.ListRecordsRequest.discipline:type_name -> cairn.v1.Discipline
-	68,  // 88: cairn.v1.ListRecordsRequest.time_range:type_name -> cairn.v1.TimeRange
-	7,   // 89: cairn.v1.ListRecordsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
-	21,  // 90: cairn.v1.ListRecordsResponse.records:type_name -> cairn.v1.UserRecord
-	1,   // 91: cairn.v1.CreateCustomBestEffortRequest.activity_type:type_name -> cairn.v1.ActivityType
-	7,   // 92: cairn.v1.CreateCustomBestEffortRequest.metric:type_name -> cairn.v1.BestEffortMetric
-	8,   // 93: cairn.v1.CreateCustomBestEffortRequest.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	22,  // 94: cairn.v1.CreateCustomBestEffortResponse.custom_best_effort:type_name -> cairn.v1.CustomBestEffort
-	23,  // 95: cairn.v1.ActivityService.ListActivities:input_type -> cairn.v1.ListActivitiesRequest
-	25,  // 96: cairn.v1.ActivityService.GetActivity:input_type -> cairn.v1.GetActivityRequest
-	27,  // 97: cairn.v1.ActivityService.UpdateActivity:input_type -> cairn.v1.UpdateActivityRequest
-	29,  // 98: cairn.v1.ActivityService.DeleteActivity:input_type -> cairn.v1.DeleteActivityRequest
-	31,  // 99: cairn.v1.ActivityService.StreamActivityEvents:input_type -> cairn.v1.StreamActivityEventsRequest
-	33,  // 100: cairn.v1.ActivityService.ListActivitySources:input_type -> cairn.v1.ListActivitySourcesRequest
-	35,  // 101: cairn.v1.ActivityService.ReimportSource:input_type -> cairn.v1.ReimportSourceRequest
-	37,  // 102: cairn.v1.ActivityService.PreviewSourceReimport:input_type -> cairn.v1.PreviewSourceReimportRequest
-	39,  // 103: cairn.v1.ActivityService.CommitSourcePreview:input_type -> cairn.v1.CommitSourcePreviewRequest
-	41,  // 104: cairn.v1.ActivityService.DiscardSourcePreview:input_type -> cairn.v1.DiscardSourcePreviewRequest
-	43,  // 105: cairn.v1.ActivityService.LinkSourceToActivity:input_type -> cairn.v1.LinkSourceToActivityRequest
-	45,  // 106: cairn.v1.ActivityService.DetachSource:input_type -> cairn.v1.DetachSourceRequest
-	47,  // 107: cairn.v1.ActivityService.GetActivityStream:input_type -> cairn.v1.GetActivityStreamRequest
-	49,  // 108: cairn.v1.ActivityService.PresignActivityUpload:input_type -> cairn.v1.PresignActivityUploadRequest
-	51,  // 109: cairn.v1.ActivityService.UploadActivity:input_type -> cairn.v1.UploadActivityRequest
-	53,  // 110: cairn.v1.ActivityService.ListBestEfforts:input_type -> cairn.v1.ListBestEffortsRequest
-	55,  // 111: cairn.v1.ActivityService.ListRecords:input_type -> cairn.v1.ListRecordsRequest
-	57,  // 112: cairn.v1.ActivityService.CreateCustomBestEffort:input_type -> cairn.v1.CreateCustomBestEffortRequest
-	59,  // 113: cairn.v1.ActivityService.DeleteCustomBestEffort:input_type -> cairn.v1.DeleteCustomBestEffortRequest
-	24,  // 114: cairn.v1.ActivityService.ListActivities:output_type -> cairn.v1.ListActivitiesResponse
-	26,  // 115: cairn.v1.ActivityService.GetActivity:output_type -> cairn.v1.GetActivityResponse
-	28,  // 116: cairn.v1.ActivityService.UpdateActivity:output_type -> cairn.v1.UpdateActivityResponse
-	30,  // 117: cairn.v1.ActivityService.DeleteActivity:output_type -> cairn.v1.DeleteActivityResponse
-	32,  // 118: cairn.v1.ActivityService.StreamActivityEvents:output_type -> cairn.v1.ActivityEvent
-	34,  // 119: cairn.v1.ActivityService.ListActivitySources:output_type -> cairn.v1.ListActivitySourcesResponse
-	36,  // 120: cairn.v1.ActivityService.ReimportSource:output_type -> cairn.v1.ReimportSourceResponse
-	38,  // 121: cairn.v1.ActivityService.PreviewSourceReimport:output_type -> cairn.v1.PreviewSourceReimportResponse
-	40,  // 122: cairn.v1.ActivityService.CommitSourcePreview:output_type -> cairn.v1.CommitSourcePreviewResponse
-	42,  // 123: cairn.v1.ActivityService.DiscardSourcePreview:output_type -> cairn.v1.DiscardSourcePreviewResponse
-	44,  // 124: cairn.v1.ActivityService.LinkSourceToActivity:output_type -> cairn.v1.LinkSourceToActivityResponse
-	46,  // 125: cairn.v1.ActivityService.DetachSource:output_type -> cairn.v1.DetachSourceResponse
-	48,  // 126: cairn.v1.ActivityService.GetActivityStream:output_type -> cairn.v1.GetActivityStreamResponse
-	50,  // 127: cairn.v1.ActivityService.PresignActivityUpload:output_type -> cairn.v1.PresignActivityUploadResponse
-	52,  // 128: cairn.v1.ActivityService.UploadActivity:output_type -> cairn.v1.UploadActivityResponse
-	54,  // 129: cairn.v1.ActivityService.ListBestEfforts:output_type -> cairn.v1.ListBestEffortsResponse
-	56,  // 130: cairn.v1.ActivityService.ListRecords:output_type -> cairn.v1.ListRecordsResponse
-	58,  // 131: cairn.v1.ActivityService.CreateCustomBestEffort:output_type -> cairn.v1.CreateCustomBestEffortResponse
-	60,  // 132: cairn.v1.ActivityService.DeleteCustomBestEffort:output_type -> cairn.v1.DeleteCustomBestEffortResponse
-	114, // [114:133] is the sub-list for method output_type
-	95,  // [95:114] is the sub-list for method input_type
-	95,  // [95:95] is the sub-list for extension type_name
-	95,  // [95:95] is the sub-list for extension extendee
-	0,   // [0:95] is the sub-list for field type_name
+	118, // 15: cairn.v1.Activity.map_image:type_name -> cairn.v1.ContentUrl
+	17,  // 16: cairn.v1.ActivitySource.parsed:type_name -> cairn.v1.ActivitySourcePayload
+	4,   // 17: cairn.v1.ActivitySource.status:type_name -> cairn.v1.ActivitySourceStatus
+	5,   // 18: cairn.v1.ActivitySource.reimport_status:type_name -> cairn.v1.ReimportStatus
+	116, // 19: cairn.v1.ActivitySource.imported_at:type_name -> google.protobuf.Timestamp
+	116, // 20: cairn.v1.ActivitySource.last_reimported_at:type_name -> google.protobuf.Timestamp
+	116, // 21: cairn.v1.ActivitySource.updated_at:type_name -> google.protobuf.Timestamp
+	1,   // 22: cairn.v1.ActivitySourcePayload.type:type_name -> cairn.v1.ActivityType
+	2,   // 23: cairn.v1.ActivitySourcePayload.discipline:type_name -> cairn.v1.Discipline
+	116, // 24: cairn.v1.ActivitySourcePayload.start_time:type_name -> google.protobuf.Timestamp
+	116, // 25: cairn.v1.ActivitySourcePayload.end_time:type_name -> google.protobuf.Timestamp
+	117, // 26: cairn.v1.ActivitySourcePayload.elapsed_duration:type_name -> google.protobuf.Duration
+	117, // 27: cairn.v1.ActivitySourcePayload.moving_duration:type_name -> google.protobuf.Duration
+	15,  // 28: cairn.v1.ActivitySourcePayload.summary:type_name -> cairn.v1.ActivitySummary
+	18,  // 29: cairn.v1.ActivitySourcePayload.laps:type_name -> cairn.v1.ActivityLap
+	19,  // 30: cairn.v1.ActivitySourcePayload.stream_summary:type_name -> cairn.v1.StreamSummary
+	20,  // 31: cairn.v1.ActivitySourcePayload.provider_segment_efforts:type_name -> cairn.v1.ProviderSegmentEffort
+	21,  // 32: cairn.v1.ActivitySourcePayload.provider_best_efforts:type_name -> cairn.v1.ProviderBestEffort
+	111, // 33: cairn.v1.ActivitySourcePayload.extra:type_name -> cairn.v1.ActivitySourcePayload.ExtraEntry
+	116, // 34: cairn.v1.ActivityLap.start_time:type_name -> google.protobuf.Timestamp
+	117, // 35: cairn.v1.ActivityLap.elapsed_duration:type_name -> google.protobuf.Duration
+	117, // 36: cairn.v1.ActivityLap.moving_duration:type_name -> google.protobuf.Duration
+	6,   // 37: cairn.v1.StreamSummary.channels:type_name -> cairn.v1.StreamChannel
+	119, // 38: cairn.v1.StreamSummary.polyline:type_name -> cairn.v1.EncodedPolyline
+	116, // 39: cairn.v1.ProviderSegmentEffort.start_time:type_name -> google.protobuf.Timestamp
+	117, // 40: cairn.v1.ProviderSegmentEffort.elapsed:type_name -> google.protobuf.Duration
+	117, // 41: cairn.v1.ProviderBestEffort.elapsed:type_name -> google.protobuf.Duration
+	6,   // 42: cairn.v1.ActivityStream.channels:type_name -> cairn.v1.StreamChannel
+	1,   // 43: cairn.v1.BestEffort.activity_type:type_name -> cairn.v1.ActivityType
+	2,   // 44: cairn.v1.BestEffort.discipline:type_name -> cairn.v1.Discipline
+	7,   // 45: cairn.v1.BestEffort.metric:type_name -> cairn.v1.BestEffortMetric
+	8,   // 46: cairn.v1.BestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	117, // 47: cairn.v1.BestEffort.duration:type_name -> google.protobuf.Duration
+	116, // 48: cairn.v1.BestEffort.ts:type_name -> google.protobuf.Timestamp
+	1,   // 49: cairn.v1.UserRecord.activity_type:type_name -> cairn.v1.ActivityType
+	2,   // 50: cairn.v1.UserRecord.discipline:type_name -> cairn.v1.Discipline
+	7,   // 51: cairn.v1.UserRecord.metric:type_name -> cairn.v1.BestEffortMetric
+	8,   // 52: cairn.v1.UserRecord.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	116, // 53: cairn.v1.UserRecord.ts:type_name -> google.protobuf.Timestamp
+	116, // 54: cairn.v1.UserRecord.previous_ts:type_name -> google.protobuf.Timestamp
+	1,   // 55: cairn.v1.CustomBestEffort.activity_type:type_name -> cairn.v1.ActivityType
+	7,   // 56: cairn.v1.CustomBestEffort.metric:type_name -> cairn.v1.BestEffortMetric
+	8,   // 57: cairn.v1.CustomBestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	116, // 58: cairn.v1.CustomBestEffort.created_at:type_name -> google.protobuf.Timestamp
+	120, // 59: cairn.v1.ListActivitiesRequest.time_range:type_name -> cairn.v1.TimeRange
+	1,   // 60: cairn.v1.ListActivitiesRequest.types:type_name -> cairn.v1.ActivityType
+	2,   // 61: cairn.v1.ListActivitiesRequest.disciplines:type_name -> cairn.v1.Discipline
+	9,   // 62: cairn.v1.ListActivitiesRequest.sort:type_name -> cairn.v1.ActivitySort
+	121, // 63: cairn.v1.ListActivitiesRequest.page:type_name -> cairn.v1.PageRequest
+	1,   // 64: cairn.v1.ActivityFilter.types:type_name -> cairn.v1.ActivityType
+	120, // 65: cairn.v1.ActivityFilter.time_range:type_name -> cairn.v1.TimeRange
+	13,  // 66: cairn.v1.ActivityFilter.virtual:type_name -> cairn.v1.ActivityFilter.Flag
+	13,  // 67: cairn.v1.ActivityFilter.ebike:type_name -> cairn.v1.ActivityFilter.Flag
+	13,  // 68: cairn.v1.ActivityFilter.commute:type_name -> cairn.v1.ActivityFilter.Flag
+	13,  // 69: cairn.v1.ActivityFilter.race:type_name -> cairn.v1.ActivityFilter.Flag
+	122, // 70: cairn.v1.ActivityFacets.types:type_name -> cairn.v1.Facet
+	122, // 71: cairn.v1.ActivityFacets.disciplines:type_name -> cairn.v1.Facet
+	122, // 72: cairn.v1.ActivityFacets.years:type_name -> cairn.v1.Facet
+	27,  // 73: cairn.v1.SearchActivitiesRequest.filter:type_name -> cairn.v1.ActivityFilter
+	9,   // 74: cairn.v1.SearchActivitiesRequest.sort:type_name -> cairn.v1.ActivitySort
+	121, // 75: cairn.v1.SearchActivitiesRequest.page:type_name -> cairn.v1.PageRequest
+	14,  // 76: cairn.v1.SearchActivitiesResponse.activities:type_name -> cairn.v1.Activity
+	28,  // 77: cairn.v1.SearchActivitiesResponse.facets:type_name -> cairn.v1.ActivityFacets
+	123, // 78: cairn.v1.SearchActivitiesResponse.page:type_name -> cairn.v1.PageResponse
+	14,  // 79: cairn.v1.ListActivitiesResponse.activities:type_name -> cairn.v1.Activity
+	123, // 80: cairn.v1.ListActivitiesResponse.page:type_name -> cairn.v1.PageResponse
+	14,  // 81: cairn.v1.GetActivityResponse.activity:type_name -> cairn.v1.Activity
+	1,   // 82: cairn.v1.UpdateActivityRequest.type:type_name -> cairn.v1.ActivityType
+	2,   // 83: cairn.v1.UpdateActivityRequest.discipline:type_name -> cairn.v1.Discipline
+	3,   // 84: cairn.v1.UpdateActivityRequest.privacy:type_name -> cairn.v1.Privacy
+	14,  // 85: cairn.v1.UpdateActivityResponse.activity:type_name -> cairn.v1.Activity
+	10,  // 86: cairn.v1.StreamActivityEventsRequest.types:type_name -> cairn.v1.ActivityEventType
+	10,  // 87: cairn.v1.ActivityEvent.type:type_name -> cairn.v1.ActivityEventType
+	116, // 88: cairn.v1.ActivityEvent.ts:type_name -> google.protobuf.Timestamp
+	112, // 89: cairn.v1.ActivityEvent.i18n_params:type_name -> cairn.v1.ActivityEvent.I18nParamsEntry
+	16,  // 90: cairn.v1.ListActivitySourcesResponse.sources:type_name -> cairn.v1.ActivitySource
+	11,  // 91: cairn.v1.SourcePreview.status:type_name -> cairn.v1.SourcePreviewStatus
+	46,  // 92: cairn.v1.SourcePreview.source_diff:type_name -> cairn.v1.FieldChange
+	46,  // 93: cairn.v1.SourcePreview.merged_diff:type_name -> cairn.v1.FieldChange
+	116, // 94: cairn.v1.SourcePreview.created_at:type_name -> google.protobuf.Timestamp
+	116, // 95: cairn.v1.SourcePreview.expires_at:type_name -> google.protobuf.Timestamp
+	47,  // 96: cairn.v1.GetSourcePreviewResponse.preview:type_name -> cairn.v1.SourcePreview
+	14,  // 97: cairn.v1.CommitSourcePreviewResponse.activity:type_name -> cairn.v1.Activity
+	14,  // 98: cairn.v1.LinkSourceToActivityResponse.activity:type_name -> cairn.v1.Activity
+	14,  // 99: cairn.v1.DetachSourceResponse.new_activity:type_name -> cairn.v1.Activity
+	6,   // 100: cairn.v1.GetActivityStreamRequest.channels:type_name -> cairn.v1.StreamChannel
+	22,  // 101: cairn.v1.GetActivityStreamResponse.stream:type_name -> cairn.v1.ActivityStream
+	113, // 102: cairn.v1.PresignActivityUploadResponse.required_headers:type_name -> cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
+	116, // 103: cairn.v1.PresignActivityUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
+	1,   // 104: cairn.v1.UploadActivityRequest.type_hint:type_name -> cairn.v1.ActivityType
+	2,   // 105: cairn.v1.UploadActivityRequest.discipline_hint:type_name -> cairn.v1.Discipline
+	18,  // 106: cairn.v1.ListLapsResponse.laps:type_name -> cairn.v1.ActivityLap
+	67,  // 107: cairn.v1.ZoneSummary.zones:type_name -> cairn.v1.ZoneBand
+	68,  // 108: cairn.v1.GetActivityZonesResponse.hr:type_name -> cairn.v1.ZoneSummary
+	68,  // 109: cairn.v1.GetActivityZonesResponse.power:type_name -> cairn.v1.ZoneSummary
+	69,  // 110: cairn.v1.GetActivityZonesResponse.decoupling:type_name -> cairn.v1.Decoupling
+	72,  // 111: cairn.v1.ListActivitySegmentEffortsResponse.efforts:type_name -> cairn.v1.ActivitySegmentEffort
+	1,   // 112: cairn.v1.SimilarActivity.type:type_name -> cairn.v1.ActivityType
+	116, // 113: cairn.v1.SimilarActivity.start_time:type_name -> google.protobuf.Timestamp
+	75,  // 114: cairn.v1.ListSimilarActivitiesResponse.activities:type_name -> cairn.v1.SimilarActivity
+	114, // 115: cairn.v1.GetMergedStreamResponse.channels:type_name -> cairn.v1.GetMergedStreamResponse.ChannelsEntry
+	124, // 116: cairn.v1.ListKudosResponse.kudosers:type_name -> cairn.v1.UserCard
+	116, // 117: cairn.v1.Comment.created_at:type_name -> google.protobuf.Timestamp
+	124, // 118: cairn.v1.Comment.author:type_name -> cairn.v1.UserCard
+	83,  // 119: cairn.v1.ListCommentsResponse.comments:type_name -> cairn.v1.Comment
+	16,  // 120: cairn.v1.SourceInsight.source:type_name -> cairn.v1.ActivitySource
+	116, // 121: cairn.v1.SourceInsight.last_reimported_at:type_name -> google.protobuf.Timestamp
+	116, // 122: cairn.v1.FieldProvenance.synced_at:type_name -> google.protobuf.Timestamp
+	116, // 123: cairn.v1.GetActivityManageInfoResponse.merged_at:type_name -> google.protobuf.Timestamp
+	86,  // 124: cairn.v1.GetActivityManageInfoResponse.sources:type_name -> cairn.v1.SourceInsight
+	87,  // 125: cairn.v1.GetActivityManageInfoResponse.provenance:type_name -> cairn.v1.FieldProvenance
+	17,  // 126: cairn.v1.GetParsedSourceResponse.payload:type_name -> cairn.v1.ActivitySourcePayload
+	118, // 127: cairn.v1.Attachment.original:type_name -> cairn.v1.ContentUrl
+	118, // 128: cairn.v1.Attachment.medium:type_name -> cairn.v1.ContentUrl
+	118, // 129: cairn.v1.Attachment.thumb:type_name -> cairn.v1.ContentUrl
+	116, // 130: cairn.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	91,  // 131: cairn.v1.ListAttachmentsResponse.attachments:type_name -> cairn.v1.Attachment
+	118, // 132: cairn.v1.GetActivityMapImageResponse.image:type_name -> cairn.v1.ContentUrl
+	115, // 133: cairn.v1.GetExportOptionsResponse.available:type_name -> cairn.v1.GetExportOptionsResponse.AvailableEntry
+	12,  // 134: cairn.v1.ExportActivityRequest.format:type_name -> cairn.v1.ExportFormat
+	118, // 135: cairn.v1.ExportActivityResponse.file:type_name -> cairn.v1.ContentUrl
+	7,   // 136: cairn.v1.ListBestEffortsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
+	23,  // 137: cairn.v1.ListBestEffortsResponse.efforts:type_name -> cairn.v1.BestEffort
+	1,   // 138: cairn.v1.ListRecordsRequest.activity_type:type_name -> cairn.v1.ActivityType
+	2,   // 139: cairn.v1.ListRecordsRequest.discipline:type_name -> cairn.v1.Discipline
+	120, // 140: cairn.v1.ListRecordsRequest.time_range:type_name -> cairn.v1.TimeRange
+	7,   // 141: cairn.v1.ListRecordsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
+	24,  // 142: cairn.v1.ListRecordsResponse.records:type_name -> cairn.v1.UserRecord
+	1,   // 143: cairn.v1.CreateCustomBestEffortRequest.activity_type:type_name -> cairn.v1.ActivityType
+	7,   // 144: cairn.v1.CreateCustomBestEffortRequest.metric:type_name -> cairn.v1.BestEffortMetric
+	8,   // 145: cairn.v1.CreateCustomBestEffortRequest.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	25,  // 146: cairn.v1.CreateCustomBestEffortResponse.custom_best_effort:type_name -> cairn.v1.CustomBestEffort
+	25,  // 147: cairn.v1.ListCustomBestEffortsResponse.custom_best_efforts:type_name -> cairn.v1.CustomBestEffort
+	78,  // 148: cairn.v1.GetMergedStreamResponse.ChannelsEntry.value:type_name -> cairn.v1.MergedChannel
+	26,  // 149: cairn.v1.ActivityService.ListActivities:input_type -> cairn.v1.ListActivitiesRequest
+	29,  // 150: cairn.v1.ActivityService.SearchActivities:input_type -> cairn.v1.SearchActivitiesRequest
+	32,  // 151: cairn.v1.ActivityService.GetActivity:input_type -> cairn.v1.GetActivityRequest
+	34,  // 152: cairn.v1.ActivityService.UpdateActivity:input_type -> cairn.v1.UpdateActivityRequest
+	36,  // 153: cairn.v1.ActivityService.DeleteActivity:input_type -> cairn.v1.DeleteActivityRequest
+	38,  // 154: cairn.v1.ActivityService.StreamActivityEvents:input_type -> cairn.v1.StreamActivityEventsRequest
+	40,  // 155: cairn.v1.ActivityService.ListActivitySources:input_type -> cairn.v1.ListActivitySourcesRequest
+	42,  // 156: cairn.v1.ActivityService.ReimportSource:input_type -> cairn.v1.ReimportSourceRequest
+	44,  // 157: cairn.v1.ActivityService.PreviewSourceReimport:input_type -> cairn.v1.PreviewSourceReimportRequest
+	48,  // 158: cairn.v1.ActivityService.GetSourcePreview:input_type -> cairn.v1.GetSourcePreviewRequest
+	50,  // 159: cairn.v1.ActivityService.CommitSourcePreview:input_type -> cairn.v1.CommitSourcePreviewRequest
+	52,  // 160: cairn.v1.ActivityService.DiscardSourcePreview:input_type -> cairn.v1.DiscardSourcePreviewRequest
+	54,  // 161: cairn.v1.ActivityService.LinkSourceToActivity:input_type -> cairn.v1.LinkSourceToActivityRequest
+	56,  // 162: cairn.v1.ActivityService.DetachSource:input_type -> cairn.v1.DetachSourceRequest
+	58,  // 163: cairn.v1.ActivityService.GetActivityStream:input_type -> cairn.v1.GetActivityStreamRequest
+	60,  // 164: cairn.v1.ActivityService.PresignActivityUpload:input_type -> cairn.v1.PresignActivityUploadRequest
+	62,  // 165: cairn.v1.ActivityService.UploadActivity:input_type -> cairn.v1.UploadActivityRequest
+	64,  // 166: cairn.v1.ActivityService.ListLaps:input_type -> cairn.v1.ListLapsRequest
+	66,  // 167: cairn.v1.ActivityService.GetActivityZones:input_type -> cairn.v1.GetActivityZonesRequest
+	71,  // 168: cairn.v1.ActivityService.ListActivitySegmentEfforts:input_type -> cairn.v1.ListActivitySegmentEffortsRequest
+	74,  // 169: cairn.v1.ActivityService.ListSimilarActivities:input_type -> cairn.v1.ListSimilarActivitiesRequest
+	77,  // 170: cairn.v1.ActivityService.GetMergedStream:input_type -> cairn.v1.GetMergedStreamRequest
+	80,  // 171: cairn.v1.ActivityService.ListKudos:input_type -> cairn.v1.ListKudosRequest
+	82,  // 172: cairn.v1.ActivityService.ListComments:input_type -> cairn.v1.ListCommentsRequest
+	85,  // 173: cairn.v1.ActivityService.GetActivityManageInfo:input_type -> cairn.v1.GetActivityManageInfoRequest
+	89,  // 174: cairn.v1.ActivityService.GetParsedSource:input_type -> cairn.v1.GetParsedSourceRequest
+	92,  // 175: cairn.v1.ActivityService.ListAttachments:input_type -> cairn.v1.ListAttachmentsRequest
+	94,  // 176: cairn.v1.ActivityService.GetActivityMapImage:input_type -> cairn.v1.GetActivityMapImageRequest
+	96,  // 177: cairn.v1.ActivityService.GetExportOptions:input_type -> cairn.v1.GetExportOptionsRequest
+	98,  // 178: cairn.v1.ActivityService.ExportActivity:input_type -> cairn.v1.ExportActivityRequest
+	100, // 179: cairn.v1.ActivityService.ListBestEfforts:input_type -> cairn.v1.ListBestEffortsRequest
+	102, // 180: cairn.v1.ActivityService.ListRecords:input_type -> cairn.v1.ListRecordsRequest
+	104, // 181: cairn.v1.ActivityService.CreateCustomBestEffort:input_type -> cairn.v1.CreateCustomBestEffortRequest
+	106, // 182: cairn.v1.ActivityService.ListCustomBestEfforts:input_type -> cairn.v1.ListCustomBestEffortsRequest
+	108, // 183: cairn.v1.ActivityService.DeleteCustomBestEffort:input_type -> cairn.v1.DeleteCustomBestEffortRequest
+	31,  // 184: cairn.v1.ActivityService.ListActivities:output_type -> cairn.v1.ListActivitiesResponse
+	30,  // 185: cairn.v1.ActivityService.SearchActivities:output_type -> cairn.v1.SearchActivitiesResponse
+	33,  // 186: cairn.v1.ActivityService.GetActivity:output_type -> cairn.v1.GetActivityResponse
+	35,  // 187: cairn.v1.ActivityService.UpdateActivity:output_type -> cairn.v1.UpdateActivityResponse
+	37,  // 188: cairn.v1.ActivityService.DeleteActivity:output_type -> cairn.v1.DeleteActivityResponse
+	39,  // 189: cairn.v1.ActivityService.StreamActivityEvents:output_type -> cairn.v1.ActivityEvent
+	41,  // 190: cairn.v1.ActivityService.ListActivitySources:output_type -> cairn.v1.ListActivitySourcesResponse
+	43,  // 191: cairn.v1.ActivityService.ReimportSource:output_type -> cairn.v1.ReimportSourceResponse
+	45,  // 192: cairn.v1.ActivityService.PreviewSourceReimport:output_type -> cairn.v1.PreviewSourceReimportResponse
+	49,  // 193: cairn.v1.ActivityService.GetSourcePreview:output_type -> cairn.v1.GetSourcePreviewResponse
+	51,  // 194: cairn.v1.ActivityService.CommitSourcePreview:output_type -> cairn.v1.CommitSourcePreviewResponse
+	53,  // 195: cairn.v1.ActivityService.DiscardSourcePreview:output_type -> cairn.v1.DiscardSourcePreviewResponse
+	55,  // 196: cairn.v1.ActivityService.LinkSourceToActivity:output_type -> cairn.v1.LinkSourceToActivityResponse
+	57,  // 197: cairn.v1.ActivityService.DetachSource:output_type -> cairn.v1.DetachSourceResponse
+	59,  // 198: cairn.v1.ActivityService.GetActivityStream:output_type -> cairn.v1.GetActivityStreamResponse
+	61,  // 199: cairn.v1.ActivityService.PresignActivityUpload:output_type -> cairn.v1.PresignActivityUploadResponse
+	63,  // 200: cairn.v1.ActivityService.UploadActivity:output_type -> cairn.v1.UploadActivityResponse
+	65,  // 201: cairn.v1.ActivityService.ListLaps:output_type -> cairn.v1.ListLapsResponse
+	70,  // 202: cairn.v1.ActivityService.GetActivityZones:output_type -> cairn.v1.GetActivityZonesResponse
+	73,  // 203: cairn.v1.ActivityService.ListActivitySegmentEfforts:output_type -> cairn.v1.ListActivitySegmentEffortsResponse
+	76,  // 204: cairn.v1.ActivityService.ListSimilarActivities:output_type -> cairn.v1.ListSimilarActivitiesResponse
+	79,  // 205: cairn.v1.ActivityService.GetMergedStream:output_type -> cairn.v1.GetMergedStreamResponse
+	81,  // 206: cairn.v1.ActivityService.ListKudos:output_type -> cairn.v1.ListKudosResponse
+	84,  // 207: cairn.v1.ActivityService.ListComments:output_type -> cairn.v1.ListCommentsResponse
+	88,  // 208: cairn.v1.ActivityService.GetActivityManageInfo:output_type -> cairn.v1.GetActivityManageInfoResponse
+	90,  // 209: cairn.v1.ActivityService.GetParsedSource:output_type -> cairn.v1.GetParsedSourceResponse
+	93,  // 210: cairn.v1.ActivityService.ListAttachments:output_type -> cairn.v1.ListAttachmentsResponse
+	95,  // 211: cairn.v1.ActivityService.GetActivityMapImage:output_type -> cairn.v1.GetActivityMapImageResponse
+	97,  // 212: cairn.v1.ActivityService.GetExportOptions:output_type -> cairn.v1.GetExportOptionsResponse
+	99,  // 213: cairn.v1.ActivityService.ExportActivity:output_type -> cairn.v1.ExportActivityResponse
+	101, // 214: cairn.v1.ActivityService.ListBestEfforts:output_type -> cairn.v1.ListBestEffortsResponse
+	103, // 215: cairn.v1.ActivityService.ListRecords:output_type -> cairn.v1.ListRecordsResponse
+	105, // 216: cairn.v1.ActivityService.CreateCustomBestEffort:output_type -> cairn.v1.CreateCustomBestEffortResponse
+	107, // 217: cairn.v1.ActivityService.ListCustomBestEfforts:output_type -> cairn.v1.ListCustomBestEffortsResponse
+	109, // 218: cairn.v1.ActivityService.DeleteCustomBestEffort:output_type -> cairn.v1.DeleteCustomBestEffortResponse
+	184, // [184:219] is the sub-list for method output_type
+	149, // [149:184] is the sub-list for method input_type
+	149, // [149:149] is the sub-list for extension type_name
+	149, // [149:149] is the sub-list for extension extendee
+	0,   // [0:149] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_activity_proto_init() }
@@ -5796,18 +9579,23 @@ func file_cairn_v1_activity_proto_init() {
 	file_cairn_v1_activity_proto_msgTypes[7].OneofWrappers = []any{}
 	file_cairn_v1_activity_proto_msgTypes[9].OneofWrappers = []any{}
 	file_cairn_v1_activity_proto_msgTypes[10].OneofWrappers = []any{}
-	file_cairn_v1_activity_proto_msgTypes[16].OneofWrappers = []any{}
-	file_cairn_v1_activity_proto_msgTypes[21].OneofWrappers = []any{}
-	file_cairn_v1_activity_proto_msgTypes[35].OneofWrappers = []any{}
-	file_cairn_v1_activity_proto_msgTypes[40].OneofWrappers = []any{}
-	file_cairn_v1_activity_proto_msgTypes[44].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[13].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[20].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[25].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[43].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[48].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[56].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[58].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[61].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[72].OneofWrappers = []any{}
+	file_cairn_v1_activity_proto_msgTypes[88].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_activity_proto_rawDesc), len(file_cairn_v1_activity_proto_rawDesc)),
-			NumEnums:      11,
-			NumMessages:   54,
+			NumEnums:      14,
+			NumMessages:   102,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -29,6 +29,13 @@ type InviteRepo interface {
 	// subsequent user creation fails, so the code can be retried.
 	Release(ctx context.Context, id domain.InviteID) error
 
+	// Get returns one invite; ErrInviteNotFound when absent.
+	Get(ctx context.Context, id domain.InviteID) (domain.Invite, error)
+
+	// ResetCode replaces the code hash and prefix of an unused, unrevoked
+	// invite (resend); ErrInviteInvalid when it cannot be reissued.
+	ResetCode(ctx context.Context, id domain.InviteID, codeHash []byte, prefix string, now time.Time) error
+
 	// ListForInstance returns all invites (newest first) for the admin UI.
 	ListForInstance(ctx context.Context) ([]domain.Invite, error)
 

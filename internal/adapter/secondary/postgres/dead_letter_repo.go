@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // DeadLetterRepo persists rows from the cairn_dead_lettered_jobs
@@ -71,13 +72,8 @@ func (r *DeadLetterRepo) Capture(ctx context.Context, j domain.DeadLetteredJob) 
 }
 
 // DLQListInput parameterises the admin /admin/dlq listing.
-type DLQListInput struct {
-	Stream            string // filter; empty = all
-	Subject           string // filter; empty = all
-	IncludeReplayed   bool
-	Limit             int
-	BeforeFirstSeenAt time.Time // cursor pagination
-}
+// DLQListInput is the filter of List (port.DeadLetterFilter).
+type DLQListInput = port.DeadLetterFilter
 
 func (r *DeadLetterRepo) List(ctx context.Context, in DLQListInput) ([]domain.DeadLetteredJob, error) {
 	db := dbtx(ctx, r.pool)
@@ -225,3 +221,14 @@ func nullableString(s string) any {
 	}
 	return s
 }
+
+func (r *DeadLetterRepo) CountOpen(ctx context.Context) (int, error) {
+	db := dbtx(ctx, r.pool)
+	var n int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM dead_lettered_jobs WHERE replayed_at IS NULL`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count dead-lettered: %w", err)
+	}
+	return n, nil
+}
+
+var _ port.DeadLetterRepo = (*DeadLetterRepo)(nil)

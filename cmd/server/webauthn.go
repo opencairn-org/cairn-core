@@ -53,6 +53,8 @@ func mountWebAuthn(mux *http.ServeMux, app *App, logger *slog.Logger, publicURL 
 	mux.HandleFunc("POST /auth/webauthn/login/finish", h.loginFinish)
 
 	// ---- passkey management (authenticated) ------------------------------
+	mux.HandleFunc("POST /auth/2fa/complete", h.completeSecondFactor)
+	mux.HandleFunc("PUT /api/passkeys/second-factor", h.setSecondFactor)
 	mux.HandleFunc("GET /api/passkeys", h.list)
 	mux.HandleFunc("PUT /api/passkeys/{id}", h.rename)
 	mux.HandleFunc("DELETE /api/passkeys/{id}", h.delete)
@@ -180,6 +182,20 @@ func (h *waHandlers) loginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clearWACookie(w, r, waLoginCookie)
+	// With ?challenge= the assertion is the second factor of a password
+	// sign-in: it satisfies the challenge, the session comes from /auth/2fa/complete.
+	if challenge := r.URL.Query().Get("challenge"); challenge != "" {
+		if h.app.SecondFactor == nil {
+			http.Error(w, "second factor not available", http.StatusServiceUnavailable)
+			return
+		}
+		if err := h.app.SecondFactor.Satisfy(ctx, challenge, pk.UserID); err != nil {
+			writeActionError(w, err, "challenge failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "challenge_satisfied": true})
+		return
+	}
 	if err := issueSessionForUser(w, r, h.app, pk.UserID, domain.SessionAuthPasskey, h.sessionTTL); err != nil {
 		h.logger.Error("webauthn login: issue session failed", "error", err)
 		http.Error(w, "session error", http.StatusInternalServerError)
@@ -210,7 +226,69 @@ func (h *waHandlers) list(w http.ResponseWriter, r *http.Request) {
 			"created_at": p.CreatedAt.UTC().Format(time.RFC3339), "last_used_at": lastUsed,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"passkeys": out})
+	user, _ := h.app.Users.GetUser(r.Context(), userID)
+	writeJSON(w, http.StatusOK, map[string]any{"passkeys": out, "second_factor": user.PasskeySecondFactor})
+}
+
+// completeSecondFactor turns a satisfied challenge into a cookie session.
+//
+//	POST /auth/2fa/complete { challenge_token }
+func (h *waHandlers) completeSecondFactor(w http.ResponseWriter, r *http.Request) {
+	if h.app.SecondFactor == nil {
+		http.Error(w, "second factor not available", http.StatusServiceUnavailable)
+		return
+	}
+	if !requireJSON(w, r) {
+		return
+	}
+	var body struct {
+		Token string `json:"challenge_token"`
+	}
+	if err := decodeJSONBody(r, &body); err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	userID, err := h.app.SecondFactor.Complete(r.Context(), body.Token)
+	if err != nil {
+		writeActionError(w, err, "challenge failed")
+		return
+	}
+	if err := issueSessionForUser(w, r, h.app, userID, domain.SessionAuthPasswordWithWebauthn, h.sessionTTL); err != nil {
+		h.logger.Error("second factor: issue session failed", "error", err)
+		http.Error(w, "session error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// setSecondFactor opts the caller in or out of the passkey second factor.
+//
+//	PUT /api/passkeys/second-factor { enabled }
+func (h *waHandlers) setSecondFactor(w http.ResponseWriter, r *http.Request) {
+	userID, ok := resolveSessionUser(r, h.app)
+	if !ok {
+		http.Error(w, "unauthenticated", http.StatusUnauthorized)
+		return
+	}
+	if h.app.SecondFactor == nil {
+		http.Error(w, "second factor not available", http.StatusServiceUnavailable)
+		return
+	}
+	if !requireJSON(w, r) {
+		return
+	}
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := decodeJSONBody(r, &body); err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.SecondFactor.SetEnabled(r.Context(), userID, body.Enabled); err != nil {
+		writeActionError(w, err, "update failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "second_factor": body.Enabled})
 }
 
 func (h *waHandlers) rename(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +397,7 @@ func issueSessionForUser(w http.ResponseWriter, r *http.Request, app *App, userI
 		UserID:           userID,
 		TokenHash:        hash[:],
 		AuthMethod:       method,
-		UserAgentSummary: truncateUA(r.UserAgent(), 200),
+		UserAgentSummary: truncateUA(r.UserAgent()),
 		CreatedAt:        now,
 		LastSeenAt:       now,
 		ExpiresAt:        expiresAt,

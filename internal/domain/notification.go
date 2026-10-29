@@ -133,6 +133,24 @@ type NotificationPreference struct {
 	MinSeverity NotificationSeverity
 }
 
+// UserFacingNotificationTypes lists the types a user may configure, in
+// display order.
+var UserFacingNotificationTypes = []NotificationType{
+	NotificationTypeSegmentPersonalRecord, NotificationTypeSegmentInstanceRecord, NotificationTypeActivityImported,
+	NotificationTypeActivityReimported, NotificationTypeWorkerOffline, NotificationTypeExternalAccountRefreshFailed,
+	NotificationTypeGearDecisionNeeded,
+}
+
+// IsUserFacingNotificationType reports whether t is configurable.
+func IsUserFacingNotificationType(t NotificationType) bool {
+	for _, known := range UserFacingNotificationTypes {
+		if t == known {
+			return true
+		}
+	}
+	return false
+}
+
 // DefaultChannelEnabled is the fallback when a user has no explicit preference
 // for a (type, channel): in-app is always on; email defaults on only for the
 // "needs attention" types (worker offline, account refresh failed) so routine

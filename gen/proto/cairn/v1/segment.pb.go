@@ -2348,6 +2348,340 @@ func (x *RematchSegmentResponse) GetJobId() string {
 	return ""
 }
 
+type ListMySegmentsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Restrict to one activity type; unset = all.
+	ActivityType ActivityType `protobuf:"varint,1,opt,name=activity_type,json=activityType,proto3,enum=cairn.v1.ActivityType" json:"activity_type,omitempty"`
+	// limit default 50, max 200.
+	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMySegmentsRequest) Reset() {
+	*x = ListMySegmentsRequest{}
+	mi := &file_cairn_v1_segment_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMySegmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMySegmentsRequest) ProtoMessage() {}
+
+func (x *ListMySegmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_segment_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMySegmentsRequest.ProtoReflect.Descriptor instead.
+func (*ListMySegmentsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_segment_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ListMySegmentsRequest) GetActivityType() ActivityType {
+	if x != nil {
+		return x.ActivityType
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *ListMySegmentsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type UserSegmentStats struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Distinct segments the caller has efforts on, their efforts, personal
+	// and course records, split by external (provider) and native segments.
+	Segments      int32 `protobuf:"varint,1,opt,name=segments,proto3" json:"segments,omitempty"`
+	Efforts       int32 `protobuf:"varint,2,opt,name=efforts,proto3" json:"efforts,omitempty"`
+	Prs           int32 `protobuf:"varint,3,opt,name=prs,proto3" json:"prs,omitempty"`
+	Crs           int32 `protobuf:"varint,4,opt,name=crs,proto3" json:"crs,omitempty"`
+	External      int32 `protobuf:"varint,5,opt,name=external,proto3" json:"external,omitempty"`
+	Native        int32 `protobuf:"varint,6,opt,name=native,proto3" json:"native,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserSegmentStats) Reset() {
+	*x = UserSegmentStats{}
+	mi := &file_cairn_v1_segment_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserSegmentStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserSegmentStats) ProtoMessage() {}
+
+func (x *UserSegmentStats) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_segment_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserSegmentStats.ProtoReflect.Descriptor instead.
+func (*UserSegmentStats) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_segment_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *UserSegmentStats) GetSegments() int32 {
+	if x != nil {
+		return x.Segments
+	}
+	return 0
+}
+
+func (x *UserSegmentStats) GetEfforts() int32 {
+	if x != nil {
+		return x.Efforts
+	}
+	return 0
+}
+
+func (x *UserSegmentStats) GetPrs() int32 {
+	if x != nil {
+		return x.Prs
+	}
+	return 0
+}
+
+func (x *UserSegmentStats) GetCrs() int32 {
+	if x != nil {
+		return x.Crs
+	}
+	return 0
+}
+
+func (x *UserSegmentStats) GetExternal() int32 {
+	if x != nil {
+		return x.External
+	}
+	return 0
+}
+
+func (x *UserSegmentStats) GetNative() int32 {
+	if x != nil {
+		return x.Native
+	}
+	return 0
+}
+
+type UserSegmentRow struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	ActivityType ActivityType           `protobuf:"varint,3,opt,name=activity_type,json=activityType,proto3,enum=cairn.v1.ActivityType" json:"activity_type,omitempty"`
+	// "external" (provider-mirrored) or "native".
+	Source         string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	DistanceM      float64                `protobuf:"fixed64,5,opt,name=distance_m,json=distanceM,proto3" json:"distance_m,omitempty"`
+	ElevationGainM *float64               `protobuf:"fixed64,6,opt,name=elevation_gain_m,json=elevationGainM,proto3,oneof" json:"elevation_gain_m,omitempty"`
+	AvgGrade       *float64               `protobuf:"fixed64,7,opt,name=avg_grade,json=avgGrade,proto3,oneof" json:"avg_grade,omitempty"`
+	EffortCount    int32                  `protobuf:"varint,8,opt,name=effort_count,json=effortCount,proto3" json:"effort_count,omitempty"`
+	BestElapsedS   float64                `protobuf:"fixed64,9,opt,name=best_elapsed_s,json=bestElapsedS,proto3" json:"best_elapsed_s,omitempty"`
+	LastEffortAt   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_effort_at,json=lastEffortAt,proto3" json:"last_effort_at,omitempty"`
+	HasPr          bool                   `protobuf:"varint,11,opt,name=has_pr,json=hasPr,proto3" json:"has_pr,omitempty"`
+	HasCr          bool                   `protobuf:"varint,12,opt,name=has_cr,json=hasCr,proto3" json:"has_cr,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UserSegmentRow) Reset() {
+	*x = UserSegmentRow{}
+	mi := &file_cairn_v1_segment_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserSegmentRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserSegmentRow) ProtoMessage() {}
+
+func (x *UserSegmentRow) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_segment_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserSegmentRow.ProtoReflect.Descriptor instead.
+func (*UserSegmentRow) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_segment_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *UserSegmentRow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UserSegmentRow) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UserSegmentRow) GetActivityType() ActivityType {
+	if x != nil {
+		return x.ActivityType
+	}
+	return ActivityType_ACTIVITY_TYPE_UNSPECIFIED
+}
+
+func (x *UserSegmentRow) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *UserSegmentRow) GetDistanceM() float64 {
+	if x != nil {
+		return x.DistanceM
+	}
+	return 0
+}
+
+func (x *UserSegmentRow) GetElevationGainM() float64 {
+	if x != nil && x.ElevationGainM != nil {
+		return *x.ElevationGainM
+	}
+	return 0
+}
+
+func (x *UserSegmentRow) GetAvgGrade() float64 {
+	if x != nil && x.AvgGrade != nil {
+		return *x.AvgGrade
+	}
+	return 0
+}
+
+func (x *UserSegmentRow) GetEffortCount() int32 {
+	if x != nil {
+		return x.EffortCount
+	}
+	return 0
+}
+
+func (x *UserSegmentRow) GetBestElapsedS() float64 {
+	if x != nil {
+		return x.BestElapsedS
+	}
+	return 0
+}
+
+func (x *UserSegmentRow) GetLastEffortAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastEffortAt
+	}
+	return nil
+}
+
+func (x *UserSegmentRow) GetHasPr() bool {
+	if x != nil {
+		return x.HasPr
+	}
+	return false
+}
+
+func (x *UserSegmentRow) GetHasCr() bool {
+	if x != nil {
+		return x.HasCr
+	}
+	return false
+}
+
+type ListMySegmentsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only on the first page.
+	Stats         *UserSegmentStats `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	Segments      []*UserSegmentRow `protobuf:"bytes,2,rep,name=segments,proto3" json:"segments,omitempty"`
+	Page          *PageResponse     `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMySegmentsResponse) Reset() {
+	*x = ListMySegmentsResponse{}
+	mi := &file_cairn_v1_segment_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMySegmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMySegmentsResponse) ProtoMessage() {}
+
+func (x *ListMySegmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_segment_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMySegmentsResponse.ProtoReflect.Descriptor instead.
+func (*ListMySegmentsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_segment_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListMySegmentsResponse) GetStats() *UserSegmentStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *ListMySegmentsResponse) GetSegments() []*UserSegmentRow {
+	if x != nil {
+		return x.Segments
+	}
+	return nil
+}
+
+func (x *ListMySegmentsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
 var File_cairn_v1_segment_proto protoreflect.FileDescriptor
 
 const file_cairn_v1_segment_proto_rawDesc = "" +
@@ -2590,7 +2924,39 @@ const file_cairn_v1_segment_proto_rawDesc = "" +
 	"\n" +
 	"time_range\x18\x02 \x01(\v2\x13.cairn.v1.TimeRangeR\ttimeRange\"/\n" +
 	"\x16RematchSegmentResponse\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId*d\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\x7f\n" +
+	"\x15ListMySegmentsRequest\x12;\n" +
+	"\ractivity_type\x18\x01 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\factivityType\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.cairn.v1.PageRequestR\x04page\"\xa0\x01\n" +
+	"\x10UserSegmentStats\x12\x1a\n" +
+	"\bsegments\x18\x01 \x01(\x05R\bsegments\x12\x18\n" +
+	"\aefforts\x18\x02 \x01(\x05R\aefforts\x12\x10\n" +
+	"\x03prs\x18\x03 \x01(\x05R\x03prs\x12\x10\n" +
+	"\x03crs\x18\x04 \x01(\x05R\x03crs\x12\x1a\n" +
+	"\bexternal\x18\x05 \x01(\x05R\bexternal\x12\x16\n" +
+	"\x06native\x18\x06 \x01(\x05R\x06native\"\xd5\x03\n" +
+	"\x0eUserSegmentRow\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12;\n" +
+	"\ractivity_type\x18\x03 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\factivityType\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1d\n" +
+	"\n" +
+	"distance_m\x18\x05 \x01(\x01R\tdistanceM\x12-\n" +
+	"\x10elevation_gain_m\x18\x06 \x01(\x01H\x00R\x0eelevationGainM\x88\x01\x01\x12 \n" +
+	"\tavg_grade\x18\a \x01(\x01H\x01R\bavgGrade\x88\x01\x01\x12!\n" +
+	"\feffort_count\x18\b \x01(\x05R\veffortCount\x12$\n" +
+	"\x0ebest_elapsed_s\x18\t \x01(\x01R\fbestElapsedS\x12@\n" +
+	"\x0elast_effort_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\flastEffortAt\x12\x15\n" +
+	"\x06has_pr\x18\v \x01(\bR\x05hasPr\x12\x15\n" +
+	"\x06has_cr\x18\f \x01(\bR\x05hasCrB\x13\n" +
+	"\x11_elevation_gain_mB\f\n" +
+	"\n" +
+	"_avg_grade\"\xac\x01\n" +
+	"\x16ListMySegmentsResponse\x120\n" +
+	"\x05stats\x18\x01 \x01(\v2\x1a.cairn.v1.UserSegmentStatsR\x05stats\x124\n" +
+	"\bsegments\x18\x02 \x03(\v2\x18.cairn.v1.UserSegmentRowR\bsegments\x12*\n" +
+	"\x04page\x18\x03 \x01(\v2\x16.cairn.v1.PageResponseR\x04page*d\n" +
 	"\fSegmentScope\x12\x1d\n" +
 	"\x19SEGMENT_SCOPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SEGMENT_SCOPE_PRIVATE\x10\x01\x12\x1a\n" +
@@ -2613,9 +2979,10 @@ const file_cairn_v1_segment_proto_rawDesc = "" +
 	"\x11SegmentEffortSort\x12#\n" +
 	"\x1fSEGMENT_EFFORT_SORT_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fSEGMENT_EFFORT_SORT_ELAPSED_ASC\x10\x01\x12'\n" +
-	"#SEGMENT_EFFORT_SORT_START_TIME_DESC\x10\x022\xf9\a\n" +
+	"#SEGMENT_EFFORT_SORT_START_TIME_DESC\x10\x022\xd3\b\n" +
 	"\x0eSegmentService\x12M\n" +
-	"\fListSegments\x12\x1d.cairn.v1.ListSegmentsRequest\x1a\x1e.cairn.v1.ListSegmentsResponse\x12G\n" +
+	"\fListSegments\x12\x1d.cairn.v1.ListSegmentsRequest\x1a\x1e.cairn.v1.ListSegmentsResponse\x12X\n" +
+	"\x0eListMySegments\x12\x1f.cairn.v1.ListMySegmentsRequest\x1a .cairn.v1.ListMySegmentsResponse\"\x03\x90\x02\x01\x12G\n" +
 	"\n" +
 	"GetSegment\x12\x1b.cairn.v1.GetSegmentRequest\x1a\x1c.cairn.v1.GetSegmentResponse\x12P\n" +
 	"\rCreateSegment\x12\x1e.cairn.v1.CreateSegmentRequest\x1a\x1f.cairn.v1.CreateSegmentResponse\x12P\n" +
@@ -2642,7 +3009,7 @@ func file_cairn_v1_segment_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_segment_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_cairn_v1_segment_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_cairn_v1_segment_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_cairn_v1_segment_proto_goTypes = []any{
 	(SegmentScope)(0),                           // 0: cairn.v1.SegmentScope
 	(ClimbCategory)(0),                          // 1: cairn.v1.ClimbCategory
@@ -2674,95 +3041,108 @@ var file_cairn_v1_segment_proto_goTypes = []any{
 	(*RematchActivityResponse)(nil),             // 27: cairn.v1.RematchActivityResponse
 	(*RematchSegmentRequest)(nil),               // 28: cairn.v1.RematchSegmentRequest
 	(*RematchSegmentResponse)(nil),              // 29: cairn.v1.RematchSegmentResponse
-	(ActivityType)(0),                           // 30: cairn.v1.ActivityType
-	(*EncodedPolyline)(nil),                     // 31: cairn.v1.EncodedPolyline
-	(*BoundingBox)(nil),                         // 32: cairn.v1.BoundingBox
-	(*timestamppb.Timestamp)(nil),               // 33: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                 // 34: google.protobuf.Duration
-	(*PageRequest)(nil),                         // 35: cairn.v1.PageRequest
-	(*PageResponse)(nil),                        // 36: cairn.v1.PageResponse
-	(*TimeRange)(nil),                           // 37: cairn.v1.TimeRange
-	(BiologicalSex)(0),                          // 38: cairn.v1.BiologicalSex
+	(*ListMySegmentsRequest)(nil),               // 30: cairn.v1.ListMySegmentsRequest
+	(*UserSegmentStats)(nil),                    // 31: cairn.v1.UserSegmentStats
+	(*UserSegmentRow)(nil),                      // 32: cairn.v1.UserSegmentRow
+	(*ListMySegmentsResponse)(nil),              // 33: cairn.v1.ListMySegmentsResponse
+	(ActivityType)(0),                           // 34: cairn.v1.ActivityType
+	(*EncodedPolyline)(nil),                     // 35: cairn.v1.EncodedPolyline
+	(*BoundingBox)(nil),                         // 36: cairn.v1.BoundingBox
+	(*timestamppb.Timestamp)(nil),               // 37: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                 // 38: google.protobuf.Duration
+	(*PageRequest)(nil),                         // 39: cairn.v1.PageRequest
+	(*PageResponse)(nil),                        // 40: cairn.v1.PageResponse
+	(*TimeRange)(nil),                           // 41: cairn.v1.TimeRange
+	(BiologicalSex)(0),                          // 42: cairn.v1.BiologicalSex
 }
 var file_cairn_v1_segment_proto_depIdxs = []int32{
 	0,  // 0: cairn.v1.Segment.scope:type_name -> cairn.v1.SegmentScope
-	30, // 1: cairn.v1.Segment.activity_type:type_name -> cairn.v1.ActivityType
-	31, // 2: cairn.v1.Segment.polyline:type_name -> cairn.v1.EncodedPolyline
-	32, // 3: cairn.v1.Segment.bounding_box:type_name -> cairn.v1.BoundingBox
+	34, // 1: cairn.v1.Segment.activity_type:type_name -> cairn.v1.ActivityType
+	35, // 2: cairn.v1.Segment.polyline:type_name -> cairn.v1.EncodedPolyline
+	36, // 3: cairn.v1.Segment.bounding_box:type_name -> cairn.v1.BoundingBox
 	1,  // 4: cairn.v1.Segment.climb_category:type_name -> cairn.v1.ClimbCategory
 	5,  // 5: cairn.v1.Segment.stats:type_name -> cairn.v1.SegmentStats
-	33, // 6: cairn.v1.Segment.created_at:type_name -> google.protobuf.Timestamp
-	33, // 7: cairn.v1.Segment.updated_at:type_name -> google.protobuf.Timestamp
-	34, // 8: cairn.v1.SegmentStats.kom_time:type_name -> google.protobuf.Duration
-	34, // 9: cairn.v1.SegmentStats.pr_time:type_name -> google.protobuf.Duration
-	33, // 10: cairn.v1.SegmentEffort.start_time:type_name -> google.protobuf.Timestamp
-	34, // 11: cairn.v1.SegmentEffort.elapsed:type_name -> google.protobuf.Duration
-	34, // 12: cairn.v1.SegmentEffort.moving:type_name -> google.protobuf.Duration
-	33, // 13: cairn.v1.SegmentEffort.created_at:type_name -> google.protobuf.Timestamp
+	37, // 6: cairn.v1.Segment.created_at:type_name -> google.protobuf.Timestamp
+	37, // 7: cairn.v1.Segment.updated_at:type_name -> google.protobuf.Timestamp
+	38, // 8: cairn.v1.SegmentStats.kom_time:type_name -> google.protobuf.Duration
+	38, // 9: cairn.v1.SegmentStats.pr_time:type_name -> google.protobuf.Duration
+	37, // 10: cairn.v1.SegmentEffort.start_time:type_name -> google.protobuf.Timestamp
+	38, // 11: cairn.v1.SegmentEffort.elapsed:type_name -> google.protobuf.Duration
+	38, // 12: cairn.v1.SegmentEffort.moving:type_name -> google.protobuf.Duration
+	37, // 13: cairn.v1.SegmentEffort.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 14: cairn.v1.ListSegmentsRequest.scopes:type_name -> cairn.v1.SegmentScope
-	30, // 15: cairn.v1.ListSegmentsRequest.activity_types:type_name -> cairn.v1.ActivityType
+	34, // 15: cairn.v1.ListSegmentsRequest.activity_types:type_name -> cairn.v1.ActivityType
 	2,  // 16: cairn.v1.ListSegmentsRequest.sort:type_name -> cairn.v1.SegmentSort
-	35, // 17: cairn.v1.ListSegmentsRequest.page:type_name -> cairn.v1.PageRequest
+	39, // 17: cairn.v1.ListSegmentsRequest.page:type_name -> cairn.v1.PageRequest
 	4,  // 18: cairn.v1.ListSegmentsResponse.segments:type_name -> cairn.v1.Segment
-	36, // 19: cairn.v1.ListSegmentsResponse.page:type_name -> cairn.v1.PageResponse
+	40, // 19: cairn.v1.ListSegmentsResponse.page:type_name -> cairn.v1.PageResponse
 	4,  // 20: cairn.v1.GetSegmentResponse.segment:type_name -> cairn.v1.Segment
 	6,  // 21: cairn.v1.GetSegmentResponse.top_efforts:type_name -> cairn.v1.SegmentEffort
-	30, // 22: cairn.v1.CreateSegmentRequest.activity_type:type_name -> cairn.v1.ActivityType
-	31, // 23: cairn.v1.CreateSegmentRequest.polyline:type_name -> cairn.v1.EncodedPolyline
+	34, // 22: cairn.v1.CreateSegmentRequest.activity_type:type_name -> cairn.v1.ActivityType
+	35, // 23: cairn.v1.CreateSegmentRequest.polyline:type_name -> cairn.v1.EncodedPolyline
 	0,  // 24: cairn.v1.CreateSegmentRequest.scope:type_name -> cairn.v1.SegmentScope
 	4,  // 25: cairn.v1.CreateSegmentResponse.segment:type_name -> cairn.v1.Segment
 	0,  // 26: cairn.v1.UpdateSegmentRequest.scope:type_name -> cairn.v1.SegmentScope
-	31, // 27: cairn.v1.UpdateSegmentRequest.polyline:type_name -> cairn.v1.EncodedPolyline
+	35, // 27: cairn.v1.UpdateSegmentRequest.polyline:type_name -> cairn.v1.EncodedPolyline
 	4,  // 28: cairn.v1.UpdateSegmentResponse.segment:type_name -> cairn.v1.Segment
-	32, // 29: cairn.v1.SearchSegmentsInBoundingBoxRequest.bbox:type_name -> cairn.v1.BoundingBox
-	30, // 30: cairn.v1.SearchSegmentsInBoundingBoxRequest.activity_types:type_name -> cairn.v1.ActivityType
+	36, // 29: cairn.v1.SearchSegmentsInBoundingBoxRequest.bbox:type_name -> cairn.v1.BoundingBox
+	34, // 30: cairn.v1.SearchSegmentsInBoundingBoxRequest.activity_types:type_name -> cairn.v1.ActivityType
 	4,  // 31: cairn.v1.SearchSegmentsInBoundingBoxResponse.segments:type_name -> cairn.v1.Segment
-	37, // 32: cairn.v1.ListSegmentEffortsRequest.time_range:type_name -> cairn.v1.TimeRange
-	35, // 33: cairn.v1.ListSegmentEffortsRequest.page:type_name -> cairn.v1.PageRequest
+	41, // 32: cairn.v1.ListSegmentEffortsRequest.time_range:type_name -> cairn.v1.TimeRange
+	39, // 33: cairn.v1.ListSegmentEffortsRequest.page:type_name -> cairn.v1.PageRequest
 	3,  // 34: cairn.v1.ListSegmentEffortsRequest.sort:type_name -> cairn.v1.SegmentEffortSort
 	6,  // 35: cairn.v1.ListSegmentEffortsResponse.efforts:type_name -> cairn.v1.SegmentEffort
-	36, // 36: cairn.v1.ListSegmentEffortsResponse.page:type_name -> cairn.v1.PageResponse
-	37, // 37: cairn.v1.ListMySegmentEffortsRequest.time_range:type_name -> cairn.v1.TimeRange
-	35, // 38: cairn.v1.ListMySegmentEffortsRequest.page:type_name -> cairn.v1.PageRequest
+	40, // 36: cairn.v1.ListSegmentEffortsResponse.page:type_name -> cairn.v1.PageResponse
+	41, // 37: cairn.v1.ListMySegmentEffortsRequest.time_range:type_name -> cairn.v1.TimeRange
+	39, // 38: cairn.v1.ListMySegmentEffortsRequest.page:type_name -> cairn.v1.PageRequest
 	6,  // 39: cairn.v1.ListMySegmentEffortsResponse.efforts:type_name -> cairn.v1.SegmentEffort
-	36, // 40: cairn.v1.ListMySegmentEffortsResponse.page:type_name -> cairn.v1.PageResponse
+	40, // 40: cairn.v1.ListMySegmentEffortsResponse.page:type_name -> cairn.v1.PageResponse
 	6,  // 41: cairn.v1.ListMySegmentEffortsResponse.personal_record:type_name -> cairn.v1.SegmentEffort
-	37, // 42: cairn.v1.GetSegmentLeaderboardRequest.time_range:type_name -> cairn.v1.TimeRange
-	38, // 43: cairn.v1.GetSegmentLeaderboardRequest.biological_sex:type_name -> cairn.v1.BiologicalSex
-	35, // 44: cairn.v1.GetSegmentLeaderboardRequest.page:type_name -> cairn.v1.PageRequest
-	34, // 45: cairn.v1.LeaderboardEntry.elapsed:type_name -> google.protobuf.Duration
-	33, // 46: cairn.v1.LeaderboardEntry.start_time:type_name -> google.protobuf.Timestamp
+	41, // 42: cairn.v1.GetSegmentLeaderboardRequest.time_range:type_name -> cairn.v1.TimeRange
+	42, // 43: cairn.v1.GetSegmentLeaderboardRequest.biological_sex:type_name -> cairn.v1.BiologicalSex
+	39, // 44: cairn.v1.GetSegmentLeaderboardRequest.page:type_name -> cairn.v1.PageRequest
+	38, // 45: cairn.v1.LeaderboardEntry.elapsed:type_name -> google.protobuf.Duration
+	37, // 46: cairn.v1.LeaderboardEntry.start_time:type_name -> google.protobuf.Timestamp
 	24, // 47: cairn.v1.GetSegmentLeaderboardResponse.entries:type_name -> cairn.v1.LeaderboardEntry
-	36, // 48: cairn.v1.GetSegmentLeaderboardResponse.page:type_name -> cairn.v1.PageResponse
+	40, // 48: cairn.v1.GetSegmentLeaderboardResponse.page:type_name -> cairn.v1.PageResponse
 	24, // 49: cairn.v1.GetSegmentLeaderboardResponse.my_entry:type_name -> cairn.v1.LeaderboardEntry
-	37, // 50: cairn.v1.RematchSegmentRequest.time_range:type_name -> cairn.v1.TimeRange
-	7,  // 51: cairn.v1.SegmentService.ListSegments:input_type -> cairn.v1.ListSegmentsRequest
-	9,  // 52: cairn.v1.SegmentService.GetSegment:input_type -> cairn.v1.GetSegmentRequest
-	11, // 53: cairn.v1.SegmentService.CreateSegment:input_type -> cairn.v1.CreateSegmentRequest
-	13, // 54: cairn.v1.SegmentService.UpdateSegment:input_type -> cairn.v1.UpdateSegmentRequest
-	15, // 55: cairn.v1.SegmentService.DeleteSegment:input_type -> cairn.v1.DeleteSegmentRequest
-	17, // 56: cairn.v1.SegmentService.SearchSegmentsInBoundingBox:input_type -> cairn.v1.SearchSegmentsInBoundingBoxRequest
-	19, // 57: cairn.v1.SegmentService.ListSegmentEfforts:input_type -> cairn.v1.ListSegmentEffortsRequest
-	21, // 58: cairn.v1.SegmentService.ListMySegmentEfforts:input_type -> cairn.v1.ListMySegmentEffortsRequest
-	23, // 59: cairn.v1.SegmentService.GetSegmentLeaderboard:input_type -> cairn.v1.GetSegmentLeaderboardRequest
-	26, // 60: cairn.v1.SegmentService.RematchActivity:input_type -> cairn.v1.RematchActivityRequest
-	28, // 61: cairn.v1.SegmentService.RematchSegment:input_type -> cairn.v1.RematchSegmentRequest
-	8,  // 62: cairn.v1.SegmentService.ListSegments:output_type -> cairn.v1.ListSegmentsResponse
-	10, // 63: cairn.v1.SegmentService.GetSegment:output_type -> cairn.v1.GetSegmentResponse
-	12, // 64: cairn.v1.SegmentService.CreateSegment:output_type -> cairn.v1.CreateSegmentResponse
-	14, // 65: cairn.v1.SegmentService.UpdateSegment:output_type -> cairn.v1.UpdateSegmentResponse
-	16, // 66: cairn.v1.SegmentService.DeleteSegment:output_type -> cairn.v1.DeleteSegmentResponse
-	18, // 67: cairn.v1.SegmentService.SearchSegmentsInBoundingBox:output_type -> cairn.v1.SearchSegmentsInBoundingBoxResponse
-	20, // 68: cairn.v1.SegmentService.ListSegmentEfforts:output_type -> cairn.v1.ListSegmentEffortsResponse
-	22, // 69: cairn.v1.SegmentService.ListMySegmentEfforts:output_type -> cairn.v1.ListMySegmentEffortsResponse
-	25, // 70: cairn.v1.SegmentService.GetSegmentLeaderboard:output_type -> cairn.v1.GetSegmentLeaderboardResponse
-	27, // 71: cairn.v1.SegmentService.RematchActivity:output_type -> cairn.v1.RematchActivityResponse
-	29, // 72: cairn.v1.SegmentService.RematchSegment:output_type -> cairn.v1.RematchSegmentResponse
-	62, // [62:73] is the sub-list for method output_type
-	51, // [51:62] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	41, // 50: cairn.v1.RematchSegmentRequest.time_range:type_name -> cairn.v1.TimeRange
+	34, // 51: cairn.v1.ListMySegmentsRequest.activity_type:type_name -> cairn.v1.ActivityType
+	39, // 52: cairn.v1.ListMySegmentsRequest.page:type_name -> cairn.v1.PageRequest
+	34, // 53: cairn.v1.UserSegmentRow.activity_type:type_name -> cairn.v1.ActivityType
+	37, // 54: cairn.v1.UserSegmentRow.last_effort_at:type_name -> google.protobuf.Timestamp
+	31, // 55: cairn.v1.ListMySegmentsResponse.stats:type_name -> cairn.v1.UserSegmentStats
+	32, // 56: cairn.v1.ListMySegmentsResponse.segments:type_name -> cairn.v1.UserSegmentRow
+	40, // 57: cairn.v1.ListMySegmentsResponse.page:type_name -> cairn.v1.PageResponse
+	7,  // 58: cairn.v1.SegmentService.ListSegments:input_type -> cairn.v1.ListSegmentsRequest
+	30, // 59: cairn.v1.SegmentService.ListMySegments:input_type -> cairn.v1.ListMySegmentsRequest
+	9,  // 60: cairn.v1.SegmentService.GetSegment:input_type -> cairn.v1.GetSegmentRequest
+	11, // 61: cairn.v1.SegmentService.CreateSegment:input_type -> cairn.v1.CreateSegmentRequest
+	13, // 62: cairn.v1.SegmentService.UpdateSegment:input_type -> cairn.v1.UpdateSegmentRequest
+	15, // 63: cairn.v1.SegmentService.DeleteSegment:input_type -> cairn.v1.DeleteSegmentRequest
+	17, // 64: cairn.v1.SegmentService.SearchSegmentsInBoundingBox:input_type -> cairn.v1.SearchSegmentsInBoundingBoxRequest
+	19, // 65: cairn.v1.SegmentService.ListSegmentEfforts:input_type -> cairn.v1.ListSegmentEffortsRequest
+	21, // 66: cairn.v1.SegmentService.ListMySegmentEfforts:input_type -> cairn.v1.ListMySegmentEffortsRequest
+	23, // 67: cairn.v1.SegmentService.GetSegmentLeaderboard:input_type -> cairn.v1.GetSegmentLeaderboardRequest
+	26, // 68: cairn.v1.SegmentService.RematchActivity:input_type -> cairn.v1.RematchActivityRequest
+	28, // 69: cairn.v1.SegmentService.RematchSegment:input_type -> cairn.v1.RematchSegmentRequest
+	8,  // 70: cairn.v1.SegmentService.ListSegments:output_type -> cairn.v1.ListSegmentsResponse
+	33, // 71: cairn.v1.SegmentService.ListMySegments:output_type -> cairn.v1.ListMySegmentsResponse
+	10, // 72: cairn.v1.SegmentService.GetSegment:output_type -> cairn.v1.GetSegmentResponse
+	12, // 73: cairn.v1.SegmentService.CreateSegment:output_type -> cairn.v1.CreateSegmentResponse
+	14, // 74: cairn.v1.SegmentService.UpdateSegment:output_type -> cairn.v1.UpdateSegmentResponse
+	16, // 75: cairn.v1.SegmentService.DeleteSegment:output_type -> cairn.v1.DeleteSegmentResponse
+	18, // 76: cairn.v1.SegmentService.SearchSegmentsInBoundingBox:output_type -> cairn.v1.SearchSegmentsInBoundingBoxResponse
+	20, // 77: cairn.v1.SegmentService.ListSegmentEfforts:output_type -> cairn.v1.ListSegmentEffortsResponse
+	22, // 78: cairn.v1.SegmentService.ListMySegmentEfforts:output_type -> cairn.v1.ListMySegmentEffortsResponse
+	25, // 79: cairn.v1.SegmentService.GetSegmentLeaderboard:output_type -> cairn.v1.GetSegmentLeaderboardResponse
+	27, // 80: cairn.v1.SegmentService.RematchActivity:output_type -> cairn.v1.RematchActivityResponse
+	29, // 81: cairn.v1.SegmentService.RematchSegment:output_type -> cairn.v1.RematchSegmentResponse
+	70, // [70:82] is the sub-list for method output_type
+	58, // [58:70] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_segment_proto_init() }
@@ -2784,13 +3164,14 @@ func file_cairn_v1_segment_proto_init() {
 	file_cairn_v1_segment_proto_msgTypes[19].OneofWrappers = []any{}
 	file_cairn_v1_segment_proto_msgTypes[20].OneofWrappers = []any{}
 	file_cairn_v1_segment_proto_msgTypes[21].OneofWrappers = []any{}
+	file_cairn_v1_segment_proto_msgTypes[28].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_segment_proto_rawDesc), len(file_cairn_v1_segment_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   26,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

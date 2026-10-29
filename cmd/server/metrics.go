@@ -99,6 +99,10 @@ func normalizePath(p string) string {
 			segs[i] = ":id"
 		}
 	}
+	// Signed content tokens are unique per URL; collapse them.
+	if len(segs) > 2 && segs[1] == "content" {
+		segs[2] = ":token"
+	}
 	out := strings.Join(segs, "/")
 	if len(out) > 100 { // defensive cap
 		out = out[:100]

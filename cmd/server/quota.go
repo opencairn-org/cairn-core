@@ -6,42 +6,14 @@ import (
 	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // quotaStatus is one user's activity quota usage.
-type quotaStatus struct {
-	Used      int  // current activity count
-	Limit     int  // effective limit (0 = unlimited)
-	Unlimited bool // true when Limit == 0
-	OverLimit bool // Used >= Limit (and not unlimited)
-}
-
-// effectiveActivityLimit resolves the per-user override (if any) over the
-// instance default. 0 means unlimited.
-func effectiveActivityLimit(ctx context.Context, app *App, userID domain.UserID) int {
-	limit := app.QuotaMaxActivities
-	if app.Quotas != nil {
-		if override, err := app.Quotas.GetMaxActivities(ctx, userID); err == nil && override != nil {
-			limit = *override
-		}
-	}
-	if limit < 0 {
-		limit = 0
-	}
-	return limit
-}
-
-// activityQuotaStatus computes a user's current usage against their effective
-// limit. Errors counting are treated as "no usage" so a transient DB hiccup
-// never wrongly blocks an upload.
-func activityQuotaStatus(ctx context.Context, app *App, userID domain.UserID) quotaStatus {
-	limit := effectiveActivityLimit(ctx, app, userID)
-	used := 0
-	if totals, err := app.Activities.ActivityTotals(ctx, userID); err == nil {
-		used = totals.Count
-	}
-	st := quotaStatus{Used: used, Limit: limit, Unlimited: limit == 0}
-	st.OverLimit = !st.Unlimited && used >= limit
+// activityQuotaStatus is the usage view.Quota computes; a counting failure
+// reads as no usage so a transient DB hiccup never wrongly blocks an upload.
+func activityQuotaStatus(ctx context.Context, app *App, userID domain.UserID) view.QuotaStatus {
+	st, _ := app.QuotaViews.Status(ctx, userID)
 	return st
 }
 
@@ -70,7 +42,8 @@ func mountQuota(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	})
 
 	mux.HandleFunc("PUT /api/admin/users/{id}/quota", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := resolveAdminUser(r, app); !ok {
+		admin, ok := resolveAdminUser(r, app)
+		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -88,8 +61,12 @@ func mountQuota(mux *http.ServeMux, app *App, logger *slog.Logger) {
 			http.Error(w, "bad body", http.StatusBadRequest)
 			return
 		}
-		if err := app.Quotas.SetMaxActivities(r.Context(), target, body.MaxActivities); err != nil {
-			http.Error(w, "save failed", http.StatusInternalServerError)
+		if app.UserAdmin == nil {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := app.UserAdmin.SetQuota(r.Context(), restActor(r, admin), target, body.MaxActivities); err != nil {
+			writeActionError(w, err, "save failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"max_activities": body.MaxActivities})

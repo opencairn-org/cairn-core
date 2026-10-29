@@ -41,6 +41,9 @@ const (
 	// ActivityServiceListActivitiesProcedure is the procedure name of the ActivityService's
 	// ListActivities RPC.
 	ActivityServiceListActivitiesProcedure = "/cairn.v1.ActivityService/ListActivities"
+	// ActivityServiceSearchActivitiesProcedure is the procedure name of the ActivityService's
+	// SearchActivities RPC.
+	ActivityServiceSearchActivitiesProcedure = "/cairn.v1.ActivityService/SearchActivities"
 	// ActivityServiceGetActivityProcedure is the procedure name of the ActivityService's GetActivity
 	// RPC.
 	ActivityServiceGetActivityProcedure = "/cairn.v1.ActivityService/GetActivity"
@@ -62,6 +65,9 @@ const (
 	// ActivityServicePreviewSourceReimportProcedure is the procedure name of the ActivityService's
 	// PreviewSourceReimport RPC.
 	ActivityServicePreviewSourceReimportProcedure = "/cairn.v1.ActivityService/PreviewSourceReimport"
+	// ActivityServiceGetSourcePreviewProcedure is the procedure name of the ActivityService's
+	// GetSourcePreview RPC.
+	ActivityServiceGetSourcePreviewProcedure = "/cairn.v1.ActivityService/GetSourcePreview"
 	// ActivityServiceCommitSourcePreviewProcedure is the procedure name of the ActivityService's
 	// CommitSourcePreview RPC.
 	ActivityServiceCommitSourcePreviewProcedure = "/cairn.v1.ActivityService/CommitSourcePreview"
@@ -83,6 +89,43 @@ const (
 	// ActivityServiceUploadActivityProcedure is the procedure name of the ActivityService's
 	// UploadActivity RPC.
 	ActivityServiceUploadActivityProcedure = "/cairn.v1.ActivityService/UploadActivity"
+	// ActivityServiceListLapsProcedure is the procedure name of the ActivityService's ListLaps RPC.
+	ActivityServiceListLapsProcedure = "/cairn.v1.ActivityService/ListLaps"
+	// ActivityServiceGetActivityZonesProcedure is the procedure name of the ActivityService's
+	// GetActivityZones RPC.
+	ActivityServiceGetActivityZonesProcedure = "/cairn.v1.ActivityService/GetActivityZones"
+	// ActivityServiceListActivitySegmentEffortsProcedure is the procedure name of the ActivityService's
+	// ListActivitySegmentEfforts RPC.
+	ActivityServiceListActivitySegmentEffortsProcedure = "/cairn.v1.ActivityService/ListActivitySegmentEfforts"
+	// ActivityServiceListSimilarActivitiesProcedure is the procedure name of the ActivityService's
+	// ListSimilarActivities RPC.
+	ActivityServiceListSimilarActivitiesProcedure = "/cairn.v1.ActivityService/ListSimilarActivities"
+	// ActivityServiceGetMergedStreamProcedure is the procedure name of the ActivityService's
+	// GetMergedStream RPC.
+	ActivityServiceGetMergedStreamProcedure = "/cairn.v1.ActivityService/GetMergedStream"
+	// ActivityServiceListKudosProcedure is the procedure name of the ActivityService's ListKudos RPC.
+	ActivityServiceListKudosProcedure = "/cairn.v1.ActivityService/ListKudos"
+	// ActivityServiceListCommentsProcedure is the procedure name of the ActivityService's ListComments
+	// RPC.
+	ActivityServiceListCommentsProcedure = "/cairn.v1.ActivityService/ListComments"
+	// ActivityServiceGetActivityManageInfoProcedure is the procedure name of the ActivityService's
+	// GetActivityManageInfo RPC.
+	ActivityServiceGetActivityManageInfoProcedure = "/cairn.v1.ActivityService/GetActivityManageInfo"
+	// ActivityServiceGetParsedSourceProcedure is the procedure name of the ActivityService's
+	// GetParsedSource RPC.
+	ActivityServiceGetParsedSourceProcedure = "/cairn.v1.ActivityService/GetParsedSource"
+	// ActivityServiceListAttachmentsProcedure is the procedure name of the ActivityService's
+	// ListAttachments RPC.
+	ActivityServiceListAttachmentsProcedure = "/cairn.v1.ActivityService/ListAttachments"
+	// ActivityServiceGetActivityMapImageProcedure is the procedure name of the ActivityService's
+	// GetActivityMapImage RPC.
+	ActivityServiceGetActivityMapImageProcedure = "/cairn.v1.ActivityService/GetActivityMapImage"
+	// ActivityServiceGetExportOptionsProcedure is the procedure name of the ActivityService's
+	// GetExportOptions RPC.
+	ActivityServiceGetExportOptionsProcedure = "/cairn.v1.ActivityService/GetExportOptions"
+	// ActivityServiceExportActivityProcedure is the procedure name of the ActivityService's
+	// ExportActivity RPC.
+	ActivityServiceExportActivityProcedure = "/cairn.v1.ActivityService/ExportActivity"
 	// ActivityServiceListBestEffortsProcedure is the procedure name of the ActivityService's
 	// ListBestEfforts RPC.
 	ActivityServiceListBestEffortsProcedure = "/cairn.v1.ActivityService/ListBestEfforts"
@@ -92,6 +135,9 @@ const (
 	// ActivityServiceCreateCustomBestEffortProcedure is the procedure name of the ActivityService's
 	// CreateCustomBestEffort RPC.
 	ActivityServiceCreateCustomBestEffortProcedure = "/cairn.v1.ActivityService/CreateCustomBestEffort"
+	// ActivityServiceListCustomBestEffortsProcedure is the procedure name of the ActivityService's
+	// ListCustomBestEfforts RPC.
+	ActivityServiceListCustomBestEffortsProcedure = "/cairn.v1.ActivityService/ListCustomBestEfforts"
 	// ActivityServiceDeleteCustomBestEffortProcedure is the procedure name of the ActivityService's
 	// DeleteCustomBestEffort RPC.
 	ActivityServiceDeleteCustomBestEffortProcedure = "/cairn.v1.ActivityService/DeleteCustomBestEffort"
@@ -103,6 +149,14 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListActivities"),
 			Procedure:  ActivityServiceListActivitiesProcedure,
+		}
+	})
+	activityServiceSearchActivitiesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("SearchActivities"),
+			Procedure:        ActivityServiceSearchActivitiesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	activityServiceGetActivitySpec = sync.OnceValue(func() connect.Spec {
@@ -154,6 +208,14 @@ var (
 			Procedure:  ActivityServicePreviewSourceReimportProcedure,
 		}
 	})
+	activityServiceGetSourcePreviewSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetSourcePreview"),
+			Procedure:        ActivityServiceGetSourcePreviewProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	activityServiceCommitSourcePreviewSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -203,6 +265,109 @@ var (
 			Procedure:  ActivityServiceUploadActivityProcedure,
 		}
 	})
+	activityServiceListLapsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListLaps"),
+			Procedure:        ActivityServiceListLapsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityZonesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityZones"),
+			Procedure:        ActivityServiceGetActivityZonesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListActivitySegmentEffortsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListActivitySegmentEfforts"),
+			Procedure:        ActivityServiceListActivitySegmentEffortsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListSimilarActivitiesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListSimilarActivities"),
+			Procedure:        ActivityServiceListSimilarActivitiesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetMergedStreamSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetMergedStream"),
+			Procedure:        ActivityServiceGetMergedStreamProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListKudosSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListKudos"),
+			Procedure:        ActivityServiceListKudosProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListCommentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListComments"),
+			Procedure:        ActivityServiceListCommentsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityManageInfoSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityManageInfo"),
+			Procedure:        ActivityServiceGetActivityManageInfoProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetParsedSourceSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetParsedSource"),
+			Procedure:        ActivityServiceGetParsedSourceProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceListAttachmentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListAttachments"),
+			Procedure:        ActivityServiceListAttachmentsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetActivityMapImageSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetActivityMapImage"),
+			Procedure:        ActivityServiceGetActivityMapImageProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceGetExportOptionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetExportOptions"),
+			Procedure:        ActivityServiceGetExportOptionsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	activityServiceExportActivitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ExportActivity"),
+			Procedure:  ActivityServiceExportActivityProcedure,
+		}
+	})
 	activityServiceListBestEffortsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -224,6 +389,14 @@ var (
 			Procedure:  ActivityServiceCreateCustomBestEffortProcedure,
 		}
 	})
+	activityServiceListCustomBestEffortsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListCustomBestEfforts"),
+			Procedure:        ActivityServiceListCustomBestEffortsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	activityServiceDeleteCustomBestEffortSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -237,47 +410,143 @@ var (
 type ActivityServiceClient interface {
 	// List activities for the calling user. Supports filtering by time range,
 	// type, discipline, tag, and source-provider.
+	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
+	// The filterable, sortable, faceted activity list (the web feed): every
+	// filter of the filter bar, facets for the selectors and paging. The
+	// replacement for GET /api/activities/feed; ListActivities stays as the
+	// simple time-window list.
+	// Scope: activities:read.
+	SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error)
 	// Get a single activity by id, including sources.
+	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
 	// Update user-editable fields (title, description, tags, type override).
 	// Does NOT touch source data — only the merged Activity overrides.
+	// Scope: activities:write.
 	UpdateActivity(context.Context, *v1.UpdateActivityRequest) (*v1.UpdateActivityResponse, error)
 	// Soft-delete an activity. Sources are detached, raw blobs retained per
 	// S3 lifecycle policy.
+	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
-	// Server-streaming feed of activity-related events for the caller. Used
-	// by the UI for live import progress, new-PR toasts, etc.
+	// Server-streaming feed of activity-related events for the caller: import
+	// and reimport outcomes, created/updated/deleted activities, attached and
+	// detached sources, new personal records. Every 30 s an event with
+	// ACTIVITY_EVENT_TYPE_UNSPECIFIED and only `ts` set is a heartbeat.
+	// Events are live-only (nothing is replayed on connect); IMPORT_PROGRESS
+	// is not emitted yet.
+	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest) (ActivityServiceStreamActivityEventsClientStream, error)
 	// Source management — attach/detach/reorder sources, trigger reimports.
+	// Scope: activities:read.
 	ListActivitySources(context.Context, *v1.ListActivitySourcesRequest) (*v1.ListActivitySourcesResponse, error)
 	// Trigger a reimport of one source. Returns a job id; observe progress
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
+	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
-	// Dry-run reimport: fetches fresh source data, computes the merge it would
-	// produce, returns the diff WITHOUT committing. The preview is stored
-	// with a TTL (default 1h) and can be either committed or discarded.
+	// Dry-run reimport: dispatches a refetch (or local reparse) whose result
+	// is held as a preview instead of being ingested. The preview starts
+	// PENDING; once the worker answers it turns READY with the diffs of the
+	// source payload and of the merged activity (GetSourcePreview, or watch
+	// StreamActivityEvents for `activity.preview_ready`). It expires after
+	// one hour and can be committed or discarded.
+	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:read.
+	GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error)
+	// Ingests the held result through the normal reimport path.
+	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
+	// Scope: activities:write.
 	DiscardSourcePreview(context.Context, *v1.DiscardSourcePreviewRequest) (*v1.DiscardSourcePreviewResponse, error)
 	// Manual source-linking when dedup misses or mistakes.
+	// Scope: activities:write.
 	LinkSourceToActivity(context.Context, *v1.LinkSourceToActivityRequest) (*v1.LinkSourceToActivityResponse, error)
+	// Scope: activities:write.
 	DetachSource(context.Context, *v1.DetachSourceRequest) (*v1.DetachSourceResponse, error)
 	// Streams — full fidelity or downsampled.
+	// Scope: activities:read.
 	GetActivityStream(context.Context, *v1.GetActivityStreamRequest) (*v1.GetActivityStreamResponse, error)
 	// Step 1 of a manual file upload: get a pre-signed S3 PUT URL.
 	// The client uploads the FIT/GPX/TCX file directly to S3, then calls
 	// UploadActivity with the returned blob_id. Separating presign from
 	// upload keeps large bodies off the Core entirely.
+	// Scope: activities:write.
 	PresignActivityUpload(context.Context, *v1.PresignActivityUploadRequest) (*v1.PresignActivityUploadResponse, error)
 	// Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
 	// generic-fit-parser worker processes the upload, dedup happens
 	// afterwards. UI surfaces progress via StreamActivityEvents.
+	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Provider-reported laps (splits) of the source that carries the most.
+	// Scope: activities:read.
+	ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error)
+	// Time in heart-rate and power zones against the athlete's thresholds as
+	// of the activity's date, plus aerobic decoupling for steady efforts.
+	// Scope: activities:read.
+	GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error)
+	// Segment efforts of the activity joined to their segments, located on the
+	// stream by time and distance offsets.
+	// Scope: activities:read.
+	ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error)
+	// Other activities over the same route (shared segment efforts) with the
+	// metrics a progression view needs, the reference activity included.
+	// Scope: activities:read.
+	ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error)
+	// The per-channel merged, aligned, resampled stream: best source per
+	// channel across the activity's sources on a common 5 s grid.
+	// Scope: activities:read.
+	GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error)
+	// Kudos on an activity; the caller must be the owner or hold the "social"
+	// visibility category (PermissionDenied otherwise).
+	// Scope: activities:read.
+	ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error)
+	// Comments on an activity, oldest first, federated replies included. Same
+	// gate as ListKudos.
+	// Scope: activities:read.
+	ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error)
+	// The technical manage view: every source (detached included) with its
+	// parser provenance, re-parse eligibility and offered upgrade, and the
+	// per-field merge provenance.
+	// Scope: activities:read.
+	GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error)
+	// A source's normalised payload as stored.
+	// Scope: activities:read.
+	GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error)
+	// Photos of an activity with signed URLs per variant. Owner, or a viewer
+	// the owner shares photos with (visibility category "photos").
+	// Scope: activities:read.
+	ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error)
+	// Signed URL of the static course image, trimmed by the owner's privacy
+	// zones for non-owners. NotFound when the activity has no GPS track or the
+	// map is not shared with the caller.
+	// Scope: activities:read.
+	GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error)
+	// Which export features the activity carries (gps, heart_rate, …), so a
+	// client can offer the exclude toggles. Owner only.
+	// Scope: activities:read.
+	GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error)
+	// Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+	// GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+	// read verb) although it mints a URL.
+	// Scope: activities:read.
+	ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error)
 	// Best efforts and records.
+	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
+	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
+	// User-defined best-effort windows (e.g. 7.5 km) computed next to the
+	// standard set for one activity type. Distance windows take the pace
+	// metric, duration windows speed, power, heart_rate or vam. Creating one
+	// backfills the user's activities of that type in the background
+	// (GET /api/records/custom on REST).
+	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:read.
+	ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error)
+	// Deleting a window also deletes the efforts computed for it.
+	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
 
@@ -312,47 +581,143 @@ func (s ActivityServiceStreamActivityEventsClientStream) Close() error {
 type ActivityServiceHandler interface {
 	// List activities for the calling user. Supports filtering by time range,
 	// type, discipline, tag, and source-provider.
+	// Scope: activities:read.
 	ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error)
+	// The filterable, sortable, faceted activity list (the web feed): every
+	// filter of the filter bar, facets for the selectors and paging. The
+	// replacement for GET /api/activities/feed; ListActivities stays as the
+	// simple time-window list.
+	// Scope: activities:read.
+	SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error)
 	// Get a single activity by id, including sources.
+	// Scope: activities:read.
 	GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error)
 	// Update user-editable fields (title, description, tags, type override).
 	// Does NOT touch source data — only the merged Activity overrides.
+	// Scope: activities:write.
 	UpdateActivity(context.Context, *v1.UpdateActivityRequest) (*v1.UpdateActivityResponse, error)
 	// Soft-delete an activity. Sources are detached, raw blobs retained per
 	// S3 lifecycle policy.
+	// Scope: activities:write.
 	DeleteActivity(context.Context, *v1.DeleteActivityRequest) (*v1.DeleteActivityResponse, error)
-	// Server-streaming feed of activity-related events for the caller. Used
-	// by the UI for live import progress, new-PR toasts, etc.
+	// Server-streaming feed of activity-related events for the caller: import
+	// and reimport outcomes, created/updated/deleted activities, attached and
+	// detached sources, new personal records. Every 30 s an event with
+	// ACTIVITY_EVENT_TYPE_UNSPECIFIED and only `ts` set is a heartbeat.
+	// Events are live-only (nothing is replayed on connect); IMPORT_PROGRESS
+	// is not emitted yet.
+	// Scope: activities:read.
 	StreamActivityEvents(context.Context, *v1.StreamActivityEventsRequest, ActivityServiceStreamActivityEventsServerStream) error
 	// Source management — attach/detach/reorder sources, trigger reimports.
+	// Scope: activities:read.
 	ListActivitySources(context.Context, *v1.ListActivitySourcesRequest) (*v1.ListActivitySourcesResponse, error)
 	// Trigger a reimport of one source. Returns a job id; observe progress
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
+	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
-	// Dry-run reimport: fetches fresh source data, computes the merge it would
-	// produce, returns the diff WITHOUT committing. The preview is stored
-	// with a TTL (default 1h) and can be either committed or discarded.
+	// Dry-run reimport: dispatches a refetch (or local reparse) whose result
+	// is held as a preview instead of being ingested. The preview starts
+	// PENDING; once the worker answers it turns READY with the diffs of the
+	// source payload and of the merged activity (GetSourcePreview, or watch
+	// StreamActivityEvents for `activity.preview_ready`). It expires after
+	// one hour and can be committed or discarded.
+	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:read.
+	GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error)
+	// Ingests the held result through the normal reimport path.
+	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
+	// Scope: activities:write.
 	DiscardSourcePreview(context.Context, *v1.DiscardSourcePreviewRequest) (*v1.DiscardSourcePreviewResponse, error)
 	// Manual source-linking when dedup misses or mistakes.
+	// Scope: activities:write.
 	LinkSourceToActivity(context.Context, *v1.LinkSourceToActivityRequest) (*v1.LinkSourceToActivityResponse, error)
+	// Scope: activities:write.
 	DetachSource(context.Context, *v1.DetachSourceRequest) (*v1.DetachSourceResponse, error)
 	// Streams — full fidelity or downsampled.
+	// Scope: activities:read.
 	GetActivityStream(context.Context, *v1.GetActivityStreamRequest) (*v1.GetActivityStreamResponse, error)
 	// Step 1 of a manual file upload: get a pre-signed S3 PUT URL.
 	// The client uploads the FIT/GPX/TCX file directly to S3, then calls
 	// UploadActivity with the returned blob_id. Separating presign from
 	// upload keeps large bodies off the Core entirely.
+	// Scope: activities:write.
 	PresignActivityUpload(context.Context, *v1.PresignActivityUploadRequest) (*v1.PresignActivityUploadResponse, error)
 	// Step 2 of a manual file upload (FIT/GPX/TCX). Returns a job id; the
 	// generic-fit-parser worker processes the upload, dedup happens
 	// afterwards. UI surfaces progress via StreamActivityEvents.
+	// Scope: activities:write.
 	UploadActivity(context.Context, *v1.UploadActivityRequest) (*v1.UploadActivityResponse, error)
+	// Provider-reported laps (splits) of the source that carries the most.
+	// Scope: activities:read.
+	ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error)
+	// Time in heart-rate and power zones against the athlete's thresholds as
+	// of the activity's date, plus aerobic decoupling for steady efforts.
+	// Scope: activities:read.
+	GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error)
+	// Segment efforts of the activity joined to their segments, located on the
+	// stream by time and distance offsets.
+	// Scope: activities:read.
+	ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error)
+	// Other activities over the same route (shared segment efforts) with the
+	// metrics a progression view needs, the reference activity included.
+	// Scope: activities:read.
+	ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error)
+	// The per-channel merged, aligned, resampled stream: best source per
+	// channel across the activity's sources on a common 5 s grid.
+	// Scope: activities:read.
+	GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error)
+	// Kudos on an activity; the caller must be the owner or hold the "social"
+	// visibility category (PermissionDenied otherwise).
+	// Scope: activities:read.
+	ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error)
+	// Comments on an activity, oldest first, federated replies included. Same
+	// gate as ListKudos.
+	// Scope: activities:read.
+	ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error)
+	// The technical manage view: every source (detached included) with its
+	// parser provenance, re-parse eligibility and offered upgrade, and the
+	// per-field merge provenance.
+	// Scope: activities:read.
+	GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error)
+	// A source's normalised payload as stored.
+	// Scope: activities:read.
+	GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error)
+	// Photos of an activity with signed URLs per variant. Owner, or a viewer
+	// the owner shares photos with (visibility category "photos").
+	// Scope: activities:read.
+	ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error)
+	// Signed URL of the static course image, trimmed by the owner's privacy
+	// zones for non-owners. NotFound when the activity has no GPS track or the
+	// map is not shared with the caller.
+	// Scope: activities:read.
+	GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error)
+	// Which export features the activity carries (gps, heart_rate, …), so a
+	// client can offer the exclude toggles. Owner only.
+	// Scope: activities:read.
+	GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error)
+	// Signed download URL of the merged activity as GPX/TCX/FIT, rendered on
+	// GET. Owner only. Allowed for read-only tokens (the "Export" prefix is a
+	// read verb) although it mints a URL.
+	// Scope: activities:read.
+	ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error)
 	// Best efforts and records.
+	// Scope: activities:read.
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
+	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
+	// User-defined best-effort windows (e.g. 7.5 km) computed next to the
+	// standard set for one activity type. Distance windows take the pace
+	// metric, duration windows speed, power, heart_rate or vam. Creating one
+	// backfills the user's activities of that type in the background
+	// (GET /api/records/custom on REST).
+	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:read.
+	ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error)
+	// Deleting a window also deletes the efforts computed for it.
+	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
 
@@ -362,6 +727,7 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 	adapter := activityServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: activityServiceListActivitiesSpec(), Handler: adapter.listActivities},
+		connect.Method{Spec: activityServiceSearchActivitiesSpec(), Handler: adapter.searchActivities},
 		connect.Method{Spec: activityServiceGetActivitySpec(), Handler: adapter.getActivity},
 		connect.Method{Spec: activityServiceUpdateActivitySpec(), Handler: adapter.updateActivity},
 		connect.Method{Spec: activityServiceDeleteActivitySpec(), Handler: adapter.deleteActivity},
@@ -369,6 +735,7 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceListActivitySourcesSpec(), Handler: adapter.listActivitySources},
 		connect.Method{Spec: activityServiceReimportSourceSpec(), Handler: adapter.reimportSource},
 		connect.Method{Spec: activityServicePreviewSourceReimportSpec(), Handler: adapter.previewSourceReimport},
+		connect.Method{Spec: activityServiceGetSourcePreviewSpec(), Handler: adapter.getSourcePreview},
 		connect.Method{Spec: activityServiceCommitSourcePreviewSpec(), Handler: adapter.commitSourcePreview},
 		connect.Method{Spec: activityServiceDiscardSourcePreviewSpec(), Handler: adapter.discardSourcePreview},
 		connect.Method{Spec: activityServiceLinkSourceToActivitySpec(), Handler: adapter.linkSourceToActivity},
@@ -376,9 +743,23 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceGetActivityStreamSpec(), Handler: adapter.getActivityStream},
 		connect.Method{Spec: activityServicePresignActivityUploadSpec(), Handler: adapter.presignActivityUpload},
 		connect.Method{Spec: activityServiceUploadActivitySpec(), Handler: adapter.uploadActivity},
+		connect.Method{Spec: activityServiceListLapsSpec(), Handler: adapter.listLaps},
+		connect.Method{Spec: activityServiceGetActivityZonesSpec(), Handler: adapter.getActivityZones},
+		connect.Method{Spec: activityServiceListActivitySegmentEffortsSpec(), Handler: adapter.listActivitySegmentEfforts},
+		connect.Method{Spec: activityServiceListSimilarActivitiesSpec(), Handler: adapter.listSimilarActivities},
+		connect.Method{Spec: activityServiceGetMergedStreamSpec(), Handler: adapter.getMergedStream},
+		connect.Method{Spec: activityServiceListKudosSpec(), Handler: adapter.listKudos},
+		connect.Method{Spec: activityServiceListCommentsSpec(), Handler: adapter.listComments},
+		connect.Method{Spec: activityServiceGetActivityManageInfoSpec(), Handler: adapter.getActivityManageInfo},
+		connect.Method{Spec: activityServiceGetParsedSourceSpec(), Handler: adapter.getParsedSource},
+		connect.Method{Spec: activityServiceListAttachmentsSpec(), Handler: adapter.listAttachments},
+		connect.Method{Spec: activityServiceGetActivityMapImageSpec(), Handler: adapter.getActivityMapImage},
+		connect.Method{Spec: activityServiceGetExportOptionsSpec(), Handler: adapter.getExportOptions},
+		connect.Method{Spec: activityServiceExportActivitySpec(), Handler: adapter.exportActivity},
 		connect.Method{Spec: activityServiceListBestEffortsSpec(), Handler: adapter.listBestEfforts},
 		connect.Method{Spec: activityServiceListRecordsSpec(), Handler: adapter.listRecords},
 		connect.Method{Spec: activityServiceCreateCustomBestEffortSpec(), Handler: adapter.createCustomBestEffort},
+		connect.Method{Spec: activityServiceListCustomBestEffortsSpec(), Handler: adapter.listCustomBestEfforts},
 		connect.Method{Spec: activityServiceDeleteCustomBestEffortSpec(), Handler: adapter.deleteCustomBestEffort},
 	)
 }
@@ -404,6 +785,10 @@ type UnimplementedActivityServiceHandler struct{}
 
 func (UnimplementedActivityServiceHandler) ListActivities(context.Context, *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListActivities is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) SearchActivities(context.Context, *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.SearchActivities is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) GetActivity(context.Context, *v1.GetActivityRequest) (*v1.GetActivityResponse, error) {
@@ -434,6 +819,10 @@ func (UnimplementedActivityServiceHandler) PreviewSourceReimport(context.Context
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.PreviewSourceReimport is not implemented")
 }
 
+func (UnimplementedActivityServiceHandler) GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetSourcePreview is not implemented")
+}
+
 func (UnimplementedActivityServiceHandler) CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.CommitSourcePreview is not implemented")
 }
@@ -462,6 +851,58 @@ func (UnimplementedActivityServiceHandler) UploadActivity(context.Context, *v1.U
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.UploadActivity is not implemented")
 }
 
+func (UnimplementedActivityServiceHandler) ListLaps(context.Context, *v1.ListLapsRequest) (*v1.ListLapsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListLaps is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityZones(context.Context, *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityZones is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListActivitySegmentEfforts(context.Context, *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListActivitySegmentEfforts is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListSimilarActivities(context.Context, *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListSimilarActivities is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetMergedStream(context.Context, *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetMergedStream is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListKudos(context.Context, *v1.ListKudosRequest) (*v1.ListKudosResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListKudos is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListComments(context.Context, *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListComments is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityManageInfo(context.Context, *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityManageInfo is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetParsedSource(context.Context, *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetParsedSource is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListAttachments(context.Context, *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListAttachments is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetActivityMapImage(context.Context, *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetActivityMapImage is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetExportOptions(context.Context, *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetExportOptions is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ExportActivity(context.Context, *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ExportActivity is not implemented")
+}
+
 func (UnimplementedActivityServiceHandler) ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListBestEfforts is not implemented")
 }
@@ -472,6 +913,10 @@ func (UnimplementedActivityServiceHandler) ListRecords(context.Context, *v1.List
 
 func (UnimplementedActivityServiceHandler) CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.CreateCustomBestEffort is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListCustomBestEfforts is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error) {
@@ -485,6 +930,14 @@ type activityServiceClient struct {
 func (c *activityServiceClient) ListActivities(ctx context.Context, req *v1.ListActivitiesRequest) (*v1.ListActivitiesResponse, error) {
 	var res v1.ListActivitiesResponse
 	if err := c.client.CallUnary(ctx, activityServiceListActivitiesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) SearchActivities(ctx context.Context, req *v1.SearchActivitiesRequest) (*v1.SearchActivitiesResponse, error) {
+	var res v1.SearchActivitiesResponse
+	if err := c.client.CallUnary(ctx, activityServiceSearchActivitiesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -546,6 +999,14 @@ func (c *activityServiceClient) PreviewSourceReimport(ctx context.Context, req *
 	return &res, nil
 }
 
+func (c *activityServiceClient) GetSourcePreview(ctx context.Context, req *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error) {
+	var res v1.GetSourcePreviewResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetSourcePreviewSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *activityServiceClient) CommitSourcePreview(ctx context.Context, req *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error) {
 	var res v1.CommitSourcePreviewResponse
 	if err := c.client.CallUnary(ctx, activityServiceCommitSourcePreviewSpec(), req, &res); err != nil {
@@ -602,6 +1063,110 @@ func (c *activityServiceClient) UploadActivity(ctx context.Context, req *v1.Uplo
 	return &res, nil
 }
 
+func (c *activityServiceClient) ListLaps(ctx context.Context, req *v1.ListLapsRequest) (*v1.ListLapsResponse, error) {
+	var res v1.ListLapsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListLapsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityZones(ctx context.Context, req *v1.GetActivityZonesRequest) (*v1.GetActivityZonesResponse, error) {
+	var res v1.GetActivityZonesResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityZonesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListActivitySegmentEfforts(ctx context.Context, req *v1.ListActivitySegmentEffortsRequest) (*v1.ListActivitySegmentEffortsResponse, error) {
+	var res v1.ListActivitySegmentEffortsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListActivitySegmentEffortsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListSimilarActivities(ctx context.Context, req *v1.ListSimilarActivitiesRequest) (*v1.ListSimilarActivitiesResponse, error) {
+	var res v1.ListSimilarActivitiesResponse
+	if err := c.client.CallUnary(ctx, activityServiceListSimilarActivitiesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetMergedStream(ctx context.Context, req *v1.GetMergedStreamRequest) (*v1.GetMergedStreamResponse, error) {
+	var res v1.GetMergedStreamResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetMergedStreamSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListKudos(ctx context.Context, req *v1.ListKudosRequest) (*v1.ListKudosResponse, error) {
+	var res v1.ListKudosResponse
+	if err := c.client.CallUnary(ctx, activityServiceListKudosSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListComments(ctx context.Context, req *v1.ListCommentsRequest) (*v1.ListCommentsResponse, error) {
+	var res v1.ListCommentsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListCommentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityManageInfo(ctx context.Context, req *v1.GetActivityManageInfoRequest) (*v1.GetActivityManageInfoResponse, error) {
+	var res v1.GetActivityManageInfoResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityManageInfoSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetParsedSource(ctx context.Context, req *v1.GetParsedSourceRequest) (*v1.GetParsedSourceResponse, error) {
+	var res v1.GetParsedSourceResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetParsedSourceSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListAttachments(ctx context.Context, req *v1.ListAttachmentsRequest) (*v1.ListAttachmentsResponse, error) {
+	var res v1.ListAttachmentsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListAttachmentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetActivityMapImage(ctx context.Context, req *v1.GetActivityMapImageRequest) (*v1.GetActivityMapImageResponse, error) {
+	var res v1.GetActivityMapImageResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetActivityMapImageSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetExportOptions(ctx context.Context, req *v1.GetExportOptionsRequest) (*v1.GetExportOptionsResponse, error) {
+	var res v1.GetExportOptionsResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetExportOptionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ExportActivity(ctx context.Context, req *v1.ExportActivityRequest) (*v1.ExportActivityResponse, error) {
+	var res v1.ExportActivityResponse
+	if err := c.client.CallUnary(ctx, activityServiceExportActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *activityServiceClient) ListBestEfforts(ctx context.Context, req *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error) {
 	var res v1.ListBestEffortsResponse
 	if err := c.client.CallUnary(ctx, activityServiceListBestEffortsSpec(), req, &res); err != nil {
@@ -626,6 +1191,14 @@ func (c *activityServiceClient) CreateCustomBestEffort(ctx context.Context, req 
 	return &res, nil
 }
 
+func (c *activityServiceClient) ListCustomBestEfforts(ctx context.Context, req *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error) {
+	var res v1.ListCustomBestEffortsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListCustomBestEffortsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *activityServiceClient) DeleteCustomBestEffort(ctx context.Context, req *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error) {
 	var res v1.DeleteCustomBestEffortResponse
 	if err := c.client.CallUnary(ctx, activityServiceDeleteCustomBestEffortSpec(), req, &res); err != nil {
@@ -642,6 +1215,18 @@ func (h activityServiceHandler) listActivities(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.ListActivities(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) searchActivities(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SearchActivitiesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SearchActivities(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -722,6 +1307,18 @@ func (h activityServiceHandler) previewSourceReimport(ctx context.Context, _ con
 		return err
 	}
 	res, err := h.svc.PreviewSourceReimport(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getSourcePreview(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetSourcePreviewRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetSourcePreview(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -812,6 +1409,162 @@ func (h activityServiceHandler) uploadActivity(ctx context.Context, _ connect.Sp
 	return stream.Send(res)
 }
 
+func (h activityServiceHandler) listLaps(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListLapsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListLaps(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityZones(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityZonesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityZones(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listActivitySegmentEfforts(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListActivitySegmentEffortsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListActivitySegmentEfforts(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listSimilarActivities(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSimilarActivitiesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSimilarActivities(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getMergedStream(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetMergedStreamRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetMergedStream(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listKudos(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListKudosRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListKudos(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listComments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListCommentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListComments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityManageInfo(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityManageInfoRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityManageInfo(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getParsedSource(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetParsedSourceRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetParsedSource(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listAttachments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAttachmentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListAttachments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getActivityMapImage(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetActivityMapImageRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetActivityMapImage(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getExportOptions(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetExportOptionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetExportOptions(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) exportActivity(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ExportActivityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ExportActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 func (h activityServiceHandler) listBestEfforts(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.ListBestEffortsRequest
 	if err := stream.Receive(&req); err != nil {
@@ -842,6 +1595,18 @@ func (h activityServiceHandler) createCustomBestEffort(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.CreateCustomBestEffort(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listCustomBestEfforts(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListCustomBestEffortsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListCustomBestEfforts(ctx, &req)
 	if err != nil {
 		return err
 	}

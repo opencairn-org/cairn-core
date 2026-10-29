@@ -1570,6 +1570,599 @@ func (x *GetUserContextResponse) GetLatestMetrics() map[string]*Metric {
 	return nil
 }
 
+type ListHealthSeriesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One of Steps, HRV, RestingHR, Sleep, Weight, WaterIntake.
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// Days back from today; default 90, max 3650.
+	Days          int32 `protobuf:"varint,2,opt,name=days,proto3" json:"days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHealthSeriesRequest) Reset() {
+	*x = ListHealthSeriesRequest{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHealthSeriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHealthSeriesRequest) ProtoMessage() {}
+
+func (x *ListHealthSeriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHealthSeriesRequest.ProtoReflect.Descriptor instead.
+func (*ListHealthSeriesRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListHealthSeriesRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ListHealthSeriesRequest) GetDays() int32 {
+	if x != nil {
+		return x.Days
+	}
+	return 0
+}
+
+type HealthSample struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// YYYY-MM-DD, UTC.
+	Day   string  `protobuf:"bytes,1,opt,name=day,proto3" json:"day,omitempty"`
+	Value float64 `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	Unit  string  `protobuf:"bytes,3,opt,name=unit,proto3" json:"unit,omitempty"`
+	// The provider whose sample won the day.
+	Provider      string `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthSample) Reset() {
+	*x = HealthSample{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthSample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthSample) ProtoMessage() {}
+
+func (x *HealthSample) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthSample.ProtoReflect.Descriptor instead.
+func (*HealthSample) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *HealthSample) GetDay() string {
+	if x != nil {
+		return x.Day
+	}
+	return ""
+}
+
+func (x *HealthSample) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *HealthSample) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *HealthSample) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+type ListHealthSeriesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Series        []*HealthSample        `protobuf:"bytes,2,rep,name=series,proto3" json:"series,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHealthSeriesResponse) Reset() {
+	*x = ListHealthSeriesResponse{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHealthSeriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHealthSeriesResponse) ProtoMessage() {}
+
+func (x *ListHealthSeriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHealthSeriesResponse.ProtoReflect.Descriptor instead.
+func (*ListHealthSeriesResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListHealthSeriesResponse) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ListHealthSeriesResponse) GetSeries() []*HealthSample {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+type ListAthleteMetricsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAthleteMetricsRequest) Reset() {
+	*x = ListAthleteMetricsRequest{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAthleteMetricsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAthleteMetricsRequest) ProtoMessage() {}
+
+func (x *ListAthleteMetricsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAthleteMetricsRequest.ProtoReflect.Descriptor instead.
+func (*ListAthleteMetricsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{20}
+}
+
+type AthleteMetricSpec struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Unit          string                 `protobuf:"bytes,3,opt,name=unit,proto3" json:"unit,omitempty"`
+	Min           float64                `protobuf:"fixed64,4,opt,name=min,proto3" json:"min,omitempty"`
+	Max           float64                `protobuf:"fixed64,5,opt,name=max,proto3" json:"max,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AthleteMetricSpec) Reset() {
+	*x = AthleteMetricSpec{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AthleteMetricSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AthleteMetricSpec) ProtoMessage() {}
+
+func (x *AthleteMetricSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AthleteMetricSpec.ProtoReflect.Descriptor instead.
+func (*AthleteMetricSpec) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AthleteMetricSpec) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AthleteMetricSpec) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *AthleteMetricSpec) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *AthleteMetricSpec) GetMin() float64 {
+	if x != nil {
+		return x.Min
+	}
+	return 0
+}
+
+func (x *AthleteMetricSpec) GetMax() float64 {
+	if x != nil {
+		return x.Max
+	}
+	return 0
+}
+
+type AthleteMetricEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Key   string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// YYYY-MM-DD; the value applies from this day on.
+	EffectiveDate string  `protobuf:"bytes,3,opt,name=effective_date,json=effectiveDate,proto3" json:"effective_date,omitempty"`
+	Value         float64 `protobuf:"fixed64,4,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AthleteMetricEntry) Reset() {
+	*x = AthleteMetricEntry{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AthleteMetricEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AthleteMetricEntry) ProtoMessage() {}
+
+func (x *AthleteMetricEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AthleteMetricEntry.ProtoReflect.Descriptor instead.
+func (*AthleteMetricEntry) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AthleteMetricEntry) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AthleteMetricEntry) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AthleteMetricEntry) GetEffectiveDate() string {
+	if x != nil {
+		return x.EffectiveDate
+	}
+	return ""
+}
+
+func (x *AthleteMetricEntry) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+type ListAthleteMetricsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Specs         []*AthleteMetricSpec   `protobuf:"bytes,1,rep,name=specs,proto3" json:"specs,omitempty"`
+	Entries       []*AthleteMetricEntry  `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAthleteMetricsResponse) Reset() {
+	*x = ListAthleteMetricsResponse{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAthleteMetricsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAthleteMetricsResponse) ProtoMessage() {}
+
+func (x *ListAthleteMetricsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAthleteMetricsResponse.ProtoReflect.Descriptor instead.
+func (*ListAthleteMetricsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListAthleteMetricsResponse) GetSpecs() []*AthleteMetricSpec {
+	if x != nil {
+		return x.Specs
+	}
+	return nil
+}
+
+func (x *ListAthleteMetricsResponse) GetEntries() []*AthleteMetricEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type UpsertAthleteMetricRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	EffectiveDate string                 `protobuf:"bytes,2,opt,name=effective_date,json=effectiveDate,proto3" json:"effective_date,omitempty"`
+	Value         float64                `protobuf:"fixed64,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAthleteMetricRequest) Reset() {
+	*x = UpsertAthleteMetricRequest{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAthleteMetricRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAthleteMetricRequest) ProtoMessage() {}
+
+func (x *UpsertAthleteMetricRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAthleteMetricRequest.ProtoReflect.Descriptor instead.
+func (*UpsertAthleteMetricRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpsertAthleteMetricRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *UpsertAthleteMetricRequest) GetEffectiveDate() string {
+	if x != nil {
+		return x.EffectiveDate
+	}
+	return ""
+}
+
+func (x *UpsertAthleteMetricRequest) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+type UpsertAthleteMetricResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAthleteMetricResponse) Reset() {
+	*x = UpsertAthleteMetricResponse{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAthleteMetricResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAthleteMetricResponse) ProtoMessage() {}
+
+func (x *UpsertAthleteMetricResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAthleteMetricResponse.ProtoReflect.Descriptor instead.
+func (*UpsertAthleteMetricResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpsertAthleteMetricResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteAthleteMetricRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAthleteMetricRequest) Reset() {
+	*x = DeleteAthleteMetricRequest{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAthleteMetricRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAthleteMetricRequest) ProtoMessage() {}
+
+func (x *DeleteAthleteMetricRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAthleteMetricRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAthleteMetricRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DeleteAthleteMetricRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteAthleteMetricResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAthleteMetricResponse) Reset() {
+	*x = DeleteAthleteMetricResponse{}
+	mi := &file_cairn_v1_metrics_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAthleteMetricResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAthleteMetricResponse) ProtoMessage() {}
+
+func (x *DeleteAthleteMetricResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_metrics_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAthleteMetricResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAthleteMetricResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{27}
+}
+
 type UserSettings struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1613,7 +2206,7 @@ type UserSettings struct {
 
 func (x *UserSettings) Reset() {
 	*x = UserSettings{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[17]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1625,7 +2218,7 @@ func (x *UserSettings) String() string {
 func (*UserSettings) ProtoMessage() {}
 
 func (x *UserSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[17]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1638,7 +2231,7 @@ func (x *UserSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserSettings.ProtoReflect.Descriptor instead.
 func (*UserSettings) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{17}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *UserSettings) GetUserId() string {
@@ -1784,7 +2377,7 @@ type ActivityTypeMergePolicy struct {
 
 func (x *ActivityTypeMergePolicy) Reset() {
 	*x = ActivityTypeMergePolicy{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[18]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1796,7 +2389,7 @@ func (x *ActivityTypeMergePolicy) String() string {
 func (*ActivityTypeMergePolicy) ProtoMessage() {}
 
 func (x *ActivityTypeMergePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[18]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1809,7 +2402,7 @@ func (x *ActivityTypeMergePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivityTypeMergePolicy.ProtoReflect.Descriptor instead.
 func (*ActivityTypeMergePolicy) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{18}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ActivityTypeMergePolicy) GetDefaultProviders() []string {
@@ -1836,7 +2429,7 @@ type ProviderPriorityList struct {
 
 func (x *ProviderPriorityList) Reset() {
 	*x = ProviderPriorityList{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[19]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1848,7 +2441,7 @@ func (x *ProviderPriorityList) String() string {
 func (*ProviderPriorityList) ProtoMessage() {}
 
 func (x *ProviderPriorityList) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[19]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1861,7 +2454,7 @@ func (x *ProviderPriorityList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderPriorityList.ProtoReflect.Descriptor instead.
 func (*ProviderPriorityList) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{19}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ProviderPriorityList) GetProviders() []string {
@@ -1893,7 +2486,7 @@ type AutoReimportPolicy struct {
 
 func (x *AutoReimportPolicy) Reset() {
 	*x = AutoReimportPolicy{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[20]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1905,7 +2498,7 @@ func (x *AutoReimportPolicy) String() string {
 func (*AutoReimportPolicy) ProtoMessage() {}
 
 func (x *AutoReimportPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[20]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1918,7 +2511,7 @@ func (x *AutoReimportPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoReimportPolicy.ProtoReflect.Descriptor instead.
 func (*AutoReimportPolicy) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{20}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *AutoReimportPolicy) GetOnPatch() bool {
@@ -1965,7 +2558,7 @@ type BestEffortWindowSet struct {
 
 func (x *BestEffortWindowSet) Reset() {
 	*x = BestEffortWindowSet{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[21]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1977,7 +2570,7 @@ func (x *BestEffortWindowSet) String() string {
 func (*BestEffortWindowSet) ProtoMessage() {}
 
 func (x *BestEffortWindowSet) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[21]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1990,7 +2583,7 @@ func (x *BestEffortWindowSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BestEffortWindowSet.ProtoReflect.Descriptor instead.
 func (*BestEffortWindowSet) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{21}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *BestEffortWindowSet) GetWindows() []*BestEffortWindowSet_Window {
@@ -2008,7 +2601,7 @@ type GetSettingsRequest struct {
 
 func (x *GetSettingsRequest) Reset() {
 	*x = GetSettingsRequest{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[22]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2020,7 +2613,7 @@ func (x *GetSettingsRequest) String() string {
 func (*GetSettingsRequest) ProtoMessage() {}
 
 func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[22]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2033,7 +2626,7 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{22}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{33}
 }
 
 type GetSettingsResponse struct {
@@ -2045,7 +2638,7 @@ type GetSettingsResponse struct {
 
 func (x *GetSettingsResponse) Reset() {
 	*x = GetSettingsResponse{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[23]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2057,7 +2650,7 @@ func (x *GetSettingsResponse) String() string {
 func (*GetSettingsResponse) ProtoMessage() {}
 
 func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[23]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2070,7 +2663,7 @@ func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{23}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetSettingsResponse) GetSettings() *UserSettings {
@@ -2090,7 +2683,7 @@ type UpdateSettingsRequest struct {
 
 func (x *UpdateSettingsRequest) Reset() {
 	*x = UpdateSettingsRequest{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[24]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2102,7 +2695,7 @@ func (x *UpdateSettingsRequest) String() string {
 func (*UpdateSettingsRequest) ProtoMessage() {}
 
 func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[24]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2115,7 +2708,7 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{24}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UpdateSettingsRequest) GetFieldMask() []string {
@@ -2141,7 +2734,7 @@ type UpdateSettingsResponse struct {
 
 func (x *UpdateSettingsResponse) Reset() {
 	*x = UpdateSettingsResponse{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[25]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2153,7 +2746,7 @@ func (x *UpdateSettingsResponse) String() string {
 func (*UpdateSettingsResponse) ProtoMessage() {}
 
 func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[25]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2166,7 +2759,7 @@ func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{25}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UpdateSettingsResponse) GetSettings() *UserSettings {
@@ -2185,7 +2778,7 @@ type ResetSettingsSectionRequest struct {
 
 func (x *ResetSettingsSectionRequest) Reset() {
 	*x = ResetSettingsSectionRequest{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[26]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2197,7 +2790,7 @@ func (x *ResetSettingsSectionRequest) String() string {
 func (*ResetSettingsSectionRequest) ProtoMessage() {}
 
 func (x *ResetSettingsSectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[26]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2210,7 +2803,7 @@ func (x *ResetSettingsSectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetSettingsSectionRequest.ProtoReflect.Descriptor instead.
 func (*ResetSettingsSectionRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{26}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ResetSettingsSectionRequest) GetSection() SettingsSection {
@@ -2229,7 +2822,7 @@ type ResetSettingsSectionResponse struct {
 
 func (x *ResetSettingsSectionResponse) Reset() {
 	*x = ResetSettingsSectionResponse{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[27]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2241,7 +2834,7 @@ func (x *ResetSettingsSectionResponse) String() string {
 func (*ResetSettingsSectionResponse) ProtoMessage() {}
 
 func (x *ResetSettingsSectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[27]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2254,7 +2847,7 @@ func (x *ResetSettingsSectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetSettingsSectionResponse.ProtoReflect.Descriptor instead.
 func (*ResetSettingsSectionResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{27}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ResetSettingsSectionResponse) GetSettings() *UserSettings {
@@ -2276,7 +2869,7 @@ type BestEffortWindowSet_Window struct {
 
 func (x *BestEffortWindowSet_Window) Reset() {
 	*x = BestEffortWindowSet_Window{}
-	mi := &file_cairn_v1_metrics_proto_msgTypes[37]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2288,7 +2881,7 @@ func (x *BestEffortWindowSet_Window) String() string {
 func (*BestEffortWindowSet_Window) ProtoMessage() {}
 
 func (x *BestEffortWindowSet_Window) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_metrics_proto_msgTypes[37]
+	mi := &file_cairn_v1_metrics_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2301,7 +2894,7 @@ func (x *BestEffortWindowSet_Window) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BestEffortWindowSet_Window.ProtoReflect.Descriptor instead.
 func (*BestEffortWindowSet_Window) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{21, 0}
+	return file_cairn_v1_metrics_proto_rawDescGZIP(), []int{32, 0}
 }
 
 func (x *BestEffortWindowSet_Window) GetMetric() BestEffortMetric {
@@ -2448,7 +3041,42 @@ const file_cairn_v1_metrics_proto_rawDesc = "" +
 	"\x0elatest_metrics\x18\x02 \x03(\v23.cairn.v1.GetUserContextResponse.LatestMetricsEntryR\rlatestMetrics\x1aR\n" +
 	"\x12LatestMetricsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12&\n" +
-	"\x05value\x18\x02 \x01(\v2\x10.cairn.v1.MetricR\x05value:\x028\x01\"\xae\x12\n" +
+	"\x05value\x18\x02 \x01(\v2\x10.cairn.v1.MetricR\x05value:\x028\x01\"A\n" +
+	"\x17ListHealthSeriesRequest\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
+	"\x04days\x18\x02 \x01(\x05R\x04days\"f\n" +
+	"\fHealthSample\x12\x10\n" +
+	"\x03day\x18\x01 \x01(\tR\x03day\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\x12\x12\n" +
+	"\x04unit\x18\x03 \x01(\tR\x04unit\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bprovider\"^\n" +
+	"\x18ListHealthSeriesResponse\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12.\n" +
+	"\x06series\x18\x02 \x03(\v2\x16.cairn.v1.HealthSampleR\x06series\"\x1b\n" +
+	"\x19ListAthleteMetricsRequest\"s\n" +
+	"\x11AthleteMetricSpec\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x12\n" +
+	"\x04unit\x18\x03 \x01(\tR\x04unit\x12\x10\n" +
+	"\x03min\x18\x04 \x01(\x01R\x03min\x12\x10\n" +
+	"\x03max\x18\x05 \x01(\x01R\x03max\"s\n" +
+	"\x12AthleteMetricEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12%\n" +
+	"\x0eeffective_date\x18\x03 \x01(\tR\reffectiveDate\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\x01R\x05value\"\x87\x01\n" +
+	"\x1aListAthleteMetricsResponse\x121\n" +
+	"\x05specs\x18\x01 \x03(\v2\x1b.cairn.v1.AthleteMetricSpecR\x05specs\x126\n" +
+	"\aentries\x18\x02 \x03(\v2\x1c.cairn.v1.AthleteMetricEntryR\aentries\"k\n" +
+	"\x1aUpsertAthleteMetricRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12%\n" +
+	"\x0eeffective_date\x18\x02 \x01(\tR\reffectiveDate\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\x01R\x05value\"-\n" +
+	"\x1bUpsertAthleteMetricResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\",\n" +
+	"\x1aDeleteAthleteMetricRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x1d\n" +
+	"\x1bDeleteAthleteMetricResponse\"\xae\x12\n" +
 	"\fUserSettings\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12 \n" +
 	"\theight_cm\x18\x02 \x01(\x01H\x00R\bheightCm\x88\x01\x01\x12=\n" +
@@ -2575,7 +3203,7 @@ const file_cairn_v1_metrics_proto_rawDesc = "" +
 	"\x18SETTINGS_SECTION_POLLING\x10\x05\x12\x1c\n" +
 	"\x18SETTINGS_SECTION_PRIVACY\x10\x06\x12$\n" +
 	" SETTINGS_SECTION_TSS_PREFERENCES\x10\a\x12!\n" +
-	"\x1dSETTINGS_SECTION_BEST_EFFORTS\x10\b2\xe6\x04\n" +
+	"\x1dSETTINGS_SECTION_BEST_EFFORTS\x10\b2\xf4\a\n" +
 	"\x0eMetricsService\x12J\n" +
 	"\vListMetrics\x12\x1c.cairn.v1.ListMetricsRequest\x1a\x1d.cairn.v1.ListMetricsResponse\x12Y\n" +
 	"\x10GetLatestMetrics\x12!.cairn.v1.GetLatestMetricsRequest\x1a\".cairn.v1.GetLatestMetricsResponse\x12\\\n" +
@@ -2583,7 +3211,11 @@ const file_cairn_v1_metrics_proto_rawDesc = "" +
 	"\fUpsertMetric\x12\x1d.cairn.v1.UpsertMetricRequest\x1a\x1e.cairn.v1.UpsertMetricResponse\x12M\n" +
 	"\fDeleteMetric\x12\x1d.cairn.v1.DeleteMetricRequest\x1a\x1e.cairn.v1.DeleteMetricResponse\x12\\\n" +
 	"\x11BulkUpsertMetrics\x12\".cairn.v1.BulkUpsertMetricsRequest\x1a#.cairn.v1.BulkUpsertMetricsResponse\x12S\n" +
-	"\x0eGetUserContext\x12\x1f.cairn.v1.GetUserContextRequest\x1a .cairn.v1.GetUserContextResponse2\x99\x02\n" +
+	"\x0eGetUserContext\x12\x1f.cairn.v1.GetUserContextRequest\x1a .cairn.v1.GetUserContextResponse\x12^\n" +
+	"\x10ListHealthSeries\x12!.cairn.v1.ListHealthSeriesRequest\x1a\".cairn.v1.ListHealthSeriesResponse\"\x03\x90\x02\x01\x12d\n" +
+	"\x12ListAthleteMetrics\x12#.cairn.v1.ListAthleteMetricsRequest\x1a$.cairn.v1.ListAthleteMetricsResponse\"\x03\x90\x02\x01\x12b\n" +
+	"\x13UpsertAthleteMetric\x12$.cairn.v1.UpsertAthleteMetricRequest\x1a%.cairn.v1.UpsertAthleteMetricResponse\x12b\n" +
+	"\x13DeleteAthleteMetric\x12$.cairn.v1.DeleteAthleteMetricRequest\x1a%.cairn.v1.DeleteAthleteMetricResponse2\x99\x02\n" +
 	"\x0fSettingsService\x12J\n" +
 	"\vGetSettings\x12\x1c.cairn.v1.GetSettingsRequest\x1a\x1d.cairn.v1.GetSettingsResponse\x12S\n" +
 	"\x0eUpdateSettings\x12\x1f.cairn.v1.UpdateSettingsRequest\x1a .cairn.v1.UpdateSettingsResponse\x12e\n" +
@@ -2603,7 +3235,7 @@ func file_cairn_v1_metrics_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_cairn_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_cairn_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_cairn_v1_metrics_proto_goTypes = []any{
 	(MetricSort)(0),                      // 0: cairn.v1.MetricSort
 	(MetricBucket)(0),                    // 1: cairn.v1.MetricBucket
@@ -2628,115 +3260,137 @@ var file_cairn_v1_metrics_proto_goTypes = []any{
 	(*BulkUpsertError)(nil),              // 20: cairn.v1.BulkUpsertError
 	(*GetUserContextRequest)(nil),        // 21: cairn.v1.GetUserContextRequest
 	(*GetUserContextResponse)(nil),       // 22: cairn.v1.GetUserContextResponse
-	(*UserSettings)(nil),                 // 23: cairn.v1.UserSettings
-	(*ActivityTypeMergePolicy)(nil),      // 24: cairn.v1.ActivityTypeMergePolicy
-	(*ProviderPriorityList)(nil),         // 25: cairn.v1.ProviderPriorityList
-	(*AutoReimportPolicy)(nil),           // 26: cairn.v1.AutoReimportPolicy
-	(*BestEffortWindowSet)(nil),          // 27: cairn.v1.BestEffortWindowSet
-	(*GetSettingsRequest)(nil),           // 28: cairn.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),          // 29: cairn.v1.GetSettingsResponse
-	(*UpdateSettingsRequest)(nil),        // 30: cairn.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),       // 31: cairn.v1.UpdateSettingsResponse
-	(*ResetSettingsSectionRequest)(nil),  // 32: cairn.v1.ResetSettingsSectionRequest
-	(*ResetSettingsSectionResponse)(nil), // 33: cairn.v1.ResetSettingsSectionResponse
-	nil,                                  // 34: cairn.v1.GetLatestMetricsResponse.MetricsEntry
-	nil,                                  // 35: cairn.v1.GetUserContextResponse.LatestMetricsEntry
-	nil,                                  // 36: cairn.v1.UserSettings.MergePolicyByActivityTypeEntry
-	nil,                                  // 37: cairn.v1.UserSettings.MetricPriorityByKeyEntry
-	nil,                                  // 38: cairn.v1.UserSettings.AutoReimportByProviderEntry
-	nil,                                  // 39: cairn.v1.UserSettings.PollScheduleOverrideByProviderEntry
-	nil,                                  // 40: cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry
-	nil,                                  // 41: cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry
-	nil,                                  // 42: cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry
-	(*BestEffortWindowSet_Window)(nil),   // 43: cairn.v1.BestEffortWindowSet.Window
-	(*timestamppb.Timestamp)(nil),        // 44: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),              // 45: google.protobuf.Struct
-	(*TimeRange)(nil),                    // 46: cairn.v1.TimeRange
-	(*PageRequest)(nil),                  // 47: cairn.v1.PageRequest
-	(*PageResponse)(nil),                 // 48: cairn.v1.PageResponse
-	(Privacy)(0),                         // 49: cairn.v1.Privacy
-	(BestEffortMetric)(0),                // 50: cairn.v1.BestEffortMetric
-	(BestEffortWindowKind)(0),            // 51: cairn.v1.BestEffortWindowKind
+	(*ListHealthSeriesRequest)(nil),      // 23: cairn.v1.ListHealthSeriesRequest
+	(*HealthSample)(nil),                 // 24: cairn.v1.HealthSample
+	(*ListHealthSeriesResponse)(nil),     // 25: cairn.v1.ListHealthSeriesResponse
+	(*ListAthleteMetricsRequest)(nil),    // 26: cairn.v1.ListAthleteMetricsRequest
+	(*AthleteMetricSpec)(nil),            // 27: cairn.v1.AthleteMetricSpec
+	(*AthleteMetricEntry)(nil),           // 28: cairn.v1.AthleteMetricEntry
+	(*ListAthleteMetricsResponse)(nil),   // 29: cairn.v1.ListAthleteMetricsResponse
+	(*UpsertAthleteMetricRequest)(nil),   // 30: cairn.v1.UpsertAthleteMetricRequest
+	(*UpsertAthleteMetricResponse)(nil),  // 31: cairn.v1.UpsertAthleteMetricResponse
+	(*DeleteAthleteMetricRequest)(nil),   // 32: cairn.v1.DeleteAthleteMetricRequest
+	(*DeleteAthleteMetricResponse)(nil),  // 33: cairn.v1.DeleteAthleteMetricResponse
+	(*UserSettings)(nil),                 // 34: cairn.v1.UserSettings
+	(*ActivityTypeMergePolicy)(nil),      // 35: cairn.v1.ActivityTypeMergePolicy
+	(*ProviderPriorityList)(nil),         // 36: cairn.v1.ProviderPriorityList
+	(*AutoReimportPolicy)(nil),           // 37: cairn.v1.AutoReimportPolicy
+	(*BestEffortWindowSet)(nil),          // 38: cairn.v1.BestEffortWindowSet
+	(*GetSettingsRequest)(nil),           // 39: cairn.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),          // 40: cairn.v1.GetSettingsResponse
+	(*UpdateSettingsRequest)(nil),        // 41: cairn.v1.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),       // 42: cairn.v1.UpdateSettingsResponse
+	(*ResetSettingsSectionRequest)(nil),  // 43: cairn.v1.ResetSettingsSectionRequest
+	(*ResetSettingsSectionResponse)(nil), // 44: cairn.v1.ResetSettingsSectionResponse
+	nil,                                  // 45: cairn.v1.GetLatestMetricsResponse.MetricsEntry
+	nil,                                  // 46: cairn.v1.GetUserContextResponse.LatestMetricsEntry
+	nil,                                  // 47: cairn.v1.UserSettings.MergePolicyByActivityTypeEntry
+	nil,                                  // 48: cairn.v1.UserSettings.MetricPriorityByKeyEntry
+	nil,                                  // 49: cairn.v1.UserSettings.AutoReimportByProviderEntry
+	nil,                                  // 50: cairn.v1.UserSettings.PollScheduleOverrideByProviderEntry
+	nil,                                  // 51: cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry
+	nil,                                  // 52: cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry
+	nil,                                  // 53: cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry
+	(*BestEffortWindowSet_Window)(nil),   // 54: cairn.v1.BestEffortWindowSet.Window
+	(*timestamppb.Timestamp)(nil),        // 55: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),              // 56: google.protobuf.Struct
+	(*TimeRange)(nil),                    // 57: cairn.v1.TimeRange
+	(*PageRequest)(nil),                  // 58: cairn.v1.PageRequest
+	(*PageResponse)(nil),                 // 59: cairn.v1.PageResponse
+	(Privacy)(0),                         // 60: cairn.v1.Privacy
+	(BestEffortMetric)(0),                // 61: cairn.v1.BestEffortMetric
+	(BestEffortWindowKind)(0),            // 62: cairn.v1.BestEffortWindowKind
 }
 var file_cairn_v1_metrics_proto_depIdxs = []int32{
-	44, // 0: cairn.v1.Metric.ts:type_name -> google.protobuf.Timestamp
-	45, // 1: cairn.v1.Metric.value_struct:type_name -> google.protobuf.Struct
-	44, // 2: cairn.v1.Metric.created_at:type_name -> google.protobuf.Timestamp
-	44, // 3: cairn.v1.Metric.updated_at:type_name -> google.protobuf.Timestamp
-	46, // 4: cairn.v1.ListMetricsRequest.time_range:type_name -> cairn.v1.TimeRange
-	47, // 5: cairn.v1.ListMetricsRequest.page:type_name -> cairn.v1.PageRequest
+	55, // 0: cairn.v1.Metric.ts:type_name -> google.protobuf.Timestamp
+	56, // 1: cairn.v1.Metric.value_struct:type_name -> google.protobuf.Struct
+	55, // 2: cairn.v1.Metric.created_at:type_name -> google.protobuf.Timestamp
+	55, // 3: cairn.v1.Metric.updated_at:type_name -> google.protobuf.Timestamp
+	57, // 4: cairn.v1.ListMetricsRequest.time_range:type_name -> cairn.v1.TimeRange
+	58, // 5: cairn.v1.ListMetricsRequest.page:type_name -> cairn.v1.PageRequest
 	0,  // 6: cairn.v1.ListMetricsRequest.sort:type_name -> cairn.v1.MetricSort
 	6,  // 7: cairn.v1.ListMetricsResponse.metrics:type_name -> cairn.v1.Metric
-	48, // 8: cairn.v1.ListMetricsResponse.page:type_name -> cairn.v1.PageResponse
-	44, // 9: cairn.v1.GetLatestMetricsRequest.as_of:type_name -> google.protobuf.Timestamp
-	34, // 10: cairn.v1.GetLatestMetricsResponse.metrics:type_name -> cairn.v1.GetLatestMetricsResponse.MetricsEntry
-	46, // 11: cairn.v1.QueryMetricSeriesRequest.time_range:type_name -> cairn.v1.TimeRange
+	59, // 8: cairn.v1.ListMetricsResponse.page:type_name -> cairn.v1.PageResponse
+	55, // 9: cairn.v1.GetLatestMetricsRequest.as_of:type_name -> google.protobuf.Timestamp
+	45, // 10: cairn.v1.GetLatestMetricsResponse.metrics:type_name -> cairn.v1.GetLatestMetricsResponse.MetricsEntry
+	57, // 11: cairn.v1.QueryMetricSeriesRequest.time_range:type_name -> cairn.v1.TimeRange
 	1,  // 12: cairn.v1.QueryMetricSeriesRequest.bucket:type_name -> cairn.v1.MetricBucket
 	2,  // 13: cairn.v1.QueryMetricSeriesRequest.aggregation:type_name -> cairn.v1.MetricAggregation
-	44, // 14: cairn.v1.MetricSeriesPoint.ts:type_name -> google.protobuf.Timestamp
+	55, // 14: cairn.v1.MetricSeriesPoint.ts:type_name -> google.protobuf.Timestamp
 	1,  // 15: cairn.v1.QueryMetricSeriesResponse.bucket:type_name -> cairn.v1.MetricBucket
 	2,  // 16: cairn.v1.QueryMetricSeriesResponse.aggregation:type_name -> cairn.v1.MetricAggregation
 	12, // 17: cairn.v1.QueryMetricSeriesResponse.points:type_name -> cairn.v1.MetricSeriesPoint
-	44, // 18: cairn.v1.UpsertMetricRequest.ts:type_name -> google.protobuf.Timestamp
-	45, // 19: cairn.v1.UpsertMetricRequest.value_struct:type_name -> google.protobuf.Struct
+	55, // 18: cairn.v1.UpsertMetricRequest.ts:type_name -> google.protobuf.Timestamp
+	56, // 19: cairn.v1.UpsertMetricRequest.value_struct:type_name -> google.protobuf.Struct
 	6,  // 20: cairn.v1.UpsertMetricResponse.metric:type_name -> cairn.v1.Metric
 	14, // 21: cairn.v1.BulkUpsertMetricsRequest.metrics:type_name -> cairn.v1.UpsertMetricRequest
 	20, // 22: cairn.v1.BulkUpsertMetricsResponse.errors:type_name -> cairn.v1.BulkUpsertError
-	44, // 23: cairn.v1.GetUserContextRequest.as_of:type_name -> google.protobuf.Timestamp
-	23, // 24: cairn.v1.GetUserContextResponse.settings:type_name -> cairn.v1.UserSettings
-	35, // 25: cairn.v1.GetUserContextResponse.latest_metrics:type_name -> cairn.v1.GetUserContextResponse.LatestMetricsEntry
-	44, // 26: cairn.v1.UserSettings.birthdate:type_name -> google.protobuf.Timestamp
-	3,  // 27: cairn.v1.UserSettings.biological_sex:type_name -> cairn.v1.BiologicalSex
-	36, // 28: cairn.v1.UserSettings.merge_policy_by_activity_type:type_name -> cairn.v1.UserSettings.MergePolicyByActivityTypeEntry
-	37, // 29: cairn.v1.UserSettings.metric_priority_by_key:type_name -> cairn.v1.UserSettings.MetricPriorityByKeyEntry
-	38, // 30: cairn.v1.UserSettings.auto_reimport_by_provider:type_name -> cairn.v1.UserSettings.AutoReimportByProviderEntry
-	39, // 31: cairn.v1.UserSettings.poll_schedule_override_by_provider:type_name -> cairn.v1.UserSettings.PollScheduleOverrideByProviderEntry
-	49, // 32: cairn.v1.UserSettings.default_activity_privacy:type_name -> cairn.v1.Privacy
-	40, // 33: cairn.v1.UserSettings.tss_preference_by_activity_type:type_name -> cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry
-	41, // 34: cairn.v1.UserSettings.best_effort_windows_by_activity_type:type_name -> cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry
-	44, // 35: cairn.v1.UserSettings.updated_at:type_name -> google.protobuf.Timestamp
-	42, // 36: cairn.v1.ActivityTypeMergePolicy.by_field_group:type_name -> cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry
-	43, // 37: cairn.v1.BestEffortWindowSet.windows:type_name -> cairn.v1.BestEffortWindowSet.Window
-	23, // 38: cairn.v1.GetSettingsResponse.settings:type_name -> cairn.v1.UserSettings
-	23, // 39: cairn.v1.UpdateSettingsRequest.settings:type_name -> cairn.v1.UserSettings
-	23, // 40: cairn.v1.UpdateSettingsResponse.settings:type_name -> cairn.v1.UserSettings
-	5,  // 41: cairn.v1.ResetSettingsSectionRequest.section:type_name -> cairn.v1.SettingsSection
-	23, // 42: cairn.v1.ResetSettingsSectionResponse.settings:type_name -> cairn.v1.UserSettings
-	6,  // 43: cairn.v1.GetLatestMetricsResponse.MetricsEntry.value:type_name -> cairn.v1.Metric
-	6,  // 44: cairn.v1.GetUserContextResponse.LatestMetricsEntry.value:type_name -> cairn.v1.Metric
-	24, // 45: cairn.v1.UserSettings.MergePolicyByActivityTypeEntry.value:type_name -> cairn.v1.ActivityTypeMergePolicy
-	25, // 46: cairn.v1.UserSettings.MetricPriorityByKeyEntry.value:type_name -> cairn.v1.ProviderPriorityList
-	26, // 47: cairn.v1.UserSettings.AutoReimportByProviderEntry.value:type_name -> cairn.v1.AutoReimportPolicy
-	4,  // 48: cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry.value:type_name -> cairn.v1.TSSPreference
-	27, // 49: cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry.value:type_name -> cairn.v1.BestEffortWindowSet
-	25, // 50: cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry.value:type_name -> cairn.v1.ProviderPriorityList
-	50, // 51: cairn.v1.BestEffortWindowSet.Window.metric:type_name -> cairn.v1.BestEffortMetric
-	51, // 52: cairn.v1.BestEffortWindowSet.Window.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	7,  // 53: cairn.v1.MetricsService.ListMetrics:input_type -> cairn.v1.ListMetricsRequest
-	9,  // 54: cairn.v1.MetricsService.GetLatestMetrics:input_type -> cairn.v1.GetLatestMetricsRequest
-	11, // 55: cairn.v1.MetricsService.QueryMetricSeries:input_type -> cairn.v1.QueryMetricSeriesRequest
-	14, // 56: cairn.v1.MetricsService.UpsertMetric:input_type -> cairn.v1.UpsertMetricRequest
-	16, // 57: cairn.v1.MetricsService.DeleteMetric:input_type -> cairn.v1.DeleteMetricRequest
-	18, // 58: cairn.v1.MetricsService.BulkUpsertMetrics:input_type -> cairn.v1.BulkUpsertMetricsRequest
-	21, // 59: cairn.v1.MetricsService.GetUserContext:input_type -> cairn.v1.GetUserContextRequest
-	28, // 60: cairn.v1.SettingsService.GetSettings:input_type -> cairn.v1.GetSettingsRequest
-	30, // 61: cairn.v1.SettingsService.UpdateSettings:input_type -> cairn.v1.UpdateSettingsRequest
-	32, // 62: cairn.v1.SettingsService.ResetSettingsSection:input_type -> cairn.v1.ResetSettingsSectionRequest
-	8,  // 63: cairn.v1.MetricsService.ListMetrics:output_type -> cairn.v1.ListMetricsResponse
-	10, // 64: cairn.v1.MetricsService.GetLatestMetrics:output_type -> cairn.v1.GetLatestMetricsResponse
-	13, // 65: cairn.v1.MetricsService.QueryMetricSeries:output_type -> cairn.v1.QueryMetricSeriesResponse
-	15, // 66: cairn.v1.MetricsService.UpsertMetric:output_type -> cairn.v1.UpsertMetricResponse
-	17, // 67: cairn.v1.MetricsService.DeleteMetric:output_type -> cairn.v1.DeleteMetricResponse
-	19, // 68: cairn.v1.MetricsService.BulkUpsertMetrics:output_type -> cairn.v1.BulkUpsertMetricsResponse
-	22, // 69: cairn.v1.MetricsService.GetUserContext:output_type -> cairn.v1.GetUserContextResponse
-	29, // 70: cairn.v1.SettingsService.GetSettings:output_type -> cairn.v1.GetSettingsResponse
-	31, // 71: cairn.v1.SettingsService.UpdateSettings:output_type -> cairn.v1.UpdateSettingsResponse
-	33, // 72: cairn.v1.SettingsService.ResetSettingsSection:output_type -> cairn.v1.ResetSettingsSectionResponse
-	63, // [63:73] is the sub-list for method output_type
-	53, // [53:63] is the sub-list for method input_type
-	53, // [53:53] is the sub-list for extension type_name
-	53, // [53:53] is the sub-list for extension extendee
-	0,  // [0:53] is the sub-list for field type_name
+	55, // 23: cairn.v1.GetUserContextRequest.as_of:type_name -> google.protobuf.Timestamp
+	34, // 24: cairn.v1.GetUserContextResponse.settings:type_name -> cairn.v1.UserSettings
+	46, // 25: cairn.v1.GetUserContextResponse.latest_metrics:type_name -> cairn.v1.GetUserContextResponse.LatestMetricsEntry
+	24, // 26: cairn.v1.ListHealthSeriesResponse.series:type_name -> cairn.v1.HealthSample
+	27, // 27: cairn.v1.ListAthleteMetricsResponse.specs:type_name -> cairn.v1.AthleteMetricSpec
+	28, // 28: cairn.v1.ListAthleteMetricsResponse.entries:type_name -> cairn.v1.AthleteMetricEntry
+	55, // 29: cairn.v1.UserSettings.birthdate:type_name -> google.protobuf.Timestamp
+	3,  // 30: cairn.v1.UserSettings.biological_sex:type_name -> cairn.v1.BiologicalSex
+	47, // 31: cairn.v1.UserSettings.merge_policy_by_activity_type:type_name -> cairn.v1.UserSettings.MergePolicyByActivityTypeEntry
+	48, // 32: cairn.v1.UserSettings.metric_priority_by_key:type_name -> cairn.v1.UserSettings.MetricPriorityByKeyEntry
+	49, // 33: cairn.v1.UserSettings.auto_reimport_by_provider:type_name -> cairn.v1.UserSettings.AutoReimportByProviderEntry
+	50, // 34: cairn.v1.UserSettings.poll_schedule_override_by_provider:type_name -> cairn.v1.UserSettings.PollScheduleOverrideByProviderEntry
+	60, // 35: cairn.v1.UserSettings.default_activity_privacy:type_name -> cairn.v1.Privacy
+	51, // 36: cairn.v1.UserSettings.tss_preference_by_activity_type:type_name -> cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry
+	52, // 37: cairn.v1.UserSettings.best_effort_windows_by_activity_type:type_name -> cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry
+	55, // 38: cairn.v1.UserSettings.updated_at:type_name -> google.protobuf.Timestamp
+	53, // 39: cairn.v1.ActivityTypeMergePolicy.by_field_group:type_name -> cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry
+	54, // 40: cairn.v1.BestEffortWindowSet.windows:type_name -> cairn.v1.BestEffortWindowSet.Window
+	34, // 41: cairn.v1.GetSettingsResponse.settings:type_name -> cairn.v1.UserSettings
+	34, // 42: cairn.v1.UpdateSettingsRequest.settings:type_name -> cairn.v1.UserSettings
+	34, // 43: cairn.v1.UpdateSettingsResponse.settings:type_name -> cairn.v1.UserSettings
+	5,  // 44: cairn.v1.ResetSettingsSectionRequest.section:type_name -> cairn.v1.SettingsSection
+	34, // 45: cairn.v1.ResetSettingsSectionResponse.settings:type_name -> cairn.v1.UserSettings
+	6,  // 46: cairn.v1.GetLatestMetricsResponse.MetricsEntry.value:type_name -> cairn.v1.Metric
+	6,  // 47: cairn.v1.GetUserContextResponse.LatestMetricsEntry.value:type_name -> cairn.v1.Metric
+	35, // 48: cairn.v1.UserSettings.MergePolicyByActivityTypeEntry.value:type_name -> cairn.v1.ActivityTypeMergePolicy
+	36, // 49: cairn.v1.UserSettings.MetricPriorityByKeyEntry.value:type_name -> cairn.v1.ProviderPriorityList
+	37, // 50: cairn.v1.UserSettings.AutoReimportByProviderEntry.value:type_name -> cairn.v1.AutoReimportPolicy
+	4,  // 51: cairn.v1.UserSettings.TssPreferenceByActivityTypeEntry.value:type_name -> cairn.v1.TSSPreference
+	38, // 52: cairn.v1.UserSettings.BestEffortWindowsByActivityTypeEntry.value:type_name -> cairn.v1.BestEffortWindowSet
+	36, // 53: cairn.v1.ActivityTypeMergePolicy.ByFieldGroupEntry.value:type_name -> cairn.v1.ProviderPriorityList
+	61, // 54: cairn.v1.BestEffortWindowSet.Window.metric:type_name -> cairn.v1.BestEffortMetric
+	62, // 55: cairn.v1.BestEffortWindowSet.Window.window_kind:type_name -> cairn.v1.BestEffortWindowKind
+	7,  // 56: cairn.v1.MetricsService.ListMetrics:input_type -> cairn.v1.ListMetricsRequest
+	9,  // 57: cairn.v1.MetricsService.GetLatestMetrics:input_type -> cairn.v1.GetLatestMetricsRequest
+	11, // 58: cairn.v1.MetricsService.QueryMetricSeries:input_type -> cairn.v1.QueryMetricSeriesRequest
+	14, // 59: cairn.v1.MetricsService.UpsertMetric:input_type -> cairn.v1.UpsertMetricRequest
+	16, // 60: cairn.v1.MetricsService.DeleteMetric:input_type -> cairn.v1.DeleteMetricRequest
+	18, // 61: cairn.v1.MetricsService.BulkUpsertMetrics:input_type -> cairn.v1.BulkUpsertMetricsRequest
+	21, // 62: cairn.v1.MetricsService.GetUserContext:input_type -> cairn.v1.GetUserContextRequest
+	23, // 63: cairn.v1.MetricsService.ListHealthSeries:input_type -> cairn.v1.ListHealthSeriesRequest
+	26, // 64: cairn.v1.MetricsService.ListAthleteMetrics:input_type -> cairn.v1.ListAthleteMetricsRequest
+	30, // 65: cairn.v1.MetricsService.UpsertAthleteMetric:input_type -> cairn.v1.UpsertAthleteMetricRequest
+	32, // 66: cairn.v1.MetricsService.DeleteAthleteMetric:input_type -> cairn.v1.DeleteAthleteMetricRequest
+	39, // 67: cairn.v1.SettingsService.GetSettings:input_type -> cairn.v1.GetSettingsRequest
+	41, // 68: cairn.v1.SettingsService.UpdateSettings:input_type -> cairn.v1.UpdateSettingsRequest
+	43, // 69: cairn.v1.SettingsService.ResetSettingsSection:input_type -> cairn.v1.ResetSettingsSectionRequest
+	8,  // 70: cairn.v1.MetricsService.ListMetrics:output_type -> cairn.v1.ListMetricsResponse
+	10, // 71: cairn.v1.MetricsService.GetLatestMetrics:output_type -> cairn.v1.GetLatestMetricsResponse
+	13, // 72: cairn.v1.MetricsService.QueryMetricSeries:output_type -> cairn.v1.QueryMetricSeriesResponse
+	15, // 73: cairn.v1.MetricsService.UpsertMetric:output_type -> cairn.v1.UpsertMetricResponse
+	17, // 74: cairn.v1.MetricsService.DeleteMetric:output_type -> cairn.v1.DeleteMetricResponse
+	19, // 75: cairn.v1.MetricsService.BulkUpsertMetrics:output_type -> cairn.v1.BulkUpsertMetricsResponse
+	22, // 76: cairn.v1.MetricsService.GetUserContext:output_type -> cairn.v1.GetUserContextResponse
+	25, // 77: cairn.v1.MetricsService.ListHealthSeries:output_type -> cairn.v1.ListHealthSeriesResponse
+	29, // 78: cairn.v1.MetricsService.ListAthleteMetrics:output_type -> cairn.v1.ListAthleteMetricsResponse
+	31, // 79: cairn.v1.MetricsService.UpsertAthleteMetric:output_type -> cairn.v1.UpsertAthleteMetricResponse
+	33, // 80: cairn.v1.MetricsService.DeleteAthleteMetric:output_type -> cairn.v1.DeleteAthleteMetricResponse
+	40, // 81: cairn.v1.SettingsService.GetSettings:output_type -> cairn.v1.GetSettingsResponse
+	42, // 82: cairn.v1.SettingsService.UpdateSettings:output_type -> cairn.v1.UpdateSettingsResponse
+	44, // 83: cairn.v1.SettingsService.ResetSettingsSection:output_type -> cairn.v1.ResetSettingsSectionResponse
+	70, // [70:84] is the sub-list for method output_type
+	56, // [56:70] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_metrics_proto_init() }
@@ -2751,14 +3405,14 @@ func file_cairn_v1_metrics_proto_init() {
 	file_cairn_v1_metrics_proto_msgTypes[3].OneofWrappers = []any{}
 	file_cairn_v1_metrics_proto_msgTypes[8].OneofWrappers = []any{}
 	file_cairn_v1_metrics_proto_msgTypes[15].OneofWrappers = []any{}
-	file_cairn_v1_metrics_proto_msgTypes[17].OneofWrappers = []any{}
+	file_cairn_v1_metrics_proto_msgTypes[28].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_metrics_proto_rawDesc), len(file_cairn_v1_metrics_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   38,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

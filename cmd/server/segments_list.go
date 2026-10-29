@@ -9,63 +9,30 @@ import (
 )
 
 // mountSegmentsList exposes the segments landing page data: a headline status
-// block + the viewer's most-attempted segments. Both scoped to the caller
-// (only segments they have efforts on).
+// block + the viewer's most-attempted segments (view.Segments.Mine).
 //
 //	GET /api/segments?type=<activity_type>&limit=&offset=
-//	  → { stats:{segments,efforts,prs,crs,external,native},
-//	      segments:[{id,name,activity_type,source,distance_m,elevation_gain_m,
-//	                 avg_grade,effort_count,best_elapsed_s,last_effort_at,
-//	                 has_pr,has_cr}],
-//	      limit, offset, has_more }
 func mountSegmentsList(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	if app.Segments == nil {
 		return
 	}
-
-	mux.HandleFunc("GET /api/segments", segmentsListHandler(app, logger))
-
-	logger.Info("segments list endpoint mounted")
-}
-
-// segmentsListHandler serves GET /api/segments.
-func segmentsListHandler(app *App, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/segments", func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := resolveSessionUser(r, app)
 		if !ok {
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-
-		activityType := r.URL.Query().Get("type")
 		limit, offset := segmentsListPaging(r)
-
-		// Stats only on the first page (offset 0) — cheap to skip on paging.
-		var stats domain.UserSegmentStats
-		if offset == 0 {
-			s, err := app.Segments.UserSegmentStats(r.Context(), userID)
-			if err != nil {
-				logger.Error("segment stats failed", "user", userID, "error", err)
-				http.Error(w, "load failed", http.StatusInternalServerError)
-				return
-			}
-			stats = s
-		}
-
-		// Fetch one extra to compute has_more without a count query.
-		items, err := app.Segments.ListUserSegmentsByEffortCount(r.Context(), userID, activityType, limit+1, offset)
+		page, err := app.SegmentViews.Mine(r.Context(), userID, r.URL.Query().Get("type"), limit, offset)
 		if err != nil {
 			logger.Error("list segments failed", "user", userID, "error", err)
-			http.Error(w, "load failed", http.StatusInternalServerError)
+			writeActionError(w, err, "load failed")
 			return
 		}
-		hasMore := len(items) > limit
-		if hasMore {
-			items = items[:limit]
+		var stats domain.UserSegmentStats
+		if page.Stats != nil {
+			stats = *page.Stats
 		}
-
-		out := segmentsListItemsJSON(items)
-
 		writeJSON(w, http.StatusOK, map[string]any{
 			"stats": map[string]any{
 				"segments": stats.Segments,
@@ -75,12 +42,14 @@ func segmentsListHandler(app *App, logger *slog.Logger) http.HandlerFunc {
 				"external": stats.External,
 				"native":   stats.Native,
 			},
-			"segments": out,
+			"segments": segmentsListItemsJSON(page.Items),
 			"limit":    limit,
 			"offset":   offset,
-			"has_more": hasMore,
+			"has_more": page.HasMore,
 		})
-	}
+	})
+
+	logger.Info("segments list endpoint mounted")
 }
 
 // segmentsListPaging parses limit (default 50, max 200) and offset.

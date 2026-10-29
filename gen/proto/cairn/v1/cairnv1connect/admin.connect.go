@@ -127,6 +127,66 @@ const (
 	// AdminServiceTriggerMaintenanceProcedure is the procedure name of the AdminService's
 	// TriggerMaintenance RPC.
 	AdminServiceTriggerMaintenanceProcedure = "/cairn.v1.AdminService/TriggerMaintenance"
+	// AdminServiceListMaintenanceJobsProcedure is the procedure name of the AdminService's
+	// ListMaintenanceJobs RPC.
+	AdminServiceListMaintenanceJobsProcedure = "/cairn.v1.AdminService/ListMaintenanceJobs"
+	// AdminServiceCancelMaintenanceJobProcedure is the procedure name of the AdminService's
+	// CancelMaintenanceJob RPC.
+	AdminServiceCancelMaintenanceJobProcedure = "/cairn.v1.AdminService/CancelMaintenanceJob"
+	// AdminServiceListWorkersProcedure is the procedure name of the AdminService's ListWorkers RPC.
+	AdminServiceListWorkersProcedure = "/cairn.v1.AdminService/ListWorkers"
+	// AdminServiceListWorkerPoolsProcedure is the procedure name of the AdminService's ListWorkerPools
+	// RPC.
+	AdminServiceListWorkerPoolsProcedure = "/cairn.v1.AdminService/ListWorkerPools"
+	// AdminServiceRetireWorkerPoolProcedure is the procedure name of the AdminService's
+	// RetireWorkerPool RPC.
+	AdminServiceRetireWorkerPoolProcedure = "/cairn.v1.AdminService/RetireWorkerPool"
+	// AdminServiceListWorkerEnrollmentsProcedure is the procedure name of the AdminService's
+	// ListWorkerEnrollments RPC.
+	AdminServiceListWorkerEnrollmentsProcedure = "/cairn.v1.AdminService/ListWorkerEnrollments"
+	// AdminServiceCreateWorkerEnrollmentProcedure is the procedure name of the AdminService's
+	// CreateWorkerEnrollment RPC.
+	AdminServiceCreateWorkerEnrollmentProcedure = "/cairn.v1.AdminService/CreateWorkerEnrollment"
+	// AdminServiceRevokeWorkerEnrollmentProcedure is the procedure name of the AdminService's
+	// RevokeWorkerEnrollment RPC.
+	AdminServiceRevokeWorkerEnrollmentProcedure = "/cairn.v1.AdminService/RevokeWorkerEnrollment"
+	// AdminServiceProlongWorkerEnrollmentProcedure is the procedure name of the AdminService's
+	// ProlongWorkerEnrollment RPC.
+	AdminServiceProlongWorkerEnrollmentProcedure = "/cairn.v1.AdminService/ProlongWorkerEnrollment"
+	// AdminServiceListReportsProcedure is the procedure name of the AdminService's ListReports RPC.
+	AdminServiceListReportsProcedure = "/cairn.v1.AdminService/ListReports"
+	// AdminServiceResolveReportProcedure is the procedure name of the AdminService's ResolveReport RPC.
+	AdminServiceResolveReportProcedure = "/cairn.v1.AdminService/ResolveReport"
+	// AdminServiceSetActivityHiddenProcedure is the procedure name of the AdminService's
+	// SetActivityHidden RPC.
+	AdminServiceSetActivityHiddenProcedure = "/cairn.v1.AdminService/SetActivityHidden"
+	// AdminServiceSetUserQuotaProcedure is the procedure name of the AdminService's SetUserQuota RPC.
+	AdminServiceSetUserQuotaProcedure = "/cairn.v1.AdminService/SetUserQuota"
+	// AdminServiceListBlockedDomainsProcedure is the procedure name of the AdminService's
+	// ListBlockedDomains RPC.
+	AdminServiceListBlockedDomainsProcedure = "/cairn.v1.AdminService/ListBlockedDomains"
+	// AdminServiceBlockDomainProcedure is the procedure name of the AdminService's BlockDomain RPC.
+	AdminServiceBlockDomainProcedure = "/cairn.v1.AdminService/BlockDomain"
+	// AdminServiceUnblockDomainProcedure is the procedure name of the AdminService's UnblockDomain RPC.
+	AdminServiceUnblockDomainProcedure = "/cairn.v1.AdminService/UnblockDomain"
+	// AdminServiceGetInstanceMergeDefaultsProcedure is the procedure name of the AdminService's
+	// GetInstanceMergeDefaults RPC.
+	AdminServiceGetInstanceMergeDefaultsProcedure = "/cairn.v1.AdminService/GetInstanceMergeDefaults"
+	// AdminServiceUpdateInstanceMergeDefaultsProcedure is the procedure name of the AdminService's
+	// UpdateInstanceMergeDefaults RPC.
+	AdminServiceUpdateInstanceMergeDefaultsProcedure = "/cairn.v1.AdminService/UpdateInstanceMergeDefaults"
+	// AdminServiceRunGeocodeBackfillProcedure is the procedure name of the AdminService's
+	// RunGeocodeBackfill RPC.
+	AdminServiceRunGeocodeBackfillProcedure = "/cairn.v1.AdminService/RunGeocodeBackfill"
+	// AdminServiceRebuildGearTotalsProcedure is the procedure name of the AdminService's
+	// RebuildGearTotals RPC.
+	AdminServiceRebuildGearTotalsProcedure = "/cairn.v1.AdminService/RebuildGearTotals"
+	// AdminServiceBootstrapNATSAccountKeyProcedure is the procedure name of the AdminService's
+	// BootstrapNATSAccountKey RPC.
+	AdminServiceBootstrapNATSAccountKeyProcedure = "/cairn.v1.AdminService/BootstrapNATSAccountKey"
+	// AdminServiceRotateNATSAccountKeyProcedure is the procedure name of the AdminService's
+	// RotateNATSAccountKey RPC.
+	AdminServiceRotateNATSAccountKeyProcedure = "/cairn.v1.AdminService/RotateNATSAccountKey"
 )
 
 var (
@@ -340,6 +400,160 @@ var (
 			Procedure:  AdminServiceTriggerMaintenanceProcedure,
 		}
 	})
+	adminServiceListMaintenanceJobsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListMaintenanceJobs"),
+			Procedure:  AdminServiceListMaintenanceJobsProcedure,
+		}
+	})
+	adminServiceCancelMaintenanceJobSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("CancelMaintenanceJob"),
+			Procedure:  AdminServiceCancelMaintenanceJobProcedure,
+		}
+	})
+	adminServiceListWorkersSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListWorkers"),
+			Procedure:  AdminServiceListWorkersProcedure,
+		}
+	})
+	adminServiceListWorkerPoolsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListWorkerPools"),
+			Procedure:  AdminServiceListWorkerPoolsProcedure,
+		}
+	})
+	adminServiceRetireWorkerPoolSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("RetireWorkerPool"),
+			Procedure:  AdminServiceRetireWorkerPoolProcedure,
+		}
+	})
+	adminServiceListWorkerEnrollmentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListWorkerEnrollments"),
+			Procedure:  AdminServiceListWorkerEnrollmentsProcedure,
+		}
+	})
+	adminServiceCreateWorkerEnrollmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("CreateWorkerEnrollment"),
+			Procedure:  AdminServiceCreateWorkerEnrollmentProcedure,
+		}
+	})
+	adminServiceRevokeWorkerEnrollmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("RevokeWorkerEnrollment"),
+			Procedure:  AdminServiceRevokeWorkerEnrollmentProcedure,
+		}
+	})
+	adminServiceProlongWorkerEnrollmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ProlongWorkerEnrollment"),
+			Procedure:  AdminServiceProlongWorkerEnrollmentProcedure,
+		}
+	})
+	adminServiceListReportsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListReports"),
+			Procedure:  AdminServiceListReportsProcedure,
+		}
+	})
+	adminServiceResolveReportSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ResolveReport"),
+			Procedure:  AdminServiceResolveReportProcedure,
+		}
+	})
+	adminServiceSetActivityHiddenSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("SetActivityHidden"),
+			Procedure:  AdminServiceSetActivityHiddenProcedure,
+		}
+	})
+	adminServiceSetUserQuotaSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("SetUserQuota"),
+			Procedure:  AdminServiceSetUserQuotaProcedure,
+		}
+	})
+	adminServiceListBlockedDomainsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListBlockedDomains"),
+			Procedure:  AdminServiceListBlockedDomainsProcedure,
+		}
+	})
+	adminServiceBlockDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("BlockDomain"),
+			Procedure:  AdminServiceBlockDomainProcedure,
+		}
+	})
+	adminServiceUnblockDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("UnblockDomain"),
+			Procedure:  AdminServiceUnblockDomainProcedure,
+		}
+	})
+	adminServiceGetInstanceMergeDefaultsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("GetInstanceMergeDefaults"),
+			Procedure:  AdminServiceGetInstanceMergeDefaultsProcedure,
+		}
+	})
+	adminServiceUpdateInstanceMergeDefaultsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("UpdateInstanceMergeDefaults"),
+			Procedure:  AdminServiceUpdateInstanceMergeDefaultsProcedure,
+		}
+	})
+	adminServiceRunGeocodeBackfillSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("RunGeocodeBackfill"),
+			Procedure:  AdminServiceRunGeocodeBackfillProcedure,
+		}
+	})
+	adminServiceRebuildGearTotalsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("RebuildGearTotals"),
+			Procedure:  AdminServiceRebuildGearTotalsProcedure,
+		}
+	})
+	adminServiceBootstrapNATSAccountKeySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("BootstrapNATSAccountKey"),
+			Procedure:  AdminServiceBootstrapNATSAccountKeyProcedure,
+		}
+	})
+	adminServiceRotateNATSAccountKeySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("RotateNATSAccountKey"),
+			Procedure:  AdminServiceRotateNATSAccountKeyProcedure,
+		}
+	})
 )
 
 // AdminServiceClient is a client for the cairn.v1.AdminService service.
@@ -348,61 +562,157 @@ type AdminServiceClient interface {
 	// OIDC providers are configured entirely via CAIRN_OIDC_* env vars; there
 	// is no client database and no create/update/delete. This RPC lets the
 	// admin UI display the active configuration.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOIDCClients(context.Context, *v1.ListOIDCClientsRequest) (*v1.ListOIDCClientsResponse, error)
 	// ---- Instance settings ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetInstanceSettings(context.Context, *v1.GetInstanceSettingsRequest) (*v1.GetInstanceSettingsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateInstanceSettings(context.Context, *v1.UpdateInstanceSettingsRequest) (*v1.UpdateInstanceSettingsResponse, error)
 	// Send a synthetic email through the configured SMTP/SES/Resend/Mailgun
 	// adapter to verify outbound delivery.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SendTestEmail(context.Context, *v1.SendTestEmailRequest) (*v1.SendTestEmailResponse, error)
 	// ---- Users ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ChangeUserRole(context.Context, *v1.ChangeUserRoleRequest) (*v1.ChangeUserRoleResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 	// Hard-delete with cascade. Two-step: caller must pass confirm_username
 	// matching the user's username to proceed. Audit-logged at HIGH severity.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Force-reset a user's password to a temporary value, returned once.
 	// The user is required to change it on next login.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResetUserPassword(context.Context, *v1.ResetUserPasswordRequest) (*v1.ResetUserPasswordResponse, error)
 	// Revoke all sessions and PATs for a user.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeUserCredentials(context.Context, *v1.RevokeUserCredentialsRequest) (*v1.RevokeUserCredentialsResponse, error)
 	// ---- Invites ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListInvites(context.Context, *v1.ListInvitesRequest) (*v1.ListInvitesResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateInvite(context.Context, *v1.CreateInviteRequest) (*v1.CreateInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeInvite(context.Context, *v1.RevokeInviteRequest) (*v1.RevokeInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResendInvite(context.Context, *v1.ResendInviteRequest) (*v1.ResendInviteResponse, error)
 	// ---- Audit log ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListAuditEntries(context.Context, *v1.ListAuditEntriesRequest) (*v1.ListAuditEntriesResponse, error)
 	// ---- Job queue introspection ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListJobs(context.Context, *v1.ListJobsRequest) (*v1.ListJobsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetJob(context.Context, *v1.GetJobRequest) (*v1.GetJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetryJob(context.Context, *v1.RetryJobRequest) (*v1.RetryJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CancelJob(context.Context, *v1.CancelJobRequest) (*v1.CancelJobResponse, error)
 	// List jobs that exhausted retries and went to the dead-letter queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListDeadLetterJobs(context.Context, *v1.ListDeadLetterJobsRequest) (*v1.ListDeadLetterJobsResponse, error)
 	// Re-enqueue a DLQ job at the head of its provider queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RequeueDeadLetterJob(context.Context, *v1.RequeueDeadLetterJobRequest) (*v1.RequeueDeadLetterJobResponse, error)
 	// ---- Sources / orphans ----
 	// List activity sources whose worker is currently offline or deregistered.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOrphanedSources(context.Context, *v1.ListOrphanedSourcesRequest) (*v1.ListOrphanedSourcesResponse, error)
 	// ---- Webhook signing tokens (per external account) ----
 	// Webhook tokens are stored on each ExternalAccount; this endpoint lists
 	// and bulk-rotates them across the instance (useful when a token leaks).
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWebhookSigningTokens(context.Context, *v1.ListWebhookSigningTokensRequest) (*v1.ListWebhookSigningTokensResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	BulkRotateWebhookSigningTokens(context.Context, *v1.BulkRotateWebhookSigningTokensRequest) (*v1.BulkRotateWebhookSigningTokensResponse, error)
 	// ---- System health ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
-	// Stream of admin-relevant events (worker register/deregister, conflicts,
-	// health degradations). Used by the admin dashboard's live activity view.
+	// Stream of admin-relevant events. Core currently emits worker
+	// registered/offline/degraded (presence watcher; degraded = release
+	// incompatible with the core), worker deregistered (enrollment revoked),
+	// provider conflict (two sources of one provider matched the same workout
+	// and were kept apart), job dead-lettered, user created, user suspended,
+	// auth flood (password failures locked an identifier or address) and
+	// system health degraded (the health probe left "healthy"). An empty
+	// event every 30 s is the heartbeat.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest) (AdminServiceStreamAdminEventsClientStream, error)
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as background jobs; returns
-	// the job_id for progress observation.
+	// Trigger expensive recomputations. Queued as background jobs that run
+	// one at a time in the core process; the registry is persisted, so a
+	// restart re-queues jobs still waiting and marks the one that was running
+	// failed ("interrupted by server restart", re-trigger it). confirm_phrase
+	// is the operation name in upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error)
+	// Stops a queued or running maintenance job.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error)
+	// ---- Worker fleet (twins of /api/admin/workers, worker-pools, worker-enrollments) ----
+	// Workers currently online, from the presence KV.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkers(context.Context, *v1.ListWorkersRequest) (*v1.ListWorkersResponse, error)
+	// The pool registry (docs/adr/0006) with the live instance count per pool.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkerPools(context.Context, *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error)
+	// The enrollment token is returned once.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CreateWorkerEnrollment(context.Context, *v1.CreateWorkerEnrollmentRequest) (*v1.CreateWorkerEnrollmentResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RevokeWorkerEnrollment(context.Context, *v1.RevokeWorkerEnrollmentRequest) (*v1.RevokeWorkerEnrollmentResponse, error)
+	// Extends (or re-arms a lapsed) enrollment.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ProlongWorkerEnrollment(context.Context, *v1.ProlongWorkerEnrollmentRequest) (*v1.ProlongWorkerEnrollmentResponse, error)
+	// ---- Moderation (twins of /api/admin/reports, /api/admin/activities/{id}/hide) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListReports(context.Context, *v1.ListReportsRequest) (*v1.ListReportsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ResolveReport(context.Context, *v1.ResolveReportRequest) (*v1.ResolveReportResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	SetActivityHidden(context.Context, *v1.SetActivityHiddenRequest) (*v1.SetActivityHiddenResponse, error)
+	// ---- Quotas (twin of PUT /api/admin/users/{id}/quota) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	SetUserQuota(context.Context, *v1.SetUserQuotaRequest) (*v1.SetUserQuotaResponse, error)
+	// ---- Federation blocks (twins of /api/admin/federation/blocks) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListBlockedDomains(context.Context, *v1.ListBlockedDomainsRequest) (*v1.ListBlockedDomainsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	BlockDomain(context.Context, *v1.BlockDomainRequest) (*v1.BlockDomainResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UnblockDomain(context.Context, *v1.UnblockDomainRequest) (*v1.UnblockDomainResponse, error)
+	// ---- Instance merge defaults (twins of /api/admin/instance/merge-defaults) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	GetInstanceMergeDefaults(context.Context, *v1.GetInstanceMergeDefaultsRequest) (*v1.GetInstanceMergeDefaultsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UpdateInstanceMergeDefaults(context.Context, *v1.UpdateInstanceMergeDefaultsRequest) (*v1.UpdateInstanceMergeDefaultsResponse, error)
+	// ---- Operations (twins of /api/admin/geocode/backfill, gear/rebuild-totals, nats/*) ----
+	// Runs one geocoding batch in the background.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RunGeocodeBackfill(context.Context, *v1.RunGeocodeBackfillRequest) (*v1.RunGeocodeBackfillResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RebuildGearTotals(context.Context, *v1.RebuildGearTotalsRequest) (*v1.RebuildGearTotalsResponse, error)
+	// First-time NATS account signing key; a no-op when one is active.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	BootstrapNATSAccountKey(context.Context, *v1.BootstrapNATSAccountKeyRequest) (*v1.BootstrapNATSAccountKeyResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RotateNATSAccountKey(context.Context, *v1.RotateNATSAccountKeyRequest) (*v1.RotateNATSAccountKeyResponse, error)
 }
 
 // NewAdminServiceClient constructs a client for the cairn.v1.AdminService service. Multiple service
@@ -438,61 +748,157 @@ type AdminServiceHandler interface {
 	// OIDC providers are configured entirely via CAIRN_OIDC_* env vars; there
 	// is no client database and no create/update/delete. This RPC lets the
 	// admin UI display the active configuration.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOIDCClients(context.Context, *v1.ListOIDCClientsRequest) (*v1.ListOIDCClientsResponse, error)
 	// ---- Instance settings ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetInstanceSettings(context.Context, *v1.GetInstanceSettingsRequest) (*v1.GetInstanceSettingsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateInstanceSettings(context.Context, *v1.UpdateInstanceSettingsRequest) (*v1.UpdateInstanceSettingsResponse, error)
 	// Send a synthetic email through the configured SMTP/SES/Resend/Mailgun
 	// adapter to verify outbound delivery.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SendTestEmail(context.Context, *v1.SendTestEmailRequest) (*v1.SendTestEmailResponse, error)
 	// ---- Users ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetUser(context.Context, *v1.GetUserRequest) (*v1.GetUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateUser(context.Context, *v1.CreateUserRequest) (*v1.CreateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ChangeUserRole(context.Context, *v1.ChangeUserRoleRequest) (*v1.ChangeUserRoleResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 	// Hard-delete with cascade. Two-step: caller must pass confirm_username
 	// matching the user's username to proceed. Audit-logged at HIGH severity.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Force-reset a user's password to a temporary value, returned once.
 	// The user is required to change it on next login.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResetUserPassword(context.Context, *v1.ResetUserPasswordRequest) (*v1.ResetUserPasswordResponse, error)
 	// Revoke all sessions and PATs for a user.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeUserCredentials(context.Context, *v1.RevokeUserCredentialsRequest) (*v1.RevokeUserCredentialsResponse, error)
 	// ---- Invites ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListInvites(context.Context, *v1.ListInvitesRequest) (*v1.ListInvitesResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CreateInvite(context.Context, *v1.CreateInviteRequest) (*v1.CreateInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RevokeInvite(context.Context, *v1.RevokeInviteRequest) (*v1.RevokeInviteResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ResendInvite(context.Context, *v1.ResendInviteRequest) (*v1.ResendInviteResponse, error)
 	// ---- Audit log ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListAuditEntries(context.Context, *v1.ListAuditEntriesRequest) (*v1.ListAuditEntriesResponse, error)
 	// ---- Job queue introspection ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListJobs(context.Context, *v1.ListJobsRequest) (*v1.ListJobsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetJob(context.Context, *v1.GetJobRequest) (*v1.GetJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetryJob(context.Context, *v1.RetryJobRequest) (*v1.RetryJobResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	CancelJob(context.Context, *v1.CancelJobRequest) (*v1.CancelJobResponse, error)
 	// List jobs that exhausted retries and went to the dead-letter queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListDeadLetterJobs(context.Context, *v1.ListDeadLetterJobsRequest) (*v1.ListDeadLetterJobsResponse, error)
 	// Re-enqueue a DLQ job at the head of its provider queue.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	RequeueDeadLetterJob(context.Context, *v1.RequeueDeadLetterJobRequest) (*v1.RequeueDeadLetterJobResponse, error)
 	// ---- Sources / orphans ----
 	// List activity sources whose worker is currently offline or deregistered.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListOrphanedSources(context.Context, *v1.ListOrphanedSourcesRequest) (*v1.ListOrphanedSourcesResponse, error)
 	// ---- Webhook signing tokens (per external account) ----
 	// Webhook tokens are stored on each ExternalAccount; this endpoint lists
 	// and bulk-rotates them across the instance (useful when a token leaks).
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWebhookSigningTokens(context.Context, *v1.ListWebhookSigningTokensRequest) (*v1.ListWebhookSigningTokensResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	BulkRotateWebhookSigningTokens(context.Context, *v1.BulkRotateWebhookSigningTokensRequest) (*v1.BulkRotateWebhookSigningTokensResponse, error)
 	// ---- System health ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	GetSystemHealth(context.Context, *v1.GetSystemHealthRequest) (*v1.GetSystemHealthResponse, error)
-	// Stream of admin-relevant events (worker register/deregister, conflicts,
-	// health degradations). Used by the admin dashboard's live activity view.
+	// Stream of admin-relevant events. Core currently emits worker
+	// registered/offline/degraded (presence watcher; degraded = release
+	// incompatible with the core), worker deregistered (enrollment revoked),
+	// provider conflict (two sources of one provider matched the same workout
+	// and were kept apart), job dead-lettered, user created, user suspended,
+	// auth flood (password failures locked an identifier or address) and
+	// system health degraded (the health probe left "healthy"). An empty
+	// event every 30 s is the heartbeat.
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	StreamAdminEvents(context.Context, *v1.StreamAdminEventsRequest, AdminServiceStreamAdminEventsServerStream) error
 	// ---- Maintenance ----
-	// Trigger expensive recomputations. Queued as background jobs; returns
-	// the job_id for progress observation.
+	// Trigger expensive recomputations. Queued as background jobs that run
+	// one at a time in the core process; the registry is persisted, so a
+	// restart re-queues jobs still waiting and marks the one that was running
+	// failed ("interrupted by server restart", re-trigger it). confirm_phrase
+	// is the operation name in upper case, e.g. "RECOMPUTE_BEST_EFFORTS".
+	// Scope: admin cookie session only (OAuth tokens are refused).
 	TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error)
+	// Stops a queued or running maintenance job.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error)
+	// ---- Worker fleet (twins of /api/admin/workers, worker-pools, worker-enrollments) ----
+	// Workers currently online, from the presence KV.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkers(context.Context, *v1.ListWorkersRequest) (*v1.ListWorkersResponse, error)
+	// The pool registry (docs/adr/0006) with the live instance count per pool.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkerPools(context.Context, *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error)
+	// The enrollment token is returned once.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	CreateWorkerEnrollment(context.Context, *v1.CreateWorkerEnrollmentRequest) (*v1.CreateWorkerEnrollmentResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RevokeWorkerEnrollment(context.Context, *v1.RevokeWorkerEnrollmentRequest) (*v1.RevokeWorkerEnrollmentResponse, error)
+	// Extends (or re-arms a lapsed) enrollment.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ProlongWorkerEnrollment(context.Context, *v1.ProlongWorkerEnrollmentRequest) (*v1.ProlongWorkerEnrollmentResponse, error)
+	// ---- Moderation (twins of /api/admin/reports, /api/admin/activities/{id}/hide) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListReports(context.Context, *v1.ListReportsRequest) (*v1.ListReportsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ResolveReport(context.Context, *v1.ResolveReportRequest) (*v1.ResolveReportResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	SetActivityHidden(context.Context, *v1.SetActivityHiddenRequest) (*v1.SetActivityHiddenResponse, error)
+	// ---- Quotas (twin of PUT /api/admin/users/{id}/quota) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	SetUserQuota(context.Context, *v1.SetUserQuotaRequest) (*v1.SetUserQuotaResponse, error)
+	// ---- Federation blocks (twins of /api/admin/federation/blocks) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListBlockedDomains(context.Context, *v1.ListBlockedDomainsRequest) (*v1.ListBlockedDomainsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	BlockDomain(context.Context, *v1.BlockDomainRequest) (*v1.BlockDomainResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UnblockDomain(context.Context, *v1.UnblockDomainRequest) (*v1.UnblockDomainResponse, error)
+	// ---- Instance merge defaults (twins of /api/admin/instance/merge-defaults) ----
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	GetInstanceMergeDefaults(context.Context, *v1.GetInstanceMergeDefaultsRequest) (*v1.GetInstanceMergeDefaultsResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UpdateInstanceMergeDefaults(context.Context, *v1.UpdateInstanceMergeDefaultsRequest) (*v1.UpdateInstanceMergeDefaultsResponse, error)
+	// ---- Operations (twins of /api/admin/geocode/backfill, gear/rebuild-totals, nats/*) ----
+	// Runs one geocoding batch in the background.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RunGeocodeBackfill(context.Context, *v1.RunGeocodeBackfillRequest) (*v1.RunGeocodeBackfillResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RebuildGearTotals(context.Context, *v1.RebuildGearTotalsRequest) (*v1.RebuildGearTotalsResponse, error)
+	// First-time NATS account signing key; a no-op when one is active.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	BootstrapNATSAccountKey(context.Context, *v1.BootstrapNATSAccountKeyRequest) (*v1.BootstrapNATSAccountKeyResponse, error)
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	RotateNATSAccountKey(context.Context, *v1.RotateNATSAccountKeyRequest) (*v1.RotateNATSAccountKeyResponse, error)
 }
 
 // RegisterAdminServiceHandler registers svc as the cairn.v1.AdminService implementation on server.
@@ -529,6 +935,28 @@ func RegisterAdminServiceHandler(server *connect.Server, svc AdminServiceHandler
 		connect.Method{Spec: adminServiceGetSystemHealthSpec(), Handler: adapter.getSystemHealth},
 		connect.Method{Spec: adminServiceStreamAdminEventsSpec(), Handler: adapter.streamAdminEvents},
 		connect.Method{Spec: adminServiceTriggerMaintenanceSpec(), Handler: adapter.triggerMaintenance},
+		connect.Method{Spec: adminServiceListMaintenanceJobsSpec(), Handler: adapter.listMaintenanceJobs},
+		connect.Method{Spec: adminServiceCancelMaintenanceJobSpec(), Handler: adapter.cancelMaintenanceJob},
+		connect.Method{Spec: adminServiceListWorkersSpec(), Handler: adapter.listWorkers},
+		connect.Method{Spec: adminServiceListWorkerPoolsSpec(), Handler: adapter.listWorkerPools},
+		connect.Method{Spec: adminServiceRetireWorkerPoolSpec(), Handler: adapter.retireWorkerPool},
+		connect.Method{Spec: adminServiceListWorkerEnrollmentsSpec(), Handler: adapter.listWorkerEnrollments},
+		connect.Method{Spec: adminServiceCreateWorkerEnrollmentSpec(), Handler: adapter.createWorkerEnrollment},
+		connect.Method{Spec: adminServiceRevokeWorkerEnrollmentSpec(), Handler: adapter.revokeWorkerEnrollment},
+		connect.Method{Spec: adminServiceProlongWorkerEnrollmentSpec(), Handler: adapter.prolongWorkerEnrollment},
+		connect.Method{Spec: adminServiceListReportsSpec(), Handler: adapter.listReports},
+		connect.Method{Spec: adminServiceResolveReportSpec(), Handler: adapter.resolveReport},
+		connect.Method{Spec: adminServiceSetActivityHiddenSpec(), Handler: adapter.setActivityHidden},
+		connect.Method{Spec: adminServiceSetUserQuotaSpec(), Handler: adapter.setUserQuota},
+		connect.Method{Spec: adminServiceListBlockedDomainsSpec(), Handler: adapter.listBlockedDomains},
+		connect.Method{Spec: adminServiceBlockDomainSpec(), Handler: adapter.blockDomain},
+		connect.Method{Spec: adminServiceUnblockDomainSpec(), Handler: adapter.unblockDomain},
+		connect.Method{Spec: adminServiceGetInstanceMergeDefaultsSpec(), Handler: adapter.getInstanceMergeDefaults},
+		connect.Method{Spec: adminServiceUpdateInstanceMergeDefaultsSpec(), Handler: adapter.updateInstanceMergeDefaults},
+		connect.Method{Spec: adminServiceRunGeocodeBackfillSpec(), Handler: adapter.runGeocodeBackfill},
+		connect.Method{Spec: adminServiceRebuildGearTotalsSpec(), Handler: adapter.rebuildGearTotals},
+		connect.Method{Spec: adminServiceBootstrapNATSAccountKeySpec(), Handler: adapter.bootstrapNATSAccountKey},
+		connect.Method{Spec: adminServiceRotateNATSAccountKeySpec(), Handler: adapter.rotateNATSAccountKey},
 	)
 }
 
@@ -669,6 +1097,94 @@ func (UnimplementedAdminServiceHandler) StreamAdminEvents(context.Context, *v1.S
 
 func (UnimplementedAdminServiceHandler) TriggerMaintenance(context.Context, *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.TriggerMaintenance is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListMaintenanceJobs(context.Context, *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListMaintenanceJobs is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) CancelMaintenanceJob(context.Context, *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.CancelMaintenanceJob is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListWorkers(context.Context, *v1.ListWorkersRequest) (*v1.ListWorkersResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListWorkers is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListWorkerPools(context.Context, *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListWorkerPools is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RetireWorkerPool is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListWorkerEnrollments is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) CreateWorkerEnrollment(context.Context, *v1.CreateWorkerEnrollmentRequest) (*v1.CreateWorkerEnrollmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.CreateWorkerEnrollment is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) RevokeWorkerEnrollment(context.Context, *v1.RevokeWorkerEnrollmentRequest) (*v1.RevokeWorkerEnrollmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RevokeWorkerEnrollment is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ProlongWorkerEnrollment(context.Context, *v1.ProlongWorkerEnrollmentRequest) (*v1.ProlongWorkerEnrollmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ProlongWorkerEnrollment is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListReports(context.Context, *v1.ListReportsRequest) (*v1.ListReportsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListReports is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ResolveReport(context.Context, *v1.ResolveReportRequest) (*v1.ResolveReportResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ResolveReport is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) SetActivityHidden(context.Context, *v1.SetActivityHiddenRequest) (*v1.SetActivityHiddenResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.SetActivityHidden is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) SetUserQuota(context.Context, *v1.SetUserQuotaRequest) (*v1.SetUserQuotaResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.SetUserQuota is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListBlockedDomains(context.Context, *v1.ListBlockedDomainsRequest) (*v1.ListBlockedDomainsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListBlockedDomains is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) BlockDomain(context.Context, *v1.BlockDomainRequest) (*v1.BlockDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.BlockDomain is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) UnblockDomain(context.Context, *v1.UnblockDomainRequest) (*v1.UnblockDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.UnblockDomain is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) GetInstanceMergeDefaults(context.Context, *v1.GetInstanceMergeDefaultsRequest) (*v1.GetInstanceMergeDefaultsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.GetInstanceMergeDefaults is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) UpdateInstanceMergeDefaults(context.Context, *v1.UpdateInstanceMergeDefaultsRequest) (*v1.UpdateInstanceMergeDefaultsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.UpdateInstanceMergeDefaults is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) RunGeocodeBackfill(context.Context, *v1.RunGeocodeBackfillRequest) (*v1.RunGeocodeBackfillResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RunGeocodeBackfill is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) RebuildGearTotals(context.Context, *v1.RebuildGearTotalsRequest) (*v1.RebuildGearTotalsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RebuildGearTotals is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) BootstrapNATSAccountKey(context.Context, *v1.BootstrapNATSAccountKeyRequest) (*v1.BootstrapNATSAccountKeyResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.BootstrapNATSAccountKey is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) RotateNATSAccountKey(context.Context, *v1.RotateNATSAccountKeyRequest) (*v1.RotateNATSAccountKeyResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RotateNATSAccountKey is not implemented")
 }
 
 type adminServiceClient struct {
@@ -910,6 +1426,182 @@ func (c *adminServiceClient) StreamAdminEvents(ctx context.Context, req *v1.Stre
 func (c *adminServiceClient) TriggerMaintenance(ctx context.Context, req *v1.TriggerMaintenanceRequest) (*v1.TriggerMaintenanceResponse, error) {
 	var res v1.TriggerMaintenanceResponse
 	if err := c.client.CallUnary(ctx, adminServiceTriggerMaintenanceSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListMaintenanceJobs(ctx context.Context, req *v1.ListMaintenanceJobsRequest) (*v1.ListMaintenanceJobsResponse, error) {
+	var res v1.ListMaintenanceJobsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListMaintenanceJobsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) CancelMaintenanceJob(ctx context.Context, req *v1.CancelMaintenanceJobRequest) (*v1.CancelMaintenanceJobResponse, error) {
+	var res v1.CancelMaintenanceJobResponse
+	if err := c.client.CallUnary(ctx, adminServiceCancelMaintenanceJobSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListWorkers(ctx context.Context, req *v1.ListWorkersRequest) (*v1.ListWorkersResponse, error) {
+	var res v1.ListWorkersResponse
+	if err := c.client.CallUnary(ctx, adminServiceListWorkersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListWorkerPools(ctx context.Context, req *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error) {
+	var res v1.ListWorkerPoolsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListWorkerPoolsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) RetireWorkerPool(ctx context.Context, req *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error) {
+	var res v1.RetireWorkerPoolResponse
+	if err := c.client.CallUnary(ctx, adminServiceRetireWorkerPoolSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListWorkerEnrollments(ctx context.Context, req *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error) {
+	var res v1.ListWorkerEnrollmentsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListWorkerEnrollmentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) CreateWorkerEnrollment(ctx context.Context, req *v1.CreateWorkerEnrollmentRequest) (*v1.CreateWorkerEnrollmentResponse, error) {
+	var res v1.CreateWorkerEnrollmentResponse
+	if err := c.client.CallUnary(ctx, adminServiceCreateWorkerEnrollmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) RevokeWorkerEnrollment(ctx context.Context, req *v1.RevokeWorkerEnrollmentRequest) (*v1.RevokeWorkerEnrollmentResponse, error) {
+	var res v1.RevokeWorkerEnrollmentResponse
+	if err := c.client.CallUnary(ctx, adminServiceRevokeWorkerEnrollmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ProlongWorkerEnrollment(ctx context.Context, req *v1.ProlongWorkerEnrollmentRequest) (*v1.ProlongWorkerEnrollmentResponse, error) {
+	var res v1.ProlongWorkerEnrollmentResponse
+	if err := c.client.CallUnary(ctx, adminServiceProlongWorkerEnrollmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListReports(ctx context.Context, req *v1.ListReportsRequest) (*v1.ListReportsResponse, error) {
+	var res v1.ListReportsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListReportsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ResolveReport(ctx context.Context, req *v1.ResolveReportRequest) (*v1.ResolveReportResponse, error) {
+	var res v1.ResolveReportResponse
+	if err := c.client.CallUnary(ctx, adminServiceResolveReportSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) SetActivityHidden(ctx context.Context, req *v1.SetActivityHiddenRequest) (*v1.SetActivityHiddenResponse, error) {
+	var res v1.SetActivityHiddenResponse
+	if err := c.client.CallUnary(ctx, adminServiceSetActivityHiddenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) SetUserQuota(ctx context.Context, req *v1.SetUserQuotaRequest) (*v1.SetUserQuotaResponse, error) {
+	var res v1.SetUserQuotaResponse
+	if err := c.client.CallUnary(ctx, adminServiceSetUserQuotaSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListBlockedDomains(ctx context.Context, req *v1.ListBlockedDomainsRequest) (*v1.ListBlockedDomainsResponse, error) {
+	var res v1.ListBlockedDomainsResponse
+	if err := c.client.CallUnary(ctx, adminServiceListBlockedDomainsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) BlockDomain(ctx context.Context, req *v1.BlockDomainRequest) (*v1.BlockDomainResponse, error) {
+	var res v1.BlockDomainResponse
+	if err := c.client.CallUnary(ctx, adminServiceBlockDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) UnblockDomain(ctx context.Context, req *v1.UnblockDomainRequest) (*v1.UnblockDomainResponse, error) {
+	var res v1.UnblockDomainResponse
+	if err := c.client.CallUnary(ctx, adminServiceUnblockDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) GetInstanceMergeDefaults(ctx context.Context, req *v1.GetInstanceMergeDefaultsRequest) (*v1.GetInstanceMergeDefaultsResponse, error) {
+	var res v1.GetInstanceMergeDefaultsResponse
+	if err := c.client.CallUnary(ctx, adminServiceGetInstanceMergeDefaultsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) UpdateInstanceMergeDefaults(ctx context.Context, req *v1.UpdateInstanceMergeDefaultsRequest) (*v1.UpdateInstanceMergeDefaultsResponse, error) {
+	var res v1.UpdateInstanceMergeDefaultsResponse
+	if err := c.client.CallUnary(ctx, adminServiceUpdateInstanceMergeDefaultsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) RunGeocodeBackfill(ctx context.Context, req *v1.RunGeocodeBackfillRequest) (*v1.RunGeocodeBackfillResponse, error) {
+	var res v1.RunGeocodeBackfillResponse
+	if err := c.client.CallUnary(ctx, adminServiceRunGeocodeBackfillSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) RebuildGearTotals(ctx context.Context, req *v1.RebuildGearTotalsRequest) (*v1.RebuildGearTotalsResponse, error) {
+	var res v1.RebuildGearTotalsResponse
+	if err := c.client.CallUnary(ctx, adminServiceRebuildGearTotalsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) BootstrapNATSAccountKey(ctx context.Context, req *v1.BootstrapNATSAccountKeyRequest) (*v1.BootstrapNATSAccountKeyResponse, error) {
+	var res v1.BootstrapNATSAccountKeyResponse
+	if err := c.client.CallUnary(ctx, adminServiceBootstrapNATSAccountKeySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) RotateNATSAccountKey(ctx context.Context, req *v1.RotateNATSAccountKeyRequest) (*v1.RotateNATSAccountKeyResponse, error) {
+	var res v1.RotateNATSAccountKeyResponse
+	if err := c.client.CallUnary(ctx, adminServiceRotateNATSAccountKeySpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1267,6 +1959,270 @@ func (h adminServiceHandler) triggerMaintenance(ctx context.Context, _ connect.S
 		return err
 	}
 	res, err := h.svc.TriggerMaintenance(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listMaintenanceJobs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListMaintenanceJobsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListMaintenanceJobs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) cancelMaintenanceJob(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CancelMaintenanceJobRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CancelMaintenanceJob(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listWorkers(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListWorkersRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListWorkers(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listWorkerPools(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListWorkerPoolsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListWorkerPools(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) retireWorkerPool(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RetireWorkerPoolRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RetireWorkerPool(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listWorkerEnrollments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListWorkerEnrollmentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListWorkerEnrollments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) createWorkerEnrollment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateWorkerEnrollmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateWorkerEnrollment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) revokeWorkerEnrollment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeWorkerEnrollmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeWorkerEnrollment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) prolongWorkerEnrollment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ProlongWorkerEnrollmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ProlongWorkerEnrollment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listReports(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListReportsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListReports(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) resolveReport(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ResolveReportRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ResolveReport(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) setActivityHidden(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetActivityHiddenRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetActivityHidden(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) setUserQuota(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetUserQuotaRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetUserQuota(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listBlockedDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListBlockedDomainsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListBlockedDomains(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) blockDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.BlockDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.BlockDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) unblockDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UnblockDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UnblockDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) getInstanceMergeDefaults(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetInstanceMergeDefaultsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetInstanceMergeDefaults(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) updateInstanceMergeDefaults(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateInstanceMergeDefaultsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateInstanceMergeDefaults(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) runGeocodeBackfill(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RunGeocodeBackfillRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RunGeocodeBackfill(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) rebuildGearTotals(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RebuildGearTotalsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RebuildGearTotals(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) bootstrapNATSAccountKey(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.BootstrapNATSAccountKeyRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.BootstrapNATSAccountKey(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) rotateNATSAccountKey(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RotateNATSAccountKeyRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RotateNATSAccountKey(ctx, &req)
 	if err != nil {
 		return err
 	}

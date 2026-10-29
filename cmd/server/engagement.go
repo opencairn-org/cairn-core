@@ -3,12 +3,11 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	"sort"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // remoteAuthorCard is the JSON shape for a federated kudos-er / commenter — the
@@ -84,8 +83,7 @@ func (h engagementHandlers) socialGate(w http.ResponseWriter, r *http.Request) (
 		http.Error(w, "not found", http.StatusNotFound)
 		return domain.Activity{}, domain.UserID{}, false
 	}
-	cats := visibilityFor(r.Context(), h.app, a.UserID, &me, a.ID, false)
-	if !cats.Has(domain.CategorySocial) {
+	if !h.app.Details.SocialAllowed(r.Context(), a, me) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return domain.Activity{}, domain.UserID{}, false
 	}
@@ -97,25 +95,27 @@ func (h engagementHandlers) listKudos(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	count, _ := h.app.Engagement.CountKudos(r.Context(), a.ID)
-	mine, _ := h.app.Engagement.HasKudos(r.Context(), a.ID, me)
-	kudosers, _ := h.app.Engagement.ListKudosers(r.Context(), a.ID, 50)
-	people := make([]map[string]any, 0, len(kudosers))
-	for _, uid := range kudosers {
-		if u, err := h.app.Users.GetUser(r.Context(), uid); err == nil {
-			people = append(people, userCardJSON(u))
-		}
+	v, err := h.app.Details.Kudos(r.Context(), a, me)
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
 	}
-	// Fold in federated kudos (remote actors who Liked over ActivityPub).
-	remoteCount, _ := h.app.Engagement.CountRemoteKudos(r.Context(), a.ID)
-	if remoteKudosers, err := h.app.Engagement.ListRemoteKudosers(r.Context(), a.ID, 50); err == nil {
-		for _, rk := range remoteKudosers {
-			people = append(people, remoteAuthorCard(rk.Handle, rk.ActorID))
-		}
+	people := make([]map[string]any, 0, len(v.Kudosers))
+	for _, c := range v.Kudosers {
+		people = append(people, engagementCardJSON(c))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"count": count + remoteCount, "has_kudos": mine, "kudosers": people,
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"count": v.Count, "has_kudos": v.HasKudos, "kudosers": people})
+}
+
+// engagementCardJSON renders a local user or a federated actor.
+func engagementCardJSON(c view.EngagementCard) map[string]any {
+	if c.Remote {
+		return remoteAuthorCard(c.Handle, c.ActorID)
+	}
+	if c.User.ID == (domain.UserID{}) {
+		return map[string]any{}
+	}
+	return userCardJSON(c.User)
 }
 
 func (h engagementHandlers) addKudos(w http.ResponseWriter, r *http.Request) {
@@ -149,39 +149,19 @@ func (h engagementHandlers) listComments(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	comments, _ := h.app.Engagement.ListComments(r.Context(), a.ID, 200, 0)
-	type tagged struct {
-		t time.Time
-		m map[string]any
+	comments, err := h.app.Details.Comments(r.Context(), a)
+	if err != nil {
+		writeActionError(w, err, "load failed")
+		return
 	}
-	rows := make([]tagged, 0, len(comments))
+	out := make([]map[string]any, 0, len(comments))
 	for _, c := range comments {
-		card := map[string]any{}
-		if u, err := h.app.Users.GetUser(r.Context(), c.UserID); err == nil {
-			card = userCardJSON(u)
-		}
-		rows = append(rows, tagged{c.CreatedAt, map[string]any{
-			"id":         c.ID.String(),
+		out = append(out, map[string]any{
+			"id":         c.ID,
 			"body":       c.Body,
 			"created_at": c.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"author":     card,
-		}})
-	}
-	// Merge in federated replies (remote actors via ActivityPub).
-	if remote, err := h.app.Engagement.ListRemoteComments(r.Context(), a.ID, 200); err == nil {
-		for _, rc := range remote {
-			rows = append(rows, tagged{rc.CreatedAt, map[string]any{
-				"id":         rc.ID,
-				"body":       rc.Body,
-				"created_at": rc.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
-				"author":     remoteAuthorCard(rc.Handle, rc.ActorID),
-			}})
-		}
-	}
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].t.Before(rows[j].t) })
-	out := make([]map[string]any, len(rows))
-	for i, row := range rows {
-		out[i] = row.m
+			"author":     engagementCardJSON(c.Author),
+		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"comments": out})
 }

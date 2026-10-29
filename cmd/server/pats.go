@@ -1,13 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,7 +20,7 @@ import (
 // PATs authenticate API/CLI clients as their owner via
 // `Authorization: Bearer cairn_pat_...` (resolved in resolveSessionUser).
 func mountPATs(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	if app.PATs == nil {
+	if app.AccountTokens == nil {
 		return
 	}
 
@@ -42,9 +38,9 @@ func patsListHandler(app *App) http.HandlerFunc {
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		list, err := app.PATs.ListForUser(r.Context(), userID)
+		list, err := app.AccountTokens.List(r.Context(), userID)
 		if err != nil {
-			http.Error(w, "load failed", http.StatusInternalServerError)
+			writeActionError(w, err, "load failed")
 			return
 		}
 		now := time.Now()
@@ -82,36 +78,18 @@ func patsCreateHandler(app *App) http.HandlerFunc {
 			ExpiresInDays int    `json:"expires_in_days"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		name := strings.TrimSpace(body.Name)
-		if name == "" {
-			http.Error(w, "name is required", http.StatusBadRequest)
-			return
-		}
-
-		// cairn_pat_<32 random url-safe chars>. The prefix marks it for the
-		// auth resolver; only the hash is stored.
-		raw := make([]byte, 24)
-		if _, err := rand.Read(raw); err != nil {
-			http.Error(w, "token generation failed", http.StatusInternalServerError)
-			return
-		}
-		token := patTokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
-		hash := sha256.Sum256([]byte(token))
-
 		var expiresAt *time.Time
 		if body.ExpiresInDays > 0 {
 			t := time.Now().UTC().Add(time.Duration(body.ExpiresInDays) * 24 * time.Hour)
 			expiresAt = &t
 		}
-		id, err := app.PATs.Create(r.Context(), domain.PersonalAccessToken{
-			UserID: userID, Name: name, TokenPrefix: token[:len(patTokenPrefix)+6] + "…", ExpiresAt: expiresAt,
-		}, hash[:])
+		pat, token, err := app.AccountTokens.Create(r.Context(), userID, body.Name, nil, expiresAt)
 		if err != nil {
-			http.Error(w, "create failed", http.StatusInternalServerError)
+			writeActionError(w, err, "create failed")
 			return
 		}
 		// token shown exactly once
-		writeJSON(w, http.StatusCreated, map[string]any{"id": id.String(), "token": token})
+		writeJSON(w, http.StatusCreated, map[string]any{"id": pat.ID.String(), "token": token})
 	}
 }
 
@@ -127,8 +105,8 @@ func patsRevokeHandler(app *App) http.HandlerFunc {
 			http.Error(w, "bad id", http.StatusBadRequest)
 			return
 		}
-		if err := app.PATs.Revoke(r.Context(), userID, domain.PATID(id)); err != nil {
-			http.Error(w, "revoke failed", http.StatusInternalServerError)
+		if err := app.AccountTokens.Revoke(r.Context(), userID, domain.PATID(id)); err != nil {
+			writeActionError(w, err, "revoke failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})

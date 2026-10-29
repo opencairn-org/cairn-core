@@ -181,26 +181,11 @@ func (h activityMapImageHandlers) serve(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	variant := "full"
-	if trim {
-		variant = "trimmed"
-	}
-	cacheKey := mapImageCacheKey(actID, variant)
-
-	// Serve from the S3 cache when present.
-	if h.app.BlobStore != nil {
-		if data, _, err := h.app.BlobStore.Get(r.Context(), cacheKey); err == nil && len(data) > 0 {
-			serveMapPNG(w, r, data)
-			return
-		}
-	}
-
-	imgBytes, rendered := renderActivityMap(r.Context(), h.app, act, trim, h.fetchTile, h.logger)
+	imgBytes, rendered := loadOrRenderMap(r.Context(), h.app, act, trim, h.fetchTile, h.logger)
 	if !rendered {
 		http.NotFound(w, r) // no renderable GPS track
 		return
 	}
-	h.cacheStore(r.Context(), actID, cacheKey, imgBytes)
 	serveMapPNG(w, r, imgBytes)
 }
 
@@ -250,17 +235,11 @@ func (h activityMapImageHandlers) viewerTrim(r *http.Request, act domain.Activit
 	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewerPtr = &v
 	}
-	if viewerPtr != nil && *viewerPtr == act.UserID {
-		return false, true
-	}
-	if act.Privacy == domain.PrivacyPrivate || act.HiddenByAdmin {
-		return false, false
-	}
-	cats := visibilityFor(r.Context(), h.app, act.UserID, viewerPtr, act.ID, false)
-	if !cats.Has(domain.CategoryMap) {
+	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewerPtr, false)
+	if !ok || (!vw.IsOwner && !vw.Cats.Has(domain.CategoryMap)) {
 		return false, false // the map isn't shared with this viewer
 	}
-	return true, true // non-owners get the privacy-zone-trimmed track
+	return !vw.IsOwner, true // non-owners get the privacy-zone-trimmed track
 }
 
 // cacheStore writes a rendered snapshot to the S3 cache, logging failures.

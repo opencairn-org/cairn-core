@@ -11,16 +11,21 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	notificationuc "github.com/opencairn-org/cairn-core/internal/usecase/notification"
 )
 
 // NotificationServer implements cairnv1connect.NotificationServiceHandler.
-// Only ListNotifications is implemented; the rest fall back to the embedded
-// Unimplemented base (mark-read, count-unread, preferences, …) and return
-// CodeUnimplemented until their use-cases land.
+// NotificationServer implements the in-app feed, the live stream and the
+// preference matrix; the rest falls back to the embedded Unimplemented base.
 type NotificationServer struct {
 	cairnv1connect.UnimplementedNotificationServiceHandler
 
 	Notifications port.NotificationRepo
+
+	// Hub feeds StreamNotifications; nil → the stream is Unavailable.
+	Hub *notificationuc.Hub
+	// Preferences backs the preference RPCs; nil → Unavailable.
+	Preferences *notificationuc.Preferences
 }
 
 var _ cairnv1connect.NotificationServiceHandler = (*NotificationServer)(nil)

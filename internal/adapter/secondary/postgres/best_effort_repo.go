@@ -80,6 +80,18 @@ const bestEffortColumns = `
 `
 
 // DeleteForSource removes all best_efforts rows for the source.
+func (r *BestEffortRepo) DeleteForUserWindow(ctx context.Context, userID domain.UserID, activityType domain.ActivityType, metric domain.BestEffortMetric, kind domain.BestEffortWindowKind, value int) error {
+	db := dbtx(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`DELETE FROM best_efforts
+		  WHERE user_id = $1 AND activity_type = $2 AND metric = $3 AND window_kind = $4 AND window_value = $5`,
+		userID.UUID(), string(activityType), string(metric), string(kind), value)
+	if err != nil {
+		return fmt.Errorf("delete best_efforts window: %w", err)
+	}
+	return nil
+}
+
 func (r *BestEffortRepo) DeleteForSource(ctx context.Context, sourceID domain.SourceID) error {
 	db := dbtx(ctx, r.pool)
 	_, err := db.Exec(ctx,

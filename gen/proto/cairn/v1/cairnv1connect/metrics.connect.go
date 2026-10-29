@@ -63,6 +63,18 @@ const (
 	// MetricsServiceGetUserContextProcedure is the procedure name of the MetricsService's
 	// GetUserContext RPC.
 	MetricsServiceGetUserContextProcedure = "/cairn.v1.MetricsService/GetUserContext"
+	// MetricsServiceListHealthSeriesProcedure is the procedure name of the MetricsService's
+	// ListHealthSeries RPC.
+	MetricsServiceListHealthSeriesProcedure = "/cairn.v1.MetricsService/ListHealthSeries"
+	// MetricsServiceListAthleteMetricsProcedure is the procedure name of the MetricsService's
+	// ListAthleteMetrics RPC.
+	MetricsServiceListAthleteMetricsProcedure = "/cairn.v1.MetricsService/ListAthleteMetrics"
+	// MetricsServiceUpsertAthleteMetricProcedure is the procedure name of the MetricsService's
+	// UpsertAthleteMetric RPC.
+	MetricsServiceUpsertAthleteMetricProcedure = "/cairn.v1.MetricsService/UpsertAthleteMetric"
+	// MetricsServiceDeleteAthleteMetricProcedure is the procedure name of the MetricsService's
+	// DeleteAthleteMetric RPC.
+	MetricsServiceDeleteAthleteMetricProcedure = "/cairn.v1.MetricsService/DeleteAthleteMetric"
 	// SettingsServiceGetSettingsProcedure is the procedure name of the SettingsService's GetSettings
 	// RPC.
 	SettingsServiceGetSettingsProcedure = "/cairn.v1.SettingsService/GetSettings"
@@ -124,26 +136,83 @@ var (
 			Procedure:  MetricsServiceGetUserContextProcedure,
 		}
 	})
+	metricsServiceListHealthSeriesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_metrics_proto.Services().ByName("MetricsService").Methods().ByName("ListHealthSeries"),
+			Procedure:        MetricsServiceListHealthSeriesProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	metricsServiceListAthleteMetricsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_metrics_proto.Services().ByName("MetricsService").Methods().ByName("ListAthleteMetrics"),
+			Procedure:        MetricsServiceListAthleteMetricsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
+	metricsServiceUpsertAthleteMetricSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_metrics_proto.Services().ByName("MetricsService").Methods().ByName("UpsertAthleteMetric"),
+			Procedure:  MetricsServiceUpsertAthleteMetricProcedure,
+		}
+	})
+	metricsServiceDeleteAthleteMetricSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_metrics_proto.Services().ByName("MetricsService").Methods().ByName("DeleteAthleteMetric"),
+			Procedure:  MetricsServiceDeleteAthleteMetricProcedure,
+		}
+	})
 )
 
 // MetricsServiceClient is a client for the cairn.v1.MetricsService service.
 type MetricsServiceClient interface {
-	// List metrics with filtering. Default sort newest first.
+	// List metrics with filtering. Default sort newest first (GET /api/metrics).
+	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
-	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+	// dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+	// GET /api/metrics/latest).
+	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
-	// ranges; clients indicate desired bucket size.
+	// ranges; clients indicate desired bucket size (GET /api/metrics/series).
+	// Scope: training:read.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
-	// Manual entry / edit.
+	// Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+	// edit; provider defaults to "manual".
+	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
+	// Remove one entry (DELETE /api/metrics/{id}).
+	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
-	// Bulk manual entry (CSV import etc).
+	// Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+	// 1000 rows per call.
+	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
-	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+	// (GET /api/metrics/context). Stored measurements win; the dated athlete
+	// profile fills the keys without one.
+	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
+	// Daily health series (steps, HRV, resting HR, sleep, weight, water),
+	// merged per day across providers (GET /api/health).
+	// Scope: training:read.
+	ListHealthSeries(context.Context, *v1.ListHealthSeriesRequest) (*v1.ListHealthSeriesResponse, error)
+	// The athlete physiology profile: the metric registry (for a form) and
+	// the caller's dated entries (GET /api/athlete/metrics).
+	// Scope: training:read.
+	ListAthleteMetrics(context.Context, *v1.ListAthleteMetricsRequest) (*v1.ListAthleteMetricsResponse, error)
+	// Upsert one dated measurement (PUT /api/athlete/metrics).
+	// Scope: training:write.
+	UpsertAthleteMetric(context.Context, *v1.UpsertAthleteMetricRequest) (*v1.UpsertAthleteMetricResponse, error)
+	// Remove one entry (DELETE /api/athlete/metrics/{id}).
+	// Scope: training:write.
+	DeleteAthleteMetric(context.Context, *v1.DeleteAthleteMetricRequest) (*v1.DeleteAthleteMetricResponse, error)
 }
 
 // NewMetricsServiceClient constructs a client for the cairn.v1.MetricsService service. Multiple
@@ -154,22 +223,49 @@ func NewMetricsServiceClient(client *connect.Client) MetricsServiceClient {
 
 // MetricsServiceHandler is an implementation of the cairn.v1.MetricsService service.
 type MetricsServiceHandler interface {
-	// List metrics with filtering. Default sort newest first.
+	// List metrics with filtering. Default sort newest first (GET /api/metrics).
+	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
-	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
+	// dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+	// GET /api/metrics/latest).
+	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
-	// ranges; clients indicate desired bucket size.
+	// ranges; clients indicate desired bucket size (GET /api/metrics/series).
+	// Scope: training:read.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
-	// Manual entry / edit.
+	// Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+	// edit; provider defaults to "manual".
+	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
+	// Remove one entry (DELETE /api/metrics/{id}).
+	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
-	// Bulk manual entry (CSV import etc).
+	// Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+	// 1000 rows per call.
+	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
-	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
+	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+	// (GET /api/metrics/context). Stored measurements win; the dated athlete
+	// profile fills the keys without one.
+	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
+	// Daily health series (steps, HRV, resting HR, sleep, weight, water),
+	// merged per day across providers (GET /api/health).
+	// Scope: training:read.
+	ListHealthSeries(context.Context, *v1.ListHealthSeriesRequest) (*v1.ListHealthSeriesResponse, error)
+	// The athlete physiology profile: the metric registry (for a form) and
+	// the caller's dated entries (GET /api/athlete/metrics).
+	// Scope: training:read.
+	ListAthleteMetrics(context.Context, *v1.ListAthleteMetricsRequest) (*v1.ListAthleteMetricsResponse, error)
+	// Upsert one dated measurement (PUT /api/athlete/metrics).
+	// Scope: training:write.
+	UpsertAthleteMetric(context.Context, *v1.UpsertAthleteMetricRequest) (*v1.UpsertAthleteMetricResponse, error)
+	// Remove one entry (DELETE /api/athlete/metrics/{id}).
+	// Scope: training:write.
+	DeleteAthleteMetric(context.Context, *v1.DeleteAthleteMetricRequest) (*v1.DeleteAthleteMetricResponse, error)
 }
 
 // RegisterMetricsServiceHandler registers svc as the cairn.v1.MetricsService implementation on
@@ -184,6 +280,10 @@ func RegisterMetricsServiceHandler(server *connect.Server, svc MetricsServiceHan
 		connect.Method{Spec: metricsServiceDeleteMetricSpec(), Handler: adapter.deleteMetric},
 		connect.Method{Spec: metricsServiceBulkUpsertMetricsSpec(), Handler: adapter.bulkUpsertMetrics},
 		connect.Method{Spec: metricsServiceGetUserContextSpec(), Handler: adapter.getUserContext},
+		connect.Method{Spec: metricsServiceListHealthSeriesSpec(), Handler: adapter.listHealthSeries},
+		connect.Method{Spec: metricsServiceListAthleteMetricsSpec(), Handler: adapter.listAthleteMetrics},
+		connect.Method{Spec: metricsServiceUpsertAthleteMetricSpec(), Handler: adapter.upsertAthleteMetric},
+		connect.Method{Spec: metricsServiceDeleteAthleteMetricSpec(), Handler: adapter.deleteAthleteMetric},
 	)
 }
 
@@ -216,6 +316,22 @@ func (UnimplementedMetricsServiceHandler) BulkUpsertMetrics(context.Context, *v1
 
 func (UnimplementedMetricsServiceHandler) GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.MetricsService.GetUserContext is not implemented")
+}
+
+func (UnimplementedMetricsServiceHandler) ListHealthSeries(context.Context, *v1.ListHealthSeriesRequest) (*v1.ListHealthSeriesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.MetricsService.ListHealthSeries is not implemented")
+}
+
+func (UnimplementedMetricsServiceHandler) ListAthleteMetrics(context.Context, *v1.ListAthleteMetricsRequest) (*v1.ListAthleteMetricsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.MetricsService.ListAthleteMetrics is not implemented")
+}
+
+func (UnimplementedMetricsServiceHandler) UpsertAthleteMetric(context.Context, *v1.UpsertAthleteMetricRequest) (*v1.UpsertAthleteMetricResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.MetricsService.UpsertAthleteMetric is not implemented")
+}
+
+func (UnimplementedMetricsServiceHandler) DeleteAthleteMetric(context.Context, *v1.DeleteAthleteMetricRequest) (*v1.DeleteAthleteMetricResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.MetricsService.DeleteAthleteMetric is not implemented")
 }
 
 type metricsServiceClient struct {
@@ -273,6 +389,38 @@ func (c *metricsServiceClient) BulkUpsertMetrics(ctx context.Context, req *v1.Bu
 func (c *metricsServiceClient) GetUserContext(ctx context.Context, req *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error) {
 	var res v1.GetUserContextResponse
 	if err := c.client.CallUnary(ctx, metricsServiceGetUserContextSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metricsServiceClient) ListHealthSeries(ctx context.Context, req *v1.ListHealthSeriesRequest) (*v1.ListHealthSeriesResponse, error) {
+	var res v1.ListHealthSeriesResponse
+	if err := c.client.CallUnary(ctx, metricsServiceListHealthSeriesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metricsServiceClient) ListAthleteMetrics(ctx context.Context, req *v1.ListAthleteMetricsRequest) (*v1.ListAthleteMetricsResponse, error) {
+	var res v1.ListAthleteMetricsResponse
+	if err := c.client.CallUnary(ctx, metricsServiceListAthleteMetricsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metricsServiceClient) UpsertAthleteMetric(ctx context.Context, req *v1.UpsertAthleteMetricRequest) (*v1.UpsertAthleteMetricResponse, error) {
+	var res v1.UpsertAthleteMetricResponse
+	if err := c.client.CallUnary(ctx, metricsServiceUpsertAthleteMetricSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metricsServiceClient) DeleteAthleteMetric(ctx context.Context, req *v1.DeleteAthleteMetricRequest) (*v1.DeleteAthleteMetricResponse, error) {
+	var res v1.DeleteAthleteMetricResponse
+	if err := c.client.CallUnary(ctx, metricsServiceDeleteAthleteMetricSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -364,6 +512,54 @@ func (h metricsServiceHandler) getUserContext(ctx context.Context, _ connect.Spe
 	return stream.Send(res)
 }
 
+func (h metricsServiceHandler) listHealthSeries(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListHealthSeriesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListHealthSeries(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metricsServiceHandler) listAthleteMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAthleteMetricsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListAthleteMetrics(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metricsServiceHandler) upsertAthleteMetric(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpsertAthleteMetricRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpsertAthleteMetric(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metricsServiceHandler) deleteAthleteMetric(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DeleteAthleteMetricRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DeleteAthleteMetric(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 var (
 	settingsServiceGetSettingsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
@@ -390,12 +586,15 @@ var (
 
 // SettingsServiceClient is a client for the cairn.v1.SettingsService service.
 type SettingsServiceClient interface {
+	// Scope: profile:read.
 	GetSettings(context.Context, *v1.GetSettingsRequest) (*v1.GetSettingsResponse, error)
 	// Merge-update — only fields in field_mask are touched. Map updates
 	// are replace-by-key semantics: passing an entry replaces that key's
 	// value entirely; omitting a key leaves the existing value.
+	// Scope: profile:write.
 	UpdateSettings(context.Context, *v1.UpdateSettingsRequest) (*v1.UpdateSettingsResponse, error)
 	// Reset to defaults — useful from the settings UI.
+	// Scope: profile:write.
 	ResetSettingsSection(context.Context, *v1.ResetSettingsSectionRequest) (*v1.ResetSettingsSectionResponse, error)
 }
 
@@ -407,12 +606,15 @@ func NewSettingsServiceClient(client *connect.Client) SettingsServiceClient {
 
 // SettingsServiceHandler is an implementation of the cairn.v1.SettingsService service.
 type SettingsServiceHandler interface {
+	// Scope: profile:read.
 	GetSettings(context.Context, *v1.GetSettingsRequest) (*v1.GetSettingsResponse, error)
 	// Merge-update — only fields in field_mask are touched. Map updates
 	// are replace-by-key semantics: passing an entry replaces that key's
 	// value entirely; omitting a key leaves the existing value.
+	// Scope: profile:write.
 	UpdateSettings(context.Context, *v1.UpdateSettingsRequest) (*v1.UpdateSettingsResponse, error)
 	// Reset to defaults — useful from the settings UI.
+	// Scope: profile:write.
 	ResetSettingsSection(context.Context, *v1.ResetSettingsSectionRequest) (*v1.ResetSettingsSectionResponse, error)
 }
 

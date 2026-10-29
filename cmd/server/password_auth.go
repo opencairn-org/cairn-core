@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -50,9 +51,11 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 			return
 		}
 
-		user, errCode := passwordAuthVerify(r.Context(), app, logger, identifier, password)
-		if errCode != "" {
-			redirectLoginError(w, r, errCode)
+		user, ok := passwordAuthGate(w, r, app, logger, identifier, password)
+		if !ok {
+			return
+		}
+		if redirectPasswordChange(w, r, app, logger, user, dest) || redirectSecondFactor(w, r, app, logger, user, dest) {
 			return
 		}
 
@@ -72,7 +75,7 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 			UserID:           user.ID,
 			TokenHash:        hash[:],
 			AuthMethod:       domain.SessionAuthPassword,
-			UserAgentSummary: truncateUA(r.UserAgent(), 200),
+			UserAgentSummary: truncateUA(r.UserAgent()),
 			CreatedAt:        now,
 			LastSeenAt:       now,
 			ExpiresAt:        expiresAt,
@@ -86,6 +89,26 @@ func passwordAuthHandler(app *App, logger *slog.Logger, sessionTTL time.Duration
 		logger.Info("password login succeeded", "user_id", user.ID, "username", user.Username)
 		http.Redirect(w, r, dest, http.StatusSeeOther) //nolint:gosec // G710: dest is constrained to a local path by safeRedirect
 	}
+}
+
+// passwordAuthGate runs the login guard around the credential check and
+// writes the redirect on refusal; ok is true when the user may sign in.
+func passwordAuthGate(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, identifier, password string) (domain.User, bool) {
+	ip := hostOnly(clientIP(r))
+	if !app.LoginGuard.Allow(identifier, ip) {
+		redirectLoginError(w, r, "too_many_attempts")
+		return domain.User{}, false
+	}
+	user, errCode := passwordAuthVerify(r.Context(), app, logger, identifier, password)
+	if errCode == "invalid_credentials" || errCode == "account_inactive" {
+		app.LoginGuard.Failure(r.Context(), identifier, ip)
+	}
+	if errCode != "" {
+		redirectLoginError(w, r, errCode)
+		return domain.User{}, false
+	}
+	app.LoginGuard.Success(identifier)
+	return user, true
 }
 
 // passwordAuthVerify checks the credentials; a non-empty result is the login error code.
@@ -144,9 +167,45 @@ func randomSessionToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func truncateUA(s string, n int) string {
+// truncateUA bounds a user agent to what the session and audit rows keep.
+func truncateUA(s string) string {
+	const n = 200
 	if len(s) <= n {
 		return s
 	}
 	return s[:n]
+}
+
+// redirectSecondFactor hands the browser a challenge instead of a session
+// when the user requires a passkey after the password; reports whether it did.
+func redirectSecondFactor(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, user domain.User, dest string) bool {
+	if !app.SecondFactor.Required(user) {
+		return false
+	}
+	token, err := app.SecondFactor.Begin(r.Context(), user.ID)
+	if err != nil {
+		logger.Error("password login: begin second factor failed", "error", err, "user_id", user.ID)
+		redirectLoginError(w, r, "server_error")
+		return true
+	}
+	http.Redirect(w, r, "/login?challenge="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
+	return true
+}
+
+// redirectPasswordChange hands the browser a password-change challenge
+// instead of a session when the user must replace a temporary password;
+// reports whether it did. The new password then completes the sign-in via
+// POST /auth/password/required, which runs the second factor if needed.
+func redirectPasswordChange(w http.ResponseWriter, r *http.Request, app *App, logger *slog.Logger, user domain.User, dest string) bool {
+	if !app.PasswordChange.Required(user) {
+		return false
+	}
+	token, err := app.PasswordChange.Begin(r.Context(), user.ID)
+	if err != nil {
+		logger.Error("password login: begin password change failed", "error", err, "user_id", user.ID)
+		redirectLoginError(w, r, "server_error")
+		return true
+	}
+	http.Redirect(w, r, "/login?set_password="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
+	return true
 }

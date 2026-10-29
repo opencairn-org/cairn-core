@@ -243,35 +243,57 @@ type NotificationServiceClient interface {
 	// Live server-stream of new notifications for the current user.
 	// The UI subscribes once on login and renders a toast / badge for each
 	// event. Resumes from the last seen id on reconnect via since_event_id.
+	// Events created after the stream opened, as saved; an event with an empty
+	// id is a heartbeat (every 30 s while idle). ListNotifications backfills;
+	// since_event_id is accepted but does not replay.
+	// Scope: notifications:read.
 	StreamNotifications(context.Context, *v1.StreamNotificationsRequest) (NotificationServiceStreamNotificationsClientStream, error)
 	// Historical list with filtering and paging.
+	// Scope: notifications:read.
 	ListNotifications(context.Context, *v1.ListNotificationsRequest) (*v1.ListNotificationsResponse, error)
 	// Number of unread notifications. Cheap, used by the nav badge.
+	// Scope: notifications:read.
 	CountUnreadNotifications(context.Context, *v1.CountUnreadNotificationsRequest) (*v1.CountUnreadNotificationsResponse, error)
+	// Scope: notifications:write.
 	MarkNotificationRead(context.Context, *v1.MarkNotificationReadRequest) (*v1.MarkNotificationReadResponse, error)
+	// Scope: notifications:write.
 	MarkAllNotificationsRead(context.Context, *v1.MarkAllNotificationsReadRequest) (*v1.MarkAllNotificationsReadResponse, error)
+	// Scope: notifications:write.
 	DeleteNotification(context.Context, *v1.DeleteNotificationRequest) (*v1.DeleteNotificationResponse, error)
-	// List the user's full preferences matrix. Missing rows are returned as
-	// resolved defaults so the UI can render every cell.
+	// List the user's full preferences matrix (GET /api/notifications/preferences).
+	// Missing rows are returned as resolved defaults so the UI can render every
+	// cell; v1 resolves the email channel (in-app is always on).
+	// Scope: notifications:read.
 	ListNotificationPreferences(context.Context, *v1.ListNotificationPreferencesRequest) (*v1.ListNotificationPreferencesResponse, error)
-	// Upsert one or more preference rows. Setting enabled=false and
-	// min_severity=INFO is the canonical "default" — the row is removed.
+	// Upsert one or more preference rows (PUT /api/notifications/preferences);
+	// only the email channel is configurable in v1. Returns the resolved matrix.
+	// Scope: notifications:write.
 	UpdateNotificationPreferences(context.Context, *v1.UpdateNotificationPreferencesRequest) (*v1.UpdateNotificationPreferencesResponse, error)
+	// Scope: notifications:read.
 	GetQuietHours(context.Context, *v1.GetQuietHoursRequest) (*v1.GetQuietHoursResponse, error)
+	// Scope: notifications:write.
 	UpdateQuietHours(context.Context, *v1.UpdateQuietHoursRequest) (*v1.UpdateQuietHoursResponse, error)
 	// Send a test notification through a specific channel to verify config.
 	// For EMAIL, sends via the configured adapter to the user's address.
 	// For WEBHOOK, requires a webhook_endpoint_id and POSTs a synthetic event.
+	// Scope: notifications:write.
 	TestNotificationChannel(context.Context, *v1.TestNotificationChannelRequest) (*v1.TestNotificationChannelResponse, error)
+	// Scope: notifications:read.
 	ListWebhookEndpoints(context.Context, *v1.ListWebhookEndpointsRequest) (*v1.ListWebhookEndpointsResponse, error)
+	// Scope: notifications:write.
 	CreateWebhookEndpoint(context.Context, *v1.CreateWebhookEndpointRequest) (*v1.CreateWebhookEndpointResponse, error)
+	// Scope: notifications:write.
 	UpdateWebhookEndpoint(context.Context, *v1.UpdateWebhookEndpointRequest) (*v1.UpdateWebhookEndpointResponse, error)
+	// Scope: notifications:write.
 	DeleteWebhookEndpoint(context.Context, *v1.DeleteWebhookEndpointRequest) (*v1.DeleteWebhookEndpointResponse, error)
 	// Rotate the HMAC signing secret. Returns the new secret ONCE.
+	// Scope: notifications:write.
 	RotateWebhookEndpointSecret(context.Context, *v1.RotateWebhookEndpointSecretRequest) (*v1.RotateWebhookEndpointSecretResponse, error)
 	// Re-enable an auto-disabled endpoint after fixing the receiver.
+	// Scope: notifications:write.
 	ReenableWebhookEndpoint(context.Context, *v1.ReenableWebhookEndpointRequest) (*v1.ReenableWebhookEndpointResponse, error)
 	// Recent delivery attempts for one endpoint, for debugging.
+	// Scope: notifications:read.
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 }
 
@@ -307,35 +329,57 @@ type NotificationServiceHandler interface {
 	// Live server-stream of new notifications for the current user.
 	// The UI subscribes once on login and renders a toast / badge for each
 	// event. Resumes from the last seen id on reconnect via since_event_id.
+	// Events created after the stream opened, as saved; an event with an empty
+	// id is a heartbeat (every 30 s while idle). ListNotifications backfills;
+	// since_event_id is accepted but does not replay.
+	// Scope: notifications:read.
 	StreamNotifications(context.Context, *v1.StreamNotificationsRequest, NotificationServiceStreamNotificationsServerStream) error
 	// Historical list with filtering and paging.
+	// Scope: notifications:read.
 	ListNotifications(context.Context, *v1.ListNotificationsRequest) (*v1.ListNotificationsResponse, error)
 	// Number of unread notifications. Cheap, used by the nav badge.
+	// Scope: notifications:read.
 	CountUnreadNotifications(context.Context, *v1.CountUnreadNotificationsRequest) (*v1.CountUnreadNotificationsResponse, error)
+	// Scope: notifications:write.
 	MarkNotificationRead(context.Context, *v1.MarkNotificationReadRequest) (*v1.MarkNotificationReadResponse, error)
+	// Scope: notifications:write.
 	MarkAllNotificationsRead(context.Context, *v1.MarkAllNotificationsReadRequest) (*v1.MarkAllNotificationsReadResponse, error)
+	// Scope: notifications:write.
 	DeleteNotification(context.Context, *v1.DeleteNotificationRequest) (*v1.DeleteNotificationResponse, error)
-	// List the user's full preferences matrix. Missing rows are returned as
-	// resolved defaults so the UI can render every cell.
+	// List the user's full preferences matrix (GET /api/notifications/preferences).
+	// Missing rows are returned as resolved defaults so the UI can render every
+	// cell; v1 resolves the email channel (in-app is always on).
+	// Scope: notifications:read.
 	ListNotificationPreferences(context.Context, *v1.ListNotificationPreferencesRequest) (*v1.ListNotificationPreferencesResponse, error)
-	// Upsert one or more preference rows. Setting enabled=false and
-	// min_severity=INFO is the canonical "default" — the row is removed.
+	// Upsert one or more preference rows (PUT /api/notifications/preferences);
+	// only the email channel is configurable in v1. Returns the resolved matrix.
+	// Scope: notifications:write.
 	UpdateNotificationPreferences(context.Context, *v1.UpdateNotificationPreferencesRequest) (*v1.UpdateNotificationPreferencesResponse, error)
+	// Scope: notifications:read.
 	GetQuietHours(context.Context, *v1.GetQuietHoursRequest) (*v1.GetQuietHoursResponse, error)
+	// Scope: notifications:write.
 	UpdateQuietHours(context.Context, *v1.UpdateQuietHoursRequest) (*v1.UpdateQuietHoursResponse, error)
 	// Send a test notification through a specific channel to verify config.
 	// For EMAIL, sends via the configured adapter to the user's address.
 	// For WEBHOOK, requires a webhook_endpoint_id and POSTs a synthetic event.
+	// Scope: notifications:write.
 	TestNotificationChannel(context.Context, *v1.TestNotificationChannelRequest) (*v1.TestNotificationChannelResponse, error)
+	// Scope: notifications:read.
 	ListWebhookEndpoints(context.Context, *v1.ListWebhookEndpointsRequest) (*v1.ListWebhookEndpointsResponse, error)
+	// Scope: notifications:write.
 	CreateWebhookEndpoint(context.Context, *v1.CreateWebhookEndpointRequest) (*v1.CreateWebhookEndpointResponse, error)
+	// Scope: notifications:write.
 	UpdateWebhookEndpoint(context.Context, *v1.UpdateWebhookEndpointRequest) (*v1.UpdateWebhookEndpointResponse, error)
+	// Scope: notifications:write.
 	DeleteWebhookEndpoint(context.Context, *v1.DeleteWebhookEndpointRequest) (*v1.DeleteWebhookEndpointResponse, error)
 	// Rotate the HMAC signing secret. Returns the new secret ONCE.
+	// Scope: notifications:write.
 	RotateWebhookEndpointSecret(context.Context, *v1.RotateWebhookEndpointSecretRequest) (*v1.RotateWebhookEndpointSecretResponse, error)
 	// Re-enable an auto-disabled endpoint after fixing the receiver.
+	// Scope: notifications:write.
 	ReenableWebhookEndpoint(context.Context, *v1.ReenableWebhookEndpointRequest) (*v1.ReenableWebhookEndpointResponse, error)
 	// Recent delivery attempts for one endpoint, for debugging.
+	// Scope: notifications:read.
 	ListWebhookDeliveries(context.Context, *v1.ListWebhookDeliveriesRequest) (*v1.ListWebhookDeliveriesResponse, error)
 }
 

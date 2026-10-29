@@ -4,8 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
@@ -20,40 +18,16 @@ import (
 //	              avg_cadence, elevation_gain_m }] }
 func mountLaps(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mux.HandleFunc("GET /api/activities/{id}/laps", func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := resolveSessionUser(r, app)
+		act, ok := activityManageLoadOwned(w, r, app)
 		if !ok {
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		id, err := uuid.Parse(r.PathValue("id"))
-		if err != nil {
-			http.Error(w, "bad id", http.StatusBadRequest)
-			return
-		}
-		activityID := domain.ActivityID(id)
-
-		act, err := app.Activities.GetActivity(r.Context(), activityID)
-		if err != nil || act.UserID != userID {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
-
-		sources, err := app.Activities.ListSourcesForActivity(r.Context(), activityID)
+		laps, _, err := app.Details.Laps(r.Context(), act)
 		if err != nil {
 			http.Error(w, "load failed", http.StatusInternalServerError)
 			return
 		}
-		// Pick the source with the most laps (the merge engine's lap winner is a
-		// single source; "most laps" is a robust proxy without depending on
-		// provenance internals).
-		var laps []domain.ActivityLap
-		for _, s := range sources {
-			if len(s.Parsed.Laps) > len(laps) {
-				laps = s.Parsed.Laps
-			}
-		}
-		out := lapsToJSON(laps)
-		writeJSON(w, http.StatusOK, map[string]any{"laps": out})
+		writeJSON(w, http.StatusOK, map[string]any{"laps": lapsToJSON(laps)})
 	})
 
 	logger.Info("laps endpoint mounted")

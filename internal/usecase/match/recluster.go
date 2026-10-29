@@ -33,6 +33,13 @@ type ReclusterBucket struct {
 	newID      func() uuid.UUID
 	opts       dmatch.Options
 	logger     *slog.Logger
+	events     port.AdminEventSink // optional; receives same-provider conflicts
+}
+
+// WithEvents routes same-provider conflicts to the admin event channel.
+func (uc *ReclusterBucket) WithEvents(sink port.AdminEventSink) *ReclusterBucket {
+	uc.events = sink
+	return uc
 }
 
 // NewReclusterBucket wires the use-case. newID/logger default sensibly; opts
@@ -61,7 +68,7 @@ func NewReclusterBucket(
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &ReclusterBucket{activities, recompute, denylist, tx, newID, opts, logger}
+	return &ReclusterBucket{activities: activities, recompute: recompute, denylist: denylist, tx: tx, newID: newID, opts: opts, logger: logger}
 }
 
 // Input selects the bucket: all of a user's source records within ±Margin of
@@ -129,6 +136,10 @@ func (uc *ReclusterBucket) reclusterInTx(ctx context.Context, userID domain.User
 	for _, cf := range clustered.Conflicts {
 		uc.logger.Warn("recluster: same-provider conflict (not merged)",
 			"provider", cf.Provider, "a", cf.AID, "b", cf.BID, "score", cf.Score)
+		if uc.events != nil {
+			uc.events.Publish(domain.NewAdminEvent(domain.AdminEventProviderConflict, domain.AuditWarn, "admin.provider_conflict_detected").
+				AboutUser(userID).With("provider", cf.Provider).With("source_a", cf.AID).With("source_b", cf.BID).With("score", fmt.Sprintf("%.2f", cf.Score)))
+		}
 	}
 
 	// Reconcile clusters → stable activity ids. Denied sources are appended

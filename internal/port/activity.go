@@ -40,6 +40,23 @@ type StartPlaceCandidate struct {
 
 // ActivityListFilter narrows and sorts the activity feed. Empty filter fields
 // match everything; nil pointers mean "any".
+// SourceWorkerGroup is the sources one worker pool imported.
+type SourceWorkerGroup struct {
+	WorkerName       string
+	Sources          int
+	Accounts         int
+	Users            int
+	OldestImportedAt *time.Time
+}
+
+// UserFootprint is what an admin sees next to a user: how much they own.
+type UserFootprint struct {
+	Activities       int
+	ExternalAccounts int
+	StorageBytes     int64
+	LastActivityAt   *time.Time
+}
+
 type ActivityListFilter struct {
 	Type       string // activities.type, "" = any
 	Discipline string // activities.discipline, "" = any
@@ -134,6 +151,17 @@ type ActivityRepo interface {
 	// elevation gain (m). Used by the overview dashboard.
 	ActivityTotals(ctx context.Context, userID domain.UserID) (ActivityTotalsResult, error)
 
+	// SourceWorkerGroups counts active sources per importing worker pool.
+	SourceWorkerGroups(ctx context.Context) ([]SourceWorkerGroup, error)
+
+	// UserFootprints returns per-user admin counters for the given users
+	// (missing users map to a zero footprint).
+	UserFootprints(ctx context.Context, userIDs []domain.UserID) (map[domain.UserID]UserFootprint, error)
+
+	// ActivityTotalsForRange returns totals for activities whose start_time
+	// falls in [start, end) — the dashboard's this/last week.
+	ActivityTotalsForRange(ctx context.Context, userID domain.UserID, start, end time.Time) (ActivityTotalsResult, error)
+
 	// ActivityYearStats returns per-calendar-year totals (newest year first).
 	ActivityYearStats(ctx context.Context, userID domain.UserID) ([]ActivityYearStat, error)
 
@@ -184,10 +212,18 @@ type ActivityRepo interface {
 	// already-present items" path.
 	ExistingExternalIDs(ctx context.Context, provider string, accountID domain.ExternalAccountID) (map[string]struct{}, error)
 
+	// CountSourcesOutOfDate counts the account's sources flagged
+	// update_available, by reason (newer_parser, pool_changed, …).
+	CountSourcesOutOfDate(ctx context.Context, accountID domain.ExternalAccountID) (map[string]int, error)
+
 	// ListSourcesForActivity returns every non-detached source attached
 	// to the activity. The order is deterministic: ImportedAt DESC so the
 	// merge engine receives input in the expected sort order.
 	ListSourcesForActivity(ctx context.Context, id domain.ActivityID) ([]domain.ActivitySource, error)
+
+	// ListSourcesForAccount returns every non-detached source an external
+	// account imported, for detaching them when the account goes away.
+	ListSourcesForAccount(ctx context.Context, accountID domain.ExternalAccountID) ([]domain.ActivitySource, error)
 
 	// ListAllSourcesForActivity returns every source on the activity
 	// INCLUDING detached ones, ordered ImportedAt DESC. Used by the

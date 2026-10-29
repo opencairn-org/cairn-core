@@ -61,9 +61,47 @@ func (r *SessionRepo) Create(ctx context.Context, s domain.Session) (domain.Sess
 	return domain.SessionID(id), nil
 }
 
+const sessionColumns = `id, user_id, token_hash, auth_method,
+		        user_agent_summary, host(ip_address)::text, ip_geo_summary,
+		        created_at, last_seen_at, expires_at, revoked_at`
+
 func (r *SessionRepo) GetByTokenHash(ctx context.Context, hash []byte) (domain.Session, error) {
 	db := dbtx(ctx, r.pool)
+	out, err := scanSession(db.QueryRow(ctx,
+		`SELECT `+sessionColumns+` FROM sessions WHERE token_hash = $1`, hash))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Session{}, fmt.Errorf("session: %w", domain.ErrNotFound)
+		}
+		return domain.Session{}, fmt.Errorf("select session: %w", err)
+	}
+	return out, nil
+}
 
+func (r *SessionRepo) ListForUser(ctx context.Context, userID domain.UserID) ([]domain.Session, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT `+sessionColumns+` FROM sessions
+		  WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+		  ORDER BY last_seen_at DESC`, uuid.UUID(userID))
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	defer rows.Close()
+	out := []domain.Session{}
+	for rows.Next() {
+		sess, err := scanSession(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan session: %w", err)
+		}
+		sess.TokenHash = nil // never hand hashes to callers listing sessions
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
+// scanSession reads one sessionColumns row.
+func scanSession(row pgx.Row) (domain.Session, error) {
 	var (
 		id, userID uuid.UUID
 		tokenHash  []byte
@@ -76,23 +114,11 @@ func (r *SessionRepo) GetByTokenHash(ctx context.Context, hash []byte) (domain.S
 		expiresAt  time.Time
 		revokedAt  *time.Time
 	)
-	err := db.QueryRow(ctx,
-		`SELECT id, user_id, token_hash, auth_method,
-		        user_agent_summary, host(ip_address)::text, ip_geo_summary,
-		        created_at, last_seen_at, expires_at, revoked_at
-		   FROM sessions
-		  WHERE token_hash = $1`,
-		hash,
-	).Scan(&id, &userID, &tokenHash, &authMethod,
+	if err := row.Scan(&id, &userID, &tokenHash, &authMethod,
 		&uaSummary, &ipString, &geoSummary,
-		&createdAt, &lastSeenAt, &expiresAt, &revokedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Session{}, fmt.Errorf("session: %w", domain.ErrNotFound)
-		}
-		return domain.Session{}, fmt.Errorf("select session: %w", err)
+		&createdAt, &lastSeenAt, &expiresAt, &revokedAt); err != nil {
+		return domain.Session{}, err
 	}
-
 	out := domain.Session{
 		ID:               domain.SessionID(id),
 		UserID:           domain.UserID(userID),
@@ -165,4 +191,12 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// nullIfEmpty stores "" as SQL NULL for nullable text columns.
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }

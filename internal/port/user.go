@@ -42,6 +42,16 @@ type UserSettingsRepo interface {
 // Credentials live on a separate read path (GetCredentialsByLogin) so
 // password hashes are not loaded into request handlers that only need
 // the public User shape.
+// ProfileUpdate carries the columns UpdateProfile writes; every field is
+// written as given (the use case fills unchanged ones from the current row).
+type ProfileUpdate struct {
+	DisplayName string
+	AvatarURL   string
+	Locale      string
+	Timezone    string
+	Units       string
+}
+
 type UserRepo interface {
 	// CreateUser inserts a new users row (and an associated credentials
 	// row when cred.PasswordHash is non-empty). The provided User must
@@ -90,6 +100,9 @@ type UserRepo interface {
 	// format). Empty strings reset to the locale default.
 	UpdateUserPreferences(ctx context.Context, id domain.UserID, units, dateFormat, timeFormat string) error
 
+	// UpdateProfile sets the self-editable profile columns in one statement.
+	UpdateProfile(ctx context.Context, id domain.UserID, p ProfileUpdate) error
+
 	// UpdateUserStatus sets users.status and users.status_reason. Used by
 	// `cairn admin suspend/reactivate`.
 	UpdateUserStatus(
@@ -103,6 +116,18 @@ type UserRepo interface {
 	// users.must_change_password. Callers in the password-reset flow pass
 	// an empty hash to disable password login.
 	UpdatePassword(ctx context.Context, id domain.UserID, encodedHash string) error
+
+	// UpdateEmail sets the address (and its verified flag); ErrEmailTaken on a clash.
+	UpdateEmail(ctx context.Context, id domain.UserID, email string, verified bool) error
+
+	// SetMustChangePassword flags (or clears) the forced change on next login.
+	SetMustChangePassword(ctx context.Context, id domain.UserID, must bool) error
+
+	// HardDeleteUser removes the users row; dependent rows cascade.
+	HardDeleteUser(ctx context.Context, id domain.UserID) error
+
+	// SetPasskeySecondFactor sets users.passkey_second_factor.
+	SetPasskeySecondFactor(ctx context.Context, id domain.UserID, enabled bool) error
 
 	// UpdateEmailVerified sets users.email_verified.
 	UpdateEmailVerified(ctx context.Context, id domain.UserID, verified bool) error

@@ -7,6 +7,7 @@ package notification
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,6 +38,8 @@ type DispatchPRNotifications struct {
 	// deliver fans notifications out to side-channels (email). Optional — nil
 	// when email is disabled or in tests; in-app persistence is unaffected.
 	deliver *DeliverNotifications
+	// Events receives a live segment-PR event per notification (optional).
+	Events port.ActivityEventSink
 
 	now   func() time.Time
 	newID func() uuid.UUID
@@ -108,6 +111,11 @@ func (uc *DispatchPRNotifications) Execute(ctx context.Context, in Input) (Resul
 			continue
 		}
 		notifs = append(notifs, buildPRNotification(e, uc.newID, now))
+		if uc.Events != nil {
+			uc.Events.Publish(domain.NewActivityEvent(domain.ActivityEventSegmentPR, e.UserID, "activity.segment_pr").
+				For(e.ActivityID, e.ActivitySourceID).With("segment_id", e.SegmentID.String()).
+				With("elapsed_s", strconv.Itoa(int(e.ElapsedS))))
+		}
 	}
 
 	if len(notifs) == 0 {

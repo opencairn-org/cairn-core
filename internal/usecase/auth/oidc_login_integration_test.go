@@ -108,6 +108,14 @@ func (f *fakeIdentities) Create(_ context.Context, li domain.LinkedIdentity) (do
 	f.created = append(f.created, li)
 	return li.ID, nil
 }
+func (f *fakeIdentities) ListForUser(context.Context, domain.UserID) ([]domain.LinkedIdentity, error) {
+	return f.created, nil
+}
+
+func (f *fakeIdentities) Delete(context.Context, domain.UserID, domain.LinkedIdentityID) error {
+	return nil
+}
+
 func (f *fakeIdentities) TouchLastUsed(context.Context, domain.LinkedIdentityID, map[string]any) error {
 	return nil
 }

@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -72,7 +73,17 @@ type BlobStore interface {
 	// Used by the readiness probe; should be a cheap metadata call (HeadBucket),
 	// not a list or object operation.
 	Healthy(ctx context.Context) error
+
+	// PresignPublicDownload / PresignPublicUpload are PresignDownload /
+	// PresignUpload signed for the client-reachable public endpoint
+	// (CAIRN_STORAGE_PUBLIC_ENDPOINT). ErrNoPublicEndpoint when none is
+	// configured; callers then serve the content through the server.
+	PresignPublicDownload(ctx context.Context, key string, opts PresignDownloadOpts) (PresignedURL, error)
+	PresignPublicUpload(ctx context.Context, key string, opts PresignUploadOpts) (PresignedURL, error)
 }
+
+// ErrNoPublicEndpoint: the store has no client-reachable endpoint to sign for.
+var ErrNoPublicEndpoint = errors.New("blob: no public endpoint configured")
 
 type PresignUploadOpts struct {
 	// ContentType the worker will send. The presigned URL constrains

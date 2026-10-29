@@ -31,6 +31,7 @@ syntax = "proto3";
 package cairn.v1;
 
 import "google/protobuf/timestamp.proto";
+import "cairn/v1/common.proto";
 
 // ----------------------------------------------------------------------------
 // User
@@ -60,6 +61,8 @@ message User {
   // Display-format preferences (applied site-wide on every client).
   DateFormat date_format = 15;
   TimeFormat time_format = 16;
+  // A passkey is required after password sign-in.
+  bool passkey_second_factor = 17;
 }
 
 // Date display format. UNSPECIFIED = follow the user's BCP-47 locale.
@@ -106,33 +109,72 @@ service AuthService {
 
   // List enabled login methods for the login screen, including OIDC clients.
   // Public; no auth required.
+  // Scope: none (public).
   rpc GetLoginMethods(GetLoginMethodsRequest) returns (GetLoginMethodsResponse);
+
+  // Instance identity and feature flags for a client's server picker:
+  // release, commit, build time, federation/OAuth availability, signup
+  // policy and the scope catalog. Public; no auth required.
+  // Scope: none (public).
+  rpc GetInstanceInfo(GetInstanceInfoRequest) returns (GetInstanceInfoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // ---- Local auth ----
 
   // Username + password. Returns a session token or a 2FA challenge if
   // the account has WebAuthn enabled as a second factor.
+  // Not implemented (returns Unimplemented): the browser signs in through
+  // POST /auth/password (cookie session); native clients use OAuth 2.1 with
+  // PKCE at /oauth/authorize. A password grant over RPC is deliberately absent.
+  // A user flagged must_change_password gets a password-change challenge
+  // from POST /auth/password first (completed by POST /auth/password/required).
+  // Scope: none (public).
   rpc LoginPassword(LoginPasswordRequest) returns (LoginPasswordResponse);
 
-  // Complete a 2FA challenge after LoginPassword.
+  // Complete a second-factor challenge. A password sign-in of a user who
+  // requires a passkey as second factor (POST /auth/password) answers with
+  // a challenge token instead of a session; the client then runs the
+  // passkey ceremony at POST /auth/webauthn/login/start and
+  // POST /auth/webauthn/login/finish?challenge=<token>, which marks the
+  // challenge satisfied, and finally calls this RPC (or POST
+  // /auth/2fa/complete for a cookie session). The response carries a bearer
+  // session token (`cairn_ses_…`) accepted on both surfaces.
+  // Scope: none (public).
   rpc Complete2FA(Complete2FARequest) returns (Complete2FAResponse);
 
-  // Register a new local user. May require invite code per instance policy.
+  // Require (or stop requiring) a passkey after password sign-in. Enabling
+  // needs at least one registered passkey.
+  // Scope: cookie session only.
+  rpc SetPasskeySecondFactor(SetPasskeySecondFactorRequest) returns (SetPasskeySecondFactorResponse);
+
+  // Register a new local user. The instance is invite-only, so invite_code is
+  // required; the account is created and the caller then signs in (OAuth for
+  // native clients, cookie login for the browser). No session is returned.
+  // Scope: none (public).
   rpc Register(RegisterRequest) returns (RegisterResponse);
 
   // Change password (requires current password).
+  // Scope: cookie session only.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
 
   // Initiate password reset (sends email if SMTP configured).
+  // Scope: none (public).
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
 
-  // Complete password reset using a token from the email.
+  // Complete password reset using a token from the email. Every session of
+  // the user is ended; the response carries no session (sign in afterwards,
+  // native clients via OAuth 2.1).
+  // Scope: none (public).
   rpc ConfirmPasswordReset(ConfirmPasswordResetRequest) returns (ConfirmPasswordResetResponse);
 
   // ---- OIDC ----
 
   // Begin OIDC login: returns an authorize URL the client redirects to.
   // The state cookie is set on the response automatically.
+  // Not implemented (returns Unimplemented): browser flow, served by
+  // GET /auth/oidc/{provider}/start.
+  // Scope: none (public).
   rpc StartOIDCLogin(StartOIDCLoginRequest) returns (StartOIDCLoginResponse);
 
   // Note: the OIDC callback is handled at a regular HTTP endpoint
@@ -140,11 +182,16 @@ service AuthService {
   // OIDC redirects are browser-driven and need cookie handling.
 
   // Link an additional OIDC identity to the currently authenticated user.
+  // Not implemented (returns Unimplemented): browser flow, served by
+  // GET /auth/oidc/{provider}/start while signed in.
+  // Scope: profile:write.
   rpc StartOIDCLink(StartOIDCLinkRequest) returns (StartOIDCLinkResponse);
 
   // Unlink an OIDC identity. Cannot unlink the last credential.
+  // Scope: profile:write.
   rpc UnlinkOIDCIdentity(UnlinkOIDCIdentityRequest) returns (UnlinkOIDCIdentityResponse);
 
+  // Scope: profile:read.
   rpc ListLinkedIdentities(ListLinkedIdentitiesRequest) returns (ListLinkedIdentitiesResponse);
 
   // NOTE: WebAuthn / passkey login is served by REST endpoints under
@@ -154,22 +201,68 @@ service AuthService {
 
   // ---- Session ----
 
+  // Revoke the calling cookie session (or every session of the user with
+  // all_devices). Bearer callers (PAT, OAuth) have no session: OAuth tokens
+  // are revoked at POST /oauth/revoke, PATs via RevokePersonalAccessToken.
+  // Scope: cookie session only.
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // Scope: any valid credential.
   rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+
+  // The caller's activity quota: used, limit (0 = unlimited) and whether new
+  // imports are refused. Any valid credential.
+  // Scope: any valid credential.
+  rpc GetQuota(GetQuotaRequest) returns (GetQuotaResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Edit the caller's profile. field_mask names the fields to apply
+  // (display_name, avatar_url, locale, timezone, units); "email" is refused,
+  // an address change needs a verification flow that does not exist yet.
+  // Scope: profile:write.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
 
   // Update the caller's display-format preferences (date/time/units). Applies
   // site-wide on every client (web + mobile); clients re-read on change.
+  // Scope: profile:write.
   rpc UpdateUserPreferences(UpdateUserPreferencesRequest) returns (UpdateUserPreferencesResponse);
 
+  // Scope: cookie session only.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  // Scope: cookie session only.
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
 
   // ---- Personal Access Tokens ----
 
+  // Scope: cookie session only.
   rpc CreatePersonalAccessToken(CreatePersonalAccessTokenRequest) returns (CreatePersonalAccessTokenResponse);
+  // Scope: cookie session only.
   rpc ListPersonalAccessTokens(ListPersonalAccessTokensRequest) returns (ListPersonalAccessTokensResponse);
+  // Scope: cookie session only.
   rpc RevokePersonalAccessToken(RevokePersonalAccessTokenRequest) returns (RevokePersonalAccessTokenResponse);
+
+  // ---- Authorized apps (OAuth 2.1 clients holding live tokens) ----
+
+  // Scope: cookie session only.
+  rpc ListAuthorizedApps(ListAuthorizedAppsRequest) returns (ListAuthorizedAppsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Revokes every live access and refresh token the client holds for the caller.
+  // Scope: cookie session only.
+  rpc RevokeAuthorizedApp(RevokeAuthorizedAppRequest) returns (RevokeAuthorizedAppResponse);
+
+  // ---- Device authorization (RFC 8628): approving another device's sign-in ----
+
+  // The pending sign-in behind a user code shown on another device: which
+  // app asked and what approving it would grant. An OAuth caller sees the
+  // request capped to its own scopes.
+  // Scope: devices:read.
+  rpc LookupDeviceAuthorization(LookupDeviceAuthorizationRequest) returns (LookupDeviceAuthorizationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Approve or deny that sign-in. Approval grants at most the caller's own
+  // scopes; the device then receives tokens on its next poll.
+  // Scope: devices:write.
+  rpc DecideDeviceAuthorization(DecideDeviceAuthorizationRequest) returns (DecideDeviceAuthorizationResponse);
 }
 
 // ----------------------------------------------------------------------------
@@ -197,6 +290,36 @@ message OIDCLoginOption {
 // ----------------------------------------------------------------------------
 // Password auth
 // ----------------------------------------------------------------------------
+
+message GetInstanceInfoRequest {}
+message GetInstanceInfoResponse {
+  // Release tag of the running binary, e.g. "v0.6.0" ("dev" for local builds).
+  string version = 1;
+  // Short git commit the binary was built from ("-dirty" suffix when modified).
+  string commit = 2;
+  // Build time; unset when the binary carries no build metadata.
+  google.protobuf.Timestamp build_time = 3;
+  // ActivityPub federation is switched on for this instance.
+  bool federation_enabled = 4;
+  // The OAuth 2.1 authorization server (PKCE, dynamic registration) is available.
+  bool oauth_enabled = 5;
+  // Self-service signup without an invite is allowed. False means invite-only.
+  bool registration_open = 6;
+  // The OAuth scope catalog this instance understands (scopes_supported).
+  repeated string supported_scopes = 7;
+}
+
+message GetQuotaRequest {}
+message GetQuotaResponse {
+  // Live (non-deleted) activities the caller owns.
+  int32 activities_used = 1;
+  // Effective limit after any per-user override; 0 when unlimited.
+  int32 activities_limit = 2;
+  // No limit applies to this user.
+  bool unlimited = 3;
+  // Imports and uploads are refused until activities are deleted.
+  bool over_limit = 4;
+}
 
 message LoginPasswordRequest {
   // Username or email.
@@ -238,6 +361,13 @@ message Complete2FARequest {
 }
 message Complete2FAResponse {
   SessionResult session = 1;
+}
+
+message SetPasskeySecondFactorRequest {
+  bool enabled = 1;
+}
+message SetPasskeySecondFactorResponse {
+  User user = 1;
 }
 
 message SessionResult {
@@ -288,6 +418,7 @@ message ConfirmPasswordResetRequest {
   string new_password = 2;
 }
 message ConfirmPasswordResetResponse {
+  // Unset: the caller signs in again after a reset.
   SessionResult session = 1;
 }
 
@@ -448,6 +579,58 @@ message RevokePersonalAccessTokenRequest {
 }
 message RevokePersonalAccessTokenResponse {}
 
+// AuthorizedApp is one OAuth client with live tokens for the caller.
+message AuthorizedApp {
+  string client_id = 1;
+  string client_name = 2;
+  // RFC 7591 software_id / software_version of a dynamically registered client.
+  string software_id = 3;
+  string software_version = 4;
+  // Union of the live tokens' scopes.
+  repeated string scopes = 5;
+  google.protobuf.Timestamp granted_at = 6;
+  google.protobuf.Timestamp last_issued_at = 7;
+  int32 active_tokens = 8;
+}
+message ListAuthorizedAppsRequest {}
+message ListAuthorizedAppsResponse {
+  repeated AuthorizedApp apps = 1;
+}
+message RevokeAuthorizedAppRequest {
+  string client_id = 1;
+}
+message RevokeAuthorizedAppResponse {
+  int32 tokens_revoked = 1;
+}
+
+// One scope a device sign-in would be granted, as shown on the consent page.
+message DeviceAuthorizationScope {
+  string scope = 1;
+  string description = 2;
+  bool write = 3;
+}
+message LookupDeviceAuthorizationRequest {
+  // As typed: "1234-5678", "1234 5678" or "12345678".
+  string user_code = 1;
+}
+message LookupDeviceAuthorizationResponse {
+  string client_id = 1;
+  string client_name = 2;
+  string software_id = 3;
+  string software_version = 4;
+  // What approval by this caller would grant.
+  repeated DeviceAuthorizationScope scopes = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+message DecideDeviceAuthorizationRequest {
+  string user_code = 1;
+  bool approve = 2;
+}
+message DecideDeviceAuthorizationResponse {
+  // Empty when denied.
+  repeated string granted_scopes = 1;
+}
+
 // ============================================================================
 // External Accounts — OAuth-connected provider accounts
 // ============================================================================
@@ -502,6 +685,61 @@ message ExternalAccount {
   google.protobuf.Timestamp updated_at = 18;
   optional google.protobuf.Timestamp last_sync_at = 19;
   optional google.protobuf.Timestamp last_successful_sync_at = 20;
+
+  // ---- Sync status (the GET /api/accounts row) ----
+
+  // Activities imported from this account so far.
+  int32 imported = 21;
+  // The provider-side total from the last discovery; 0 = never discovered.
+  int32 provider_total = 22;
+  // Newest activity start the reconciler has seen; unset until the first import.
+  optional google.protobuf.Timestamp watermark = 23;
+  // A full discovery is running in the background.
+  bool discovering = 24;
+  // The provider budget is exhausted (worker-reported or live budget).
+  bool rate_limited = 25;
+  // Per-connection reconcile interval; 0 = instance default.
+  int32 poll_interval_seconds = 26;
+  bool auto_import_enabled = 27;
+  // Import queue counts by status.
+  QueueCounts queue = 28;
+  // The pools this account could be assigned to (docs/adr/0006).
+  repeated WorkerPoolInfo worker_pools = 29;
+  // Sources a newer parser could re-parse (see ReimportSource).
+  int32 out_of_date = 30;
+  // The connection (provider app credentials) the account was linked through.
+  optional string connection_id = 31;
+  // Live API budget of the provider app, when the bus reports one.
+  RateLimitBudget rate_limit_budget = 32;
+}
+
+message QueueCounts {
+  int32 pending = 1;
+  int32 in_progress = 2;
+  int32 done = 3;
+  int32 failed = 4;
+  int32 skipped = 5;
+}
+
+message WorkerPoolInfo {
+  string name = 1;
+  string package = 2;
+  string parser_version = 3;
+  string release = 4;
+  bool online = 5;
+  // Release-compatible with this core (true when offline: unknown).
+  bool compatible = 6;
+}
+
+message RateLimitWindow {
+  int32 used = 1;
+  int32 limit = 2;
+  google.protobuf.Timestamp resets_at = 3;
+}
+
+message RateLimitBudget {
+  RateLimitWindow short = 1;
+  RateLimitWindow daily = 2;
 }
 
 // Metadata about a config value, without the value itself for secrets.
@@ -543,43 +781,161 @@ message ExternalAccountRateLimit {
 
 service ExternalAccountService {
   // List all external accounts for the current user, with status.
+  // Scope: connections:read.
   rpc ListExternalAccounts(ListExternalAccountsRequest) returns (ListExternalAccountsResponse);
 
   // List providers available for "Add account": only those with at least
   // one registered, healthy worker. Returns the manifest's config_fields
   // and auth method so the UI can render a dynamic form.
+  // Scope: connections:read.
   rpc ListAvailableProviders(ListAvailableProvidersRequest) returns (ListAvailableProvidersResponse);
+
+  // The user's provider connections (app credentials) and the providers
+  // with their worker pools (GET /api/connections).
+  // Scope: connections:read.
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Import history of an account, newest first (GET /api/accounts/{id}/history).
+  // Scope: connections:read.
+  rpc ListSyncHistory(ListSyncHistoryRequest) returns (ListSyncHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Import queue items of an account (GET /api/accounts/{id}/queue/items).
+  // Scope: connections:read.
+  rpc ListQueueItems(ListQueueItemsRequest) returns (ListQueueItemsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Create a new external account with the user-supplied config. Returns
   // either the new account record (for AUTH_METHOD_NONE / AUTH_METHOD_API_KEY)
   // or an authorize_url (for AUTH_METHOD_OAUTH2) the client redirects to.
+  // Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+  // Scope: connections:write.
   rpc CreateExternalAccount(CreateExternalAccountRequest) returns (CreateExternalAccountResponse);
 
   // Update an external account's config (e.g. fill in a newly required field).
+  // Only config["poll_interval_seconds"] and display_label are editable
+  // today (PUT /api/accounts/{id}/config); assigned_worker_name goes through
+  // PUT /api/accounts/{id}/worker for now (InvalidArgument here).
+  // Scope: connections:write.
   rpc UpdateExternalAccountConfig(UpdateExternalAccountConfigRequest) returns (UpdateExternalAccountConfigResponse);
 
   // Re-authorize an account whose OAuth tokens went invalid.
+  // Not implemented (returns Unimplemented): linking an account is a browser OAuth flow, served by POST /api/connections + GET /auth/oauth/{provider}/connect.
+  // Scope: connections:write.
   rpc StartExternalAccountReauthorize(StartExternalAccountReauthorizeRequest) returns (StartExternalAccountReauthorizeResponse);
 
   // Enable / disable an account without deleting it.
+  // enabled toggles automatic import (PUT /api/accounts/{id}/auto-import).
+  // Scope: connections:write.
   rpc SetExternalAccountEnabled(SetExternalAccountEnabledRequest) returns (SetExternalAccountEnabledResponse);
 
-  // Delete: unregisters webhook subscription, removes credentials,
-  // and detaches sources from activities (activities themselves remain
-  // visible with the source marked detached).
+  // Delete the account (DELETE /api/accounts/{id}): its sources are
+  // detached first (activities keep their merged data and re-merge over the
+  // remaining sources), credentials, queue, import events, gear and the
+  // segments mirrored through it go with the row. Activities left without a
+  // live source are soft-deleted only with delete_exclusive_activities.
+  // Scope: connections:write.
   rpc DeleteExternalAccount(DeleteExternalAccountRequest) returns (DeleteExternalAccountResponse);
 
   // Trigger an immediate sync for an account (queues an IMPORT_ACTIVITIES
   // job at high priority).
+  // Starts a full background discovery of the account (POST
+  // /api/accounts/{id}/sync/start); progress shows in the queue counts and
+  // the discovering flag. since is ignored (the discovery walks everything).
+  // Scope: connections:write.
   rpc TriggerSync(TriggerSyncRequest) returns (TriggerSyncResponse);
 
-  // Rotate the webhook signing token. Queues unregister + register jobs.
+  // Rotate the webhook signing token (POST /api/accounts/{id}/webhook-token/rotate).
+  // Provider subscriptions are owned by the workers, so no unregister or
+  // register job is queued and both job ids in the response stay empty.
+  // Scope: connections:write.
   rpc RotateWebhookToken(RotateWebhookTokenRequest) returns (RotateWebhookTokenResponse);
 }
 
 message ListExternalAccountsRequest {}
 message ListExternalAccountsResponse {
   repeated ExternalAccount accounts = 1;
+  // Instance-wide reconcile cadence, what poll_interval_seconds = 0 means.
+  int32 default_poll_interval_seconds = 2;
+}
+
+// ---- Connections, sync history and queue (GET /api/connections, /api/accounts/{id}/history|queue/items) ----
+
+message ListConnectionsRequest {}
+message Connection {
+  string id = 1;
+  string provider = 2;
+  string display_name = 3;
+  string label = 4;
+  string client_id = 5;
+  bool has_secret = 6;
+  // The provider links accounts through an OAuth authorize round-trip.
+  bool oauth = 7;
+}
+message ProviderInfo {
+  string provider = 1;
+  string display_name = 2;
+  bool oauth = 3;
+  repeated WorkerPoolInfo worker_pools = 4;
+}
+message ListConnectionsResponse {
+  repeated Connection connections = 1;
+  repeated ProviderInfo providers = 2;
+}
+
+message ListSyncHistoryRequest {
+  string account_id = 1;
+  // limit default 50, max 200.
+  PageRequest page = 2;
+}
+message SyncEvent {
+  // sync_started | activity_imported | activity_updated | failed
+  string kind = 1;
+  int32 count = 2;
+  string detail = 3;
+  string external_id = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  // The imported activity, when the event names one that is in.
+  string activity_id = 6;
+  // The original on the provider's site, when the provider has a page.
+  string external_url = 7;
+  // failed | completed | ongoing
+  string status = 8;
+}
+message ListSyncHistoryResponse {
+  repeated SyncEvent events = 1;
+  PageResponse page = 2;
+}
+
+message ListQueueItemsRequest {
+  string account_id = 1;
+  // Statuses to include (pending, in_progress, done, failed, skipped);
+  // default pending, in_progress and failed.
+  repeated string statuses = 2;
+  // limit default 100, max 500.
+  PageRequest page = 3;
+}
+message QueueItem {
+  string id = 1;
+  string item_type = 2;
+  string external_id = 3;
+  string status = 4;
+  int32 priority = 5;
+  int32 attempts = 6;
+  string last_error = 7;
+  google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp item_time = 9;
+  optional google.protobuf.Timestamp started_at = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  string external_url = 12;
+}
+message ListQueueItemsResponse {
+  repeated QueueItem items = 1;
+  PageResponse page = 2;
 }
 
 message ListAvailableProvidersRequest {}

@@ -42,13 +42,12 @@ func notFoundErr(err error) error {
 	return connectError(connectrpc.CodeInternal, err)
 }
 
-// unaryInterceptor adapts fn to a server interceptor; streams pass through untouched, as in v1.
-func unaryInterceptor(fn func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error) connectrpc.ServerInterceptor {
+// serverInterceptor adapts fn to a server interceptor for every stream type.
+// Streams used to pass through untouched, which left any streaming RPC
+// unauthenticated and unscoped; the auth chain must see them too.
+func serverInterceptor(fn func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error) connectrpc.ServerInterceptor {
 	return func(next connectrpc.ServerFunc) connectrpc.ServerFunc {
 		return func(ctx context.Context, spec connectrpc.Spec, stream connectrpc.ServerStream) error {
-			if spec.StreamType != connectrpc.StreamTypeUnary {
-				return next(ctx, spec, stream)
-			}
 			return fn(ctx, spec, func(ctx context.Context) error { return next(ctx, spec, stream) })
 		}
 	}
@@ -84,6 +83,9 @@ const (
 	// with an OAuth access token. Absent for cookie/PAT auth, which carry the
 	// user's full access (nil scopes == unrestricted).
 	ctxKeyScopes
+	// ctxKeySessionID holds the domain.SessionID of a cookie session, so
+	// session-bound RPCs (Logout, ListSessions) know which row is "this one".
+	ctxKeySessionID
 )
 
 // patTokenPrefix marks a personal access token; oauthTokenPrefix marks an
@@ -99,7 +101,7 @@ const (
 // the user id in the context. Touches last-seen/last-used best-effort. `pats`
 // may be nil (PAT auth then disabled).
 func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthServerRepo, sessionCookieName string) connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		if authed, ok := connectAuthenticate(ctx, requestHeader(ctx), sessions, pats, oauth, sessionCookieName); ok {
 			return next(authed)
 		}
@@ -114,8 +116,11 @@ func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions por
 	if authed, ok := connectAuthSessionCookie(ctx, h, sessions, sessionCookieName); ok {
 		return authed, true
 	}
-	// Bearer credential: PAT or OAuth access token.
+	// Bearer credential: session token (Complete2FA), PAT or OAuth access token.
 	tok := strings.TrimPrefix(h.Get("Authorization"), "Bearer ")
+	if authed, ok := connectAuthBearerSession(ctx, tok, sessions); ok {
+		return authed, true
+	}
 	// 2. Personal access token (full user access).
 	if pats != nil && strings.HasPrefix(tok, patTokenPrefix) {
 		hash := sha256.Sum256([]byte(tok))
@@ -136,6 +141,22 @@ func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions por
 	return ctx, false
 }
 
+// connectAuthBearerSession resolves a `cairn_ses_…` bearer session token
+// (issued by Complete2FA) the same way a cookie session is.
+func connectAuthBearerSession(ctx context.Context, tok string, sessions port.SessionRepo) (context.Context, bool) {
+	if sessions == nil || !strings.HasPrefix(tok, domain.SessionTokenPrefix) {
+		return ctx, false
+	}
+	hash := sha256.Sum256([]byte(tok))
+	sess, err := sessions.GetByTokenHash(ctx, hash[:])
+	if err != nil || !sess.IsActive(time.Now().UTC()) {
+		return ctx, false
+	}
+	_ = sessions.TouchLastSeen(ctx, sess.ID)
+	ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
+	return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
+}
+
 // connectAuthSessionCookie resolves the caller from the session cookie, if any.
 func connectAuthSessionCookie(ctx context.Context, h *connectrpc.Header, sessions port.SessionRepo, sessionCookieName string) (context.Context, bool) {
 	if sessions == nil {
@@ -148,30 +169,127 @@ func connectAuthSessionCookie(ctx context.Context, h *connectrpc.Header, session
 	hash := sha256.Sum256([]byte(token))
 	if sess, err := sessions.GetByTokenHash(ctx, hash[:]); err == nil && sess.IsActive(time.Now().UTC()) {
 		_ = sessions.TouchLastSeen(ctx, sess.ID)
-		return context.WithValue(ctx, ctxKeyUserID, sess.UserID), true
+		ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
+		return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
 	}
 	return ctx, false
 }
 
+// sessionIDFromHandlerCtx returns the cookie session behind the call, if any.
+func sessionIDFromHandlerCtx(ctx context.Context) (domain.SessionID, bool) {
+	id, ok := ctx.Value(ctxKeySessionID).(domain.SessionID)
+	return id, ok
+}
+
 // ScopeInterceptor enforces OAuth scopes on the Connect API. It only applies to
 // callers authenticated via an OAuth access token (cookie/PAT auth carries the
-// user's full access and is unaffected). A mutating procedure requires the
-// token to hold at least one write scope; otherwise the call is denied. This
-// keeps read-only tokens — the default for agents — truly read-only.
+// user's full access and is unaffected). Each service maps to a scope family;
+// a read needs family:read (or :write), a mutation needs family:write. A few
+// procedures are public or open to any valid token, and session-bound ones
+// (sessions, PATs, admin) are closed to OAuth tokens altogether. The table is
+// published in docs/api-scopes.md and as a "Scope:" comment on every rpc.
 //
 // Mount AFTER SessionInterceptor so scopes are already in ctx.
 func ScopeInterceptor() connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, spec connectrpc.Spec, next func(context.Context) error) error {
 		scopes, isOAuth := ctx.Value(ctxKeyScopes).([]string)
 		if !isOAuth {
 			return next(ctx) // cookie/PAT: unrestricted
 		}
-		if isMutatingProcedure(spec.Procedure) && !hasAnyWriteScope(scopes) {
-			return connectrpc.NewError(connectrpc.CodePermissionDenied,
-				"this OAuth token lacks a write scope for this operation")
+		if err := scopeCheck(spec.Procedure, scopes); err != nil {
+			return err
 		}
 		return next(ctx)
 	})
+}
+
+// scopePolicy says who may call a procedure when the caller is an OAuth token.
+type scopePolicy int
+
+const (
+	scopeFamily      scopePolicy = iota // family:read / family:write by method verb
+	scopePublic                         // no credential needed
+	scopeAnyToken                       // any valid token, no particular scope
+	scopeSessionOnly                    // cookie session only; OAuth tokens refused
+)
+
+// scopeFamilies maps a service to its scope family; services absent here fall
+// back to scopeSessionOnly (closed to OAuth until a family is assigned).
+var scopeFamilies = map[string]string{
+	"cairn.v1.ActivityService":        "activities",
+	"cairn.v1.GearService":            "gear",
+	"cairn.v1.NotificationService":    "notifications",
+	"cairn.v1.ExternalAccountService": "connections",
+	"cairn.v1.SegmentService":         "segments",
+	"cairn.v1.MetricsService":         "training",
+	"cairn.v1.SettingsService":        "profile",
+	"cairn.v1.AuthService":            "profile",
+	"cairn.v1.StatsService":           "activities",
+	"cairn.v1.SocialService":          "social",
+}
+
+// scopeProcedureFamilies gives a procedure a family other than its service's.
+var scopeProcedureFamilies = map[string]string{
+	"/cairn.v1.AuthService/LookupDeviceAuthorization": "devices",
+	"/cairn.v1.AuthService/DecideDeviceAuthorization": "devices",
+}
+
+// scopeOverrides lists the procedures whose policy is not the service family.
+var scopeOverrides = map[string]scopePolicy{
+	"/cairn.v1.AuthService/GetLoginMethods":           scopePublic,
+	"/cairn.v1.AuthService/GetInstanceInfo":           scopePublic,
+	"/cairn.v1.SocialService/GetSharedActivity":       scopePublic,
+	"/cairn.v1.AuthService/LoginPassword":             scopePublic,
+	"/cairn.v1.AuthService/Complete2FA":               scopePublic,
+	"/cairn.v1.AuthService/Register":                  scopePublic,
+	"/cairn.v1.AuthService/RequestPasswordReset":      scopePublic,
+	"/cairn.v1.AuthService/ConfirmPasswordReset":      scopePublic,
+	"/cairn.v1.AuthService/StartOIDCLogin":            scopePublic,
+	"/cairn.v1.AuthService/GetCurrentUser":            scopeAnyToken,
+	"/cairn.v1.AuthService/GetQuota":                  scopeAnyToken,
+	"/cairn.v1.AuthService/Logout":                    scopeSessionOnly,
+	"/cairn.v1.AuthService/ChangePassword":            scopeSessionOnly,
+	"/cairn.v1.AuthService/ListSessions":              scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokeSession":             scopeSessionOnly,
+	"/cairn.v1.AuthService/CreatePersonalAccessToken": scopeSessionOnly,
+	"/cairn.v1.AuthService/ListPersonalAccessTokens":  scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokePersonalAccessToken": scopeSessionOnly,
+	"/cairn.v1.AuthService/ListAuthorizedApps":        scopeSessionOnly,
+	"/cairn.v1.AuthService/SetPasskeySecondFactor":    scopeSessionOnly,
+	"/cairn.v1.AuthService/RevokeAuthorizedApp":       scopeSessionOnly,
+}
+
+// scopeCheck applies the policy of procedure to an OAuth token's scopes.
+func scopeCheck(procedure string, scopes []string) error {
+	if p, ok := scopeOverrides[procedure]; ok {
+		switch p {
+		case scopePublic, scopeAnyToken:
+			return nil
+		case scopeSessionOnly:
+			return connectrpc.NewError(connectrpc.CodePermissionDenied, "this operation is not available to OAuth tokens")
+		case scopeFamily:
+		}
+	}
+	service := procedure
+	if i := strings.LastIndexByte(procedure, '/'); i >= 0 {
+		service = strings.TrimPrefix(procedure[:i], "/")
+	}
+	family, ok := scopeProcedureFamilies[procedure]
+	if !ok {
+		family, ok = scopeFamilies[service]
+	}
+	if !ok {
+		return connectrpc.NewError(connectrpc.CodePermissionDenied, "this operation is not available to OAuth tokens")
+	}
+	write := isMutatingProcedure(procedure)
+	if !domain.ScopesGrant(scopes, family, write) {
+		need := family + ":read"
+		if write {
+			need = family + ":write"
+		}
+		return connectrpc.NewError(connectrpc.CodePermissionDenied, "this OAuth token lacks the "+need+" scope")
+	}
+	return nil
 }
 
 // isMutatingProcedure classifies a Connect procedure ("/svc/Method") as a
@@ -181,7 +299,7 @@ func isMutatingProcedure(procedure string) bool {
 	if i := strings.LastIndexByte(procedure, '/'); i >= 0 {
 		method = procedure[i+1:]
 	}
-	for _, verb := range []string{"Get", "List", "Search", "Watch", "Stream", "Export", "Resolve", "Check", "Count", "Lookup", "Fetch"} {
+	for _, verb := range []string{"Get", "List", "Search", "Query", "Watch", "Stream", "Export", "Resolve", "Check", "Count", "Lookup", "Fetch"} {
 		if strings.HasPrefix(method, verb) {
 			return false
 		}
@@ -196,6 +314,20 @@ func hasAnyWriteScope(scopes []string) bool {
 		}
 	}
 	return false
+}
+
+// scopesFromHandlerCtx returns the caller's OAuth scopes, or nil for a cookie
+// session or PAT (unrestricted). An OAuth token without scopes yields an empty,
+// non-nil slice so it never reads as unrestricted.
+func scopesFromHandlerCtx(ctx context.Context) []string {
+	scopes, isOAuth := ctx.Value(ctxKeyScopes).([]string)
+	if !isOAuth {
+		return nil
+	}
+	if scopes == nil {
+		return []string{}
+	}
+	return scopes
 }
 
 // userIDFromHandlerCtx is the primary helper for handlers to call. It
@@ -218,7 +350,7 @@ func userIDFromHandlerCtx(ctx context.Context) (domain.UserID, error) {
 // shows up on traces — admin endpoints are low-volume so the join is
 // fine for now.
 func RequireAdminInterceptor(users port.UserRepo) connectrpc.ServerInterceptor {
-	return unaryInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
+	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		v := ctx.Value(ctxKeyUserID)
 		if v == nil {
 			return connectrpc.NewError(connectrpc.CodeUnauthenticated, "authentication required")

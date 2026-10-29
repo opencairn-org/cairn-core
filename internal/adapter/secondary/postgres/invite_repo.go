@@ -141,3 +141,30 @@ func scanInvite(row pgx.Row) (domain.Invite, error) {
 	inv.RevokedAt = revokedAt
 	return inv, nil
 }
+
+func (r *InviteRepo) Get(ctx context.Context, id domain.InviteID) (domain.Invite, error) {
+	db := dbtx(ctx, r.pool)
+	inv, err := scanInvite(db.QueryRow(ctx, `SELECT `+inviteCols+` FROM invites WHERE id = $1`, id.UUID()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Invite{}, domain.ErrInviteNotFound
+	}
+	if err != nil {
+		return domain.Invite{}, fmt.Errorf("get invite: %w", err)
+	}
+	return inv, nil
+}
+
+func (r *InviteRepo) ResetCode(ctx context.Context, id domain.InviteID, codeHash []byte, prefix string, now time.Time) error {
+	db := dbtx(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE invites SET code_hash = $2, code_prefix = $3
+		  WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > $4)`,
+		id.UUID(), codeHash, prefix, now)
+	if err != nil {
+		return fmt.Errorf("reset invite code: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrInviteInvalid
+	}
+	return nil
+}

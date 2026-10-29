@@ -20,17 +20,28 @@ func callInterceptor(t *testing.T, ic connectrpc.ServerInterceptor, ctx context.
 	return called, err
 }
 
-func TestInterceptorsSkipStreams(t *testing.T) {
+// Streams go through the same auth chain as unary calls: an anonymous stream
+// stays anonymous (handlers refuse), a read-verb stream passes the scope check
+// and the admin gate refuses it outright.
+func TestInterceptorsCoverStreams(t *testing.T) {
 	spec := connectrpc.Spec{StreamType: connectrpc.StreamTypeServer, Procedure: "/cairn.v1.AdminService/StreamAdminEvents"}
-	// nil repos: a unary path would dereference them.
 	for name, ic := range map[string]connectrpc.ServerInterceptor{
 		"session": SessionInterceptor(nil, nil, nil, "cairn_session"),
 		"scope":   ScopeInterceptor(),
-		"admin":   RequireAdminInterceptor(nil),
 	} {
 		if called, err := callInterceptor(t, ic, t.Context(), spec); !called || err != nil {
-			t.Errorf("%s: stream not passed through (called=%v err=%v)", name, called, err)
+			t.Errorf("%s: anonymous stream must reach the handler (called=%v err=%v)", name, called, err)
 		}
+	}
+	called, err := callInterceptor(t, RequireAdminInterceptor(nil), t.Context(), spec)
+	if called || connectrpc.CodeOf(err) != connectrpc.CodeUnauthenticated {
+		t.Errorf("admin: anonymous stream called=%v err=%v, want CodeUnauthenticated", called, err)
+	}
+	// A read-only OAuth token may not open a mutating stream either.
+	ctx := context.WithValue(t.Context(), ctxKeyScopes, []string{"activities:read"})
+	mut := connectrpc.Spec{StreamType: connectrpc.StreamTypeClient, Procedure: "/cairn.v1.ActivityService/UploadActivityChunks"}
+	if called, err := callInterceptor(t, ScopeInterceptor(), ctx, mut); called || connectrpc.CodeOf(err) != connectrpc.CodePermissionDenied {
+		t.Errorf("scope: mutating stream called=%v err=%v, want CodePermissionDenied", called, err)
 	}
 }
 

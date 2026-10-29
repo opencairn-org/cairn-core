@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // writeJSON writes a JSON response with the given status code. The shared
@@ -69,4 +71,40 @@ func requireJSON(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+// writeActionError maps a port.ActionError to its HTTP status; any other error
+// is a 500 with the fallback message.
+// actionErrorOf unwraps a port.ActionError when err carries one.
+func actionErrorOf(err error) (*port.ActionError, bool) {
+	var ae *port.ActionError
+	if errors.As(err, &ae) {
+		return ae, true
+	}
+	return nil, false
+}
+
+func writeActionError(w http.ResponseWriter, err error, fallback string) {
+	var ae *port.ActionError
+	if !errors.As(err, &ae) {
+		http.Error(w, fallback, http.StatusInternalServerError)
+		return
+	}
+	status := http.StatusInternalServerError
+	switch ae.Kind {
+	case port.ActionErrorInvalid, port.ActionErrorPrecondition:
+		status = http.StatusBadRequest
+	case port.ActionErrorNotFound:
+		status = http.StatusNotFound
+	case port.ActionErrorConflict:
+		status = http.StatusConflict
+	case port.ActionErrorUnavailable:
+		status = http.StatusServiceUnavailable
+	case port.ActionErrorUpstream:
+		status = http.StatusBadGateway
+	case port.ActionErrorQuota, port.ActionErrorForbidden:
+		status = http.StatusForbidden
+	case port.ActionErrorInternal:
+	}
+	http.Error(w, ae.Msg, status)
 }

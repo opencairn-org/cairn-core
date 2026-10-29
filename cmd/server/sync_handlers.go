@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // syncHandlers holds the dependencies of the account/sync HTTP handlers.
@@ -57,35 +58,14 @@ func (h syncHandlers) listAccounts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	accts, err := h.app.ExternalAccounts.ListAccountsForUser(r.Context(), userID)
+	rows, err := h.app.Accounts.List(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	out := make([]map[string]any, 0, len(accts))
-	// Live API budget per provider (memoised — accounts often share one).
-	// Budgets are per provider app (the connection's client id).
-	budgets := map[string]map[string]any{}
-	budgetLimited := map[string]bool{}
-	appOf := map[domain.ExternalAccountID]string{}
-	for _, a := range accts {
-		appOf[a.ID] = accountAppID(r.Context(), h.app, a)
-		k := a.Provider + "/" + appOf[a.ID] + "/" + a.AssignedWorkerName
-		if _, seen := budgets[k]; !seen {
-			budgets[k], budgetLimited[k] = providerBudget(r.Context(), h.app.NATSBus, a.Provider, appOf[a.ID], a.AssignedWorkerName)
-		}
-	}
-	for _, a := range accts {
-		k := a.Provider + "/" + appOf[a.ID] + "/" + a.AssignedWorkerName
-		row := h.accountRow(r.Context(), a, budgets[k], budgetLimited[k])
-		// The pool this account's jobs go to, and the pools it could move to
-		// (docs/adr/0006).
-		row["assigned_worker"] = a.AssignedWorkerName
-		row["worker_pools"] = workerPoolsJSON(r.Context(), h.app, h.logger, a.Provider)
-		if n, err := h.app.Activities.CountSourcesOutOfDate(r.Context(), a.ID); err == nil {
-			row["out_of_date"] = n
-		}
-		out = append(out, row)
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, accountRowJSON(row))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"accounts": out,
@@ -93,43 +73,6 @@ func (h syncHandlers) listAccounts(w http.ResponseWriter, r *http.Request) {
 		// override so "0 = instance default" names a concrete number.
 		"default_poll_interval_seconds": int(h.app.DefaultPollInterval.Seconds()),
 	})
-}
-
-// syncAccountConfigView is the per-connection config surfaced by GET /api/accounts.
-type syncAccountConfigView struct {
-	pollInterval  int
-	providerTotal int
-	discovering   bool
-	rateLimited   bool
-}
-
-// syncParseAccountConfig reads the UI-relevant keys of an account's config blob.
-func syncParseAccountConfig(raw []byte) syncAccountConfigView {
-	var v syncAccountConfigView
-	if len(raw) == 0 {
-		return v
-	}
-	var cfg map[string]any
-	if json.Unmarshal(raw, &cfg) != nil {
-		return v
-	}
-	if f, ok := cfg["poll_interval_seconds"].(float64); ok {
-		v.pollInterval = int(f)
-	}
-	if f, ok := cfg["last_discovered_total"].(float64); ok {
-		v.providerTotal = int(f)
-	}
-	if b, ok := cfg["discovering"].(bool); ok {
-		v.discovering = b
-	}
-	// Worker-reported budget exhaustion (set by sync/preview|start
-	// on a rate-limit error) — surfaced until the cooldown lapses.
-	if s, ok := cfg["rate_limited_until"].(string); ok && s != "" {
-		if until, err := time.Parse(time.RFC3339, s); err == nil && time.Now().Before(until) {
-			v.rateLimited = true
-		}
-	}
-	return v
 }
 
 // syncFormatTimePtr formats t as RFC3339 UTC, or nil when unset.
@@ -140,47 +83,59 @@ func syncFormatTimePtr(t *time.Time) any {
 	return t.UTC().Format(time.RFC3339)
 }
 
-func (h syncHandlers) accountRow(ctx context.Context, a domain.ExternalAccount, budget map[string]any, budgetLimited bool) map[string]any {
-	// Total activities already imported from this account (count of
-	// its sources). Cheap for single-user instances.
-	imported := 0
-	if existing, e := h.app.Activities.ExistingExternalIDs(ctx, a.Provider, a.ID); e == nil {
-		imported = len(existing)
-	}
-	// Per-connection config (currently the poll interval). 0 = use the
-	// instance default.
-	cfg := syncParseAccountConfig(a.Config)
-	rateLimited := rateLimitedNow(a.RateLimit) || budgetLimited || cfg.rateLimited
-	providerTotal := cfg.providerTotal
-	// last_discovered_total is a snapshot from the last user-driven
-	// discovery; reconcile imports activities without refreshing it,
-	// so the live imported count can overtake it ("906 / 905"). An
-	// imported external id is proof the provider had at least that
-	// many — clamp instead of showing an impossible ratio. Zero stays
-	// zero: it means "never discovered" and the UI hides the total.
-	if providerTotal > 0 && imported > providerTotal {
-		providerTotal = imported
-	}
+// accountRowJSON renders one account with its sync status (GET /api/accounts).
+func accountRowJSON(row view.AccountRow) map[string]any {
+	a := row.Account
 	var connectionID any
 	if a.ConnectionID != nil {
 		connectionID = a.ConnectionID.String()
+	}
+	pools := make([]map[string]any, 0, len(row.Pools))
+	for _, p := range row.Pools {
+		pools = append(pools, map[string]any{
+			"name": p.Name, "package": p.Package, "parser_version": p.ParserVersion, "release": p.Release,
+			"online": p.Online, "compatible": p.Compatible,
+		})
 	}
 	return map[string]any{
 		"id": a.ID.String(), "provider": a.Provider,
 		"connection_id":       connectionID,
 		"provider_account_id": a.ProviderAccountID,
 		"label":               a.DisplayLabel, "status": string(a.Status),
-		"imported":              imported,
-		"provider_total":        providerTotal,
+		"imported":              row.Imported,
+		"provider_total":        row.ProviderTotal,
 		"last_sync_at":          syncFormatTimePtr(a.LastSyncAt),
 		"watermark":             syncFormatTimePtr(a.SyncWatermark),
-		"rate_limited":          rateLimited,
-		"rate_limit_budget":     budget,
-		"discovering":           cfg.discovering,
-		"poll_interval_seconds": cfg.pollInterval,
+		"rate_limited":          row.RateLimited,
+		"rate_limit_budget":     budgetJSON(row.Budget),
+		"discovering":           row.Discovering,
+		"poll_interval_seconds": row.PollInterval,
 		"auto_import_enabled":   a.AutoImportEnabled,
-		"queue":                 h.queueCounts(ctx, a.ID),
+		"queue": map[string]int{
+			"pending":     row.Queue[domain.ImportStatusPending],
+			"in_progress": row.Queue[domain.ImportStatusInProgress],
+			"done":        row.Queue[domain.ImportStatusDone],
+			"failed":      row.Queue[domain.ImportStatusFailed],
+			"skipped":     row.Queue[domain.ImportStatusSkipped],
+		},
+		"assigned_worker": a.AssignedWorkerName,
+		"worker_pools":    pools,
+		"out_of_date":     row.OutOfDate,
 	}
+}
+
+// budgetJSON renders the live budget; nil when unknown.
+func budgetJSON(b domain.RateBudget) any {
+	if b.Empty() {
+		return nil
+	}
+	out := map[string]any{}
+	for name, w := range map[string]*domain.BudgetWindow{"short": b.Short, "daily": b.Daily} {
+		if w != nil {
+			out[name] = map[string]any{"used": w.Used, "limit": w.Limit, "resets_at": w.ResetsAt.UTC().Format(time.RFC3339)}
+		}
+	}
+	return out
 }
 
 // setWorker serves PUT /api/accounts/{id}/worker {worker, confirm}: pins the
@@ -307,7 +262,7 @@ func (h syncHandlers) reparseOutOfDate(w http.ResponseWriter, r *http.Request) {
 			skipped++
 			continue
 		}
-		if err := dispatchReparse(r.Context(), h.app, h.logger, a.UserID, s); err != nil {
+		if _, err := newSourceReimporter(h.app, h.logger).Reparse(r.Context(), a.UserID, s); err != nil {
 			h.logger.Warn("bulk re-parse: dispatch failed", "source_id", s.ID, "error", err)
 			skipped++
 			continue
@@ -472,46 +427,29 @@ func (h syncHandlers) history(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	events := []map[string]any{}
-	if h.app.ImportEvents != nil {
-		list, _ := h.app.ImportEvents.ListForAccount(r.Context(), a.ID, 50)
-		for _, e := range list {
-			events = append(events, h.historyEvent(r.Context(), a, e))
-		}
+	rows, _ := h.app.Accounts.History(r.Context(), a, 0)
+	events := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		events = append(events, historyEventJSON(row))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }
 
-func (h syncHandlers) historyEvent(ctx context.Context, a domain.ExternalAccount, e domain.ConnectionImportEvent) map[string]any {
+func historyEventJSON(row view.SyncEventRow) map[string]any {
+	e := row.Event
 	ev := map[string]any{
 		"kind":        e.Kind,
 		"count":       e.Count,
 		"detail":      e.Detail,
 		"external_id": e.ExternalID,
 		"occurred_at": e.OccurredAt.UTC().Format(time.RFC3339),
+		"status":      row.Status,
 	}
-	// Resolve the internal activity id for per-activity events so the
-	// UI can deep-link to the imported activity, plus an external deep
-	// link to the original on the provider's site.
-	linked := false
-	if e.ExternalID != "" && (e.Kind == domain.ImportEventActivityImported || e.Kind == domain.ImportEventActivityUpdated) {
-		if src, err := h.app.Activities.FindSourceByExternalID(ctx, a.Provider, &a.ID, e.ExternalID); err == nil {
-			ev["activity_id"] = src.ActivityID.String()
-			linked = true
-		}
-		if ext := providerActivityURL(a.Provider, e.ExternalID); ext != "" {
-			ev["external_url"] = ext
-		}
+	if row.ActivityID != nil {
+		ev["activity_id"] = row.ActivityID.String()
 	}
-	// Per-entry status: failed; completed (the activity is in and
-	// linkable); or ongoing (queued/processing — no link yet).
-	switch {
-	case e.Kind == domain.ImportEventFailed:
-		ev["status"] = "failed"
-	case linked:
-		ev["status"] = "completed"
-	default:
-		ev["status"] = "ongoing"
+	if row.ExternalURL != "" {
+		ev["external_url"] = row.ExternalURL
 	}
 	return ev
 }
@@ -558,19 +496,20 @@ func (h syncHandlers) queueItems(w http.ResponseWriter, r *http.Request) {
 			limit = n
 		}
 	}
-	items, err := h.app.ImportQueue.ListForAccount(r.Context(), a.ID, statuses, limit)
+	rows, err := h.app.Accounts.QueueItems(r.Context(), a, statuses, limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
-	out := make([]map[string]any, 0, len(items))
-	for _, it := range items {
-		out = append(out, syncQueueItemRow(a.Provider, it))
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, syncQueueItemRow(row))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-func syncQueueItemRow(provider string, it domain.ImportQueueItem) map[string]any {
+func syncQueueItemRow(r view.QueueItemRow) map[string]any {
+	it := r.Item
 	row := map[string]any{
 		"id":          it.ID.String(),
 		"item_type":   string(it.ItemType),
@@ -590,8 +529,8 @@ func syncQueueItemRow(provider string, it domain.ImportQueueItem) map[string]any
 	if it.CompletedAt != nil {
 		row["completed_at"] = it.CompletedAt.UTC().Format(time.RFC3339)
 	}
-	if url := providerActivityURL(provider, it.ExternalID); url != "" {
-		row["external_url"] = url
+	if r.ExternalURL != "" {
+		row["external_url"] = r.ExternalURL
 	}
 	return row
 }

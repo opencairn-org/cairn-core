@@ -197,42 +197,69 @@ message SegmentEffort {
 // ----------------------------------------------------------------------------
 
 service SegmentService {
-  // List segments visible to the caller (their own private + their starred
-  // Strava mirrors + instance-shared).
+  // List segments visible to the caller (their own native ones, mirrors of
+  // their accounts, instance-shared ones) with filters and sort.
+  // Scope: segments:read.
   rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse);
 
+  // The caller's segments landing page: a headline status block and the
+  // segments they have efforts on, most attempted first (GET /api/segments).
+  // Scope: segments:read.
+  rpc ListMySegments(ListMySegmentsRequest) returns (ListMySegmentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Scope: segments:read.
   rpc GetSegment(GetSegmentRequest) returns (GetSegmentResponse);
 
-  // Create a Cairn-native segment (source="cairn").
+  // Create a Cairn-native segment (source="native"); distance is derived
+  // from the polyline. backfill_efforts starts a background rematch of the
+  // caller's activities of that type. REST: POST /api/segments.
+  // Scope: segments:write.
   rpc CreateSegment(CreateSegmentRequest) returns (CreateSegmentResponse);
 
-  // Update a Cairn-native segment. Strava-mirrored segments are read-only
-  // except for the starred flag (which propagates back to Strava via a job).
+  // Update a Cairn-native segment. Provider-mirrored segments are read-only
+  // except for the starred flag, which is stored locally (no push back to
+  // the provider). The polyline is locked once efforts exist.
+  // Scope: segments:write.
   rpc UpdateSegment(UpdateSegmentRequest) returns (UpdateSegmentResponse);
 
+  // Delete the caller's native segment; its efforts go with it
+  // (keep_efforts=true is refused).
+  // Scope: segments:write.
   rpc DeleteSegment(DeleteSegmentRequest) returns (DeleteSegmentResponse);
 
   // Spatial search — used by the map view "show segments in this area".
+  // Scope: segments:read.
   rpc SearchSegmentsInBoundingBox(SearchSegmentsInBoundingBoxRequest) returns (SearchSegmentsInBoundingBoxResponse);
 
   // List efforts against a segment, with paging. For SCOPE_INSTANCE, all
-  // users' efforts; for SCOPE_PRIVATE, owner-only.
+  // users' efforts; otherwise only the caller's own.
+  // Scope: segments:read.
   rpc ListSegmentEfforts(ListSegmentEffortsRequest) returns (ListSegmentEffortsResponse);
 
   // List the calling user's efforts on a segment ordered by elapsed time
   // ascending — the "my history" view.
+  // Scope: segments:read.
   rpc ListMySegmentEfforts(ListMySegmentEffortsRequest) returns (ListMySegmentEffortsResponse);
 
-  // Leaderboard for instance-scoped segments.
+  // Leaderboard: each athlete's best effort in the window, ranked. On a
+  // private or mirrored segment the board holds only the caller. The
+  // biological_sex filter is refused (profiles do not share it).
+  // Scope: segments:read.
   rpc GetSegmentLeaderboard(GetSegmentLeaderboardRequest) returns (GetSegmentLeaderboardResponse);
 
-  // Re-run matching for a single activity against all eligible segments.
-  // Useful after creating a new segment that overlaps existing rides.
+  // Re-run matching for a single activity against all eligible segments
+  // (synchronous; segment_ids is accepted but the full candidate set is
+  // always evaluated). Useful after creating a segment that overlaps
+  // existing rides.
+  // Scope: segments:write.
   rpc RematchActivity(RematchActivityRequest) returns (RematchActivityResponse);
 
-  // Re-run matching for all of the caller's activities against a single
-  // segment. Used after creating a Cairn-native segment to backfill
-  // historical efforts. Queued as a background job.
+  // Re-run matching for all of the caller's activities of the segment's
+  // type (optionally within time_range). Runs in the background; the job
+  // id is informational.
+  // Scope: segments:write.
   rpc RematchSegment(RematchSegmentRequest) returns (RematchSegmentResponse);
 }
 
@@ -429,4 +456,42 @@ message RematchSegmentRequest {
 }
 message RematchSegmentResponse {
   string job_id = 1;
+}
+
+message ListMySegmentsRequest {
+  // Restrict to one activity type; unset = all.
+  ActivityType activity_type = 1;
+  // limit default 50, max 200.
+  PageRequest page = 2;
+}
+message UserSegmentStats {
+  // Distinct segments the caller has efforts on, their efforts, personal
+  // and course records, split by external (provider) and native segments.
+  int32 segments = 1;
+  int32 efforts = 2;
+  int32 prs = 3;
+  int32 crs = 4;
+  int32 external = 5;
+  int32 native = 6;
+}
+message UserSegmentRow {
+  string id = 1;
+  string name = 2;
+  ActivityType activity_type = 3;
+  // "external" (provider-mirrored) or "native".
+  string source = 4;
+  double distance_m = 5;
+  optional double elevation_gain_m = 6;
+  optional double avg_grade = 7;
+  int32 effort_count = 8;
+  double best_elapsed_s = 9;
+  google.protobuf.Timestamp last_effort_at = 10;
+  bool has_pr = 11;
+  bool has_cr = 12;
+}
+message ListMySegmentsResponse {
+  // Only on the first page.
+  UserSegmentStats stats = 1;
+  repeated UserSegmentRow segments = 2;
+  PageResponse page = 3;
 }

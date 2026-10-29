@@ -53,6 +53,12 @@ type ExternalAccountRepo interface {
 	// SetAssignedWorker pins the account to a named worker pool; "" unpins.
 	SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, workerName string) error
 
+	// DeleteAccount removes the row and what cascades from it: queue, import
+	// events, gear and the segments mirrored through it (they cannot exist
+	// without an account). Sources and metrics keep their rows with the
+	// account link nulled. domain.ErrNotFound when no row matched.
+	DeleteAccount(ctx context.Context, id domain.ExternalAccountID) error
+
 	// ListAccountsDueForReconcile returns accounts whose next reconcile
 	// is due based on the per-account schedule. Returned accounts are
 	// always status=active or status=rate_limited (with reset already

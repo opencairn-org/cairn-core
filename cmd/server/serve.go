@@ -21,6 +21,7 @@ import (
 	webui "github.com/opencairn-org/cairn-core/internal/adapter/primary/web"
 	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/db"
+	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
@@ -227,6 +228,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 		_, _ = fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("GET /readyz", serveReadyzHandler(pool, app))
+	// Signed binary-content delivery; sets app.Content, which the REST and
+	// Connect handlers below use to hand out photo/map/export URLs.
+	mountContent(mux, app, cfg, logger)
 	// Operator-only maintenance endpoints, session+admin-gated under /api/admin/*
 	// (NATS account-key bootstrap/rotate, dead-letter inspect/replay, geocode
 	// backfill). The legacy token-gated /admin/* smoketest surface was removed —
@@ -275,6 +279,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 	// Personal access tokens (CLI/API auth).
 	mountPATs(mux, app, logger)
+	// Password change, sessions, linked identities, profile (AuthService twins).
+	mountAccount(mux, app, logger)
+	mountAuthorizedApps(mux, app)
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {
@@ -309,6 +316,7 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 
 	// Athlete physiology profile (FTP/weight/HR time series → TSS).
 	mountAthlete(mux, app, logger)
+	mountMetricsAPI(mux, app, logger)
 
 	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
 	mountActivitiesFeed(mux, app, logger)
@@ -316,15 +324,18 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// An activity's segment efforts (joined to their segment).
 	mountSegmentEfforts(mux, app, logger)
 	mountSegmentDetail(mux, app, logger)
+	mountSegmentAuthoring(mux, app, logger)
 	mountZones(mux, app, logger)
 	mountLaps(mux, app, logger)
 	mountActivitySources(mux, app, logger)
+	mountSourcePreviews(mux, app, logger)
 	mountGarminConnect(mux, app)
 	mountGearSync(mux, app, logger)
 	mountMergeOverrides(mux, app, logger)
 	mountMergePolicy(mux, app, logger)
 	mountMergedStream(mux, app)
 	mountRecords(mux, app, logger)
+	mountCustomRecords(mux, app, logger)
 	mountHealth(mux, app, logger)
 	mountReviewQueue(mux, app, logger)
 	mountActivityManage(mux, app, logger)
@@ -359,9 +370,12 @@ func serveMountSocial(mux *http.ServeMux, app *App, logger *slog.Logger) {
 func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// Session+admin-gated admin API (worker onboarding) for the admin UI.
 	mountAdminAPI(mux, app, logger)
+	mountAdminUsers(mux, app, logger)
+	mountAdminInstance(mux, app, logger)
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
 	mountSyncEndpoints(mux, app, logger)
+	mountAccountLifecycle(mux, app, logger)
 
 	// Build/version info (public) — shown in the UI footer.
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, _ *http.Request) {
@@ -407,13 +421,23 @@ func serveNewHTTPServer(ctx context.Context, cfg *config.Config, mux *http.Serve
 	}
 	httpLimiter := newIPRateLimiter(perMin, nil)
 
+	// HTTP/1.1 plus cleartext HTTP/2 (h2c, prior knowledge): native Connect
+	// and gRPC clients multiplex and stream over one connection without a
+	// TLS-terminating proxy in front. Browsers never negotiate h2c, so the
+	// SPA path is unchanged. TLS still comes from the reverse proxy.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	return &http.Server{
-		Addr:         cfg.HTTP.Addr,
-		Handler:      metricsMiddleware(securityHeaders(rateLimitMiddleware(httpLimiter, mux))),
-		ReadTimeout:  cfg.HTTP.ReadTimeout,
-		WriteTimeout: cfg.HTTP.WriteTimeout,
-		IdleTimeout:  cfg.HTTP.IdleTimeout,
-		BaseContext:  func(net.Listener) context.Context { return ctx },
+		Addr:              cfg.HTTP.Addr,
+		Handler:           metricsMiddleware(securityHeaders(rateLimitMiddleware(httpLimiter, mux))),
+		Protocols:         protocols,
+		ReadTimeout:       cfg.HTTP.ReadTimeout,
+		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
+		WriteTimeout:      cfg.HTTP.WriteTimeout,
+		IdleTimeout:       cfg.HTTP.IdleTimeout,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
 }
 
@@ -619,6 +643,16 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 	// notifier.
 	if app.NATSBus != nil && app.NotifyWorkerOffline != nil {
 		go runWorkerPresenceWatcher(ctx, logger, app)
+	}
+
+	// Admin-triggered maintenance jobs run one at a time for the server's lifetime.
+	if app.Maintenance != nil {
+		app.Maintenance.Start(ctx)
+	}
+
+	// Health watcher: raises an admin event when the instance leaves "healthy".
+	if app.SystemHealth != nil && app.AdminEvents != nil {
+		go runHealthWatcher(ctx, logger, app)
 	}
 
 	// Start-location backfiller: reverse-geocodes activities missing a
@@ -961,6 +995,8 @@ type workerPresenceWatcher struct {
 	primed bool
 	// worker name → consecutive ticks absent (see workerPresenceManifestReapAfterTicks).
 	manifestAbsent map[string]int
+	// provider/name of live workers already reported as degraded.
+	degraded map[string]bool
 }
 
 // tick scans presence, notifies offline transitions and reaps stale manifests.
@@ -980,8 +1016,15 @@ func (w *workerPresenceWatcher) tick(ctx context.Context) {
 			if err := w.app.NotifyWorkerOffline.Execute(ctx, key, name); err != nil {
 				w.log.Warn("notify worker offline failed", "worker_key", key, "error", err)
 			}
+			publishAdminEvent(w.app, domain.NewAdminEvent(domain.AdminEventWorkerOffline, domain.AuditWarn, "admin.worker_offline").AboutWorker(name).With("worker_key", key))
 		}
 	}
+	for key, name := range live {
+		if _, known := w.seen[key]; !known {
+			publishAdminEvent(w.app, domain.NewAdminEvent(domain.AdminEventWorkerRegistered, domain.AuditInfo, "admin.worker_registered").AboutWorker(name).With("worker_key", key))
+		}
+	}
+	w.noteDegraded(ctx)
 	// Manifest keys are worker names ({name}); presence values are the
 	// same names. Reap manifests whose worker is no longer live.
 	liveNames := make(map[string]struct{}, len(live))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -160,10 +159,8 @@ func (r *EngagementRepo) ListKudosers(ctx context.Context, a domain.ActivityID, 
 
 // RemoteKudoser is a federated actor who liked a local activity, with a display
 // handle resolved from the cached actor record (falls back to the actor URL).
-type RemoteKudoser struct {
-	ActorID string
-	Handle  string // @user@domain
-}
+// RemoteKudoser is domain.RemoteKudoser (kept as an alias for callers).
+type RemoteKudoser = domain.RemoteKudoser
 
 func (r *EngagementRepo) AddRemoteKudos(ctx context.Context, a domain.ActivityID, remoteActorID, likeActivityID string) error {
 	db := dbtx(ctx, r.pool)
@@ -236,13 +233,8 @@ func (r *EngagementRepo) ListRemoteKudosers(ctx context.Context, a domain.Activi
 
 // RemoteComment is a federated reply (Create{Note}) on a local activity, with a
 // display handle resolved from the cached actor.
-type RemoteComment struct {
-	ID        string
-	ActorID   string
-	Handle    string // @user@domain
-	Body      string
-	CreatedAt time.Time
-}
+// RemoteComment is domain.RemoteComment (kept as an alias for callers).
+type RemoteComment = domain.RemoteComment
 
 func (r *EngagementRepo) AddRemoteComment(ctx context.Context, a domain.ActivityID, remoteActorID, noteAPID, body string) error {
 	db := dbtx(ctx, r.pool)
