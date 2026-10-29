@@ -330,6 +330,7 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountMergePolicy(mux, app, logger)
 	mountMergedStream(mux, app)
 	mountRecords(mux, app, logger)
+	mountCustomRecords(mux, app, logger)
 	mountHealth(mux, app, logger)
 	mountReviewQueue(mux, app, logger)
 	mountActivityManage(mux, app, logger)

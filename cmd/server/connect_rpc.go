@@ -46,6 +46,8 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
 	activitySvc.Events = app.ActivityEvents
+	activitySvc.Customs = app.CustomBestEfforts
+	activitySvc.Backfill = func(userID domain.UserID, at domain.ActivityType) { backfillCustomRecords(app, logger, userID, at) }
 	activitySvc.Reimporter = newSourceReimporter(app, logger)
 	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
 	activitySvc.Blobs = app.BlobStore

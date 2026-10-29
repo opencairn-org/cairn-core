@@ -38,6 +38,8 @@ type ComputeBestEffortsForSource struct {
 	streams     port.StreamRepo
 	bestEfforts port.BestEffortRepo
 	tx          port.TxManager
+	// Customs supplies the user's own windows (optional; nil → standard set only).
+	Customs port.CustomBestEffortRepo
 
 	now   func() time.Time
 	newID func() uuid.UUID
@@ -179,7 +181,7 @@ func (uc *ComputeBestEffortsForSource) Execute(ctx context.Context, in Input) (R
 	}
 
 	// Compute.
-	efforts := uc.computeAll(act, src, stream.Samples)
+	efforts := uc.computeAll(act, src, stream.Samples, uc.windowsFor(ctx, act))
 	before, _ := uc.bestEfforts.ListPersonalRecords(ctx, act.UserID) // best-effort: only feeds live events
 
 	// Persist atomically.
@@ -229,14 +231,47 @@ func newRecords(before, after []domain.PersonalRecord, activityID domain.Activit
 // returns the populated BestEffort rows. Dispatches by Kind: duration
 // windows use the sample-count sliding-window scan; distance windows use
 // a two-pointer scan over the cumulative-distance channel.
+// windowsFor returns the standard windows plus the user's custom ones for
+// the activity's type; a failed custom lookup falls back to the standard set.
+func (uc *ComputeBestEffortsForSource) windowsFor(ctx context.Context, act domain.Activity) []windowSpec {
+	if uc.Customs == nil {
+		return StandardWindows
+	}
+	customs, err := uc.Customs.ListForUser(ctx, act.UserID, act.Type)
+	if err != nil {
+		return StandardWindows
+	}
+	return mergeWindows(StandardWindows, customs)
+}
+
+// mergeWindows appends custom windows that are not already standard.
+func mergeWindows(std []windowSpec, customs []domain.CustomBestEffort) []windowSpec {
+	out := append([]windowSpec(nil), std...)
+	for _, c := range customs {
+		w := windowSpec{Metric: c.Metric, Kind: c.WindowKind, Value: c.WindowValue}
+		dup := false
+		for _, s := range std {
+			if s == w {
+				dup = true
+				break
+			}
+		}
+		if !dup {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
 func (uc *ComputeBestEffortsForSource) computeAll(
 	act domain.Activity,
 	src domain.ActivitySource,
 	samples []domain.StreamSample,
+	windows []windowSpec,
 ) []domain.BestEffort {
 	now := uc.now()
 	var out []domain.BestEffort
-	for _, w := range StandardWindows {
+	for _, w := range windows {
 		switch w.Kind {
 		case domain.BestEffortWindowDuration:
 			if be, ok := uc.computeDurationEffort(act, src, samples, w, now); ok {

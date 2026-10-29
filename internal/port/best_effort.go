@@ -33,4 +33,20 @@ type BestEffortRepo interface {
 	// ListBestEffortHistory returns every effort of the user in one bucket
 	// (activity type, metric, window), chronological, for the progression view.
 	ListBestEffortHistory(ctx context.Context, userID domain.UserID, activityType, metric, windowKind string, windowValue int) ([]domain.BestEffortHistoryItem, error)
+
+	// DeleteForUserWindow removes every effort of the user in one (activity
+	// type, metric, window) bucket — used when a custom window is deleted.
+	DeleteForUserWindow(ctx context.Context, userID domain.UserID, activityType domain.ActivityType, metric domain.BestEffortMetric, kind domain.BestEffortWindowKind, value int) error
+}
+
+// CustomBestEffortRepo persists user-defined best-effort windows.
+type CustomBestEffortRepo interface {
+	// Create inserts a window; a duplicate (user, type, metric, kind, value)
+	// returns domain.ErrCustomEffortDuplicate.
+	Create(ctx context.Context, c domain.CustomBestEffort) (domain.CustomBestEffortID, error)
+	// ListForUser returns the user's windows, oldest first; activityType ""
+	// means every type.
+	ListForUser(ctx context.Context, userID domain.UserID, activityType domain.ActivityType) ([]domain.CustomBestEffort, error)
+	// Delete removes one window (ownership-scoped); ErrNotFound when absent.
+	Delete(ctx context.Context, userID domain.UserID, id domain.CustomBestEffortID) error
 }

@@ -61,6 +61,7 @@ type App struct {
 	Users                  *postgres.UserRepo
 	Streams                *postgres.StreamRepo
 	BestEfforts            *postgres.BestEffortRepo
+	CustomBestEffortRepo   *postgres.CustomBestEffortRepo
 	Segments               *postgres.SegmentRepo
 	Metrics                *postgres.MetricRepo
 	Notifications          port.NotificationRepo // postgres repo wrapped by notification.BroadcastRepo
@@ -166,6 +167,7 @@ type App struct {
 	Health                   port.HealthRepo
 	Gear                     *gearuc.Service
 	ComputeBestEfforts       *besteffort.ComputeBestEffortsForSource
+	CustomBestEfforts        *besteffort.Customs
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -291,6 +293,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.Users = postgres.NewUserRepo(pool)
 	app.Streams = postgres.NewStreamRepo(pool)
 	app.BestEfforts = postgres.NewBestEffortRepo(pool)
+	app.CustomBestEffortRepo = postgres.NewCustomBestEffortRepo(pool)
 	app.Segments = postgres.NewSegmentRepo(pool)
 	app.Metrics = postgres.NewMetricRepo(pool)
 	app.NotificationHub = notification.NewHub()
@@ -389,14 +392,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
 	app.SourceActions.Events = app.ActivityEvents
 	app.SourceLinks.Events = app.ActivityEvents
-	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
-		app.Activities,
-		app.Streams,
-		app.BestEfforts,
-		app.Tx,
-		nil, // default time.Now
-		nil, // default uuid.NewV7
-	)
+	wireBestEfforts(app)
 	app.ComputeSegmentRanks = segmentrank.NewComputeSegmentRanks(app.Segments, app.Tx)
 	app.MatchSegments = segment.NewMatchSegmentsForActivity(
 		app.Activities,
@@ -746,4 +742,18 @@ func wireAccount(app *App) {
 	if app.Users != nil {
 		app.Profiles = &account.Profiles{Users: app.Users}
 	}
+}
+
+// wireBestEfforts builds the best-effort compute and the custom-window use case.
+func wireBestEfforts(app *App) {
+	app.ComputeBestEfforts = besteffort.NewComputeBestEffortsForSource(
+		app.Activities,
+		app.Streams,
+		app.BestEfforts,
+		app.Tx,
+		nil, // default time.Now
+		nil, // default uuid.NewV7
+	)
+	app.ComputeBestEfforts.Customs = app.CustomBestEffortRepo
+	app.CustomBestEfforts = &besteffort.Customs{Repo: app.CustomBestEffortRepo, BestEfforts: app.BestEfforts, Activities: app.Activities, Compute: app.ComputeBestEfforts}
 }

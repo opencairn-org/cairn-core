@@ -7758,6 +7758,86 @@ func (x *CreateCustomBestEffortResponse) GetCustomBestEffort() *CustomBestEffort
 	return nil
 }
 
+type ListCustomBestEffortsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCustomBestEffortsRequest) Reset() {
+	*x = ListCustomBestEffortsRequest{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomBestEffortsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomBestEffortsRequest) ProtoMessage() {}
+
+func (x *ListCustomBestEffortsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomBestEffortsRequest.ProtoReflect.Descriptor instead.
+func (*ListCustomBestEffortsRequest) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{88}
+}
+
+type ListCustomBestEffortsResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	CustomBestEfforts []*CustomBestEffort    `protobuf:"bytes,1,rep,name=custom_best_efforts,json=customBestEfforts,proto3" json:"custom_best_efforts,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ListCustomBestEffortsResponse) Reset() {
+	*x = ListCustomBestEffortsResponse{}
+	mi := &file_cairn_v1_activity_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomBestEffortsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomBestEffortsResponse) ProtoMessage() {}
+
+func (x *ListCustomBestEffortsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cairn_v1_activity_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomBestEffortsResponse.ProtoReflect.Descriptor instead.
+func (*ListCustomBestEffortsResponse) Descriptor() ([]byte, []int) {
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *ListCustomBestEffortsResponse) GetCustomBestEfforts() []*CustomBestEffort {
+	if x != nil {
+		return x.CustomBestEfforts
+	}
+	return nil
+}
+
 type DeleteCustomBestEffortRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -7767,7 +7847,7 @@ type DeleteCustomBestEffortRequest struct {
 
 func (x *DeleteCustomBestEffortRequest) Reset() {
 	*x = DeleteCustomBestEffortRequest{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[88]
+	mi := &file_cairn_v1_activity_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7779,7 +7859,7 @@ func (x *DeleteCustomBestEffortRequest) String() string {
 func (*DeleteCustomBestEffortRequest) ProtoMessage() {}
 
 func (x *DeleteCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[88]
+	mi := &file_cairn_v1_activity_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7792,7 +7872,7 @@ func (x *DeleteCustomBestEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCustomBestEffortRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCustomBestEffortRequest) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{88}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *DeleteCustomBestEffortRequest) GetId() string {
@@ -7810,7 +7890,7 @@ type DeleteCustomBestEffortResponse struct {
 
 func (x *DeleteCustomBestEffortResponse) Reset() {
 	*x = DeleteCustomBestEffortResponse{}
-	mi := &file_cairn_v1_activity_proto_msgTypes[89]
+	mi := &file_cairn_v1_activity_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7822,7 +7902,7 @@ func (x *DeleteCustomBestEffortResponse) String() string {
 func (*DeleteCustomBestEffortResponse) ProtoMessage() {}
 
 func (x *DeleteCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cairn_v1_activity_proto_msgTypes[89]
+	mi := &file_cairn_v1_activity_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7835,7 +7915,7 @@ func (x *DeleteCustomBestEffortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCustomBestEffortResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCustomBestEffortResponse) Descriptor() ([]byte, []int) {
-	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{89}
+	return file_cairn_v1_activity_proto_rawDescGZIP(), []int{91}
 }
 
 var File_cairn_v1_activity_proto protoreflect.FileDescriptor
@@ -8612,7 +8692,10 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\fwindow_value\x18\x04 \x01(\x05R\vwindowValue\x12\x14\n" +
 	"\x05label\x18\x05 \x01(\tR\x05label\"j\n" +
 	"\x1eCreateCustomBestEffortResponse\x12H\n" +
-	"\x12custom_best_effort\x18\x01 \x01(\v2\x1a.cairn.v1.CustomBestEffortR\x10customBestEffort\"/\n" +
+	"\x12custom_best_effort\x18\x01 \x01(\v2\x1a.cairn.v1.CustomBestEffortR\x10customBestEffort\"\x1e\n" +
+	"\x1cListCustomBestEffortsRequest\"k\n" +
+	"\x1dListCustomBestEffortsResponse\x12J\n" +
+	"\x13custom_best_efforts\x18\x01 \x03(\v2\x1a.cairn.v1.CustomBestEffortR\x11customBestEfforts\"/\n" +
 	"\x1dDeleteCustomBestEffortRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\" \n" +
 	"\x1eDeleteCustomBestEffortResponse*U\n" +
@@ -8741,7 +8824,7 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x19EXPORT_FORMAT_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11EXPORT_FORMAT_GPX\x10\x01\x12\x15\n" +
 	"\x11EXPORT_FORMAT_TCX\x10\x02\x12\x15\n" +
-	"\x11EXPORT_FORMAT_FIT\x10\x032\xad\x18\n" +
+	"\x11EXPORT_FORMAT_FIT\x10\x032\x9c\x19\n" +
 	"\x0fActivityService\x12S\n" +
 	"\x0eListActivities\x12\x1f.cairn.v1.ListActivitiesRequest\x1a .cairn.v1.ListActivitiesResponse\x12^\n" +
 	"\x10SearchActivities\x12!.cairn.v1.SearchActivitiesRequest\x1a\".cairn.v1.SearchActivitiesResponse\"\x03\x90\x02\x01\x12J\n" +
@@ -8774,7 +8857,8 @@ const file_cairn_v1_activity_proto_rawDesc = "" +
 	"\x0eExportActivity\x12\x1f.cairn.v1.ExportActivityRequest\x1a .cairn.v1.ExportActivityResponse\x12V\n" +
 	"\x0fListBestEfforts\x12 .cairn.v1.ListBestEffortsRequest\x1a!.cairn.v1.ListBestEffortsResponse\x12J\n" +
 	"\vListRecords\x12\x1c.cairn.v1.ListRecordsRequest\x1a\x1d.cairn.v1.ListRecordsResponse\x12k\n" +
-	"\x16CreateCustomBestEffort\x12'.cairn.v1.CreateCustomBestEffortRequest\x1a(.cairn.v1.CreateCustomBestEffortResponse\x12k\n" +
+	"\x16CreateCustomBestEffort\x12'.cairn.v1.CreateCustomBestEffortRequest\x1a(.cairn.v1.CreateCustomBestEffortResponse\x12m\n" +
+	"\x15ListCustomBestEfforts\x12&.cairn.v1.ListCustomBestEffortsRequest\x1a'.cairn.v1.ListCustomBestEffortsResponse\"\x03\x90\x02\x01\x12k\n" +
 	"\x16DeleteCustomBestEffort\x12'.cairn.v1.DeleteCustomBestEffortRequest\x1a(.cairn.v1.DeleteCustomBestEffortResponseB\x9e\x01\n" +
 	"\fcom.cairn.v1B\rActivityProtoP\x01Z>github.com/opencairn-org/cairn-core/gen/proto/cairn/v1;cairnv1\xa2\x02\x03CXX\xaa\x02\bCairn.V1\xca\x02\bCairn\\V1\xe2\x02\x14Cairn\\V1\\GPBMetadata\xea\x02\tCairn::V1b\x06proto3"
 
@@ -8791,7 +8875,7 @@ func file_cairn_v1_activity_proto_rawDescGZIP() []byte {
 }
 
 var file_cairn_v1_activity_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
-var file_cairn_v1_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 96)
+var file_cairn_v1_activity_proto_msgTypes = make([]protoimpl.MessageInfo, 98)
 var file_cairn_v1_activity_proto_goTypes = []any{
 	(GearSetBy)(0),                             // 0: cairn.v1.GearSetBy
 	(ActivityType)(0),                          // 1: cairn.v1.ActivityType
@@ -8894,106 +8978,108 @@ var file_cairn_v1_activity_proto_goTypes = []any{
 	(*ListRecordsResponse)(nil),                // 98: cairn.v1.ListRecordsResponse
 	(*CreateCustomBestEffortRequest)(nil),      // 99: cairn.v1.CreateCustomBestEffortRequest
 	(*CreateCustomBestEffortResponse)(nil),     // 100: cairn.v1.CreateCustomBestEffortResponse
-	(*DeleteCustomBestEffortRequest)(nil),      // 101: cairn.v1.DeleteCustomBestEffortRequest
-	(*DeleteCustomBestEffortResponse)(nil),     // 102: cairn.v1.DeleteCustomBestEffortResponse
-	nil,                                        // 103: cairn.v1.Activity.MergeProvenanceEntry
-	nil,                                        // 104: cairn.v1.ActivitySourcePayload.ExtraEntry
-	nil,                                        // 105: cairn.v1.ActivityEvent.I18nParamsEntry
-	nil,                                        // 106: cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
-	nil,                                        // 107: cairn.v1.GetMergedStreamResponse.ChannelsEntry
-	nil,                                        // 108: cairn.v1.GetExportOptionsResponse.AvailableEntry
-	(*timestamppb.Timestamp)(nil),              // 109: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                // 110: google.protobuf.Duration
-	(*ContentUrl)(nil),                         // 111: cairn.v1.ContentUrl
-	(*EncodedPolyline)(nil),                    // 112: cairn.v1.EncodedPolyline
-	(*TimeRange)(nil),                          // 113: cairn.v1.TimeRange
-	(*PageRequest)(nil),                        // 114: cairn.v1.PageRequest
-	(*Facet)(nil),                              // 115: cairn.v1.Facet
-	(*PageResponse)(nil),                       // 116: cairn.v1.PageResponse
-	(*UserCard)(nil),                           // 117: cairn.v1.UserCard
+	(*ListCustomBestEffortsRequest)(nil),       // 101: cairn.v1.ListCustomBestEffortsRequest
+	(*ListCustomBestEffortsResponse)(nil),      // 102: cairn.v1.ListCustomBestEffortsResponse
+	(*DeleteCustomBestEffortRequest)(nil),      // 103: cairn.v1.DeleteCustomBestEffortRequest
+	(*DeleteCustomBestEffortResponse)(nil),     // 104: cairn.v1.DeleteCustomBestEffortResponse
+	nil,                                        // 105: cairn.v1.Activity.MergeProvenanceEntry
+	nil,                                        // 106: cairn.v1.ActivitySourcePayload.ExtraEntry
+	nil,                                        // 107: cairn.v1.ActivityEvent.I18nParamsEntry
+	nil,                                        // 108: cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
+	nil,                                        // 109: cairn.v1.GetMergedStreamResponse.ChannelsEntry
+	nil,                                        // 110: cairn.v1.GetExportOptionsResponse.AvailableEntry
+	(*timestamppb.Timestamp)(nil),              // 111: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                // 112: google.protobuf.Duration
+	(*ContentUrl)(nil),                         // 113: cairn.v1.ContentUrl
+	(*EncodedPolyline)(nil),                    // 114: cairn.v1.EncodedPolyline
+	(*TimeRange)(nil),                          // 115: cairn.v1.TimeRange
+	(*PageRequest)(nil),                        // 116: cairn.v1.PageRequest
+	(*Facet)(nil),                              // 117: cairn.v1.Facet
+	(*PageResponse)(nil),                       // 118: cairn.v1.PageResponse
+	(*UserCard)(nil),                           // 119: cairn.v1.UserCard
 }
 var file_cairn_v1_activity_proto_depIdxs = []int32{
 	1,   // 0: cairn.v1.Activity.type:type_name -> cairn.v1.ActivityType
 	2,   // 1: cairn.v1.Activity.discipline:type_name -> cairn.v1.Discipline
-	109, // 2: cairn.v1.Activity.start_time:type_name -> google.protobuf.Timestamp
-	109, // 3: cairn.v1.Activity.end_time:type_name -> google.protobuf.Timestamp
-	110, // 4: cairn.v1.Activity.elapsed_duration:type_name -> google.protobuf.Duration
-	110, // 5: cairn.v1.Activity.moving_duration:type_name -> google.protobuf.Duration
+	111, // 2: cairn.v1.Activity.start_time:type_name -> google.protobuf.Timestamp
+	111, // 3: cairn.v1.Activity.end_time:type_name -> google.protobuf.Timestamp
+	112, // 4: cairn.v1.Activity.elapsed_duration:type_name -> google.protobuf.Duration
+	112, // 5: cairn.v1.Activity.moving_duration:type_name -> google.protobuf.Duration
 	14,  // 6: cairn.v1.Activity.summary:type_name -> cairn.v1.ActivitySummary
 	15,  // 7: cairn.v1.Activity.sources:type_name -> cairn.v1.ActivitySource
-	103, // 8: cairn.v1.Activity.merge_provenance:type_name -> cairn.v1.Activity.MergeProvenanceEntry
-	109, // 9: cairn.v1.Activity.merged_at:type_name -> google.protobuf.Timestamp
-	109, // 10: cairn.v1.Activity.created_at:type_name -> google.protobuf.Timestamp
-	109, // 11: cairn.v1.Activity.updated_at:type_name -> google.protobuf.Timestamp
+	105, // 8: cairn.v1.Activity.merge_provenance:type_name -> cairn.v1.Activity.MergeProvenanceEntry
+	111, // 9: cairn.v1.Activity.merged_at:type_name -> google.protobuf.Timestamp
+	111, // 10: cairn.v1.Activity.created_at:type_name -> google.protobuf.Timestamp
+	111, // 11: cairn.v1.Activity.updated_at:type_name -> google.protobuf.Timestamp
 	3,   // 12: cairn.v1.Activity.privacy:type_name -> cairn.v1.Privacy
-	109, // 13: cairn.v1.Activity.deleted_at:type_name -> google.protobuf.Timestamp
+	111, // 13: cairn.v1.Activity.deleted_at:type_name -> google.protobuf.Timestamp
 	0,   // 14: cairn.v1.Activity.gear_set_by:type_name -> cairn.v1.GearSetBy
-	111, // 15: cairn.v1.Activity.map_image:type_name -> cairn.v1.ContentUrl
+	113, // 15: cairn.v1.Activity.map_image:type_name -> cairn.v1.ContentUrl
 	16,  // 16: cairn.v1.ActivitySource.parsed:type_name -> cairn.v1.ActivitySourcePayload
 	4,   // 17: cairn.v1.ActivitySource.status:type_name -> cairn.v1.ActivitySourceStatus
 	5,   // 18: cairn.v1.ActivitySource.reimport_status:type_name -> cairn.v1.ReimportStatus
-	109, // 19: cairn.v1.ActivitySource.imported_at:type_name -> google.protobuf.Timestamp
-	109, // 20: cairn.v1.ActivitySource.last_reimported_at:type_name -> google.protobuf.Timestamp
-	109, // 21: cairn.v1.ActivitySource.updated_at:type_name -> google.protobuf.Timestamp
+	111, // 19: cairn.v1.ActivitySource.imported_at:type_name -> google.protobuf.Timestamp
+	111, // 20: cairn.v1.ActivitySource.last_reimported_at:type_name -> google.protobuf.Timestamp
+	111, // 21: cairn.v1.ActivitySource.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 22: cairn.v1.ActivitySourcePayload.type:type_name -> cairn.v1.ActivityType
 	2,   // 23: cairn.v1.ActivitySourcePayload.discipline:type_name -> cairn.v1.Discipline
-	109, // 24: cairn.v1.ActivitySourcePayload.start_time:type_name -> google.protobuf.Timestamp
-	109, // 25: cairn.v1.ActivitySourcePayload.end_time:type_name -> google.protobuf.Timestamp
-	110, // 26: cairn.v1.ActivitySourcePayload.elapsed_duration:type_name -> google.protobuf.Duration
-	110, // 27: cairn.v1.ActivitySourcePayload.moving_duration:type_name -> google.protobuf.Duration
+	111, // 24: cairn.v1.ActivitySourcePayload.start_time:type_name -> google.protobuf.Timestamp
+	111, // 25: cairn.v1.ActivitySourcePayload.end_time:type_name -> google.protobuf.Timestamp
+	112, // 26: cairn.v1.ActivitySourcePayload.elapsed_duration:type_name -> google.protobuf.Duration
+	112, // 27: cairn.v1.ActivitySourcePayload.moving_duration:type_name -> google.protobuf.Duration
 	14,  // 28: cairn.v1.ActivitySourcePayload.summary:type_name -> cairn.v1.ActivitySummary
 	17,  // 29: cairn.v1.ActivitySourcePayload.laps:type_name -> cairn.v1.ActivityLap
 	18,  // 30: cairn.v1.ActivitySourcePayload.stream_summary:type_name -> cairn.v1.StreamSummary
 	19,  // 31: cairn.v1.ActivitySourcePayload.provider_segment_efforts:type_name -> cairn.v1.ProviderSegmentEffort
 	20,  // 32: cairn.v1.ActivitySourcePayload.provider_best_efforts:type_name -> cairn.v1.ProviderBestEffort
-	104, // 33: cairn.v1.ActivitySourcePayload.extra:type_name -> cairn.v1.ActivitySourcePayload.ExtraEntry
-	109, // 34: cairn.v1.ActivityLap.start_time:type_name -> google.protobuf.Timestamp
-	110, // 35: cairn.v1.ActivityLap.elapsed_duration:type_name -> google.protobuf.Duration
-	110, // 36: cairn.v1.ActivityLap.moving_duration:type_name -> google.protobuf.Duration
+	106, // 33: cairn.v1.ActivitySourcePayload.extra:type_name -> cairn.v1.ActivitySourcePayload.ExtraEntry
+	111, // 34: cairn.v1.ActivityLap.start_time:type_name -> google.protobuf.Timestamp
+	112, // 35: cairn.v1.ActivityLap.elapsed_duration:type_name -> google.protobuf.Duration
+	112, // 36: cairn.v1.ActivityLap.moving_duration:type_name -> google.protobuf.Duration
 	6,   // 37: cairn.v1.StreamSummary.channels:type_name -> cairn.v1.StreamChannel
-	112, // 38: cairn.v1.StreamSummary.polyline:type_name -> cairn.v1.EncodedPolyline
-	109, // 39: cairn.v1.ProviderSegmentEffort.start_time:type_name -> google.protobuf.Timestamp
-	110, // 40: cairn.v1.ProviderSegmentEffort.elapsed:type_name -> google.protobuf.Duration
-	110, // 41: cairn.v1.ProviderBestEffort.elapsed:type_name -> google.protobuf.Duration
+	114, // 38: cairn.v1.StreamSummary.polyline:type_name -> cairn.v1.EncodedPolyline
+	111, // 39: cairn.v1.ProviderSegmentEffort.start_time:type_name -> google.protobuf.Timestamp
+	112, // 40: cairn.v1.ProviderSegmentEffort.elapsed:type_name -> google.protobuf.Duration
+	112, // 41: cairn.v1.ProviderBestEffort.elapsed:type_name -> google.protobuf.Duration
 	6,   // 42: cairn.v1.ActivityStream.channels:type_name -> cairn.v1.StreamChannel
 	1,   // 43: cairn.v1.BestEffort.activity_type:type_name -> cairn.v1.ActivityType
 	2,   // 44: cairn.v1.BestEffort.discipline:type_name -> cairn.v1.Discipline
 	7,   // 45: cairn.v1.BestEffort.metric:type_name -> cairn.v1.BestEffortMetric
 	8,   // 46: cairn.v1.BestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	110, // 47: cairn.v1.BestEffort.duration:type_name -> google.protobuf.Duration
-	109, // 48: cairn.v1.BestEffort.ts:type_name -> google.protobuf.Timestamp
+	112, // 47: cairn.v1.BestEffort.duration:type_name -> google.protobuf.Duration
+	111, // 48: cairn.v1.BestEffort.ts:type_name -> google.protobuf.Timestamp
 	1,   // 49: cairn.v1.UserRecord.activity_type:type_name -> cairn.v1.ActivityType
 	2,   // 50: cairn.v1.UserRecord.discipline:type_name -> cairn.v1.Discipline
 	7,   // 51: cairn.v1.UserRecord.metric:type_name -> cairn.v1.BestEffortMetric
 	8,   // 52: cairn.v1.UserRecord.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	109, // 53: cairn.v1.UserRecord.ts:type_name -> google.protobuf.Timestamp
-	109, // 54: cairn.v1.UserRecord.previous_ts:type_name -> google.protobuf.Timestamp
+	111, // 53: cairn.v1.UserRecord.ts:type_name -> google.protobuf.Timestamp
+	111, // 54: cairn.v1.UserRecord.previous_ts:type_name -> google.protobuf.Timestamp
 	1,   // 55: cairn.v1.CustomBestEffort.activity_type:type_name -> cairn.v1.ActivityType
 	7,   // 56: cairn.v1.CustomBestEffort.metric:type_name -> cairn.v1.BestEffortMetric
 	8,   // 57: cairn.v1.CustomBestEffort.window_kind:type_name -> cairn.v1.BestEffortWindowKind
-	109, // 58: cairn.v1.CustomBestEffort.created_at:type_name -> google.protobuf.Timestamp
-	113, // 59: cairn.v1.ListActivitiesRequest.time_range:type_name -> cairn.v1.TimeRange
+	111, // 58: cairn.v1.CustomBestEffort.created_at:type_name -> google.protobuf.Timestamp
+	115, // 59: cairn.v1.ListActivitiesRequest.time_range:type_name -> cairn.v1.TimeRange
 	1,   // 60: cairn.v1.ListActivitiesRequest.types:type_name -> cairn.v1.ActivityType
 	2,   // 61: cairn.v1.ListActivitiesRequest.disciplines:type_name -> cairn.v1.Discipline
 	9,   // 62: cairn.v1.ListActivitiesRequest.sort:type_name -> cairn.v1.ActivitySort
-	114, // 63: cairn.v1.ListActivitiesRequest.page:type_name -> cairn.v1.PageRequest
+	116, // 63: cairn.v1.ListActivitiesRequest.page:type_name -> cairn.v1.PageRequest
 	1,   // 64: cairn.v1.ActivityFilter.types:type_name -> cairn.v1.ActivityType
-	113, // 65: cairn.v1.ActivityFilter.time_range:type_name -> cairn.v1.TimeRange
+	115, // 65: cairn.v1.ActivityFilter.time_range:type_name -> cairn.v1.TimeRange
 	12,  // 66: cairn.v1.ActivityFilter.virtual:type_name -> cairn.v1.ActivityFilter.Flag
 	12,  // 67: cairn.v1.ActivityFilter.ebike:type_name -> cairn.v1.ActivityFilter.Flag
 	12,  // 68: cairn.v1.ActivityFilter.commute:type_name -> cairn.v1.ActivityFilter.Flag
 	12,  // 69: cairn.v1.ActivityFilter.race:type_name -> cairn.v1.ActivityFilter.Flag
-	115, // 70: cairn.v1.ActivityFacets.types:type_name -> cairn.v1.Facet
-	115, // 71: cairn.v1.ActivityFacets.disciplines:type_name -> cairn.v1.Facet
-	115, // 72: cairn.v1.ActivityFacets.years:type_name -> cairn.v1.Facet
+	117, // 70: cairn.v1.ActivityFacets.types:type_name -> cairn.v1.Facet
+	117, // 71: cairn.v1.ActivityFacets.disciplines:type_name -> cairn.v1.Facet
+	117, // 72: cairn.v1.ActivityFacets.years:type_name -> cairn.v1.Facet
 	26,  // 73: cairn.v1.SearchActivitiesRequest.filter:type_name -> cairn.v1.ActivityFilter
 	9,   // 74: cairn.v1.SearchActivitiesRequest.sort:type_name -> cairn.v1.ActivitySort
-	114, // 75: cairn.v1.SearchActivitiesRequest.page:type_name -> cairn.v1.PageRequest
+	116, // 75: cairn.v1.SearchActivitiesRequest.page:type_name -> cairn.v1.PageRequest
 	13,  // 76: cairn.v1.SearchActivitiesResponse.activities:type_name -> cairn.v1.Activity
 	27,  // 77: cairn.v1.SearchActivitiesResponse.facets:type_name -> cairn.v1.ActivityFacets
-	116, // 78: cairn.v1.SearchActivitiesResponse.page:type_name -> cairn.v1.PageResponse
+	118, // 78: cairn.v1.SearchActivitiesResponse.page:type_name -> cairn.v1.PageResponse
 	13,  // 79: cairn.v1.ListActivitiesResponse.activities:type_name -> cairn.v1.Activity
-	116, // 80: cairn.v1.ListActivitiesResponse.page:type_name -> cairn.v1.PageResponse
+	118, // 80: cairn.v1.ListActivitiesResponse.page:type_name -> cairn.v1.PageResponse
 	13,  // 81: cairn.v1.GetActivityResponse.activity:type_name -> cairn.v1.Activity
 	1,   // 82: cairn.v1.UpdateActivityRequest.type:type_name -> cairn.v1.ActivityType
 	2,   // 83: cairn.v1.UpdateActivityRequest.discipline:type_name -> cairn.v1.Discipline
@@ -9001,16 +9087,16 @@ var file_cairn_v1_activity_proto_depIdxs = []int32{
 	13,  // 85: cairn.v1.UpdateActivityResponse.activity:type_name -> cairn.v1.Activity
 	10,  // 86: cairn.v1.StreamActivityEventsRequest.types:type_name -> cairn.v1.ActivityEventType
 	10,  // 87: cairn.v1.ActivityEvent.type:type_name -> cairn.v1.ActivityEventType
-	109, // 88: cairn.v1.ActivityEvent.ts:type_name -> google.protobuf.Timestamp
-	105, // 89: cairn.v1.ActivityEvent.i18n_params:type_name -> cairn.v1.ActivityEvent.I18nParamsEntry
+	111, // 88: cairn.v1.ActivityEvent.ts:type_name -> google.protobuf.Timestamp
+	107, // 89: cairn.v1.ActivityEvent.i18n_params:type_name -> cairn.v1.ActivityEvent.I18nParamsEntry
 	15,  // 90: cairn.v1.ListActivitySourcesResponse.sources:type_name -> cairn.v1.ActivitySource
 	13,  // 91: cairn.v1.CommitSourcePreviewResponse.activity:type_name -> cairn.v1.Activity
 	13,  // 92: cairn.v1.LinkSourceToActivityResponse.activity:type_name -> cairn.v1.Activity
 	13,  // 93: cairn.v1.DetachSourceResponse.new_activity:type_name -> cairn.v1.Activity
 	6,   // 94: cairn.v1.GetActivityStreamRequest.channels:type_name -> cairn.v1.StreamChannel
 	21,  // 95: cairn.v1.GetActivityStreamResponse.stream:type_name -> cairn.v1.ActivityStream
-	106, // 96: cairn.v1.PresignActivityUploadResponse.required_headers:type_name -> cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
-	109, // 97: cairn.v1.PresignActivityUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
+	108, // 96: cairn.v1.PresignActivityUploadResponse.required_headers:type_name -> cairn.v1.PresignActivityUploadResponse.RequiredHeadersEntry
+	111, // 97: cairn.v1.PresignActivityUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
 	1,   // 98: cairn.v1.UploadActivityRequest.type_hint:type_name -> cairn.v1.ActivityType
 	2,   // 99: cairn.v1.UploadActivityRequest.discipline_hint:type_name -> cairn.v1.Discipline
 	17,  // 100: cairn.v1.ListLapsResponse.laps:type_name -> cairn.v1.ActivityLap
@@ -9020,112 +9106,115 @@ var file_cairn_v1_activity_proto_depIdxs = []int32{
 	64,  // 104: cairn.v1.GetActivityZonesResponse.decoupling:type_name -> cairn.v1.Decoupling
 	67,  // 105: cairn.v1.ListActivitySegmentEffortsResponse.efforts:type_name -> cairn.v1.ActivitySegmentEffort
 	1,   // 106: cairn.v1.SimilarActivity.type:type_name -> cairn.v1.ActivityType
-	109, // 107: cairn.v1.SimilarActivity.start_time:type_name -> google.protobuf.Timestamp
+	111, // 107: cairn.v1.SimilarActivity.start_time:type_name -> google.protobuf.Timestamp
 	70,  // 108: cairn.v1.ListSimilarActivitiesResponse.activities:type_name -> cairn.v1.SimilarActivity
-	107, // 109: cairn.v1.GetMergedStreamResponse.channels:type_name -> cairn.v1.GetMergedStreamResponse.ChannelsEntry
-	117, // 110: cairn.v1.ListKudosResponse.kudosers:type_name -> cairn.v1.UserCard
-	109, // 111: cairn.v1.Comment.created_at:type_name -> google.protobuf.Timestamp
-	117, // 112: cairn.v1.Comment.author:type_name -> cairn.v1.UserCard
+	109, // 109: cairn.v1.GetMergedStreamResponse.channels:type_name -> cairn.v1.GetMergedStreamResponse.ChannelsEntry
+	119, // 110: cairn.v1.ListKudosResponse.kudosers:type_name -> cairn.v1.UserCard
+	111, // 111: cairn.v1.Comment.created_at:type_name -> google.protobuf.Timestamp
+	119, // 112: cairn.v1.Comment.author:type_name -> cairn.v1.UserCard
 	78,  // 113: cairn.v1.ListCommentsResponse.comments:type_name -> cairn.v1.Comment
 	15,  // 114: cairn.v1.SourceInsight.source:type_name -> cairn.v1.ActivitySource
-	109, // 115: cairn.v1.SourceInsight.last_reimported_at:type_name -> google.protobuf.Timestamp
-	109, // 116: cairn.v1.FieldProvenance.synced_at:type_name -> google.protobuf.Timestamp
-	109, // 117: cairn.v1.GetActivityManageInfoResponse.merged_at:type_name -> google.protobuf.Timestamp
+	111, // 115: cairn.v1.SourceInsight.last_reimported_at:type_name -> google.protobuf.Timestamp
+	111, // 116: cairn.v1.FieldProvenance.synced_at:type_name -> google.protobuf.Timestamp
+	111, // 117: cairn.v1.GetActivityManageInfoResponse.merged_at:type_name -> google.protobuf.Timestamp
 	81,  // 118: cairn.v1.GetActivityManageInfoResponse.sources:type_name -> cairn.v1.SourceInsight
 	82,  // 119: cairn.v1.GetActivityManageInfoResponse.provenance:type_name -> cairn.v1.FieldProvenance
 	16,  // 120: cairn.v1.GetParsedSourceResponse.payload:type_name -> cairn.v1.ActivitySourcePayload
-	111, // 121: cairn.v1.Attachment.original:type_name -> cairn.v1.ContentUrl
-	111, // 122: cairn.v1.Attachment.medium:type_name -> cairn.v1.ContentUrl
-	111, // 123: cairn.v1.Attachment.thumb:type_name -> cairn.v1.ContentUrl
-	109, // 124: cairn.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	113, // 121: cairn.v1.Attachment.original:type_name -> cairn.v1.ContentUrl
+	113, // 122: cairn.v1.Attachment.medium:type_name -> cairn.v1.ContentUrl
+	113, // 123: cairn.v1.Attachment.thumb:type_name -> cairn.v1.ContentUrl
+	111, // 124: cairn.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
 	86,  // 125: cairn.v1.ListAttachmentsResponse.attachments:type_name -> cairn.v1.Attachment
-	111, // 126: cairn.v1.GetActivityMapImageResponse.image:type_name -> cairn.v1.ContentUrl
-	108, // 127: cairn.v1.GetExportOptionsResponse.available:type_name -> cairn.v1.GetExportOptionsResponse.AvailableEntry
+	113, // 126: cairn.v1.GetActivityMapImageResponse.image:type_name -> cairn.v1.ContentUrl
+	110, // 127: cairn.v1.GetExportOptionsResponse.available:type_name -> cairn.v1.GetExportOptionsResponse.AvailableEntry
 	11,  // 128: cairn.v1.ExportActivityRequest.format:type_name -> cairn.v1.ExportFormat
-	111, // 129: cairn.v1.ExportActivityResponse.file:type_name -> cairn.v1.ContentUrl
+	113, // 129: cairn.v1.ExportActivityResponse.file:type_name -> cairn.v1.ContentUrl
 	7,   // 130: cairn.v1.ListBestEffortsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
 	22,  // 131: cairn.v1.ListBestEffortsResponse.efforts:type_name -> cairn.v1.BestEffort
 	1,   // 132: cairn.v1.ListRecordsRequest.activity_type:type_name -> cairn.v1.ActivityType
 	2,   // 133: cairn.v1.ListRecordsRequest.discipline:type_name -> cairn.v1.Discipline
-	113, // 134: cairn.v1.ListRecordsRequest.time_range:type_name -> cairn.v1.TimeRange
+	115, // 134: cairn.v1.ListRecordsRequest.time_range:type_name -> cairn.v1.TimeRange
 	7,   // 135: cairn.v1.ListRecordsRequest.metrics:type_name -> cairn.v1.BestEffortMetric
 	23,  // 136: cairn.v1.ListRecordsResponse.records:type_name -> cairn.v1.UserRecord
 	1,   // 137: cairn.v1.CreateCustomBestEffortRequest.activity_type:type_name -> cairn.v1.ActivityType
 	7,   // 138: cairn.v1.CreateCustomBestEffortRequest.metric:type_name -> cairn.v1.BestEffortMetric
 	8,   // 139: cairn.v1.CreateCustomBestEffortRequest.window_kind:type_name -> cairn.v1.BestEffortWindowKind
 	24,  // 140: cairn.v1.CreateCustomBestEffortResponse.custom_best_effort:type_name -> cairn.v1.CustomBestEffort
-	73,  // 141: cairn.v1.GetMergedStreamResponse.ChannelsEntry.value:type_name -> cairn.v1.MergedChannel
-	25,  // 142: cairn.v1.ActivityService.ListActivities:input_type -> cairn.v1.ListActivitiesRequest
-	28,  // 143: cairn.v1.ActivityService.SearchActivities:input_type -> cairn.v1.SearchActivitiesRequest
-	31,  // 144: cairn.v1.ActivityService.GetActivity:input_type -> cairn.v1.GetActivityRequest
-	33,  // 145: cairn.v1.ActivityService.UpdateActivity:input_type -> cairn.v1.UpdateActivityRequest
-	35,  // 146: cairn.v1.ActivityService.DeleteActivity:input_type -> cairn.v1.DeleteActivityRequest
-	37,  // 147: cairn.v1.ActivityService.StreamActivityEvents:input_type -> cairn.v1.StreamActivityEventsRequest
-	39,  // 148: cairn.v1.ActivityService.ListActivitySources:input_type -> cairn.v1.ListActivitySourcesRequest
-	41,  // 149: cairn.v1.ActivityService.ReimportSource:input_type -> cairn.v1.ReimportSourceRequest
-	43,  // 150: cairn.v1.ActivityService.PreviewSourceReimport:input_type -> cairn.v1.PreviewSourceReimportRequest
-	45,  // 151: cairn.v1.ActivityService.CommitSourcePreview:input_type -> cairn.v1.CommitSourcePreviewRequest
-	47,  // 152: cairn.v1.ActivityService.DiscardSourcePreview:input_type -> cairn.v1.DiscardSourcePreviewRequest
-	49,  // 153: cairn.v1.ActivityService.LinkSourceToActivity:input_type -> cairn.v1.LinkSourceToActivityRequest
-	51,  // 154: cairn.v1.ActivityService.DetachSource:input_type -> cairn.v1.DetachSourceRequest
-	53,  // 155: cairn.v1.ActivityService.GetActivityStream:input_type -> cairn.v1.GetActivityStreamRequest
-	55,  // 156: cairn.v1.ActivityService.PresignActivityUpload:input_type -> cairn.v1.PresignActivityUploadRequest
-	57,  // 157: cairn.v1.ActivityService.UploadActivity:input_type -> cairn.v1.UploadActivityRequest
-	59,  // 158: cairn.v1.ActivityService.ListLaps:input_type -> cairn.v1.ListLapsRequest
-	61,  // 159: cairn.v1.ActivityService.GetActivityZones:input_type -> cairn.v1.GetActivityZonesRequest
-	66,  // 160: cairn.v1.ActivityService.ListActivitySegmentEfforts:input_type -> cairn.v1.ListActivitySegmentEffortsRequest
-	69,  // 161: cairn.v1.ActivityService.ListSimilarActivities:input_type -> cairn.v1.ListSimilarActivitiesRequest
-	72,  // 162: cairn.v1.ActivityService.GetMergedStream:input_type -> cairn.v1.GetMergedStreamRequest
-	75,  // 163: cairn.v1.ActivityService.ListKudos:input_type -> cairn.v1.ListKudosRequest
-	77,  // 164: cairn.v1.ActivityService.ListComments:input_type -> cairn.v1.ListCommentsRequest
-	80,  // 165: cairn.v1.ActivityService.GetActivityManageInfo:input_type -> cairn.v1.GetActivityManageInfoRequest
-	84,  // 166: cairn.v1.ActivityService.GetParsedSource:input_type -> cairn.v1.GetParsedSourceRequest
-	87,  // 167: cairn.v1.ActivityService.ListAttachments:input_type -> cairn.v1.ListAttachmentsRequest
-	89,  // 168: cairn.v1.ActivityService.GetActivityMapImage:input_type -> cairn.v1.GetActivityMapImageRequest
-	91,  // 169: cairn.v1.ActivityService.GetExportOptions:input_type -> cairn.v1.GetExportOptionsRequest
-	93,  // 170: cairn.v1.ActivityService.ExportActivity:input_type -> cairn.v1.ExportActivityRequest
-	95,  // 171: cairn.v1.ActivityService.ListBestEfforts:input_type -> cairn.v1.ListBestEffortsRequest
-	97,  // 172: cairn.v1.ActivityService.ListRecords:input_type -> cairn.v1.ListRecordsRequest
-	99,  // 173: cairn.v1.ActivityService.CreateCustomBestEffort:input_type -> cairn.v1.CreateCustomBestEffortRequest
-	101, // 174: cairn.v1.ActivityService.DeleteCustomBestEffort:input_type -> cairn.v1.DeleteCustomBestEffortRequest
-	30,  // 175: cairn.v1.ActivityService.ListActivities:output_type -> cairn.v1.ListActivitiesResponse
-	29,  // 176: cairn.v1.ActivityService.SearchActivities:output_type -> cairn.v1.SearchActivitiesResponse
-	32,  // 177: cairn.v1.ActivityService.GetActivity:output_type -> cairn.v1.GetActivityResponse
-	34,  // 178: cairn.v1.ActivityService.UpdateActivity:output_type -> cairn.v1.UpdateActivityResponse
-	36,  // 179: cairn.v1.ActivityService.DeleteActivity:output_type -> cairn.v1.DeleteActivityResponse
-	38,  // 180: cairn.v1.ActivityService.StreamActivityEvents:output_type -> cairn.v1.ActivityEvent
-	40,  // 181: cairn.v1.ActivityService.ListActivitySources:output_type -> cairn.v1.ListActivitySourcesResponse
-	42,  // 182: cairn.v1.ActivityService.ReimportSource:output_type -> cairn.v1.ReimportSourceResponse
-	44,  // 183: cairn.v1.ActivityService.PreviewSourceReimport:output_type -> cairn.v1.PreviewSourceReimportResponse
-	46,  // 184: cairn.v1.ActivityService.CommitSourcePreview:output_type -> cairn.v1.CommitSourcePreviewResponse
-	48,  // 185: cairn.v1.ActivityService.DiscardSourcePreview:output_type -> cairn.v1.DiscardSourcePreviewResponse
-	50,  // 186: cairn.v1.ActivityService.LinkSourceToActivity:output_type -> cairn.v1.LinkSourceToActivityResponse
-	52,  // 187: cairn.v1.ActivityService.DetachSource:output_type -> cairn.v1.DetachSourceResponse
-	54,  // 188: cairn.v1.ActivityService.GetActivityStream:output_type -> cairn.v1.GetActivityStreamResponse
-	56,  // 189: cairn.v1.ActivityService.PresignActivityUpload:output_type -> cairn.v1.PresignActivityUploadResponse
-	58,  // 190: cairn.v1.ActivityService.UploadActivity:output_type -> cairn.v1.UploadActivityResponse
-	60,  // 191: cairn.v1.ActivityService.ListLaps:output_type -> cairn.v1.ListLapsResponse
-	65,  // 192: cairn.v1.ActivityService.GetActivityZones:output_type -> cairn.v1.GetActivityZonesResponse
-	68,  // 193: cairn.v1.ActivityService.ListActivitySegmentEfforts:output_type -> cairn.v1.ListActivitySegmentEffortsResponse
-	71,  // 194: cairn.v1.ActivityService.ListSimilarActivities:output_type -> cairn.v1.ListSimilarActivitiesResponse
-	74,  // 195: cairn.v1.ActivityService.GetMergedStream:output_type -> cairn.v1.GetMergedStreamResponse
-	76,  // 196: cairn.v1.ActivityService.ListKudos:output_type -> cairn.v1.ListKudosResponse
-	79,  // 197: cairn.v1.ActivityService.ListComments:output_type -> cairn.v1.ListCommentsResponse
-	83,  // 198: cairn.v1.ActivityService.GetActivityManageInfo:output_type -> cairn.v1.GetActivityManageInfoResponse
-	85,  // 199: cairn.v1.ActivityService.GetParsedSource:output_type -> cairn.v1.GetParsedSourceResponse
-	88,  // 200: cairn.v1.ActivityService.ListAttachments:output_type -> cairn.v1.ListAttachmentsResponse
-	90,  // 201: cairn.v1.ActivityService.GetActivityMapImage:output_type -> cairn.v1.GetActivityMapImageResponse
-	92,  // 202: cairn.v1.ActivityService.GetExportOptions:output_type -> cairn.v1.GetExportOptionsResponse
-	94,  // 203: cairn.v1.ActivityService.ExportActivity:output_type -> cairn.v1.ExportActivityResponse
-	96,  // 204: cairn.v1.ActivityService.ListBestEfforts:output_type -> cairn.v1.ListBestEffortsResponse
-	98,  // 205: cairn.v1.ActivityService.ListRecords:output_type -> cairn.v1.ListRecordsResponse
-	100, // 206: cairn.v1.ActivityService.CreateCustomBestEffort:output_type -> cairn.v1.CreateCustomBestEffortResponse
-	102, // 207: cairn.v1.ActivityService.DeleteCustomBestEffort:output_type -> cairn.v1.DeleteCustomBestEffortResponse
-	175, // [175:208] is the sub-list for method output_type
-	142, // [142:175] is the sub-list for method input_type
-	142, // [142:142] is the sub-list for extension type_name
-	142, // [142:142] is the sub-list for extension extendee
-	0,   // [0:142] is the sub-list for field type_name
+	24,  // 141: cairn.v1.ListCustomBestEffortsResponse.custom_best_efforts:type_name -> cairn.v1.CustomBestEffort
+	73,  // 142: cairn.v1.GetMergedStreamResponse.ChannelsEntry.value:type_name -> cairn.v1.MergedChannel
+	25,  // 143: cairn.v1.ActivityService.ListActivities:input_type -> cairn.v1.ListActivitiesRequest
+	28,  // 144: cairn.v1.ActivityService.SearchActivities:input_type -> cairn.v1.SearchActivitiesRequest
+	31,  // 145: cairn.v1.ActivityService.GetActivity:input_type -> cairn.v1.GetActivityRequest
+	33,  // 146: cairn.v1.ActivityService.UpdateActivity:input_type -> cairn.v1.UpdateActivityRequest
+	35,  // 147: cairn.v1.ActivityService.DeleteActivity:input_type -> cairn.v1.DeleteActivityRequest
+	37,  // 148: cairn.v1.ActivityService.StreamActivityEvents:input_type -> cairn.v1.StreamActivityEventsRequest
+	39,  // 149: cairn.v1.ActivityService.ListActivitySources:input_type -> cairn.v1.ListActivitySourcesRequest
+	41,  // 150: cairn.v1.ActivityService.ReimportSource:input_type -> cairn.v1.ReimportSourceRequest
+	43,  // 151: cairn.v1.ActivityService.PreviewSourceReimport:input_type -> cairn.v1.PreviewSourceReimportRequest
+	45,  // 152: cairn.v1.ActivityService.CommitSourcePreview:input_type -> cairn.v1.CommitSourcePreviewRequest
+	47,  // 153: cairn.v1.ActivityService.DiscardSourcePreview:input_type -> cairn.v1.DiscardSourcePreviewRequest
+	49,  // 154: cairn.v1.ActivityService.LinkSourceToActivity:input_type -> cairn.v1.LinkSourceToActivityRequest
+	51,  // 155: cairn.v1.ActivityService.DetachSource:input_type -> cairn.v1.DetachSourceRequest
+	53,  // 156: cairn.v1.ActivityService.GetActivityStream:input_type -> cairn.v1.GetActivityStreamRequest
+	55,  // 157: cairn.v1.ActivityService.PresignActivityUpload:input_type -> cairn.v1.PresignActivityUploadRequest
+	57,  // 158: cairn.v1.ActivityService.UploadActivity:input_type -> cairn.v1.UploadActivityRequest
+	59,  // 159: cairn.v1.ActivityService.ListLaps:input_type -> cairn.v1.ListLapsRequest
+	61,  // 160: cairn.v1.ActivityService.GetActivityZones:input_type -> cairn.v1.GetActivityZonesRequest
+	66,  // 161: cairn.v1.ActivityService.ListActivitySegmentEfforts:input_type -> cairn.v1.ListActivitySegmentEffortsRequest
+	69,  // 162: cairn.v1.ActivityService.ListSimilarActivities:input_type -> cairn.v1.ListSimilarActivitiesRequest
+	72,  // 163: cairn.v1.ActivityService.GetMergedStream:input_type -> cairn.v1.GetMergedStreamRequest
+	75,  // 164: cairn.v1.ActivityService.ListKudos:input_type -> cairn.v1.ListKudosRequest
+	77,  // 165: cairn.v1.ActivityService.ListComments:input_type -> cairn.v1.ListCommentsRequest
+	80,  // 166: cairn.v1.ActivityService.GetActivityManageInfo:input_type -> cairn.v1.GetActivityManageInfoRequest
+	84,  // 167: cairn.v1.ActivityService.GetParsedSource:input_type -> cairn.v1.GetParsedSourceRequest
+	87,  // 168: cairn.v1.ActivityService.ListAttachments:input_type -> cairn.v1.ListAttachmentsRequest
+	89,  // 169: cairn.v1.ActivityService.GetActivityMapImage:input_type -> cairn.v1.GetActivityMapImageRequest
+	91,  // 170: cairn.v1.ActivityService.GetExportOptions:input_type -> cairn.v1.GetExportOptionsRequest
+	93,  // 171: cairn.v1.ActivityService.ExportActivity:input_type -> cairn.v1.ExportActivityRequest
+	95,  // 172: cairn.v1.ActivityService.ListBestEfforts:input_type -> cairn.v1.ListBestEffortsRequest
+	97,  // 173: cairn.v1.ActivityService.ListRecords:input_type -> cairn.v1.ListRecordsRequest
+	99,  // 174: cairn.v1.ActivityService.CreateCustomBestEffort:input_type -> cairn.v1.CreateCustomBestEffortRequest
+	101, // 175: cairn.v1.ActivityService.ListCustomBestEfforts:input_type -> cairn.v1.ListCustomBestEffortsRequest
+	103, // 176: cairn.v1.ActivityService.DeleteCustomBestEffort:input_type -> cairn.v1.DeleteCustomBestEffortRequest
+	30,  // 177: cairn.v1.ActivityService.ListActivities:output_type -> cairn.v1.ListActivitiesResponse
+	29,  // 178: cairn.v1.ActivityService.SearchActivities:output_type -> cairn.v1.SearchActivitiesResponse
+	32,  // 179: cairn.v1.ActivityService.GetActivity:output_type -> cairn.v1.GetActivityResponse
+	34,  // 180: cairn.v1.ActivityService.UpdateActivity:output_type -> cairn.v1.UpdateActivityResponse
+	36,  // 181: cairn.v1.ActivityService.DeleteActivity:output_type -> cairn.v1.DeleteActivityResponse
+	38,  // 182: cairn.v1.ActivityService.StreamActivityEvents:output_type -> cairn.v1.ActivityEvent
+	40,  // 183: cairn.v1.ActivityService.ListActivitySources:output_type -> cairn.v1.ListActivitySourcesResponse
+	42,  // 184: cairn.v1.ActivityService.ReimportSource:output_type -> cairn.v1.ReimportSourceResponse
+	44,  // 185: cairn.v1.ActivityService.PreviewSourceReimport:output_type -> cairn.v1.PreviewSourceReimportResponse
+	46,  // 186: cairn.v1.ActivityService.CommitSourcePreview:output_type -> cairn.v1.CommitSourcePreviewResponse
+	48,  // 187: cairn.v1.ActivityService.DiscardSourcePreview:output_type -> cairn.v1.DiscardSourcePreviewResponse
+	50,  // 188: cairn.v1.ActivityService.LinkSourceToActivity:output_type -> cairn.v1.LinkSourceToActivityResponse
+	52,  // 189: cairn.v1.ActivityService.DetachSource:output_type -> cairn.v1.DetachSourceResponse
+	54,  // 190: cairn.v1.ActivityService.GetActivityStream:output_type -> cairn.v1.GetActivityStreamResponse
+	56,  // 191: cairn.v1.ActivityService.PresignActivityUpload:output_type -> cairn.v1.PresignActivityUploadResponse
+	58,  // 192: cairn.v1.ActivityService.UploadActivity:output_type -> cairn.v1.UploadActivityResponse
+	60,  // 193: cairn.v1.ActivityService.ListLaps:output_type -> cairn.v1.ListLapsResponse
+	65,  // 194: cairn.v1.ActivityService.GetActivityZones:output_type -> cairn.v1.GetActivityZonesResponse
+	68,  // 195: cairn.v1.ActivityService.ListActivitySegmentEfforts:output_type -> cairn.v1.ListActivitySegmentEffortsResponse
+	71,  // 196: cairn.v1.ActivityService.ListSimilarActivities:output_type -> cairn.v1.ListSimilarActivitiesResponse
+	74,  // 197: cairn.v1.ActivityService.GetMergedStream:output_type -> cairn.v1.GetMergedStreamResponse
+	76,  // 198: cairn.v1.ActivityService.ListKudos:output_type -> cairn.v1.ListKudosResponse
+	79,  // 199: cairn.v1.ActivityService.ListComments:output_type -> cairn.v1.ListCommentsResponse
+	83,  // 200: cairn.v1.ActivityService.GetActivityManageInfo:output_type -> cairn.v1.GetActivityManageInfoResponse
+	85,  // 201: cairn.v1.ActivityService.GetParsedSource:output_type -> cairn.v1.GetParsedSourceResponse
+	88,  // 202: cairn.v1.ActivityService.ListAttachments:output_type -> cairn.v1.ListAttachmentsResponse
+	90,  // 203: cairn.v1.ActivityService.GetActivityMapImage:output_type -> cairn.v1.GetActivityMapImageResponse
+	92,  // 204: cairn.v1.ActivityService.GetExportOptions:output_type -> cairn.v1.GetExportOptionsResponse
+	94,  // 205: cairn.v1.ActivityService.ExportActivity:output_type -> cairn.v1.ExportActivityResponse
+	96,  // 206: cairn.v1.ActivityService.ListBestEfforts:output_type -> cairn.v1.ListBestEffortsResponse
+	98,  // 207: cairn.v1.ActivityService.ListRecords:output_type -> cairn.v1.ListRecordsResponse
+	100, // 208: cairn.v1.ActivityService.CreateCustomBestEffort:output_type -> cairn.v1.CreateCustomBestEffortResponse
+	102, // 209: cairn.v1.ActivityService.ListCustomBestEfforts:output_type -> cairn.v1.ListCustomBestEffortsResponse
+	104, // 210: cairn.v1.ActivityService.DeleteCustomBestEffort:output_type -> cairn.v1.DeleteCustomBestEffortResponse
+	177, // [177:211] is the sub-list for method output_type
+	143, // [143:177] is the sub-list for method input_type
+	143, // [143:143] is the sub-list for extension type_name
+	143, // [143:143] is the sub-list for extension extendee
+	0,   // [0:143] is the sub-list for field type_name
 }
 
 func init() { file_cairn_v1_activity_proto_init() }
@@ -9156,7 +9245,7 @@ func file_cairn_v1_activity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cairn_v1_activity_proto_rawDesc), len(file_cairn_v1_activity_proto_rawDesc)),
 			NumEnums:      13,
-			NumMessages:   96,
+			NumMessages:   98,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

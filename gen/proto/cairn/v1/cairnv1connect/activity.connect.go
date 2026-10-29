@@ -132,6 +132,9 @@ const (
 	// ActivityServiceCreateCustomBestEffortProcedure is the procedure name of the ActivityService's
 	// CreateCustomBestEffort RPC.
 	ActivityServiceCreateCustomBestEffortProcedure = "/cairn.v1.ActivityService/CreateCustomBestEffort"
+	// ActivityServiceListCustomBestEffortsProcedure is the procedure name of the ActivityService's
+	// ListCustomBestEfforts RPC.
+	ActivityServiceListCustomBestEffortsProcedure = "/cairn.v1.ActivityService/ListCustomBestEfforts"
 	// ActivityServiceDeleteCustomBestEffortProcedure is the procedure name of the ActivityService's
 	// DeleteCustomBestEffort RPC.
 	ActivityServiceDeleteCustomBestEffortProcedure = "/cairn.v1.ActivityService/DeleteCustomBestEffort"
@@ -375,6 +378,14 @@ var (
 			Procedure:  ActivityServiceCreateCustomBestEffortProcedure,
 		}
 	})
+	activityServiceListCustomBestEffortsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("ListCustomBestEfforts"),
+			Procedure:        ActivityServiceListCustomBestEffortsProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 	activityServiceDeleteCustomBestEffortSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -510,11 +521,16 @@ type ActivityServiceClient interface {
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
 	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
-	// User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
-	// (both return Unimplemented): the best-effort compute only knows the fixed
-	// window set.
+	// User-defined best-effort windows (e.g. 7.5 km) computed next to the
+	// standard set for one activity type. Distance windows take the pace
+	// metric, duration windows speed, power, heart_rate or vam. Creating one
+	// backfills the user's activities of that type in the background
+	// (GET /api/records/custom on REST).
 	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:read.
+	ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error)
+	// Deleting a window also deletes the efforts computed for it.
 	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
@@ -672,11 +688,16 @@ type ActivityServiceHandler interface {
 	ListBestEfforts(context.Context, *v1.ListBestEffortsRequest) (*v1.ListBestEffortsResponse, error)
 	// Scope: activities:read.
 	ListRecords(context.Context, *v1.ListRecordsRequest) (*v1.ListRecordsResponse, error)
-	// User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
-	// (both return Unimplemented): the best-effort compute only knows the fixed
-	// window set.
+	// User-defined best-effort windows (e.g. 7.5 km) computed next to the
+	// standard set for one activity type. Distance windows take the pace
+	// metric, duration windows speed, power, heart_rate or vam. Creating one
+	// backfills the user's activities of that type in the background
+	// (GET /api/records/custom on REST).
 	// Scope: activities:write.
 	CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error)
+	// Scope: activities:read.
+	ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error)
+	// Deleting a window also deletes the efforts computed for it.
 	// Scope: activities:write.
 	DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error)
 }
@@ -718,6 +739,7 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceListBestEffortsSpec(), Handler: adapter.listBestEfforts},
 		connect.Method{Spec: activityServiceListRecordsSpec(), Handler: adapter.listRecords},
 		connect.Method{Spec: activityServiceCreateCustomBestEffortSpec(), Handler: adapter.createCustomBestEffort},
+		connect.Method{Spec: activityServiceListCustomBestEffortsSpec(), Handler: adapter.listCustomBestEfforts},
 		connect.Method{Spec: activityServiceDeleteCustomBestEffortSpec(), Handler: adapter.deleteCustomBestEffort},
 	)
 }
@@ -867,6 +889,10 @@ func (UnimplementedActivityServiceHandler) ListRecords(context.Context, *v1.List
 
 func (UnimplementedActivityServiceHandler) CreateCustomBestEffort(context.Context, *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.CreateCustomBestEffort is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) ListCustomBestEfforts(context.Context, *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.ListCustomBestEfforts is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) DeleteCustomBestEffort(context.Context, *v1.DeleteCustomBestEffortRequest) (*v1.DeleteCustomBestEffortResponse, error) {
@@ -1128,6 +1154,14 @@ func (c *activityServiceClient) ListRecords(ctx context.Context, req *v1.ListRec
 func (c *activityServiceClient) CreateCustomBestEffort(ctx context.Context, req *v1.CreateCustomBestEffortRequest) (*v1.CreateCustomBestEffortResponse, error) {
 	var res v1.CreateCustomBestEffortResponse
 	if err := c.client.CallUnary(ctx, activityServiceCreateCustomBestEffortSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) ListCustomBestEfforts(ctx context.Context, req *v1.ListCustomBestEffortsRequest) (*v1.ListCustomBestEffortsResponse, error) {
+	var res v1.ListCustomBestEffortsResponse
+	if err := c.client.CallUnary(ctx, activityServiceListCustomBestEffortsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1517,6 +1551,18 @@ func (h activityServiceHandler) createCustomBestEffort(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.CreateCustomBestEffort(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) listCustomBestEfforts(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListCustomBestEffortsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListCustomBestEfforts(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -29,6 +29,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
@@ -77,6 +78,11 @@ type ActivityServer struct {
 	// Events is the live feed behind StreamActivityEvents; UpdateActivity
 	// publishes to it. Nil → the stream answers Unavailable.
 	Events *ActivityEventHub
+
+	// Customs backs the custom best-effort RPCs; Backfill (optional) is told
+	// to recompute the user's activities of a type after a create.
+	Customs  *besteffort.Customs
+	Backfill func(userID domain.UserID, activityType domain.ActivityType)
 
 	// Content signs photo/map/export URLs; Attachments lists photos;
 	// Visibility gates non-owner reads; Exports renders interchange files;

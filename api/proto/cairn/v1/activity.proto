@@ -761,11 +761,18 @@ service ActivityService {
   rpc ListBestEfforts(ListBestEffortsRequest) returns (ListBestEffortsResponse);
   // Scope: activities:read.
   rpc ListRecords(ListRecordsRequest) returns (ListRecordsResponse);
-  // User-defined best-effort windows (e.g. 7.5 km). Planned, not implemented
-  // (both return Unimplemented): the best-effort compute only knows the fixed
-  // window set.
+  // User-defined best-effort windows (e.g. 7.5 km) computed next to the
+  // standard set for one activity type. Distance windows take the pace
+  // metric, duration windows speed, power, heart_rate or vam. Creating one
+  // backfills the user's activities of that type in the background
+  // (GET /api/records/custom on REST).
   // Scope: activities:write.
   rpc CreateCustomBestEffort(CreateCustomBestEffortRequest) returns (CreateCustomBestEffortResponse);
+  // Scope: activities:read.
+  rpc ListCustomBestEfforts(ListCustomBestEffortsRequest) returns (ListCustomBestEffortsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Deleting a window also deletes the efforts computed for it.
   // Scope: activities:write.
   rpc DeleteCustomBestEffort(DeleteCustomBestEffortRequest) returns (DeleteCustomBestEffortResponse);
 }
@@ -1377,6 +1384,11 @@ message CreateCustomBestEffortRequest {
 }
 message CreateCustomBestEffortResponse {
   CustomBestEffort custom_best_effort = 1;
+}
+
+message ListCustomBestEffortsRequest {}
+message ListCustomBestEffortsResponse {
+  repeated CustomBestEffort custom_best_efforts = 1;
 }
 
 message DeleteCustomBestEffortRequest {
