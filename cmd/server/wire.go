@@ -143,26 +143,28 @@ type App struct {
 	Email port.EmailSender
 
 	// Use cases
-	RecomputeActivity  *activity.RecomputeActivityFromSources
-	IngestActivity     *activity.IngestActivityFromWorker
-	ReclusterBucket    *matchuc.ReclusterBucket
-	SourceActions      *activity.SourceActions
-	SourceLinks        *matchuc.SourceLinks
-	Visibility2        *view.Visibility // shared visibility resolver (REST + Connect)
-	Exports            *view.Exports
-	Overviews          *view.Overviews
-	Searches           *view.Searches
-	Feeds              *view.Feeds
-	Details            *view.Details
-	Stats              *view.Stats
-	SegmentViews       *view.Segments
-	HealthViews        *view.Health
-	MetricStore        *metricsuc.Store
-	Accounts           *view.Accounts
-	AccountRemover     *accountsuc.Remover
-	ClubViews          *view.Clubs
-	ProfileViews       *view.Profiles
-	AttachmentVariants *attachmentuc.Variants
+	RecomputeActivity       *activity.RecomputeActivityFromSources
+	IngestActivity          *activity.IngestActivityFromWorker
+	ReclusterBucket         *matchuc.ReclusterBucket
+	SourceActions           *activity.SourceActions
+	SourceLinks             *matchuc.SourceLinks
+	Visibility2             *view.Visibility // shared visibility resolver (REST + Connect)
+	Exports                 *view.Exports
+	Overviews               *view.Overviews
+	Searches                *view.Searches
+	Feeds                   *view.Feeds
+	Details                 *view.Details
+	Stats                   *view.Stats
+	SegmentViews            *view.Segments
+	HealthViews             *view.Health
+	MetricStore             *metricsuc.Store
+	Accounts                *view.Accounts
+	AccountRemover          *accountsuc.Remover
+	ClubViews               *view.Clubs
+	ProfileViews            *view.Profiles
+	QuotaViews              *view.Quota
+	NotificationPreferences *notification.Preferences
+	AttachmentVariants      *attachmentuc.Variants
 	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
 	ActivityEvents *livefeed.Hub[domain.UserID, domain.ActivityEvent]
 	// AdminEvents is the operator channel behind StreamAdminEvents.
@@ -766,6 +768,7 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	}
 	app.ClubViews = view.NewClubs(clubs, app.Users, app.Feeds)
 	app.ProfileViews = view.NewProfiles(app.Users, app.Activities, app.Follows, app.Blocks, app.Visibility2)
+	wireUserViews(app)
 	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
@@ -1034,4 +1037,17 @@ func wireMaintenance(app *App, pool *pgxpool.Pool) {
 		}
 	}
 	app.Maintenance = r
+}
+
+// wireUserViews builds the small self-service reads shared by REST and Connect.
+func wireUserViews(app *App) {
+	var quotas port.QuotaRepo
+	if app.Quotas != nil {
+		quotas = app.Quotas
+	}
+	app.QuotaViews = view.NewQuota(app.Activities, quotas, app.QuotaMaxActivities)
+	app.NotificationPreferences = &notification.Preferences{}
+	if app.NotificationPrefs != nil {
+		app.NotificationPreferences.Repo = app.NotificationPrefs
+	}
 }

@@ -54,29 +54,15 @@ func (s *AuthServer) GetQuota(ctx context.Context, _ *v1.GetQuotaRequest) (*v1.G
 	if err != nil {
 		return nil, err
 	}
-	if s.Activities == nil {
+	if s.Quota == nil {
 		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "quota is not available on this instance")
 	}
-	limit := s.QuotaMaxActivities
-	if s.Quotas != nil {
-		if override, err := s.Quotas.GetMaxActivities(ctx, userID); err == nil && override != nil {
-			limit = *override
-		}
-	}
-	if limit < 0 {
-		limit = 0
-	}
-	totals, err := s.Activities.ActivityTotals(ctx, userID)
+	st, err := s.Quota.Status(ctx, userID)
 	if err != nil {
-		return nil, connectError(connectrpc.CodeInternal, fmt.Errorf("activity totals: %w", err))
+		return nil, connectError(connectrpc.CodeInternal, err)
 	}
-	out := &v1.GetQuotaResponse{
-		ActivitiesUsed:  connectClampInt32(totals.Count),
-		ActivitiesLimit: connectClampInt32(limit),
-		Unlimited:       limit == 0,
-	}
-	out.OverLimit = !out.Unlimited && totals.Count >= limit
-	return out, nil
+	return &v1.GetQuotaResponse{ActivitiesUsed: connectClampInt32(st.Used), ActivitiesLimit: connectClampInt32(st.Limit),
+		Unlimited: st.Unlimited, OverLimit: st.OverLimit}, nil
 }
 
 // Logout revokes the calling cookie session, or every session of the user

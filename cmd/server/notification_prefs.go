@@ -8,19 +8,16 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-// notifTypeMeta lists the user-facing notification types and their labels, in
-// display order. Kept here (not in domain) because it's UI copy.
-var notifTypeMeta = []struct {
-	Type  domain.NotificationType
-	Label string
-}{
-	{domain.NotificationTypeSegmentPersonalRecord, "Segment personal records"},
-	{domain.NotificationTypeSegmentInstanceRecord, "Segment course records"},
-	{domain.NotificationTypeActivityImported, "Activity imported"},
-	{domain.NotificationTypeActivityReimported, "Activity updated from source"},
-	{domain.NotificationTypeWorkerOffline, "Connector went offline"},
-	{domain.NotificationTypeExternalAccountRefreshFailed, "Connection needs re-auth"},
-	{domain.NotificationTypeGearDecisionNeeded, "Gear needs a decision"},
+// notifTypeLabel is the UI copy for the user-facing notification types
+// (domain.UserFacingNotificationTypes carries the order).
+var notifTypeLabel = map[domain.NotificationType]string{
+	domain.NotificationTypeSegmentPersonalRecord:        "Segment personal records",
+	domain.NotificationTypeSegmentInstanceRecord:        "Segment course records",
+	domain.NotificationTypeActivityImported:             "Activity imported",
+	domain.NotificationTypeActivityReimported:           "Activity updated from source",
+	domain.NotificationTypeWorkerOffline:                "Connector went offline",
+	domain.NotificationTypeExternalAccountRefreshFailed: "Connection needs re-auth",
+	domain.NotificationTypeGearDecisionNeeded:           "Gear needs a decision",
 }
 
 // mountNotificationPrefs exposes the per-user email notification preference
@@ -44,18 +41,18 @@ func notifPrefsHandleGet(app *App) http.HandlerFunc {
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		explicit := notifPrefsExplicitEmail(r, app, userID)
-		out := make([]map[string]any, 0, len(notifTypeMeta))
-		for _, m := range notifTypeMeta {
-			enabled, ok := explicit[m.Type]
-			if !ok {
-				enabled = domain.DefaultChannelEnabled(m.Type, domain.NotificationChannelEmail)
-			}
+		cells, err := app.NotificationPreferences.Matrix(r.Context(), userID, domain.NotificationChannelEmail)
+		if err != nil {
+			writeActionError(w, err, "load failed")
+			return
+		}
+		out := make([]map[string]any, 0, len(cells))
+		for _, c := range cells {
 			out = append(out, map[string]any{
-				"event_type":    int(m.Type),
-				"key":           m.Type.String(),
-				"label":         m.Label,
-				"email_enabled": enabled,
+				"event_type":    int(c.Type),
+				"key":           c.Type.String(),
+				"label":         notifTypeLabel[c.Type],
+				"email_enabled": c.Enabled,
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -85,35 +82,11 @@ func notifPrefsHandlePut(app *App, logger *slog.Logger) http.HandlerFunc {
 			http.Error(w, "bad body", http.StatusBadRequest)
 			return
 		}
-		ch := domain.NotificationChannel(body.Channel)
-		if ch != domain.NotificationChannelEmail {
-			http.Error(w, "only the email channel is configurable in v1", http.StatusBadRequest)
-			return
-		}
-		if err := app.NotificationPrefs.Upsert(r.Context(), domain.NotificationPreference{
-			UserID:      userID,
-			Type:        domain.NotificationType(body.EventType),
-			Channel:     ch,
-			Enabled:     body.Enabled,
-			MinSeverity: domain.NotificationSeverityInfo,
-		}); err != nil {
-			logger.Error("upsert notification preference failed", "user", userID, "error", err)
-			http.Error(w, "save failed", http.StatusInternalServerError)
+		if err := app.NotificationPreferences.Set(r.Context(), userID, domain.NotificationType(body.EventType), domain.NotificationChannel(body.Channel), body.Enabled); err != nil {
+			logger.Warn("notification preference not saved", "user", userID, "error", err)
+			writeActionError(w, err, "save failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	}
-}
-
-// notifPrefsExplicitEmail returns the user's explicit email-channel settings.
-func notifPrefsExplicitEmail(r *http.Request, app *App, userID domain.UserID) map[domain.NotificationType]bool {
-	explicit := map[domain.NotificationType]bool{}
-	if rows, err := app.NotificationPrefs.ListForUser(r.Context(), userID); err == nil {
-		for _, p := range rows {
-			if p.Channel == domain.NotificationChannelEmail {
-				explicit[p.Type] = p.Enabled
-			}
-		}
-	}
-	return explicit
 }

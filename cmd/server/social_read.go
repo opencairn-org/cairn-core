@@ -1,32 +1,19 @@
 package main
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-// social_read.go centralises the multi-user read-path: resolving a viewer's
-// visibility against an activity owner, and projecting an activity to JSON
-// through the resulting CategorySet so non-owner reads never leak gated data.
+// social_read.go renders the multi-user read-path: every non-owner read
+// resolves the viewer through usecase/view.Visibility (shared with Connect)
+// and projects the activity through the resulting CategorySet so gated data
+// never leaks.
 
 // resolveViewer collects the (optional) session user. ok=false means anonymous.
 func optionalSessionUser(r *http.Request, app *App) (domain.UserID, bool) {
 	return resolveSessionUser(r, app)
-}
-
-// visibilityFor computes the CategorySet a viewer may see for one owner's
-// activity (usecase/view.Visibility; shared with the Connect handlers).
-func visibilityFor(
-	ctx context.Context,
-	app *App,
-	ownerID domain.UserID,
-	viewerID *domain.UserID,
-	activityID domain.ActivityID,
-	hasLink bool,
-) domain.CategorySet {
-	return app.Visibility2.For(ctx, ownerID, viewerID, activityID, hasLink)
 }
 
 // projectActivityJSON emits an activity as JSON limited to the allowed

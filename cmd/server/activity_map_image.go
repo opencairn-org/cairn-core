@@ -235,17 +235,11 @@ func (h activityMapImageHandlers) viewerTrim(r *http.Request, act domain.Activit
 	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewerPtr = &v
 	}
-	if viewerPtr != nil && *viewerPtr == act.UserID {
-		return false, true
-	}
-	if act.Privacy == domain.PrivacyPrivate || act.HiddenByAdmin {
-		return false, false
-	}
-	cats := visibilityFor(r.Context(), h.app, act.UserID, viewerPtr, act.ID, false)
-	if !cats.Has(domain.CategoryMap) {
+	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewerPtr, false)
+	if !ok || (!vw.IsOwner && !vw.Cats.Has(domain.CategoryMap)) {
 		return false, false // the map isn't shared with this viewer
 	}
-	return true, true // non-owners get the privacy-zone-trimmed track
+	return !vw.IsOwner, true // non-owners get the privacy-zone-trimmed track
 }
 
 // cacheStore writes a rendered snapshot to the S3 cache, logging failures.

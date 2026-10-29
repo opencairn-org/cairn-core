@@ -260,12 +260,13 @@ type NotificationServiceClient interface {
 	MarkAllNotificationsRead(context.Context, *v1.MarkAllNotificationsReadRequest) (*v1.MarkAllNotificationsReadResponse, error)
 	// Scope: notifications:write.
 	DeleteNotification(context.Context, *v1.DeleteNotificationRequest) (*v1.DeleteNotificationResponse, error)
-	// List the user's full preferences matrix. Missing rows are returned as
-	// resolved defaults so the UI can render every cell.
+	// List the user's full preferences matrix (GET /api/notifications/preferences).
+	// Missing rows are returned as resolved defaults so the UI can render every
+	// cell; v1 resolves the email channel (in-app is always on).
 	// Scope: notifications:read.
 	ListNotificationPreferences(context.Context, *v1.ListNotificationPreferencesRequest) (*v1.ListNotificationPreferencesResponse, error)
-	// Upsert one or more preference rows. Setting enabled=false and
-	// min_severity=INFO is the canonical "default" — the row is removed.
+	// Upsert one or more preference rows (PUT /api/notifications/preferences);
+	// only the email channel is configurable in v1. Returns the resolved matrix.
 	// Scope: notifications:write.
 	UpdateNotificationPreferences(context.Context, *v1.UpdateNotificationPreferencesRequest) (*v1.UpdateNotificationPreferencesResponse, error)
 	// Scope: notifications:read.
@@ -345,12 +346,13 @@ type NotificationServiceHandler interface {
 	MarkAllNotificationsRead(context.Context, *v1.MarkAllNotificationsReadRequest) (*v1.MarkAllNotificationsReadResponse, error)
 	// Scope: notifications:write.
 	DeleteNotification(context.Context, *v1.DeleteNotificationRequest) (*v1.DeleteNotificationResponse, error)
-	// List the user's full preferences matrix. Missing rows are returned as
-	// resolved defaults so the UI can render every cell.
+	// List the user's full preferences matrix (GET /api/notifications/preferences).
+	// Missing rows are returned as resolved defaults so the UI can render every
+	// cell; v1 resolves the email channel (in-app is always on).
 	// Scope: notifications:read.
 	ListNotificationPreferences(context.Context, *v1.ListNotificationPreferencesRequest) (*v1.ListNotificationPreferencesResponse, error)
-	// Upsert one or more preference rows. Setting enabled=false and
-	// min_severity=INFO is the canonical "default" — the row is removed.
+	// Upsert one or more preference rows (PUT /api/notifications/preferences);
+	// only the email channel is configurable in v1. Returns the resolved matrix.
 	// Scope: notifications:write.
 	UpdateNotificationPreferences(context.Context, *v1.UpdateNotificationPreferencesRequest) (*v1.UpdateNotificationPreferencesResponse, error)
 	// Scope: notifications:read.

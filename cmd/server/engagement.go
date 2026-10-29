@@ -83,8 +83,7 @@ func (h engagementHandlers) socialGate(w http.ResponseWriter, r *http.Request) (
 		http.Error(w, "not found", http.StatusNotFound)
 		return domain.Activity{}, domain.UserID{}, false
 	}
-	cats := visibilityFor(r.Context(), h.app, a.UserID, &me, a.ID, false)
-	if !cats.Has(domain.CategorySocial) {
+	if !h.app.Details.SocialAllowed(r.Context(), a, me) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return domain.Activity{}, domain.UserID{}, false
 	}

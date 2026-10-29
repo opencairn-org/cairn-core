@@ -1578,8 +1578,9 @@ func (*DeleteNotificationResponse) Descriptor() ([]byte, []int) {
 
 type ListNotificationPreferencesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// If true, missing rows are filled in with resolved defaults (so the
-	// response contains every (event_type, channel) tuple). Default true.
+	// Accepted for compatibility: a proto3 bool cannot default to true, so
+	// the response always carries every configurable (event_type, channel)
+	// cell with its resolved value.
 	IncludeDefaults bool `protobuf:"varint,1,opt,name=include_defaults,json=includeDefaults,proto3" json:"include_defaults,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache

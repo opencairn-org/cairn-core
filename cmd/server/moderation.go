@@ -80,18 +80,12 @@ func (h *moderationAPI) listBlocks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
-	ids, err := h.app.Blocks.ListBlocked(r.Context(), me)
+	users, err := h.app.ProfileViews.Blocked(r.Context(), me)
 	if err != nil {
 		http.Error(w, "load failed", http.StatusInternalServerError)
 		return
 	}
-	out := make([]map[string]any, 0, len(ids))
-	for _, id := range ids {
-		if u, err := h.app.Users.GetUser(r.Context(), id); err == nil {
-			out = append(out, userCardJSON(u))
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"users": out})
+	writeJSON(w, http.StatusOK, map[string]any{"users": userCardsJSON(users)})
 }
 
 func (h *moderationAPI) createReport(w http.ResponseWriter, r *http.Request) {

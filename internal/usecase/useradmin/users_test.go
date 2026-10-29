@@ -63,6 +63,26 @@ func (f *fakeUsers) HardDeleteUser(_ context.Context, id domain.UserID) error {
 	return nil
 }
 func (f *fakeUsers) SetPasskeySecondFactor(context.Context, domain.UserID, bool) error { return nil }
+func (f *fakeUsers) ListUsers(_ context.Context, page port.UserListPage) ([]domain.User, string, error) {
+	out := make([]domain.User, 0, len(f.rows))
+	for _, u := range f.rows {
+		out = append(out, *u)
+	}
+	return out, "next-" + page.Cursor, nil
+}
+
+type footprintActivities struct {
+	port.ActivityRepo
+	counts map[domain.UserID]int
+}
+
+func (a *footprintActivities) UserFootprints(_ context.Context, ids []domain.UserID) (map[domain.UserID]port.UserFootprint, error) {
+	out := map[domain.UserID]port.UserFootprint{}
+	for _, id := range ids {
+		out[id] = port.UserFootprint{Activities: a.counts[id]}
+	}
+	return out, nil
+}
 
 type fakeSessions struct {
 	port.SessionRepo
@@ -251,3 +271,26 @@ func TestUsersUpdateResetRevoke(t *testing.T) {
 type captureEvents struct{ got []domain.AdminEvent }
 
 func (c *captureEvents) Publish(ev domain.AdminEvent) { c.got = append(c.got, ev) }
+
+func TestUsersPage(t *testing.T) {
+	u, users, _, _, admin, bob := fixture()
+	u.Activities = &footprintActivities{counts: map[domain.UserID]int{bob: 7}}
+	rows, next, err := u.Page(t.Context(), "c1", 10)
+	if err != nil || len(rows) != len(users.rows) || next != "next-c1" {
+		t.Fatalf("page: %v %d %q", err, len(rows), next)
+	}
+	for _, row := range rows {
+		switch row.User.ID {
+		case admin:
+			if row.Footprint.Activities != 0 {
+				t.Fatalf("admin footprint: %+v", row.Footprint)
+			}
+		case bob:
+			if row.Footprint.Activities != 7 {
+				t.Fatalf("bob footprint: %+v", row.Footprint)
+			}
+		default:
+			t.Fatalf("unknown row: %+v", row)
+		}
+	}
+}

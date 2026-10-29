@@ -298,13 +298,14 @@ service NotificationService {
 
   // ---- Preferences ----
 
-  // List the user's full preferences matrix. Missing rows are returned as
-  // resolved defaults so the UI can render every cell.
+  // List the user's full preferences matrix (GET /api/notifications/preferences).
+  // Missing rows are returned as resolved defaults so the UI can render every
+  // cell; v1 resolves the email channel (in-app is always on).
   // Scope: notifications:read.
   rpc ListNotificationPreferences(ListNotificationPreferencesRequest) returns (ListNotificationPreferencesResponse);
 
-  // Upsert one or more preference rows. Setting enabled=false and
-  // min_severity=INFO is the canonical "default" — the row is removed.
+  // Upsert one or more preference rows (PUT /api/notifications/preferences);
+  // only the email channel is configurable in v1. Returns the resolved matrix.
   // Scope: notifications:write.
   rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (UpdateNotificationPreferencesResponse);
 
@@ -401,8 +402,9 @@ message DeleteNotificationResponse {}
 // ---- Preferences ----
 
 message ListNotificationPreferencesRequest {
-  // If true, missing rows are filled in with resolved defaults (so the
-  // response contains every (event_type, channel) tuple). Default true.
+  // Accepted for compatibility: a proto3 bool cannot default to true, so
+  // the response always carries every configurable (event_type, channel)
+  // cell with its resolved value.
   bool include_defaults = 1;
 }
 message ListNotificationPreferencesResponse {

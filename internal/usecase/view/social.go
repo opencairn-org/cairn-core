@@ -281,3 +281,71 @@ func (p *Profiles) recent(ctx context.Context, u domain.User, viewer *domain.Use
 	}
 	return out
 }
+
+// FollowState is one viewer's relation to a profile with its counts.
+type FollowState struct {
+	Following bool
+	Counts    domain.FollowCounts
+	IsSelf    bool
+}
+
+// FollowState reports whether me follows target and target's counts.
+func (p *Profiles) FollowState(ctx context.Context, me, target domain.UserID) (FollowState, error) {
+	if p.follows == nil {
+		return FollowState{}, ErrUnavailable
+	}
+	following, _ := p.follows.IsFollowing(ctx, me, target)
+	counts, err := p.follows.Counts(ctx, target)
+	if err != nil {
+		return FollowState{}, err
+	}
+	return FollowState{Following: following, Counts: counts, IsSelf: me == target}, nil
+}
+
+// Followers lists the users following target as cards; a user that cannot
+// be loaded is skipped.
+func (p *Profiles) Followers(ctx context.Context, target domain.UserID, limit, offset int) ([]domain.User, error) {
+	if p.follows == nil {
+		return nil, ErrUnavailable
+	}
+	ids, err := p.follows.ListFollowers(ctx, target, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return p.cards(ctx, ids), nil
+}
+
+// Following lists the users target follows as cards.
+func (p *Profiles) Following(ctx context.Context, target domain.UserID, limit, offset int) ([]domain.User, error) {
+	if p.follows == nil {
+		return nil, ErrUnavailable
+	}
+	ids, err := p.follows.ListFollowing(ctx, target, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return p.cards(ctx, ids), nil
+}
+
+// Blocked lists the users me has blocked as cards.
+func (p *Profiles) Blocked(ctx context.Context, me domain.UserID) ([]domain.User, error) {
+	if p.blocks == nil {
+		return nil, ErrUnavailable
+	}
+	ids, err := p.blocks.ListBlocked(ctx, me)
+	if err != nil {
+		return nil, err
+	}
+	return p.cards(ctx, ids), nil
+}
+
+// cards resolves ids to users in order, dropping the ones that fail to load.
+func (p *Profiles) cards(ctx context.Context, ids []domain.UserID) []domain.User {
+	out := make([]domain.User, 0, len(ids))
+	for _, id := range ids {
+		if u, err := p.users.GetUser(ctx, id); err == nil {
+			out = append(out, u)
+		}
+	}
+	return out
+}

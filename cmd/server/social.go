@@ -100,51 +100,38 @@ func (h *socialAPI) followState(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	following, _ := h.app.Follows.IsFollowing(r.Context(), me, target)
-	counts, err := h.app.Follows.Counts(r.Context(), target)
+	st, err := h.app.ProfileViews.FollowState(r.Context(), me, target)
 	if err != nil {
 		http.Error(w, "load failed", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"following":       following,
-		"followers_count": counts.Followers,
-		"following_count": counts.Following,
-		"is_self":         me == target,
+		"following":       st.Following,
+		"followers_count": st.Counts.Followers,
+		"following_count": st.Counts.Following,
+		"is_self":         st.IsSelf,
 	})
 }
 
 // listHandler serves the followers ("followers") or following list of a user.
 func (h *socialAPI) listHandler(which string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		app := h.app
 		_, target, ok := h.meAndTarget(w, r)
 		if !ok {
 			return
 		}
 		limit := parseIntQuery(r, "limit", 50)
 		offset := parseIntQuery(r, "offset", 0)
-		var ids []domain.UserID
-		var err error
+		list := h.app.ProfileViews.Following
 		if which == "followers" {
-			ids, err = app.Follows.ListFollowers(r.Context(), target, limit, offset)
-		} else {
-			ids, err = app.Follows.ListFollowing(r.Context(), target, limit, offset)
+			list = h.app.ProfileViews.Followers
 		}
+		users, err := list(r.Context(), target, limit, offset)
 		if err != nil {
 			http.Error(w, "load failed", http.StatusInternalServerError)
 			return
 		}
-		out := make([]map[string]any, 0, len(ids))
-		for _, id := range ids {
-			u, err := app.Users.GetUser(r.Context(), id)
-			if err != nil {
-				h.logger.Warn("follow list: load user failed", "user_id", id, "error", err)
-				continue
-			}
-			out = append(out, userCardJSON(u))
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"users": out})
+		writeJSON(w, http.StatusOK, map[string]any{"users": userCardsJSON(users)})
 	}
 }
 
@@ -213,6 +200,15 @@ func (h *socialAPI) projected(w http.ResponseWriter, r *http.Request) {
 }
 
 // userCardJSON is the compact public-facing shape of a user in social lists.
+// userCardsJSON renders a list of user cards.
+func userCardsJSON(users []domain.User) []map[string]any {
+	out := make([]map[string]any, 0, len(users))
+	for _, u := range users {
+		out = append(out, userCardJSON(u))
+	}
+	return out
+}
+
 func userCardJSON(u domain.User) map[string]any {
 	return map[string]any{
 		"id":           u.ID.String(),

@@ -6,42 +6,14 @@ import (
 	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // quotaStatus is one user's activity quota usage.
-type quotaStatus struct {
-	Used      int  // current activity count
-	Limit     int  // effective limit (0 = unlimited)
-	Unlimited bool // true when Limit == 0
-	OverLimit bool // Used >= Limit (and not unlimited)
-}
-
-// effectiveActivityLimit resolves the per-user override (if any) over the
-// instance default. 0 means unlimited.
-func effectiveActivityLimit(ctx context.Context, app *App, userID domain.UserID) int {
-	limit := app.QuotaMaxActivities
-	if app.Quotas != nil {
-		if override, err := app.Quotas.GetMaxActivities(ctx, userID); err == nil && override != nil {
-			limit = *override
-		}
-	}
-	if limit < 0 {
-		limit = 0
-	}
-	return limit
-}
-
-// activityQuotaStatus computes a user's current usage against their effective
-// limit. Errors counting are treated as "no usage" so a transient DB hiccup
-// never wrongly blocks an upload.
-func activityQuotaStatus(ctx context.Context, app *App, userID domain.UserID) quotaStatus {
-	limit := effectiveActivityLimit(ctx, app, userID)
-	used := 0
-	if totals, err := app.Activities.ActivityTotals(ctx, userID); err == nil {
-		used = totals.Count
-	}
-	st := quotaStatus{Used: used, Limit: limit, Unlimited: limit == 0}
-	st.OverLimit = !st.Unlimited && used >= limit
+// activityQuotaStatus is the usage view.Quota computes; a counting failure
+// reads as no usage so a transient DB hiccup never wrongly blocks an upload.
+func activityQuotaStatus(ctx context.Context, app *App, userID domain.UserID) view.QuotaStatus {
+	st, _ := app.QuotaViews.Status(ctx, userID)
 	return st
 }
 

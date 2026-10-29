@@ -48,6 +48,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	cairnv1connect.RegisterGearServiceHandler(server, connectadapter.NewGearServer(app.Gear))
 	notifSvc := connectadapter.NewNotificationServer(app.Notifications)
 	notifSvc.Hub = app.NotificationHub
+	notifSvc.Preferences = app.NotificationPreferences
 	cairnv1connect.RegisterNotificationServiceHandler(server, notifSvc)
 	cairnv1connect.RegisterExternalAccountServiceHandler(server, connectadapter.NewExternalAccountServer(
 		app.Accounts, app.ExternalAccounts, syncInsight{app: app, logger: logger}, int(app.DefaultPollInterval.Seconds())).
@@ -147,11 +148,7 @@ func newAuthServer(app *App, logger *slog.Logger) *connectadapter.AuthServer {
 	authSvc := connectadapter.NewAuthServer(app.Users, app.OIDCProviders)
 	authSvc.Instance = instanceInfo(app)
 	authSvc.Sessions = app.Sessions
-	authSvc.Activities = app.Activities
-	if app.Quotas != nil {
-		authSvc.Quotas = app.Quotas
-	}
-	authSvc.QuotaMaxActivities = app.QuotaMaxActivities
+	authSvc.Quota = app.QuotaViews
 	if app.RedeemInvite != nil {
 		authSvc.Invites = app.RedeemInvite
 	}

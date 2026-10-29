@@ -88,15 +88,8 @@ func (h *attachmentsHandlers) authView(w http.ResponseWriter, r *http.Request) (
 	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewer = &v
 	}
-	if viewer != nil && *viewer == act.UserID {
-		return act.ID, true // owner
-	}
-	if act.Privacy == domain.PrivacyPrivate || act.HiddenByAdmin {
-		http.NotFound(w, r)
-		return domain.ActivityID{}, false
-	}
-	cats := visibilityFor(r.Context(), h.app, act.UserID, viewer, act.ID, false)
-	if !cats.Has(domain.CategoryPhotos) {
+	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewer, false)
+	if !ok || (!vw.IsOwner && !vw.Cats.Has(domain.CategoryPhotos)) {
 		http.NotFound(w, r)
 		return domain.ActivityID{}, false
 	}

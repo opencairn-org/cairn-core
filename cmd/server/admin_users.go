@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 )
@@ -76,20 +75,15 @@ func (h *adminUserHandlers) list(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.gate(w, r); !ok {
 		return
 	}
-	users, next, err := h.app.Users.ListUsers(r.Context(), port.UserListPage{Cursor: r.URL.Query().Get("cursor"), PageSize: parseIntQuery(r, "limit", 50)})
+	rows, next, err := h.app.UserAdmin.Page(r.Context(), r.URL.Query().Get("cursor"), parseIntQuery(r, "limit", 50))
 	if err != nil {
-		http.Error(w, "load failed", http.StatusInternalServerError)
+		writeActionError(w, err, "load failed")
 		return
 	}
-	ids := make([]domain.UserID, 0, len(users))
-	for _, u := range users {
-		ids = append(ids, u.ID)
-	}
-	fps, _ := h.app.UserAdmin.Footprints(r.Context(), ids)
-	out := make([]map[string]any, 0, len(users))
-	for _, u := range users {
-		fp := fps[u.ID]
-		row := userJSON(u)
+	out := make([]map[string]any, 0, len(rows))
+	for _, u := range rows {
+		fp := u.Footprint
+		row := userJSON(u.User)
 		row["activity_count"], row["external_account_count"], row["storage_bytes_used"] = fp.Activities, fp.ExternalAccounts, fp.StorageBytes
 		row["last_activity_at"] = fmtTimePtr(fp.LastActivityAt)
 		out = append(out, row)

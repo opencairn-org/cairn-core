@@ -2,9 +2,7 @@ package connect
 
 import (
 	"context"
-	"fmt"
 
-	connectrpc "connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
@@ -73,40 +71,22 @@ func (s *AdminServer) ListUsers(
 	ctx context.Context,
 	req *v1.ListUsersRequest,
 ) (*v1.ListUsersResponse, error) {
+	if s.UserAdmin == nil {
+		return nil, unavailable("user administration")
+	}
 	limit, _ := pageFrom(req.GetPage())
 	cursor := ""
 	if p := req.GetPage(); p != nil {
 		cursor = p.GetCursor()
 	}
-
-	users, nextCursor, err := s.Users.ListUsers(ctx, port.UserListPage{
-		Cursor:   cursor,
-		PageSize: limit,
-	})
+	rows, nextCursor, err := s.UserAdmin.Page(ctx, cursor, limit)
 	if err != nil {
-		return nil, connectError(connectrpc.CodeInternal,
-			fmt.Errorf("list users: %w", err))
+		return nil, actionErr(err)
 	}
-
-	out := &v1.ListUsersResponse{
-		Users: make([]*v1.AdminUserSummary, 0, len(users)),
-		Page:  &v1.PageResponse{NextCursor: nextCursor, Total: -1},
-	}
-	footprints := map[domain.UserID]port.UserFootprint{}
-	if s.UserAdmin != nil {
-		ids := make([]domain.UserID, 0, len(users))
-		for _, u := range users {
-			ids = append(ids, u.ID)
-		}
-		footprints, _ = s.UserAdmin.Footprints(ctx, ids)
-	}
-	for _, u := range users {
-		// activity_count / external_account_count / storage_bytes_used
-		// require dedicated counting queries which the v1 admin page
-		// doesn't strictly need. Returning zero is honest — the proto
-		// allows it.
-		fp := footprints[u.ID]
-		row := &v1.AdminUserSummary{User: userToProto(u), ActivityCount: connectClampInt32(fp.Activities),
+	out := &v1.ListUsersResponse{Users: make([]*v1.AdminUserSummary, 0, len(rows)), Page: &v1.PageResponse{NextCursor: nextCursor, Total: -1}}
+	for _, r := range rows {
+		fp := r.Footprint
+		row := &v1.AdminUserSummary{User: userToProto(r.User), ActivityCount: connectClampInt32(fp.Activities),
 			ExternalAccountCount: connectClampInt32(fp.ExternalAccounts), StorageBytesUsed: fp.StorageBytes}
 		if fp.LastActivityAt != nil {
 			row.LastActivityAt = timestamppb.New(*fp.LastActivityAt)

@@ -15,9 +15,8 @@ import (
 )
 
 // NotificationServer implements cairnv1connect.NotificationServiceHandler.
-// Only ListNotifications is implemented; the rest fall back to the embedded
-// Unimplemented base (mark-read, count-unread, preferences, …) and return
-// CodeUnimplemented until their use-cases land.
+// NotificationServer implements the in-app feed, the live stream and the
+// preference matrix; the rest falls back to the embedded Unimplemented base.
 type NotificationServer struct {
 	cairnv1connect.UnimplementedNotificationServiceHandler
 
@@ -25,6 +24,8 @@ type NotificationServer struct {
 
 	// Hub feeds StreamNotifications; nil → the stream is Unavailable.
 	Hub *notificationuc.Hub
+	// Preferences backs the preference RPCs; nil → Unavailable.
+	Preferences *notificationuc.Preferences
 }
 
 var _ cairnv1connect.NotificationServiceHandler = (*NotificationServer)(nil)
