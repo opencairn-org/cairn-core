@@ -65,6 +65,9 @@ const (
 	// ActivityServicePreviewSourceReimportProcedure is the procedure name of the ActivityService's
 	// PreviewSourceReimport RPC.
 	ActivityServicePreviewSourceReimportProcedure = "/cairn.v1.ActivityService/PreviewSourceReimport"
+	// ActivityServiceGetSourcePreviewProcedure is the procedure name of the ActivityService's
+	// GetSourcePreview RPC.
+	ActivityServiceGetSourcePreviewProcedure = "/cairn.v1.ActivityService/GetSourcePreview"
 	// ActivityServiceCommitSourcePreviewProcedure is the procedure name of the ActivityService's
 	// CommitSourcePreview RPC.
 	ActivityServiceCommitSourcePreviewProcedure = "/cairn.v1.ActivityService/CommitSourcePreview"
@@ -203,6 +206,14 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("PreviewSourceReimport"),
 			Procedure:  ActivityServicePreviewSourceReimportProcedure,
+		}
+	})
+	activityServiceGetSourcePreviewSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_cairn_v1_activity_proto.Services().ByName("ActivityService").Methods().ByName("GetSourcePreview"),
+			Procedure:        ActivityServiceGetSourcePreviewProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 	activityServiceCommitSourcePreviewSpec = sync.OnceValue(func() connect.Spec {
@@ -433,13 +444,17 @@ type ActivityServiceClient interface {
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
 	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
-	// Dry-run reimport: fetches fresh source data, computes the merge it would
-	// produce, returns the diff WITHOUT committing. The preview is stored
-	// with a TTL (default 1h) and can be either committed or discarded.
-	// Planned, not implemented (all three return Unimplemented): needs a preview
-	// store and a result-router branch; ReimportSource commits directly today.
+	// Dry-run reimport: dispatches a refetch (or local reparse) whose result
+	// is held as a preview instead of being ingested. The preview starts
+	// PENDING; once the worker answers it turns READY with the diffs of the
+	// source payload and of the merged activity (GetSourcePreview, or watch
+	// StreamActivityEvents for `activity.preview_ready`). It expires after
+	// one hour and can be committed or discarded.
 	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:read.
+	GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error)
+	// Ingests the held result through the normal reimport path.
 	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
 	// Scope: activities:write.
@@ -600,13 +615,17 @@ type ActivityServiceHandler interface {
 	// via StreamActivityEvents or via the job status endpoints in admin.proto.
 	// Scope: activities:write.
 	ReimportSource(context.Context, *v1.ReimportSourceRequest) (*v1.ReimportSourceResponse, error)
-	// Dry-run reimport: fetches fresh source data, computes the merge it would
-	// produce, returns the diff WITHOUT committing. The preview is stored
-	// with a TTL (default 1h) and can be either committed or discarded.
-	// Planned, not implemented (all three return Unimplemented): needs a preview
-	// store and a result-router branch; ReimportSource commits directly today.
+	// Dry-run reimport: dispatches a refetch (or local reparse) whose result
+	// is held as a preview instead of being ingested. The preview starts
+	// PENDING; once the worker answers it turns READY with the diffs of the
+	// source payload and of the merged activity (GetSourcePreview, or watch
+	// StreamActivityEvents for `activity.preview_ready`). It expires after
+	// one hour and can be committed or discarded.
 	// Scope: activities:write.
 	PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error)
+	// Scope: activities:read.
+	GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error)
+	// Ingests the held result through the normal reimport path.
 	// Scope: activities:write.
 	CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error)
 	// Scope: activities:write.
@@ -716,6 +735,7 @@ func RegisterActivityServiceHandler(server *connect.Server, svc ActivityServiceH
 		connect.Method{Spec: activityServiceListActivitySourcesSpec(), Handler: adapter.listActivitySources},
 		connect.Method{Spec: activityServiceReimportSourceSpec(), Handler: adapter.reimportSource},
 		connect.Method{Spec: activityServicePreviewSourceReimportSpec(), Handler: adapter.previewSourceReimport},
+		connect.Method{Spec: activityServiceGetSourcePreviewSpec(), Handler: adapter.getSourcePreview},
 		connect.Method{Spec: activityServiceCommitSourcePreviewSpec(), Handler: adapter.commitSourcePreview},
 		connect.Method{Spec: activityServiceDiscardSourcePreviewSpec(), Handler: adapter.discardSourcePreview},
 		connect.Method{Spec: activityServiceLinkSourceToActivitySpec(), Handler: adapter.linkSourceToActivity},
@@ -797,6 +817,10 @@ func (UnimplementedActivityServiceHandler) ReimportSource(context.Context, *v1.R
 
 func (UnimplementedActivityServiceHandler) PreviewSourceReimport(context.Context, *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.PreviewSourceReimport is not implemented")
+}
+
+func (UnimplementedActivityServiceHandler) GetSourcePreview(context.Context, *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.ActivityService.GetSourcePreview is not implemented")
 }
 
 func (UnimplementedActivityServiceHandler) CommitSourcePreview(context.Context, *v1.CommitSourcePreviewRequest) (*v1.CommitSourcePreviewResponse, error) {
@@ -970,6 +994,14 @@ func (c *activityServiceClient) ReimportSource(ctx context.Context, req *v1.Reim
 func (c *activityServiceClient) PreviewSourceReimport(ctx context.Context, req *v1.PreviewSourceReimportRequest) (*v1.PreviewSourceReimportResponse, error) {
 	var res v1.PreviewSourceReimportResponse
 	if err := c.client.CallUnary(ctx, activityServicePreviewSourceReimportSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *activityServiceClient) GetSourcePreview(ctx context.Context, req *v1.GetSourcePreviewRequest) (*v1.GetSourcePreviewResponse, error) {
+	var res v1.GetSourcePreviewResponse
+	if err := c.client.CallUnary(ctx, activityServiceGetSourcePreviewSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1275,6 +1307,18 @@ func (h activityServiceHandler) previewSourceReimport(ctx context.Context, _ con
 		return err
 	}
 	res, err := h.svc.PreviewSourceReimport(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h activityServiceHandler) getSourcePreview(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetSourcePreviewRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetSourcePreview(ctx, &req)
 	if err != nil {
 		return err
 	}

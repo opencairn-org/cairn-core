@@ -27,8 +27,8 @@ func contentURLToProto(u port.ContentURL) *v1.ContentUrl {
 }
 
 // withMapImage adds the signed course-image URL to a wire activity.
-func (s *ActivityServer) withMapImage(ctx context.Context, out *v1.Activity, a domain.Activity, trimmed bool) *v1.Activity {
-	return decorateActivity(ctx, out, a, nil, s.Content, s.MapETag, trimmed)
+func (s *ActivityServer) withMapImage(ctx context.Context, out *v1.Activity, a domain.Activity) *v1.Activity {
+	return decorateActivity(ctx, out, a, nil, s.Content, s.MapETag)
 }
 
 // viewerFor resolves the calling viewer (nil when anonymous) for a

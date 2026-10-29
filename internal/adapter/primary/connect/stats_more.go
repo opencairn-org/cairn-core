@@ -38,10 +38,10 @@ func (s *StatsServer) GetStats(ctx context.Context, _ *v1.GetStatsRequest) (*v1.
 		out.ByYear = append(out.ByYear, &v1.YearStat{Year: connectClampInt32(y.Year), Count: connectClampInt32(y.Count), DistanceM: y.DistanceM, MovingS: y.MovingS, ElevationGainM: y.ElevationGainM})
 	}
 	if a := res.LongestDistance; a != nil {
-		out.LongestDistance = decorateActivity(ctx, activityToProto(*a, nil), *a, gearNamesOf(ctx, s.Gear, *a), s.Content, s.MapETag, false)
+		out.LongestDistance = decorateActivity(ctx, activityToProto(*a, nil), *a, gearNamesOf(ctx, s.Gear, *a), s.Content, s.MapETag)
 	}
 	if a := res.LongestDuration; a != nil {
-		out.LongestDuration = decorateActivity(ctx, activityToProto(*a, nil), *a, gearNamesOf(ctx, s.Gear, *a), s.Content, s.MapETag, false)
+		out.LongestDuration = decorateActivity(ctx, activityToProto(*a, nil), *a, gearNamesOf(ctx, s.Gear, *a), s.Content, s.MapETag)
 	}
 	return out, nil
 }

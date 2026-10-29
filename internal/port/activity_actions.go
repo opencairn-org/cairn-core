@@ -76,3 +76,10 @@ type UploadResult struct {
 type UploadIngester interface {
 	IngestUpload(ctx context.Context, in UploadInput) (UploadResult, error)
 }
+
+// SourcePreviewCommitter ingests a ready preview's held worker result through
+// the normal reimport path. Implemented in package main (it needs the
+// result router); injected into the primary adapters.
+type SourcePreviewCommitter interface {
+	Commit(ctx context.Context, userID domain.UserID, previewID domain.SourcePreviewID) (domain.Activity, error)
+}

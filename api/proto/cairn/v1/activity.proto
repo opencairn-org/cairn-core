@@ -625,13 +625,19 @@ service ActivityService {
   // Scope: activities:write.
   rpc ReimportSource(ReimportSourceRequest) returns (ReimportSourceResponse);
 
-  // Dry-run reimport: fetches fresh source data, computes the merge it would
-  // produce, returns the diff WITHOUT committing. The preview is stored
-  // with a TTL (default 1h) and can be either committed or discarded.
-  // Planned, not implemented (all three return Unimplemented): needs a preview
-  // store and a result-router branch; ReimportSource commits directly today.
+  // Dry-run reimport: dispatches a refetch (or local reparse) whose result
+  // is held as a preview instead of being ingested. The preview starts
+  // PENDING; once the worker answers it turns READY with the diffs of the
+  // source payload and of the merged activity (GetSourcePreview, or watch
+  // StreamActivityEvents for `activity.preview_ready`). It expires after
+  // one hour and can be committed or discarded.
   // Scope: activities:write.
   rpc PreviewSourceReimport(PreviewSourceReimportRequest) returns (PreviewSourceReimportResponse);
+  // Scope: activities:read.
+  rpc GetSourcePreview(GetSourcePreviewRequest) returns (GetSourcePreviewResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Ingests the held result through the normal reimport path.
   // Scope: activities:write.
   rpc CommitSourcePreview(CommitSourcePreviewRequest) returns (CommitSourcePreviewResponse);
   // Scope: activities:write.
@@ -991,6 +997,40 @@ message PreviewSourceReimportRequest {
 message PreviewSourceReimportResponse {
   string preview_id = 1;
   string job_id = 2;
+}
+
+enum SourcePreviewStatus {
+  SOURCE_PREVIEW_STATUS_UNSPECIFIED = 0;
+  SOURCE_PREVIEW_STATUS_PENDING = 1;   // waiting for the worker result
+  SOURCE_PREVIEW_STATUS_READY = 2;     // diffs available; commit or discard
+}
+
+// One changed field of a preview diff, rendered as strings.
+message FieldChange {
+  string field = 1;
+  string before = 2;
+  string after = 3;
+}
+
+message SourcePreview {
+  string id = 1;
+  string activity_source_id = 2;
+  string activity_id = 3;
+  string job_id = 4;
+  SourcePreviewStatus status = 5;
+  // What the fresh payload changes on the source itself.
+  repeated FieldChange source_diff = 6;
+  // What committing would change on the merged activity.
+  repeated FieldChange merged_diff = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp expires_at = 9;
+}
+
+message GetSourcePreviewRequest {
+  string preview_id = 1;
+}
+message GetSourcePreviewResponse {
+  SourcePreview preview = 1;
 }
 
 message CommitSourcePreviewRequest {

@@ -46,7 +46,7 @@ func (s *ActivityServer) SearchActivities(ctx context.Context, req *v1.SearchAct
 	}
 	names := s.gearNames(ctx, res.Activities...)
 	for _, a := range res.Activities {
-		wire := decorateActivity(ctx, activityToProto(a, nil), a, names, s.Content, s.MapETag, false)
+		wire := decorateActivity(ctx, activityToProto(a, nil), a, names, s.Content, s.MapETag)
 		wire.GearUnset = view.GearUnset(a, res.GearPrompt)
 		out.Activities = append(out.Activities, wire)
 	}
@@ -166,12 +166,12 @@ func activitySortKey(s v1.ActivitySort) string {
 
 // decorateActivity adds the gear name and the signed course image to a wire
 // activity. Shared by every server that returns Activity messages.
-func decorateActivity(ctx context.Context, out *v1.Activity, a domain.Activity, names map[domain.GearID]string, content port.ContentSigner, etag func(domain.Activity) string, trimmed bool) *v1.Activity {
+func decorateActivity(ctx context.Context, out *v1.Activity, a domain.Activity, names map[domain.GearID]string, content port.ContentSigner, etag func(domain.Activity) string) *v1.Activity {
 	withGear(out, a, names)
 	if content == nil || a.PrimaryStreamSourceID == nil || etag == nil {
 		return out
 	}
-	if u, err := content.MapImage(ctx, a.ID, trimmed); err == nil {
+	if u, err := content.MapImage(ctx, a.ID, false); err == nil {
 		out.MapImage = contentURLToProto(u)
 		out.MapImageEtag = etag(a)
 	}

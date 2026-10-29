@@ -39,23 +39,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// cookie/PAT callers. Runs after the session resolver.
 	server := connectrpc.NewServer(sessionInterceptor, connectadapter.ScopeInterceptor())
 
-	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
-		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
-	// Source actions, uploads and re-imports share their implementation with
-	// the REST handlers so the two surfaces stay in parity.
-	activitySvc.SourceActions = app.SourceActions
-	activitySvc.SourceLinks = app.SourceLinks
-	activitySvc.Events = app.ActivityEvents
-	activitySvc.Customs = app.CustomBestEfforts
-	activitySvc.Backfill = func(userID domain.UserID, at domain.ActivityType) { backfillCustomRecords(app, logger, userID, at) }
-	activitySvc.Reimporter = newSourceReimporter(app, logger)
-	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
-	activitySvc.Blobs = app.BlobStore
-	// Binary content and visibility-gated reads share the REST machinery.
-	activitySvc.Content = app.Content
-	activitySvc.Attachments = app.Attachments
-	activitySvc.Visibility = app.Visibility2
-	activitySvc.Exports = app.Exports
+	activitySvc := newActivityServer(app, logger)
 	activitySvc.Searches = app.Searches
 	activitySvc.Details = app.Details
 	activitySvc.MapETag = mapImageETag
@@ -203,4 +187,28 @@ func registerReadServices(server *connectrpc.Server, app *App) {
 		settings = app.UserSettings
 	}
 	cairnv1connect.RegisterSettingsServiceHandler(server, connectadapter.NewSettingsServer(settings))
+}
+
+// newActivityServer wires the ActivityService: source actions, uploads,
+// re-imports, previews and custom windows share their implementation with
+// the REST handlers so the two surfaces stay in parity.
+func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivityServer {
+	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
+		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
+	activitySvc.SourceActions = app.SourceActions
+	activitySvc.SourceLinks = app.SourceLinks
+	activitySvc.Events = app.ActivityEvents
+	activitySvc.Customs = app.CustomBestEfforts
+	activitySvc.Previews = app.SourcePreviews
+	activitySvc.PreviewCommitter = &previewCommitter{app: app, logger: logger}
+	activitySvc.Backfill = func(userID domain.UserID, at domain.ActivityType) { backfillCustomRecords(app, logger, userID, at) }
+	activitySvc.Reimporter = newSourceReimporter(app, logger)
+	activitySvc.Uploads = &uploadAPI{app: app, logger: logger}
+	activitySvc.Blobs = app.BlobStore
+	// Binary content and visibility-gated reads share the REST machinery.
+	activitySvc.Content = app.Content
+	activitySvc.Attachments = app.Attachments
+	activitySvc.Visibility = app.Visibility2
+	activitySvc.Exports = app.Exports
+	return activitySvc
 }

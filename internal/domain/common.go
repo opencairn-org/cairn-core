@@ -36,6 +36,7 @@ type (
 	SegmentEffortID         uuid.UUID
 	BestEffortID            uuid.UUID
 	CustomBestEffortID      uuid.UUID
+	SourcePreviewID         uuid.UUID
 	MetricID                uuid.UUID
 	NotificationID          uuid.UUID
 	WorkerEnrollmentID      uuid.UUID
@@ -66,6 +67,7 @@ func (id SegmentID) UUID() uuid.UUID               { return uuid.UUID(id) }
 func (id SegmentEffortID) UUID() uuid.UUID         { return uuid.UUID(id) }
 func (id BestEffortID) UUID() uuid.UUID            { return uuid.UUID(id) }
 func (id CustomBestEffortID) UUID() uuid.UUID      { return uuid.UUID(id) }
+func (id SourcePreviewID) UUID() uuid.UUID         { return uuid.UUID(id) }
 func (id MetricID) UUID() uuid.UUID                { return uuid.UUID(id) }
 func (id NotificationID) UUID() uuid.UUID          { return uuid.UUID(id) }
 func (id WorkerEnrollmentID) UUID() uuid.UUID      { return uuid.UUID(id) }
@@ -94,6 +96,7 @@ func (id SegmentID) String() string               { return uuid.UUID(id).String(
 func (id SegmentEffortID) String() string         { return uuid.UUID(id).String() }
 func (id BestEffortID) String() string            { return uuid.UUID(id).String() }
 func (id CustomBestEffortID) String() string      { return uuid.UUID(id).String() }
+func (id SourcePreviewID) String() string         { return uuid.UUID(id).String() }
 func (id MetricID) String() string                { return uuid.UUID(id).String() }
 func (id NotificationID) String() string          { return uuid.UUID(id).String() }
 func (id WorkerEnrollmentID) String() string      { return uuid.UUID(id).String() }

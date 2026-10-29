@@ -57,7 +57,7 @@ func (s *StatsServer) GetOverview(ctx context.Context, _ *v1.GetOverviewRequest)
 	}
 	names := gearNamesOf(ctx, s.Gear, ov.Recent...)
 	for _, a := range ov.Recent {
-		out.Recent = append(out.Recent, decorateActivity(ctx, activityToProto(a, nil), a, names, s.Content, s.MapETag, false))
+		out.Recent = append(out.Recent, decorateActivity(ctx, activityToProto(a, nil), a, names, s.Content, s.MapETag))
 	}
 	return out, nil
 }

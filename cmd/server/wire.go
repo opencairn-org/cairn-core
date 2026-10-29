@@ -62,6 +62,7 @@ type App struct {
 	Streams                *postgres.StreamRepo
 	BestEfforts            *postgres.BestEffortRepo
 	CustomBestEffortRepo   *postgres.CustomBestEffortRepo
+	SourcePreviewRepo      *postgres.SourcePreviewRepo
 	Segments               *postgres.SegmentRepo
 	Metrics                *postgres.MetricRepo
 	Notifications          port.NotificationRepo // postgres repo wrapped by notification.BroadcastRepo
@@ -168,6 +169,7 @@ type App struct {
 	Gear                     *gearuc.Service
 	ComputeBestEfforts       *besteffort.ComputeBestEffortsForSource
 	CustomBestEfforts        *besteffort.Customs
+	SourcePreviews           *activity.SourcePreviews
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -294,6 +296,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	app.Streams = postgres.NewStreamRepo(pool)
 	app.BestEfforts = postgres.NewBestEffortRepo(pool)
 	app.CustomBestEffortRepo = postgres.NewCustomBestEffortRepo(pool)
+	app.SourcePreviewRepo = postgres.NewSourcePreviewRepo(pool)
 	app.Segments = postgres.NewSegmentRepo(pool)
 	app.Metrics = postgres.NewMetricRepo(pool)
 	app.NotificationHub = notification.NewHub()
@@ -392,6 +395,10 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
 	app.SourceActions.Events = app.ActivityEvents
 	app.SourceLinks.Events = app.ActivityEvents
+	app.SourcePreviews = &activity.SourcePreviews{
+		Repo: app.SourcePreviewRepo, Actions: app.SourceActions, Recompute: app.RecomputeActivity,
+		Reimporter: newSourceReimporter(app, logger), Activities: app.Activities, Events: app.ActivityEvents,
+	}
 	wireBestEfforts(app)
 	app.ComputeSegmentRanks = segmentrank.NewComputeSegmentRanks(app.Segments, app.Tx)
 	app.MatchSegments = segment.NewMatchSegmentsForActivity(

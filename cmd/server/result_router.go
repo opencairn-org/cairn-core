@@ -417,6 +417,9 @@ func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *w
 		failQueueItem(ctx, app, log, ia.GetRef(), err)
 		return nil
 	}
+	if capturePreview(ctx, app, log, b.job, jr, ia) {
+		return nil
+	}
 	_, err := ingestActivityEvent(ctx, app, log, jr, ia)
 	if err == nil {
 		return nil

@@ -84,6 +84,10 @@ type ActivityServer struct {
 	Customs  *besteffort.Customs
 	Backfill func(userID domain.UserID, activityType domain.ActivityType)
 
+	// Previews runs reimport dry-runs; PreviewCommitter ingests a held result.
+	Previews         *activity.SourcePreviews
+	PreviewCommitter port.SourcePreviewCommitter
+
 	// Content signs photo/map/export URLs; Attachments lists photos;
 	// Visibility gates non-owner reads; Exports renders interchange files;
 	// MapETag derives Activity.map_image_etag. Nil → the RPC is Unavailable
@@ -194,7 +198,7 @@ func (s *ActivityServer) ListActivities(
 			}
 			sources = srcs
 		}
-		out.Activities = append(out.Activities, s.withMapImage(ctx, withGear(activityToProto(a, sources), a, names), a, false))
+		out.Activities = append(out.Activities, s.withMapImage(ctx, withGear(activityToProto(a, sources), a, names), a))
 	}
 
 	// Reverse to start-time-DESC unless the caller asked otherwise. The
@@ -249,7 +253,7 @@ func (s *ActivityServer) GetActivity(
 	}
 
 	return &v1.GetActivityResponse{
-		Activity: s.withMapImage(ctx, withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)), activity, false),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(activity, sources), activity, s.gearNames(ctx, activity)), activity),
 	}, nil
 }
 
@@ -319,7 +323,7 @@ func (s *ActivityServer) UpdateActivity(
 	}
 
 	return &v1.UpdateActivityResponse{
-		Activity: s.withMapImage(ctx, withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)), updated, false),
+		Activity: s.withMapImage(ctx, withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)), updated),
 	}, nil
 }
 

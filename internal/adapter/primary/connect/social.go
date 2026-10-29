@@ -69,7 +69,7 @@ func (s *SocialServer) feedItemToProto(ctx context.Context, it view.FeedItem) *v
 	switch {
 	case it.Own != nil:
 		a := *it.Own
-		wire := decorateActivity(ctx, activityToProto(a, nil), a, gearNamesOf(ctx, s.Gear, a), s.Content, s.MapETag, false)
+		wire := decorateActivity(ctx, activityToProto(a, nil), a, gearNamesOf(ctx, s.Gear, a), s.Content, s.MapETag)
 		return &v1.FeedItem{Source: v1.FeedItem_SOURCE_SELF, Owner: userCardToProto(it.Owner), Item: &v1.FeedItem_Own{Own: wire}}
 	case it.Projected != nil:
 		return &v1.FeedItem{Source: v1.FeedItem_SOURCE_FOLLOWING, Owner: userCardToProto(it.Owner),
