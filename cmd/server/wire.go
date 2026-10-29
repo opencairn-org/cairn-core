@@ -40,6 +40,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
 	"github.com/opencairn-org/cairn-core/internal/usecase/maintenance"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
+	metricsuc "github.com/opencairn-org/cairn-core/internal/usecase/metrics"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
@@ -155,6 +156,7 @@ type App struct {
 	Stats              *view.Stats
 	SegmentViews       *view.Segments
 	HealthViews        *view.Health
+	MetricStore        *metricsuc.Store
 	Accounts           *view.Accounts
 	ClubViews          *view.Clubs
 	ProfileViews       *view.Profiles
@@ -736,6 +738,12 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
 	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
 	app.HealthViews = view.NewHealth(app.Health, nil)
+	if app.Metrics != nil {
+		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}
+		if app.AthleteProfiles != nil {
+			app.MetricStore.Athlete = app.AthleteProfiles
+		}
+	}
 	var queue port.ImportQueueRepo
 	if app.ImportQueue != nil {
 		queue = app.ImportQueue

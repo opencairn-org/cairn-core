@@ -41,4 +41,23 @@ type MetricRepo interface {
 		keys []string,
 		start, end time.Time,
 	) error
+
+	// ListMetrics pages the user's rows by the filter, newest first unless
+	// Ascending; total is the unpaged match count.
+	ListMetrics(ctx context.Context, userID domain.UserID, f domain.MetricListFilter) (rows []domain.Metric, total int, err error)
+	// LatestMetrics returns the newest row per key at or before asOf; empty
+	// keys means every key the user has.
+	LatestMetrics(ctx context.Context, userID domain.UserID, keys []string, asOf time.Time) ([]domain.Metric, error)
+	// QueryMetricSeries folds numeric samples of one key into buckets (raw
+	// points without a bucket), ascending by time.
+	QueryMetricSeries(ctx context.Context, userID domain.UserID, q domain.MetricSeriesQuery) ([]domain.MetricSeriesPoint, error)
+	// GetMetric reads one row scoped to its owner; domain.ErrNotFound on miss.
+	GetMetric(ctx context.Context, userID domain.UserID, id domain.MetricID) (domain.Metric, error)
+	// FindMetricByNaturalKey resolves the row of (key, ts, provider) for a
+	// natural-key upsert of manual entries; domain.ErrNotFound on miss.
+	FindMetricByNaturalKey(ctx context.Context, userID domain.UserID, key string, ts time.Time, provider string) (domain.Metric, error)
+	// UpdateMetric rewrites the mutable columns of an existing row by id.
+	UpdateMetric(ctx context.Context, m domain.Metric) error
+	// DeleteMetric removes one row scoped to its owner; domain.ErrNotFound on miss.
+	DeleteMetric(ctx context.Context, userID domain.UserID, id domain.MetricID) error
 }

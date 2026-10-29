@@ -316,6 +316,7 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 
 	// Athlete physiology profile (FTP/weight/HR time series → TSS).
 	mountAthlete(mux, app, logger)
+	mountMetricsAPI(mux, app, logger)
 
 	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
 	mountActivitiesFeed(mux, app, logger)

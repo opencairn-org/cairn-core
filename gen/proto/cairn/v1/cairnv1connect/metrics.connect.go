@@ -170,33 +170,33 @@ var (
 
 // MetricsServiceClient is a client for the cairn.v1.MetricsService service.
 type MetricsServiceClient interface {
-	// List metrics with filtering. Default sort newest first.
+	// List metrics with filtering. Default sort newest first (GET /api/metrics).
 	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
-	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+	// GET /api/metrics/latest).
 	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
-	// ranges; clients indicate desired bucket size.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
-	// Scope: training:write.
+	// ranges; clients indicate desired bucket size (GET /api/metrics/series).
+	// Scope: training:read.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
-	// Manual entry / edit.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+	// edit; provider defaults to "manual".
 	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Remove one entry (DELETE /api/metrics/{id}).
 	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
-	// Bulk manual entry (CSV import etc).
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+	// 1000 rows per call.
 	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
-	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+	// (GET /api/metrics/context). Stored measurements win; the dated athlete
+	// profile fills the keys without one.
 	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
 	// Daily health series (steps, HRV, resting HR, sleep, weight, water),
@@ -223,33 +223,33 @@ func NewMetricsServiceClient(client *connect.Client) MetricsServiceClient {
 
 // MetricsServiceHandler is an implementation of the cairn.v1.MetricsService service.
 type MetricsServiceHandler interface {
-	// List metrics with filtering. Default sort newest first.
+	// List metrics with filtering. Default sort newest first (GET /api/metrics).
 	// Scope: training:read.
 	ListMetrics(context.Context, *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error)
 	// Get the latest value for each requested key. Optimized for the
-	// dashboard ("current weight: 78.3 kg, last measured 2 days ago").
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+	// GET /api/metrics/latest).
 	// Scope: training:read.
 	GetLatestMetrics(context.Context, *v1.GetLatestMetricsRequest) (*v1.GetLatestMetricsResponse, error)
 	// Time-series query for charting. Server applies downsampling for long
-	// ranges; clients indicate desired bucket size.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
-	// Scope: training:write.
+	// ranges; clients indicate desired bucket size (GET /api/metrics/series).
+	// Scope: training:read.
 	QueryMetricSeries(context.Context, *v1.QueryMetricSeriesRequest) (*v1.QueryMetricSeriesResponse, error)
-	// Manual entry / edit.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+	// edit; provider defaults to "manual".
 	// Scope: training:write.
 	UpsertMetric(context.Context, *v1.UpsertMetricRequest) (*v1.UpsertMetricResponse, error)
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Remove one entry (DELETE /api/metrics/{id}).
 	// Scope: training:write.
 	DeleteMetric(context.Context, *v1.DeleteMetricRequest) (*v1.DeleteMetricResponse, error)
-	// Bulk manual entry (CSV import etc).
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+	// 1000 rows per call.
 	// Scope: training:write.
 	BulkUpsertMetrics(context.Context, *v1.BulkUpsertMetricsRequest) (*v1.BulkUpsertMetricsResponse, error)
 	// Get the current training-context the domain assembles for the user:
-	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
-	// Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+	// settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+	// (GET /api/metrics/context). Stored measurements win; the dated athlete
+	// profile fills the keys without one.
 	// Scope: training:read.
 	GetUserContext(context.Context, *v1.GetUserContextRequest) (*v1.GetUserContextResponse, error)
 	// Daily health series (steps, HRV, resting HR, sleep, weight, water),

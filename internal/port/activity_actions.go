@@ -22,6 +22,15 @@ const (
 	ActionErrorForbidden                    // visible but not permitted to this caller (private club, closed profile)
 )
 
+// String names the kind for wire-level error codes.
+func (k ActionErrorKind) String() string {
+	names := [...]string{"internal", "invalid", "not_found", "precondition", "conflict", "unavailable", "upstream", "quota", "forbidden"}
+	if int(k) < len(names) {
+		return names[k]
+	}
+	return "internal"
+}
+
 // ActionError carries a kind plus a user-facing message.
 type ActionError struct {
 	Kind ActionErrorKind

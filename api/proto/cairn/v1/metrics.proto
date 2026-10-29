@@ -153,38 +153,38 @@ message Metric {
 // ----------------------------------------------------------------------------
 
 service MetricsService {
-  // List metrics with filtering. Default sort newest first.
+  // List metrics with filtering. Default sort newest first (GET /api/metrics).
   // Scope: training:read.
   rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
 
   // Get the latest value for each requested key. Optimized for the
-  // dashboard ("current weight: 78.3 kg, last measured 2 days ago").
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+  // dashboard ("current weight: 78.3 kg, last measured 2 days ago";
+  // GET /api/metrics/latest).
   // Scope: training:read.
   rpc GetLatestMetrics(GetLatestMetricsRequest) returns (GetLatestMetricsResponse);
 
   // Time-series query for charting. Server applies downsampling for long
-  // ranges; clients indicate desired bucket size.
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
-  // Scope: training:write.
+  // ranges; clients indicate desired bucket size (GET /api/metrics/series).
+  // Scope: training:read.
   rpc QueryMetricSeries(QueryMetricSeriesRequest) returns (QueryMetricSeriesResponse);
 
-  // Manual entry / edit.
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+  // Manual entry / edit (PUT /api/metrics). Key and ts are immutable on an
+  // edit; provider defaults to "manual".
   // Scope: training:write.
   rpc UpsertMetric(UpsertMetricRequest) returns (UpsertMetricResponse);
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+  // Remove one entry (DELETE /api/metrics/{id}).
   // Scope: training:write.
   rpc DeleteMetric(DeleteMetricRequest) returns (DeleteMetricResponse);
 
-  // Bulk manual entry (CSV import etc).
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+  // Bulk manual entry (CSV import etc; POST /api/metrics/bulk), at most
+  // 1000 rows per call.
   // Scope: training:write.
   rpc BulkUpsertMetrics(BulkUpsertMetricsRequest) returns (BulkUpsertMetricsResponse);
 
   // Get the current training-context the domain assembles for the user:
-  // settings + latest metric values needed for TSS/CTL/ATL/TSB computation.
-  // Planned, not implemented (returns Unimplemented): the metric store only lists by key today.
+  // settings + latest metric values needed for TSS/CTL/ATL/TSB computation
+  // (GET /api/metrics/context). Stored measurements win; the dated athlete
+  // profile fills the keys without one.
   // Scope: training:read.
   rpc GetUserContext(GetUserContextRequest) returns (GetUserContextResponse);
 

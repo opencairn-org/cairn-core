@@ -13,6 +13,7 @@ func TestIsMutatingProcedure(t *testing.T) {
 		"/cairn.v1.ActivityService/GetActivityStream",
 		"/cairn.v1.SegmentService/SearchSegments",
 		"/cairn.v1.MetricService/ExportMetrics",
+		"/cairn.v1.MetricsService/QueryMetricSeries",
 	}
 	for _, p := range reads {
 		if isMutatingProcedure(p) {

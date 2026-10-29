@@ -14,94 +14,85 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/metrics"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
-// MetricsServer implements the backed parts of cairnv1connect.MetricsServiceHandler:
-// the raw metric list, the health series and the athlete physiology profile.
+// MetricsServer implements cairnv1connect.MetricsServiceHandler: the metric
+// store, the health series and the athlete physiology profile.
 type MetricsServer struct {
 	cairnv1connect.UnimplementedMetricsServiceHandler
 
-	Metrics port.MetricRepo         // nil → ListMetrics Unavailable
-	Health  *view.Health            // nil → ListHealthSeries Unavailable
-	Athlete port.AthleteProfileRepo // nil → athlete RPCs Unavailable
+	Store    *metrics.Store          // nil → metric RPCs Unavailable
+	Health   *view.Health            // nil → ListHealthSeries Unavailable
+	Athlete  port.AthleteProfileRepo // nil → athlete RPCs Unavailable
+	Settings port.UserSettingsRepo   // nil → GetUserContext carries no settings
 }
 
 var _ cairnv1connect.MetricsServiceHandler = (*MetricsServer)(nil)
 
 // NewMetricsServer wires the server; every dependency may be nil.
-func NewMetricsServer(metrics port.MetricRepo, health *view.Health, athlete port.AthleteProfileRepo) *MetricsServer {
-	return &MetricsServer{Metrics: metrics, Health: health, Athlete: athlete}
+func NewMetricsServer(store *metrics.Store, health *view.Health, athlete port.AthleteProfileRepo, settings port.UserSettingsRepo) *MetricsServer {
+	return &MetricsServer{Store: store, Health: health, Athlete: athlete, Settings: settings}
 }
 
-// metricsDefaultWindow bounds ListMetrics when no time range is given.
-const metricsDefaultWindow = 365 * 24 * time.Hour
+func (s *MetricsServer) store() (*metrics.Store, error) {
+	if s.Store == nil {
+		return nil, unavailable("metrics")
+	}
+	return s.Store, nil
+}
 
-// ListMetrics returns the caller's metrics in a window, one key at a time
-// (the repo filters by a single key).
+// ListMetrics pages the caller's metrics by the request filters.
 func (s *MetricsServer) ListMetrics(ctx context.Context, req *v1.ListMetricsRequest) (*v1.ListMetricsResponse, error) {
 	userID, err := userIDFromHandlerCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if s.Metrics == nil {
-		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "metrics are not available on this instance")
-	}
-	key, start, end, err := listMetricsQuery(req)
+	store, err := s.store()
 	if err != nil {
 		return nil, err
 	}
-	metrics, err := s.Metrics.ListMetricsForUser(ctx, userID, key, start, end)
+	f, err := listMetricsFilter(req)
 	if err != nil {
-		return nil, connectError(connectrpc.CodeInternal, fmt.Errorf("list metrics: %w", err))
+		return nil, err
 	}
-	if req.GetSort() == v1.MetricSort_METRIC_SORT_TS_DESC {
-		for i, j := 0, len(metrics)-1; i < j; i, j = i+1, j-1 {
-			metrics[i], metrics[j] = metrics[j], metrics[i]
-		}
+	rows, total, err := store.List(ctx, userID, f)
+	if err != nil {
+		return nil, actionErr(err)
 	}
-	return pageMetrics(metrics, req.GetPage()), nil
-}
-
-// listMetricsQuery validates the filters and resolves the window.
-func listMetricsQuery(req *v1.ListMetricsRequest) (key string, start, end time.Time, err error) {
-	if len(req.GetKeys()) > 1 {
-		return "", start, end, connectrpc.NewError(connectrpc.CodeInvalidArgument, "one key at a time")
-	}
-	if len(req.GetProviders()) > 0 || req.ExternalAccountId != nil || req.ActivityId != nil {
-		return "", start, end, connectrpc.NewError(connectrpc.CodeInvalidArgument, "providers, external_account_id and activity_id filters are not supported")
-	}
-	if len(req.GetKeys()) == 1 {
-		key = req.GetKeys()[0]
-	}
-	now := time.Now().UTC()
-	start, end = now.Add(-metricsDefaultWindow), now
-	if tr := req.GetTimeRange(); tr != nil {
-		if tr.GetFrom() != nil {
-			start = tr.GetFrom().AsTime()
-		}
-		if tr.GetTo() != nil {
-			end = tr.GetTo().AsTime()
-		}
-	}
-	return key, start, end, nil
-}
-
-// pageMetrics applies the offset cursor to the full result.
-func pageMetrics(metrics []domain.Metric, page *v1.PageRequest) *v1.ListMetricsResponse {
-	limit, offset := pageFrom(page)
-	out := &v1.ListMetricsResponse{Page: &v1.PageResponse{Total: int64(len(metrics))}}
-	if offset >= len(metrics) {
-		return out
-	}
-	end := min(offset+limit, len(metrics))
-	for _, m := range metrics[offset:end] {
+	out := &v1.ListMetricsResponse{Page: &v1.PageResponse{Total: int64(total)}}
+	for _, m := range rows {
 		out.Metrics = append(out.Metrics, metricToProto(m))
 	}
-	if end < len(metrics) {
-		out.Page.NextCursor = encodeOffset(end)
+	if f.Offset+len(rows) < total {
+		out.Page.NextCursor = encodeOffset(f.Offset + len(rows))
 	}
-	return out
+	return out, nil
+}
+
+// listMetricsFilter converts the request into the use-case filter.
+func listMetricsFilter(req *v1.ListMetricsRequest) (domain.MetricListFilter, error) {
+	f := domain.MetricListFilter{Keys: req.GetKeys(), Providers: req.GetProviders(), Ascending: req.GetSort() == v1.MetricSort_METRIC_SORT_TS_ASC}
+	f.Limit, f.Offset = pageFrom(req.GetPage())
+	f.Start, f.End = timeRangeBounds(req.GetTimeRange())
+	if req.ExternalAccountId != nil {
+		id, err := uuid.Parse(req.GetExternalAccountId())
+		if err != nil {
+			return f, connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid external_account_id")
+		}
+		acct := domain.ExternalAccountID(id)
+		f.ExternalAccountID = &acct
+	}
+	if req.ActivityId != nil {
+		id, err := uuid.Parse(req.GetActivityId())
+		if err != nil {
+			return f, connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid activity_id")
+		}
+		act := domain.ActivityID(id)
+		f.ActivityID = &act
+	}
+	return f, nil
 }
 
 func metricToProto(m domain.Metric) *v1.Metric {

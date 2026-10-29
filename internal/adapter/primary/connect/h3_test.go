@@ -161,7 +161,7 @@ func TestSegmentServer(t *testing.T) {
 func TestMetricsServerAthleteAndHealth(t *testing.T) {
 	user := domain.UserID(uuid.New())
 	athlete := &fakeAthlete{}
-	s := NewMetricsServer(nil, nil, athlete)
+	s := NewMetricsServer(nil, nil, athlete, nil)
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 
 	up, err := s.UpsertAthleteMetric(ctx, &v1.UpsertAthleteMetricRequest{Key: "ftp_watts", EffectiveDate: "2026-10-01", Value: 250})

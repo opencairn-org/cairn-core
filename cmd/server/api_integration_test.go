@@ -260,6 +260,17 @@ func (c *itestClient) post(path string, body any, want ...int) map[string]any {
 	return m
 }
 
+// put sends a JSON PUT and decodes the object it returns.
+func (c *itestClient) put(path string, body any, want ...int) map[string]any {
+	c.env.t.Helper()
+	raw := c.do(http.MethodPut, path, body, want...)
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		c.env.t.Errorf("PUT %s: not a JSON object: %.200s", path, raw)
+	}
+	return m
+}
+
 // rpc calls a Connect unary method with the JSON codec.
 func (c *itestClient) rpc(procedure string, body any, want ...int) {
 	c.env.t.Helper()

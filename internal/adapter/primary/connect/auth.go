@@ -299,7 +299,7 @@ func isMutatingProcedure(procedure string) bool {
 	if i := strings.LastIndexByte(procedure, '/'); i >= 0 {
 		method = procedure[i+1:]
 	}
-	for _, verb := range []string{"Get", "List", "Search", "Watch", "Stream", "Export", "Resolve", "Check", "Count", "Lookup", "Fetch"} {
+	for _, verb := range []string{"Get", "List", "Search", "Query", "Watch", "Stream", "Export", "Resolve", "Check", "Count", "Lookup", "Fetch"} {
 		if strings.HasPrefix(method, verb) {
 			return false
 		}

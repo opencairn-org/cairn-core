@@ -184,19 +184,15 @@ func registerReadServices(server *connectrpc.Server, app *App, logger *slog.Logg
 		return backfillSegment(app, logger, userID, id, from, to)
 	}
 	cairnv1connect.RegisterSegmentServiceHandler(server, segmentSvc)
-	var metricsRepo port.MetricRepo
-	if app.Metrics != nil {
-		metricsRepo = app.Metrics
-	}
 	var athlete port.AthleteProfileRepo
 	if app.AthleteProfiles != nil {
 		athlete = app.AthleteProfiles
 	}
-	cairnv1connect.RegisterMetricsServiceHandler(server, connectadapter.NewMetricsServer(metricsRepo, app.HealthViews, athlete))
 	var settings port.UserSettingsRepo
 	if app.UserSettings != nil {
 		settings = app.UserSettings
 	}
+	cairnv1connect.RegisterMetricsServiceHandler(server, connectadapter.NewMetricsServer(app.MetricStore, app.HealthViews, athlete, settings))
 	cairnv1connect.RegisterSettingsServiceHandler(server, connectadapter.NewSettingsServer(settings))
 }
 
