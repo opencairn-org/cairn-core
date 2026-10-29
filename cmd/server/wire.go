@@ -34,6 +34,7 @@ import (
 	geocodeuc "github.com/opencairn-org/cairn-core/internal/usecase/geocode"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
+	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
@@ -175,6 +176,8 @@ type App struct {
 	TestEmail            *instance.TestEmail
 	SystemHealth         *instance.Health
 	InviteAdmin          *invite.Admin
+	Jobs                 *jobs.Jobs
+	Orphans              *jobs.Orphans
 	// EmailAdapter / StorageAdapter name the operator's choices (env).
 	EmailAdapter, EmailFrom string
 	StorageAdapter          string
@@ -836,6 +839,14 @@ func wireInstanceAdmin(app *App) {
 		h.DeadLetters = app.DeadLetters
 	}
 	app.SystemHealth = h
+	j := &jobs.Jobs{Audit: app.AuditLog}
+	if app.ImportQueue != nil {
+		j.Queue = app.ImportQueue
+	}
+	if app.DeadLetters != nil {
+		j.DeadLetters = app.DeadLetters
+	}
+	app.Jobs = j
 	if app.CreateInvite != nil && app.Invites != nil {
 		base := strings.TrimRight(app.PublicBaseURL, "/")
 		app.InviteAdmin = &invite.Admin{

@@ -465,3 +465,24 @@ func (r *ActivityRepo) UserFootprints(_ context.Context, userIDs []domain.UserID
 	}
 	return out, nil
 }
+
+// SourceWorkerGroups groups the fake's active sources by worker name.
+func (r *ActivityRepo) SourceWorkerGroups(context.Context) ([]port.SourceWorkerGroup, error) {
+	by := map[string]*port.SourceWorkerGroup{}
+	for _, s := range r.Sources {
+		if s.Status != domain.SourceStatusActive {
+			continue
+		}
+		g, ok := by[s.SourceWorkerName]
+		if !ok {
+			g = &port.SourceWorkerGroup{WorkerName: s.SourceWorkerName}
+			by[s.SourceWorkerName] = g
+		}
+		g.Sources++
+	}
+	out := []port.SourceWorkerGroup{}
+	for _, g := range by {
+		out = append(out, *g)
+	}
+	return out, nil
+}

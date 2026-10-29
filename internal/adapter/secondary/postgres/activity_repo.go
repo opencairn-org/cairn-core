@@ -1584,3 +1584,27 @@ func (r *ActivityRepo) UserFootprints(ctx context.Context, userIDs []domain.User
 	}
 	return out, rows.Err()
 }
+
+// SourceWorkerGroups groups active sources by the pool that imported them.
+func (r *ActivityRepo) SourceWorkerGroups(ctx context.Context) ([]port.SourceWorkerGroup, error) {
+	db := dbtx(ctx, r.pool)
+	rows, err := db.Query(ctx, `
+		SELECT source_worker_name, count(*), count(DISTINCT external_account_id), count(DISTINCT user_id), min(imported_at)
+		  FROM activity_sources
+		 WHERE status = 'active'
+		 GROUP BY source_worker_name
+		 ORDER BY count(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("source worker groups: %w", err)
+	}
+	defer rows.Close()
+	out := []port.SourceWorkerGroup{}
+	for rows.Next() {
+		var g port.SourceWorkerGroup
+		if err := rows.Scan(&g.WorkerName, &g.Sources, &g.Accounts, &g.Users, &g.OldestImportedAt); err != nil {
+			return nil, fmt.Errorf("scan source worker group: %w", err)
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}

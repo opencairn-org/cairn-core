@@ -543,6 +543,14 @@ func TestAPI_EndToEnd(t *testing.T) {
 	bob.do(http.MethodGet, "/api/admin/health", nil, http.StatusForbidden)
 	adm.rpc("/cairn.v1.AdminService/SendTestEmail", map[string]any{"toAddress": "itadmin@example.com"}, http.StatusOK, http.StatusServiceUnavailable)
 	adm.rpc("/cairn.v1.AdminService/ListInvites", map[string]any{"includeUsed": true}, http.StatusOK)
+	// Jobs, dead letters and orphaned sources.
+	adm.do(http.MethodGet, "/api/admin/jobs?limit=10", nil, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/jobs/"+uuid.NewString(), nil, http.StatusNotFound)
+	adm.do(http.MethodGet, "/api/admin/sources/orphaned", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListDeadLetterJobs", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/ListOrphanedSources", map[string]any{}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetJob", map[string]any{"id": uuid.NewString()}, http.StatusNotFound)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)

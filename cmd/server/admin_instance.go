@@ -232,3 +232,14 @@ func natsHealth(app *App) func() (bool, string) {
 		return true, "connected to " + nc.ConnectedUrl()
 	}
 }
+
+// liveWorkerNames lists the pool names currently online.
+func liveWorkerNames(app *App, logger *slog.Logger) func(ctx context.Context) []string {
+	return func(ctx context.Context) []string {
+		var out []string
+		for _, w := range currentWorkers(ctx, app, logger) {
+			out = append(out, w.name)
+		}
+		return out
+	}
+}

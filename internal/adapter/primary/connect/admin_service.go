@@ -14,6 +14,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
+	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 )
 
@@ -39,6 +40,8 @@ type AdminServer struct {
 	TestEmail *instance.TestEmail
 	Health    *instance.Health
 	Invites   *invite.Admin
+	Jobs      *jobs.Jobs
+	Orphans   *jobs.Orphans
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

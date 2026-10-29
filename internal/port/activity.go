@@ -40,6 +40,15 @@ type StartPlaceCandidate struct {
 
 // ActivityListFilter narrows and sorts the activity feed. Empty filter fields
 // match everything; nil pointers mean "any".
+// SourceWorkerGroup is the sources one worker pool imported.
+type SourceWorkerGroup struct {
+	WorkerName       string
+	Sources          int
+	Accounts         int
+	Users            int
+	OldestImportedAt *time.Time
+}
+
 // UserFootprint is what an admin sees next to a user: how much they own.
 type UserFootprint struct {
 	Activities       int
@@ -141,6 +150,9 @@ type ActivityRepo interface {
 	// activities: count, total distance (m), total moving time (s), total
 	// elevation gain (m). Used by the overview dashboard.
 	ActivityTotals(ctx context.Context, userID domain.UserID) (ActivityTotalsResult, error)
+
+	// SourceWorkerGroups counts active sources per importing worker pool.
+	SourceWorkerGroups(ctx context.Context) ([]SourceWorkerGroup, error)
 
 	// UserFootprints returns per-user admin counters for the given users
 	// (missing users map to a zero footprint).

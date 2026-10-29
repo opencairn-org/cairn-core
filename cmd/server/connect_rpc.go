@@ -16,6 +16,7 @@ import (
 	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 )
 
 // mountConnectRPC registers every cairn.v1.* Connect-RPC service the
@@ -76,17 +77,7 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 		connectadapter.ScopeInterceptor(),
 		connectadapter.RequireAdminInterceptor(app.Users),
 	)
-	adminSvc := connectadapter.NewAdminServer(app.Users, app.OIDCProviders)
-	adminSvc.UserAdmin = app.UserAdmin
-	adminSvc.Audit = app.AuditLog
-	adminSvc.Settings = app.InstanceSettings
-	adminSvc.TestEmail = app.TestEmail
-	adminSvc.Invites = app.InviteAdmin
-	if app.SystemHealth != nil {
-		app.SystemHealth.Workers = liveWorkerCounts(app, logger)
-		app.SystemHealth.QueueOK = natsHealth(app)
-		adminSvc.Health = app.SystemHealth
-	}
+	adminSvc := newAdminServer(app, logger)
 	cairnv1connect.RegisterAdminServiceHandler(adminServer, adminSvc)
 	connecthttp.Mount(streamSafeMux{mux}, adminServer)
 	logger.Info("connect-rpc services mounted", "services", []string{cairnv1connect.AdminServiceName})
@@ -230,4 +221,29 @@ func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivitySe
 	activitySvc.Visibility = app.Visibility2
 	activitySvc.Exports = app.Exports
 	return activitySvc
+}
+
+// newAdminServer wires the AdminService use cases.
+func newAdminServer(app *App, logger *slog.Logger) *connectadapter.AdminServer {
+	adminSvc := connectadapter.NewAdminServer(app.Users, app.OIDCProviders)
+	adminSvc.UserAdmin = app.UserAdmin
+	adminSvc.Audit = app.AuditLog
+	adminSvc.Settings = app.InstanceSettings
+	adminSvc.TestEmail = app.TestEmail
+	adminSvc.Invites = app.InviteAdmin
+	if app.Jobs != nil {
+		app.Jobs.Replay = natsReplayer{app: app}
+		adminSvc.Jobs = app.Jobs
+	}
+	app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
+	if app.WorkerPools != nil {
+		app.Orphans.Pools = app.WorkerPools
+	}
+	adminSvc.Orphans = app.Orphans
+	if app.SystemHealth != nil {
+		app.SystemHealth.Workers = liveWorkerCounts(app, logger)
+		app.SystemHealth.QueueOK = natsHealth(app)
+		adminSvc.Health = app.SystemHealth
+	}
+	return adminSvc
 }
