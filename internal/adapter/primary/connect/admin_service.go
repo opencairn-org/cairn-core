@@ -12,6 +12,8 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
+	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
+	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
 )
 
@@ -30,9 +32,13 @@ type AdminServer struct {
 	Users         port.UserRepo
 	OIDCProviders []domain.OIDCProvider
 
-	// UserAdmin backs the user RPCs; Audit the audit log (nil → Unavailable).
+	// Use cases behind the RPC groups; a nil one answers Unavailable.
 	UserAdmin *useradmin.Users
 	Audit     *audit.Recorder
+	Settings  *instance.Settings
+	TestEmail *instance.TestEmail
+	Health    *instance.Health
+	Invites   *invite.Admin
 }
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)

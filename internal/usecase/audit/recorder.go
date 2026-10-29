@@ -19,6 +19,14 @@ type Actor struct {
 	UserAgent string
 }
 
+// UserIDOrZero returns the actor's user id, or the zero id for system actors.
+func (a Actor) UserIDOrZero() domain.UserID {
+	if a.UserID == nil {
+		return domain.UserID{}
+	}
+	return *a.UserID
+}
+
 // UserActor builds an actor from a user.
 func UserActor(u domain.User) Actor {
 	id := u.ID

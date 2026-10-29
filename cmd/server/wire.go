@@ -32,6 +32,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	geocodeuc "github.com/opencairn-org/cairn-core/internal/usecase/geocode"
+	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 	"github.com/opencairn-org/cairn-core/internal/usecase/livefeed"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
@@ -168,6 +169,17 @@ type App struct {
 	AuditLog  *audit.Recorder
 	AuditRepo *postgres.AuditRepo
 	UserAdmin *useradmin.Users
+	// Instance-level admin: settings, email check, health; invite management.
+	InstanceSettingsRepo *postgres.InstanceSettingsRepo
+	InstanceSettings     *instance.Settings
+	TestEmail            *instance.TestEmail
+	SystemHealth         *instance.Health
+	InviteAdmin          *invite.Admin
+	// EmailAdapter / StorageAdapter name the operator's choices (env).
+	EmailAdapter, EmailFrom string
+	StorageAdapter          string
+	// DBPing probes the database for the health report.
+	DBPing func(ctx context.Context) error
 	// Content mints the signed URLs binary content is delivered under; set by
 	// mountContent (needs the HTTP config).
 	Content                  port.ContentSigner
@@ -239,6 +251,10 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		DefaultPollInterval: cfg.Scheduler.PollingInterval,
 		PublicBaseURL:       cfg.HTTP.PublicBaseURL,
 		SessionTTL:          cfg.Auth.SessionTTL,
+		EmailAdapter:        cfg.Email.Adapter,
+		EmailFrom:           cfg.Email.FromAddress,
+		StorageAdapter:      "minio",
+		DBPing:              pool.Ping,
 		OAuthEnabled:        cfg.Auth.OAuthEnabled,
 		FederationEnabled:   cfg.Federation.Enabled,
 	}
@@ -252,18 +268,10 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	}
 	app.OIDCProviders = oidcProviders
 
-	app.PasswordHasher = auth.NewPasswordHasher(auth.PasswordParams{
-		Time:    cfg.Auth.Argon2Time,
-		Memory:  cfg.Auth.Argon2Memory,
-		Threads: cfg.Auth.Argon2Threads,
-		KeyLen:  cfg.Auth.Argon2KeyLen,
-	})
-
-	secretBox, err := auth.NewSecretBoxFromMasterKey(cfg.Auth.MasterEncryptionKey)
+	secretBox, err := wireAppCrypto(app, cfg)
 	if err != nil {
 		return nil, err
 	}
-	app.SecretBox = secretBox
 
 	wireAppSecondaryRepos(app, pool, secretBox)
 	// Notifications before ingest: the gear use cases notify on pending
@@ -295,6 +303,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	if err := wireAppBlobStore(ctx, app, cfg, logger); err != nil {
 		return nil, err
 	}
+	mirrorInstanceEnv(ctx, app, cfg, logger)
 	// After the blob store: variants need it (nil → nothing is derived).
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
@@ -512,6 +521,7 @@ func wireAppAccountUseCases(app *App, pool *pgxpool.Pool) {
 	app.BootstrapAdmin = admin.NewBootstrapAdmin(app.Users, app.CreateUser)
 	app.Invites = postgres.NewInviteRepo(pool)
 	app.AuditRepo = postgres.NewAuditRepo(pool)
+	app.InstanceSettingsRepo = postgres.NewInstanceSettingsRepo(pool)
 	app.CreateInvite = invite.NewCreateInvite(app.Invites, nil)
 	app.RedeemInvite = invite.NewRedeemInvite(app.Invites, app.CreateUser, nil)
 	app.PATs = postgres.NewPATRepo(pool)
@@ -803,6 +813,36 @@ func wireAdmin(app *App) {
 		ua.Hasher = app.PasswordHasher
 	}
 	app.UserAdmin = ua
+	wireInstanceAdmin(app)
+}
+
+// wireInstanceAdmin builds the instance settings, email check, health
+// report and invite management.
+func wireInstanceAdmin(app *App) {
+	if app.InstanceSettingsRepo != nil {
+		app.InstanceSettings = &instance.Settings{Repo: app.InstanceSettingsRepo, Audit: app.AuditLog}
+	}
+	if app.Email != nil {
+		app.TestEmail = &instance.TestEmail{Mail: app.Email}
+	}
+	h := &instance.Health{PingDB: app.DBPing, Mail: app.Email}
+	if app.BlobStore != nil {
+		h.Blobs = app.BlobStore
+	}
+	if app.ImportQueue != nil {
+		h.Queue = app.ImportQueue
+	}
+	if app.DeadLetters != nil {
+		h.DeadLetters = app.DeadLetters
+	}
+	app.SystemHealth = h
+	if app.CreateInvite != nil && app.Invites != nil {
+		base := strings.TrimRight(app.PublicBaseURL, "/")
+		app.InviteAdmin = &invite.Admin{
+			Invites: app.Invites, Create: app.CreateInvite, Mail: app.Email, Audit: app.AuditLog,
+			SignupURL: func(code string) string { return base + "/signup?code=" + code },
+		}
+	}
 }
 
 // wireBestEfforts builds the best-effort compute and the custom-window use case.
@@ -817,4 +857,33 @@ func wireBestEfforts(app *App) {
 	)
 	app.ComputeBestEfforts.Customs = app.CustomBestEffortRepo
 	app.CustomBestEfforts = &besteffort.Customs{Repo: app.CustomBestEffortRepo, BestEfforts: app.BestEfforts, Activities: app.Activities, Compute: app.ComputeBestEfforts}
+}
+
+// mirrorInstanceEnv records the operator's email and storage choices in the
+// settings row (admin UI) and points the health probe at the blob store.
+func mirrorInstanceEnv(ctx context.Context, app *App, cfg *config.Config, logger *slog.Logger) {
+	if app.InstanceSettingsRepo != nil {
+		if err := app.InstanceSettingsRepo.MirrorEnv(ctx, cfg.Email.Adapter, app.Email != nil, cfg.Email.FromAddress, "minio", app.BlobStore != nil); err != nil {
+			logger.Warn("mirror env into instance settings", "error", err)
+		}
+	}
+	if app.SystemHealth != nil && app.BlobStore != nil {
+		app.SystemHealth.Blobs = app.BlobStore
+	}
+}
+
+// wireAppCrypto builds the password hasher and the secret box.
+func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
+	app.PasswordHasher = auth.NewPasswordHasher(auth.PasswordParams{
+		Time:    cfg.Auth.Argon2Time,
+		Memory:  cfg.Auth.Argon2Memory,
+		Threads: cfg.Auth.Argon2Threads,
+		KeyLen:  cfg.Auth.Argon2KeyLen,
+	})
+	secretBox, err := auth.NewSecretBoxFromMasterKey(cfg.Auth.MasterEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	app.SecretBox = secretBox
+	return secretBox, nil
 }

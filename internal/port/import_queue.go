@@ -9,6 +9,16 @@ import (
 
 // ImportQueueRepo persists the core-driven import work list. See migration
 // 00017 and docs in domain.ImportQueueItem.
+// ImportQueueFilter narrows the admin listing; zero values mean "any".
+type ImportQueueFilter struct {
+	Statuses      []domain.ImportItemStatus
+	ItemTypes     []domain.ImportItemType
+	Providers     []string
+	UserID        *domain.UserID
+	From, To      time.Time // created_at range, [From, To)
+	Limit, Offset int
+}
+
 type ImportQueueRepo interface {
 	// Enqueue bulk-inserts pending items, skipping ones already queued for
 	// the same (account, type, external_id) — ON CONFLICT DO NOTHING.
@@ -58,6 +68,20 @@ type ImportQueueRepo interface {
 	// pending maximum so it is claimed next. Returns false when the item
 	// doesn't exist or isn't pending.
 	MoveToTop(ctx context.Context, accountID domain.ExternalAccountID, id domain.ImportQueueItemID) (bool, error)
+
+	// ---- instance-wide (admin) ----
+
+	// ListAll pages items across every account with the filter applied,
+	// in-progress first then newest; the total ignores the page.
+	ListAll(ctx context.Context, f ImportQueueFilter) ([]domain.ImportQueueItem, int, error)
+	// Get returns one item by id; domain.ErrNotFound when absent.
+	Get(ctx context.Context, id domain.ImportQueueItemID) (domain.ImportQueueItem, error)
+	// CountAllByStatus counts items per status across the instance.
+	CountAllByStatus(ctx context.Context, f ImportQueueFilter) (map[domain.ImportItemStatus]int, error)
+	// Retry puts a failed or skipped item back to pending; reset clears attempts.
+	Retry(ctx context.Context, id domain.ImportQueueItemID, reset bool) (bool, error)
+	// Cancel marks a pending or in-progress item skipped.
+	Cancel(ctx context.Context, id domain.ImportQueueItemID, reason string) (bool, error)
 
 	// RequeueStale flips items that have sat in_progress longer than olderThan
 	// back to pending so they get re-dispatched; items already at maxAttempts

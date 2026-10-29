@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // ImportQueueRepo implements port.ImportQueueRepo over the import_queue table.
@@ -284,4 +287,118 @@ func scanQueueItem(row rowScanner) (domain.ImportQueueItem, error) {
 		it.LastError = *lastErr
 	}
 	return it, nil
+}
+
+// ---- instance-wide (admin) ----
+
+// importQueueWhere renders the admin filter as a WHERE clause.
+func importQueueWhere(f port.ImportQueueFilter) (string, []any) {
+	where := []string{"true"}
+	args := []any{}
+	add := func(cond string, v any) {
+		args = append(args, v)
+		where = append(where, fmt.Sprintf(cond, len(args)))
+	}
+	if len(f.Statuses) > 0 {
+		add("status = ANY($%d)", stringsOf(f.Statuses))
+	}
+	if len(f.ItemTypes) > 0 {
+		add("item_type = ANY($%d)", stringsOf(f.ItemTypes))
+	}
+	if len(f.Providers) > 0 {
+		add("provider = ANY($%d)", f.Providers)
+	}
+	if f.UserID != nil {
+		add("user_id = $%d", f.UserID.UUID())
+	}
+	if !f.From.IsZero() {
+		add("created_at >= $%d", f.From)
+	}
+	if !f.To.IsZero() {
+		add("created_at < $%d", f.To)
+	}
+	return strings.Join(where, " AND "), args
+}
+
+func (r *ImportQueueRepo) ListAll(ctx context.Context, f port.ImportQueueFilter) ([]domain.ImportQueueItem, int, error) {
+	where, args := importQueueWhere(f)
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM import_queue WHERE `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count queue items: %w", err)
+	}
+	limit, offset := f.Limit, max(0, f.Offset)
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	args = append(args, limit, offset)
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+importQueueCols+`
+		FROM import_queue
+		WHERE `+where+`
+		ORDER BY (status = 'in_progress') DESC, created_at DESC
+		LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list queue items: %w", err)
+	}
+	defer rows.Close()
+	out := []domain.ImportQueueItem{}
+	for rows.Next() {
+		it, err := scanQueueItem(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, it)
+	}
+	return out, total, rows.Err()
+}
+
+func (r *ImportQueueRepo) Get(ctx context.Context, id domain.ImportQueueItemID) (domain.ImportQueueItem, error) {
+	it, err := scanQueueItem(r.pool.QueryRow(ctx, `SELECT `+importQueueCols+` FROM import_queue WHERE id = $1`, id.UUID()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ImportQueueItem{}, fmt.Errorf("queue item %s: %w", id, domain.ErrNotFound)
+	}
+	return it, err
+}
+
+func (r *ImportQueueRepo) CountAllByStatus(ctx context.Context, f port.ImportQueueFilter) (map[domain.ImportItemStatus]int, error) {
+	where, args := importQueueWhere(f)
+	rows, err := r.pool.Query(ctx, `SELECT status, count(*) FROM import_queue WHERE `+where+` GROUP BY status`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("count queue by status: %w", err)
+	}
+	defer rows.Close()
+	out := map[domain.ImportItemStatus]int{}
+	for rows.Next() {
+		var (
+			s string
+			n int
+		)
+		if err := rows.Scan(&s, &n); err != nil {
+			return nil, err
+		}
+		out[domain.ImportItemStatus(s)] = n
+	}
+	return out, rows.Err()
+}
+
+func (r *ImportQueueRepo) Retry(ctx context.Context, id domain.ImportQueueItemID, reset bool) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE import_queue SET
+			status = 'pending', attempts = CASE WHEN $2 THEN 0 ELSE attempts END, last_error = NULL,
+			started_at = NULL, completed_at = NULL, updated_at = now()
+		WHERE id = $1 AND status IN ('failed', 'skipped')`, id.UUID(), reset)
+	if err != nil {
+		return false, fmt.Errorf("retry queue item: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *ImportQueueRepo) Cancel(ctx context.Context, id domain.ImportQueueItemID, reason string) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE import_queue SET status = 'skipped', last_error = $2, completed_at = now(), updated_at = now()
+		WHERE id = $1 AND status IN ('pending', 'in_progress')`, id.UUID(), reason)
+	if err != nil {
+		return false, fmt.Errorf("cancel queue item: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
 }

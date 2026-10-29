@@ -75,6 +75,15 @@ func requireJSON(w http.ResponseWriter, r *http.Request) bool {
 
 // writeActionError maps a port.ActionError to its HTTP status; any other error
 // is a 500 with the fallback message.
+// actionErrorOf unwraps a port.ActionError when err carries one.
+func actionErrorOf(err error) (*port.ActionError, bool) {
+	var ae *port.ActionError
+	if errors.As(err, &ae) {
+		return ae, true
+	}
+	return nil, false
+}
+
 func writeActionError(w http.ResponseWriter, err error, fallback string) {
 	var ae *port.ActionError
 	if !errors.As(err, &ae) {

@@ -369,6 +369,7 @@ func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// Session+admin-gated admin API (worker onboarding) for the admin UI.
 	mountAdminAPI(mux, app, logger)
 	mountAdminUsers(mux, app, logger)
+	mountAdminInstance(mux, app, logger)
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
 	mountSyncEndpoints(mux, app, logger)

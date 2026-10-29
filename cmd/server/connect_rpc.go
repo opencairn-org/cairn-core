@@ -79,6 +79,14 @@ func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	adminSvc := connectadapter.NewAdminServer(app.Users, app.OIDCProviders)
 	adminSvc.UserAdmin = app.UserAdmin
 	adminSvc.Audit = app.AuditLog
+	adminSvc.Settings = app.InstanceSettings
+	adminSvc.TestEmail = app.TestEmail
+	adminSvc.Invites = app.InviteAdmin
+	if app.SystemHealth != nil {
+		app.SystemHealth.Workers = liveWorkerCounts(app, logger)
+		app.SystemHealth.QueueOK = natsHealth(app)
+		adminSvc.Health = app.SystemHealth
+	}
 	cairnv1connect.RegisterAdminServiceHandler(adminServer, adminSvc)
 	connecthttp.Mount(streamSafeMux{mux}, adminServer)
 	logger.Info("connect-rpc services mounted", "services", []string{cairnv1connect.AdminServiceName})

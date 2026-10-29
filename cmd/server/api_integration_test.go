@@ -532,6 +532,17 @@ func TestAPI_EndToEnd(t *testing.T) {
 	adm.do(http.MethodPost, "/api/admin/geocode/backfill", nil, http.StatusServiceUnavailable)
 	adm.rpc("/cairn.v1.AdminService/ListUsers", nil, http.StatusOK)
 	adm.rpc("/cairn.v1.AdminService/ListOIDCClients", nil, http.StatusOK)
+	// Instance settings, health and outbound email on both surfaces.
+	adm.do(http.MethodGet, "/api/admin/instance/settings", nil, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/instance/settings", map[string]any{"instance_name": "IT Cairn", "primary_color": "#112233"}, http.StatusOK)
+	adm.do(http.MethodPut, "/api/admin/instance/settings", map[string]any{"primary_color": "red"}, http.StatusBadRequest)
+	adm.rpc("/cairn.v1.AdminService/GetInstanceSettings", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/UpdateInstanceSettings", map[string]any{"fieldMask": []string{"instance_name"}, "settings": map[string]any{"instanceName": "Cairn"}}, http.StatusOK)
+	adm.do(http.MethodGet, "/api/admin/health", nil, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/GetSystemHealth", nil, http.StatusOK)
+	bob.do(http.MethodGet, "/api/admin/health", nil, http.StatusForbidden)
+	adm.rpc("/cairn.v1.AdminService/SendTestEmail", map[string]any{"toAddress": "itadmin@example.com"}, http.StatusOK, http.StatusServiceUnavailable)
+	adm.rpc("/cairn.v1.AdminService/ListInvites", map[string]any{"includeUsed": true}, http.StatusOK)
 
 	// Invite → self-service signup → login of the new account.
 	inv := adm.post("/api/admin/invites", map[string]any{"role": "user", "expires_in_days": 3}, http.StatusCreated)
@@ -543,7 +554,10 @@ func TestAPI_EndToEnd(t *testing.T) {
 	}, http.StatusOK)
 	carol.do(http.MethodGet, "/api/overview", nil, http.StatusOK)
 	carol.do(http.MethodPost, "/auth/invite/redeem", map[string]any{"code": str(inv, "code"), "username": "x", "email": "x@example.com", "password": "another good password"}, http.StatusBadRequest)
+	adm.do(http.MethodPost, "/api/admin/invites/"+str(inv, "id")+"/resend", nil, http.StatusBadRequest, http.StatusServiceUnavailable)
 	adm.do(http.MethodPost, "/api/admin/invites/"+str(inv, "id")+"/revoke", nil)
+	adm.rpc("/cairn.v1.AdminService/RevokeInvite", map[string]any{"id": str(inv, "id")}, http.StatusOK)
+	adm.rpc("/cairn.v1.AdminService/CreateInvite", map[string]any{"assignedRole": "USER_ROLE_USER"}, http.StatusOK)
 
 	// Password recovery and login failures never leak account existence.
 	anon.do(http.MethodPost, "/auth/password/forgot", map[string]any{"email": "italice@example.com"}, http.StatusOK)
