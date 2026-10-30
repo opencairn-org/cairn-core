@@ -6,6 +6,11 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-10-30
+
+Core-only patch; the 0.6.0 workers stay compatible. Instances without object
+storage credentials must now set `CAIRN_STORAGE_DRIVER=none` to start.
+
 ### Changed
 - Object storage is required by default. `CAIRN_STORAGE_DRIVER` (new, `s3`)
   refuses to start without `CAIRN_STORAGE_ACCESS_KEY_ID` /
