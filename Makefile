@@ -51,7 +51,7 @@ PROTOC_GEN_GO_VERSION ?= v1.36.12
 # renovate: datasource=go depName=connectrpc.com/connect/v2
 PROTOC_GEN_CONNECT_GO_VERSION ?= v2.0.2
 # renovate: datasource=go depName=github.com/grpc-ecosystem/grpc-gateway/v2
-PROTOC_GEN_OPENAPIV2_VERSION ?= v2.32.0
+PROTOC_GEN_OPENAPIV2_VERSION ?= v2.33.0
 # Tools are built with this module's toolchain: golangci-lint refuses code that targets a newer Go than it was built with.
 TOOLCHAIN := $(shell $(GO) env GOVERSION)
 
