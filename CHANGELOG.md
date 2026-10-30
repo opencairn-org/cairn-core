@@ -6,6 +6,15 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Object storage is required by default. `CAIRN_STORAGE_DRIVER` (new, `s3`)
+  refuses to start without `CAIRN_STORAGE_ACCESS_KEY_ID` /
+  `CAIRN_STORAGE_SECRET_ACCESS_KEY` instead of silently coming up without a
+  blob store, which since 0.5 made every claim-checked worker result
+  dead-letter. `CAIRN_STORAGE_DRIVER=none` is the explicit opt-out for
+  API-only or development instances: logged at Error on start, reported as
+  Degraded by the health probe with the consequences spelled out.
+
 ## [0.6.0] — 2026-10-29
 
 Needs no worker upgrade: the worker contract (`cairn.worker.v1`) is unchanged

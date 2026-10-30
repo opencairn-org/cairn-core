@@ -130,12 +130,12 @@ type App struct {
 	NATSAuthCallout      *natsadapter.AuthCalloutSubscriber
 	RateLimiter          port.RateLimiter
 
-	// BlobStore is the S3-compatible blob adapter. Nil-by-default; populated
-	// only when cfg.Storage.Configured() — i.e. CAIRN_STORAGE_ACCESS_KEY_ID
-	// and CAIRN_STORAGE_SECRET_ACCESS_KEY are both set. Code paths that
-	// emit presigned URLs (worker blob upload, user-facing raw-download
-	// endpoint) check for nil and return Unavailable when the operator
-	// hasn't configured storage.
+	// BlobStore is the S3-compatible blob adapter. Nil only under the
+	// explicit CAIRN_STORAGE_DRIVER=none opt-out (config.Validate refuses
+	// to start the s3 driver without credentials). Code paths that emit
+	// presigned URLs (worker blob upload, user-facing raw-download
+	// endpoint) check for nil and return Unavailable; claim-checked worker
+	// results then dead-letter.
 	BlobStore port.BlobStore
 
 	// Email is the outbound email adapter (port.EmailSender). Nil when
@@ -669,13 +669,17 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 	return nil
 }
 
-// wireAppBlobStore wires the S3-compatible blob store. Gated on storage
-// credentials being set — instances that don't yet have object storage
-// configured come up in a "no raw blobs" mode; ingest pipelines still run end-to-end.
+// wireAppBlobStore wires the S3-compatible blob store. CAIRN_STORAGE_DRIVER=none
+// is the only way to come up without one: file upload and manual entry still
+// ingest, but claim-checked worker results dead-letter and uploads, photos and
+// map snapshots are unavailable, so the opt-out is logged at Error.
 func wireAppBlobStore(ctx context.Context, app *App, cfg *config.Config, logger *slog.Logger) error {
-	if !cfg.Storage.Configured() {
-		logger.Info("blob store not configured: CAIRN_STORAGE_ACCESS_KEY_ID/SECRET_ACCESS_KEY unset")
+	if cfg.Storage.Disabled() {
+		logger.Error("object storage disabled (CAIRN_STORAGE_DRIVER=none): provider sync results will dead-letter; uploads, photos and map snapshots are unavailable")
 		return nil
+	}
+	if !cfg.Storage.Configured() {
+		return fmt.Errorf("storage: CAIRN_STORAGE_ACCESS_KEY_ID and CAIRN_STORAGE_SECRET_ACCESS_KEY are required with CAIRN_STORAGE_DRIVER=s3")
 	}
 	bs, err := s3adapter.New(cfg.Storage)
 	if err != nil {

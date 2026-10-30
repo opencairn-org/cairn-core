@@ -109,7 +109,7 @@ func (h *Health) checkQueue() Component {
 
 func (h *Health) checkStorage(ctx context.Context) Component {
 	if h.Blobs == nil {
-		return Component{State: Degraded, Detail: "object storage not configured"}
+		return Component{State: Degraded, Detail: "object storage disabled (CAIRN_STORAGE_DRIVER=none): provider sync dead-letters, uploads and photos unavailable"}
 	}
 	start := time.Now()
 	if err := h.Blobs.Healthy(ctx); err != nil {

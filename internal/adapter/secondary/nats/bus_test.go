@@ -17,6 +17,9 @@ func startServer(t *testing.T, opts *server.Options) *server.Server {
 		opts = &server.Options{}
 	}
 	opts.Host, opts.Port, opts.JetStream = "127.0.0.1", -1, true
+	// Config files under docker/ set http_port 8222, which the dev stack's
+	// NATS already holds; no test uses monitoring, so don't bind it.
+	opts.HTTPPort = 0
 	opts.StoreDir, opts.NoLog, opts.NoSigs = t.TempDir(), true, true
 	s, err := server.NewServer(opts)
 	if err != nil {

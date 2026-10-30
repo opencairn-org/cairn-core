@@ -18,6 +18,7 @@ x-cairn-env: &cairn-env
   # Single-process mode: no NATS (the URL defaults to nats://localhost:4222, so
   # it must be explicitly emptied or the server dies bootstrapping JetStream).
   CAIRN_NATS_URL: ""
+  CAIRN_STORAGE_DRIVER: none
   CAIRN_FEDERATION_ENABLED: "true"
   CAIRN_FEDERATION_ALLOW_PRIVATE_HOSTS: "true"
   CAIRN_INSTANCE_BOOTSTRAP_ADMIN_PASSWORD: "interop-pw-123456"

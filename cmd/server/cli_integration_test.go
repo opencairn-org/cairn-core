@@ -44,6 +44,7 @@ func TestCLI_MigrateRotateServe(t *testing.T) {
 		"CAIRN_FEDERATION_ENABLED":                "true",
 		"CAIRN_EMAIL_ADAPTER":                     "none",
 		"CAIRN_NATS_URL":                          "",
+		"CAIRN_STORAGE_DRIVER":                    "none",
 		"CAIRN_STORAGE_ACCESS_KEY_ID":             "",
 		"CAIRN_LOG_LEVEL":                         "error",
 		"CAIRN_HTTP_ADDR":                         addr,
