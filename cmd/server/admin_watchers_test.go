@@ -27,7 +27,7 @@ func TestHealthTransition(t *testing.T) {
 	if _, ok := healthTransition(instance.Healthy, healthy); ok {
 		t.Fatal("healthy → healthy is no event")
 	}
-	degraded := instance.Report{Overall: instance.Degraded, Storage: instance.Component{State: instance.Degraded, Detail: "object storage not configured"}, JobsDLQ: 2}
+	degraded := instance.Report{Overall: instance.Degraded, Storage: instance.Component{State: instance.Degraded, Detail: "object storage disabled (CAIRN_STORAGE_DRIVER=none)"}, JobsDLQ: 2}
 	ev, ok := healthTransition(instance.Healthy, degraded)
 	if !ok || ev.Type != domain.AdminEventSystemHealthDegraded || ev.Severity != domain.AuditWarn || ev.Params["storage"] == "" || ev.Params["dead_letters"] != "2" || ev.Params["database"] != "" {
 		t.Fatalf("degraded: %v %+v", ok, ev)

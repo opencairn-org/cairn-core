@@ -187,13 +187,17 @@ type NATSConfig struct {
 // StorageConfig points at the S3-compatible object store. Defaults assume
 // MinIO running on the same host.
 //
-// AccessKeyID/SecretAccessKey are optional: when both are empty the
-// server starts without a BlobStore adapter (workers can't upload raw
-// blobs, but everything else — Connect-RPC, ingest, follow-ups —
-// continues to function). Setting them on a partially-configured
-// instance is non-breaking: nothing references blob_id until S3 is
-// wired.
+// Object storage is required for a working instance: since 0.5 every
+// event-carrying worker result is claim-checked through it, so without a
+// BlobStore provider sync dead-letters, and uploads, photos and cached map
+// snapshots are unavailable. Driver=s3 (the default) therefore requires
+// credentials and the server refuses to start without them. Driver=none is
+// the explicit opt-out for API-only or development instances; it is logged
+// at Error and reported as Degraded by the health probe.
 type StorageConfig struct {
+	// Driver selects the adapter: "s3" (default) or "none".
+	Driver string `env:"DRIVER, default=s3"`
+
 	Endpoint        string `env:"ENDPOINT, default=http://minio:9000"`
 	Region          string `env:"REGION, default=us-east-1"`
 	Bucket          string `env:"BUCKET, default=cairn"`
@@ -218,10 +222,16 @@ type StorageConfig struct {
 	TransferExpiryDays int `env:"TRANSFER_EXPIRY_DAYS, default=1"`
 }
 
-// Configured reports whether the storage stanza has credentials set.
-// wire.go uses this to decide whether to instantiate the BlobStore.
+// Configured reports whether a BlobStore should be wired: the driver is not
+// "none" and credentials are set. An empty Driver counts as "s3" so configs
+// built by hand (tests) behave like the env default.
 func (s StorageConfig) Configured() bool {
-	return s.AccessKeyID != "" && s.SecretAccessKey != ""
+	return !s.Disabled() && s.AccessKeyID != "" && s.SecretAccessKey != ""
+}
+
+// Disabled reports the explicit STORAGE_DRIVER=none opt-out.
+func (s StorageConfig) Disabled() bool {
+	return s.Driver == "none"
 }
 
 // MapConfig configures the raster basemap behind server-rendered activity
@@ -490,6 +500,21 @@ func (c *Config) Validate() error {
 			c.Database.MaxConns, c.Database.MinConns)
 	}
 
+	return c.Storage.validate()
+}
+
+// validate enforces the driver enum and the credentials the s3 driver needs.
+func (s StorageConfig) validate() error {
+	switch s.Driver {
+	case "", "s3":
+		if !s.Configured() {
+			return fmt.Errorf("STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY are required with STORAGE_DRIVER=s3; " +
+				"set STORAGE_DRIVER=none to run without object storage (provider sync dead-letters, uploads and photos are unavailable)")
+		}
+	case "none":
+	default:
+		return fmt.Errorf("STORAGE_DRIVER must be s3|none, got %q", s.Driver)
+	}
 	return nil
 }
 

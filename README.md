@@ -169,9 +169,11 @@ make tidy && make migrate-up && make run
 ```
 
 `make run -- config help` prints every `CAIRN_*` variable, its default, and
-whether it's required. NATS (`CAIRN_NATS_URL`) and S3 (`CAIRN_STORAGE_*`) are
-optional — without them the server runs single-process; the async worker
-control-plane, blob archival, and presigned uploads simply stay off.
+whether it's required. NATS (`CAIRN_NATS_URL`) is optional — without it the
+server runs single-process and the async worker control-plane stays off. S3
+(`CAIRN_STORAGE_*`) is required by default: worker results are claim-checked
+through it. `CAIRN_STORAGE_DRIVER=none` is the explicit opt-out for API-only
+or development instances (provider sync dead-letters, no uploads or photos).
 
 ## Exercising the pipeline
 

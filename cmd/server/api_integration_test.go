@@ -131,6 +131,7 @@ func newITestEnv(t *testing.T) *itestEnv {
 		"CAIRN_FEDERATION_ALLOW_PRIVATE_HOSTS":    "true",
 		"CAIRN_EMAIL_ADAPTER":                     "none",
 		"CAIRN_NATS_URL":                          "",
+		"CAIRN_STORAGE_DRIVER":                    "none",
 		"CAIRN_STORAGE_ACCESS_KEY_ID":             "",
 		"CAIRN_INSTANCE_BOOTSTRAP_ADMIN_EMAIL":    "",
 		"CAIRN_INSTANCE_BOOTSTRAP_ADMIN_PASSWORD": "",

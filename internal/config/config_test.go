@@ -35,6 +35,7 @@ func setBaseEnv(t *testing.T) {
 		"CAIRN_HTTP_TLS_KEY_FILE":          "",
 		"CAIRN_HTTP_CORS_ALLOWED_ORIGINS":  "https://a.example,https://b.example",
 		"CAIRN_GEOCODER_MIN_INTERVAL":      "250ms",
+		"CAIRN_STORAGE_DRIVER":             "none",
 	} {
 		t.Setenv(k, v)
 	}
@@ -169,6 +170,7 @@ func validConfig() Config {
 	c.Email.Adapter = "none"
 	c.Database.MaxConns = 10
 	c.Database.MinConns = 2
+	c.Storage.Driver = "none"
 	return c
 }
 
@@ -194,6 +196,15 @@ func TestValidate(t *testing.T) {
 		{"callout without nats", func(c *Config) { c.NATS.URL, c.NATS.AuthCallout = "", true }, ""},
 		{"callout without account", func(c *Config) { c.NATS.URL, c.NATS.AuthCallout = "nats://n", true }, "NATS_WORKER_ACCOUNT required"},
 		{"callout bad account", func(c *Config) { c.NATS.URL, c.NATS.AuthCallout, c.NATS.WorkerAccount = "nats://n", true, "A.B" }, "NATS account name"},
+		{"s3 with credentials", func(c *Config) {
+			c.Storage.Driver, c.Storage.AccessKeyID, c.Storage.SecretAccessKey = "s3", "id", "secret"
+		}, ""},
+		{"empty driver with credentials", func(c *Config) {
+			c.Storage.Driver, c.Storage.AccessKeyID, c.Storage.SecretAccessKey = "", "id", "secret"
+		}, ""},
+		{"s3 without credentials", func(c *Config) { c.Storage.Driver = "s3" }, "STORAGE_DRIVER=none"},
+		{"s3 with only key id", func(c *Config) { c.Storage.Driver, c.Storage.AccessKeyID = "s3", "id" }, "STORAGE_SECRET_ACCESS_KEY"},
+		{"bad driver", func(c *Config) { c.Storage.Driver = "fs" }, "STORAGE_DRIVER must be s3|none"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -215,18 +226,20 @@ func TestValidate(t *testing.T) {
 
 func TestStorageConfigured(t *testing.T) {
 	tests := []struct {
-		id, secret string
-		want       bool
+		driver, id, secret string
+		want               bool
 	}{
-		{"", "", false},
-		{"id", "", false},
-		{"", "secret", false},
-		{"id", "secret", true},
+		{"s3", "", "", false},
+		{"s3", "id", "", false},
+		{"s3", "", "secret", false},
+		{"s3", "id", "secret", true},
+		{"", "id", "secret", true},
+		{"none", "id", "secret", false},
 	}
 	for _, tt := range tests {
-		s := StorageConfig{AccessKeyID: tt.id, SecretAccessKey: tt.secret}
+		s := StorageConfig{Driver: tt.driver, AccessKeyID: tt.id, SecretAccessKey: tt.secret}
 		if got := s.Configured(); got != tt.want {
-			t.Errorf("Configured(%q,%q) = %v", tt.id, tt.secret, got)
+			t.Errorf("Configured(%q,%q,%q) = %v", tt.driver, tt.id, tt.secret, got)
 		}
 	}
 }
