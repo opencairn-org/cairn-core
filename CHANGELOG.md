@@ -7,6 +7,9 @@ All notable changes to Cairn are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The logout button signs out: a browser `POST /auth/logout` now redirects to
+  `/login` (303) instead of answering 204 and leaving the page signed in.
+  API clients still get 204.
 - Segment efforts and leaderboards no longer show other athletes' private,
   admin-hidden or deleted efforts. Each row is checked against the visibility
   model, so another athlete's efforts appear only when their activity shares
