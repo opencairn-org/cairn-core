@@ -321,10 +321,8 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
 	mountActivitiesFeed(mux, app, logger)
 
-	// An activity's segment efforts (joined to their segment).
-	mountSegmentEfforts(mux, app, logger)
-	mountSegmentDetail(mux, app, logger)
-	mountSegmentAuthoring(mux, app, logger)
+	// Segment library, authoring, leaderboards and an activity's efforts.
+	mountRestSegments(mux, app, logger)
 	mountZones(mux, app, logger)
 	mountLaps(mux, app, logger)
 	mountActivitySources(mux, app, logger)
@@ -345,7 +343,6 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountInstanceFeatures(mux, cfg, logger)
 	mountActivitySimilar(mux, app, logger)
 	mountBestEffortHistory(mux, app, logger)
-	mountSegmentsList(mux, app, logger)
 	serveMountSocial(mux, app, logger)
 }
 
