@@ -9,10 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
@@ -21,27 +19,6 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/protoconv"
 )
-
-// activityManageLoadOwned resolves the activity and enforces ownership; returns false
-// (and writes the response) on any failure.
-func activityManageLoadOwned(w http.ResponseWriter, r *http.Request, app *App) (domain.Activity, bool) {
-	userID, ok := resolveSessionUser(r, app)
-	if !ok {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return domain.Activity{}, false
-	}
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, "bad activity id", http.StatusBadRequest)
-		return domain.Activity{}, false
-	}
-	act, err := app.Activities.GetActivity(r.Context(), domain.ActivityID(id))
-	if err != nil || act.UserID != userID || act.IsDeleted() {
-		http.Error(w, "not found", http.StatusNotFound)
-		return domain.Activity{}, false
-	}
-	return act, true
-}
 
 // liveWorker is the identity of a currently-online worker that matters for
 // re-parse: provider + version + package. Those three ARE the compatibility
