@@ -66,7 +66,7 @@ func (h *InviteHandlers) create(w http.ResponseWriter, r *http.Request) {
 	}
 	out := map[string]any{
 		"id": res.Invite.ID.String(), "code": res.Code, "prefix": res.Invite.CodePrefix,
-		"expires_at": acctFmtTimePtr(res.Invite.ExpiresAt), "delivered": res.Delivered,
+		"expires_at": fmtTimePtr(res.Invite.ExpiresAt), "delivered": res.Delivered,
 		"signup_url": h.BaseURL + "/signup?code=" + res.Code,
 	}
 	if res.Err != nil {
@@ -93,8 +93,8 @@ func (h *InviteHandlers) list(w http.ResponseWriter, r *http.Request) {
 			"id": i.ID.String(), "prefix": i.CodePrefix, "email": i.Email,
 			"role": string(i.AssignedRole), "status": i.Status(now),
 			"created_at": i.CreatedAt.UTC().Format(time.RFC3339),
-			"expires_at": acctFmtTimePtr(i.ExpiresAt),
-			"used_at":    acctFmtTimePtr(i.UsedAt),
+			"expires_at": fmtTimePtr(i.ExpiresAt),
+			"used_at":    fmtTimePtr(i.UsedAt),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"invites": out})

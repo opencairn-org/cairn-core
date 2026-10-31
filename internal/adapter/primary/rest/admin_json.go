@@ -27,13 +27,6 @@ func adminParseID[T ~[16]byte](w http.ResponseWriter, r *http.Request) (T, bool)
 	return id, true
 }
 
-func adminTimePtr(t *time.Time) any {
-	if t == nil {
-		return nil
-	}
-	return t.UTC().Format(time.RFC3339)
-}
-
 // adminParseTime reads an RFC 3339 query value; zero when absent or malformed.
 func adminParseTime(raw string) time.Time {
 	if raw == "" {
@@ -63,27 +56,4 @@ func adminDeref[T any](p *T) T {
 		return zero
 	}
 	return *p
-}
-
-// adminUserJSON is the full user row of the admin views.
-func adminUserJSON(u domain.User) map[string]any {
-	return map[string]any{
-		"id":                    u.ID.String(),
-		"username":              u.Username,
-		"email":                 u.Email,
-		"email_verified":        u.EmailVerified,
-		"display_name":          u.DisplayName,
-		"avatar_url":            u.AvatarURL,
-		"locale":                u.Locale,
-		"timezone":              u.Timezone,
-		"units":                 string(u.Units),
-		"date_format":           u.DateFormat,
-		"time_format":           u.TimeFormat,
-		"role":                  string(u.Role),
-		"status":                string(u.Status),
-		"passkey_second_factor": u.PasskeySecondFactor,
-		"created_at":            u.CreatedAt.UTC().Format(time.RFC3339),
-		"updated_at":            u.UpdatedAt.UTC().Format(time.RFC3339),
-		"last_login_at":         adminTimePtr(u.LastLoginAt),
-	}
 }

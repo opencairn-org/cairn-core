@@ -210,7 +210,7 @@ func (h *WebAuthnHandlers) list(w http.ResponseWriter, r *http.Request) {
 	for _, p := range pks {
 		out = append(out, map[string]any{
 			"id": p.ID.String(), "name": p.Name,
-			"created_at": p.CreatedAt.UTC().Format(time.RFC3339), "last_used_at": acctFmtTimePtr(p.LastUsedAt),
+			"created_at": p.CreatedAt.UTC().Format(time.RFC3339), "last_used_at": fmtTimePtr(p.LastUsedAt),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"passkeys": out, "second_factor": secondFactor})

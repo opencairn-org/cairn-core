@@ -65,36 +65,6 @@ func truncateUA(s string) string {
 	return s[:n]
 }
 
-func fmtTimePtr(t *time.Time) any {
-	if t == nil {
-		return nil
-	}
-	return t.UTC().Format(time.RFC3339)
-}
-
-// userJSON renders the caller's own user row (the REST twin of proto User).
-func userJSON(u domain.User) map[string]any {
-	return map[string]any{
-		"id":                    u.ID.String(),
-		"username":              u.Username,
-		"email":                 u.Email,
-		"email_verified":        u.EmailVerified,
-		"display_name":          u.DisplayName,
-		"avatar_url":            u.AvatarURL,
-		"locale":                u.Locale,
-		"timezone":              u.Timezone,
-		"units":                 string(u.Units),
-		"date_format":           u.DateFormat,
-		"time_format":           u.TimeFormat,
-		"role":                  string(u.Role),
-		"status":                string(u.Status),
-		"passkey_second_factor": u.PasskeySecondFactor,
-		"created_at":            u.CreatedAt.UTC().Format(time.RFC3339),
-		"updated_at":            u.UpdatedAt.UTC().Format(time.RFC3339),
-		"last_login_at":         fmtTimePtr(u.LastLoginAt),
-	}
-}
-
 // sendVerificationEmail mails a verification link (Connect signup path).
 func sendVerificationEmail(ctx context.Context, app *App, logger *slog.Logger, base string, user domain.User) error {
 	err := acctVerification(app, base).Send(ctx, user)

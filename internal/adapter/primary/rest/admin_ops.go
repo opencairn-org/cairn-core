@@ -300,7 +300,7 @@ func (h *AdminOpsHandlers) orphanedSources(w http.ResponseWriter, r *http.Reques
 	out := make([]map[string]any, 0, len(groups))
 	for _, g := range groups {
 		out = append(out, map[string]any{"worker_name": g.WorkerName, "sources": g.Sources, "external_accounts": g.ExternalAccounts,
-			"users": g.Users, "oldest_imported_at": adminTimePtr(g.OldestImportedAt)})
+			"users": g.Users, "oldest_imported_at": fmtTimePtr(g.OldestImportedAt)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"groups": out})
 }
@@ -308,9 +308,9 @@ func (h *AdminOpsHandlers) orphanedSources(w http.ResponseWriter, r *http.Reques
 func adminQueueItemJSON(it domain.ImportQueueItem) map[string]any {
 	return map[string]any{
 		"id": it.ID.String(), "external_account_id": it.ExternalAccountID.String(), "user_id": it.UserID.String(), "provider": it.Provider,
-		"item_type": string(it.ItemType), "external_id": it.ExternalID, "item_time": adminTimePtr(it.ItemTime), "status": string(it.Status),
+		"item_type": string(it.ItemType), "external_id": it.ExternalID, "item_time": fmtTimePtr(it.ItemTime), "status": string(it.Status),
 		"priority": it.Priority, "attempts": it.Attempts, "last_error": it.LastError, "created_at": it.CreatedAt.UTC().Format(time.RFC3339),
-		"started_at": adminTimePtr(it.StartedAt), "completed_at": adminTimePtr(it.CompletedAt),
+		"started_at": fmtTimePtr(it.StartedAt), "completed_at": fmtTimePtr(it.CompletedAt),
 	}
 }
 

@@ -83,7 +83,7 @@ func acctRedirectChallenge(w http.ResponseWriter, r *http.Request, param, token,
 	http.Redirect(w, r, "/login?"+param+"="+url.QueryEscape(token)+"&next="+url.QueryEscape(dest), http.StatusSeeOther) //nolint:gosec // G710: fixed same-origin path
 }
 
-func acctFmtTimePtr(t *time.Time) any {
+func fmtTimePtr(t *time.Time) any {
 	if t == nil {
 		return nil
 	}

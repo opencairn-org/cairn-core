@@ -162,7 +162,7 @@ func (h *AccountHandlers) listIdentities(w http.ResponseWriter, r *http.Request)
 			"subject":       li.Subject,
 			"email":         li.Email,
 			"linked_at":     li.LinkedAt.UTC().Format(time.RFC3339),
-			"last_used_at":  acctFmtTimePtr(li.LastUsedAt),
+			"last_used_at":  fmtTimePtr(li.LastUsedAt),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"identities": out})
@@ -218,11 +218,11 @@ func (h *AccountHandlers) updateProfile(w http.ResponseWriter, r *http.Request) 
 		writeActionError(w, err, "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": acctUserJSON(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"user": userJSON(u)})
 }
 
-// acctUserJSON renders the caller's own user row (the REST twin of proto User).
-func acctUserJSON(u domain.User) map[string]any {
+// userJSON renders a full user row (the REST twin of proto User).
+func userJSON(u domain.User) map[string]any {
 	return map[string]any{
 		"id":                    u.ID.String(),
 		"username":              u.Username,
@@ -240,7 +240,7 @@ func acctUserJSON(u domain.User) map[string]any {
 		"passkey_second_factor": u.PasskeySecondFactor,
 		"created_at":            u.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at":            u.UpdatedAt.UTC().Format(time.RFC3339),
-		"last_login_at":         acctFmtTimePtr(u.LastLoginAt),
+		"last_login_at":         fmtTimePtr(u.LastLoginAt),
 	}
 }
 
@@ -300,8 +300,8 @@ func (h *AccountHandlers) listPATs(w http.ResponseWriter, r *http.Request) {
 		out = append(out, map[string]any{
 			"id": p.ID.String(), "name": p.Name, "prefix": p.TokenPrefix, "status": status,
 			"created_at":   p.CreatedAt.UTC().Format(time.RFC3339),
-			"expires_at":   acctFmtTimePtr(p.ExpiresAt),
-			"last_used_at": acctFmtTimePtr(p.LastUsedAt),
+			"expires_at":   fmtTimePtr(p.ExpiresAt),
+			"last_used_at": fmtTimePtr(p.LastUsedAt),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"tokens": out})

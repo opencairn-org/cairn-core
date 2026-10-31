@@ -3,10 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -27,31 +25,6 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 func decodeJSONBody(r *http.Request, dst any) error {
 	dec := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20))
 	return dec.Decode(dst)
-}
-
-// decodeOptionalJSONBody is decodeJSONBody for endpoints whose body is
-// optional: an empty body leaves dst untouched, malformed JSON is still an
-// error.
-func decodeOptionalJSONBody(r *http.Request, dst any) error {
-	err := decodeJSONBody(r, dst)
-	if errors.Is(err, io.EOF) {
-		return nil
-	}
-	return err
-}
-
-// parseIntQuery reads a non-negative integer query parameter, falling back to
-// def when absent or invalid.
-func parseIntQuery(r *http.Request, key string, def int) int {
-	v := r.URL.Query().Get(key)
-	if v == "" {
-		return def
-	}
-	parsed, err := strconv.Atoi(v)
-	if err != nil || parsed < 0 {
-		return def
-	}
-	return parsed
 }
 
 // requireJSON enforces a JSON Content-Type on state-changing, cookie-authed

@@ -84,9 +84,9 @@ func (h *AdminUserHandlers) list(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(rows))
 	for _, u := range rows {
 		fp := u.Footprint
-		row := adminUserJSON(u.User)
+		row := userJSON(u.User)
 		row["activity_count"], row["external_account_count"], row["storage_bytes_used"] = fp.Activities, fp.ExternalAccounts, fp.StorageBytes
-		row["last_activity_at"] = adminTimePtr(fp.LastActivityAt)
+		row["last_activity_at"] = fmtTimePtr(fp.LastActivityAt)
 		out = append(out, row)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": out, "next_cursor": next})
@@ -105,12 +105,12 @@ func (h *AdminUserHandlers) get(w http.ResponseWriter, r *http.Request) {
 	idents := make([]map[string]any, 0, len(d.Identities))
 	for _, li := range d.Identities {
 		idents = append(idents, map[string]any{"id": li.ID.String(), "provider": li.Provider, "subject": li.Subject, "email": li.Email,
-			"linked_at": li.LinkedAt.UTC().Format(time.RFC3339), "last_used_at": adminTimePtr(li.LastUsedAt)})
+			"linked_at": li.LinkedAt.UTC().Format(time.RFC3339), "last_used_at": fmtTimePtr(li.LastUsedAt)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"user": adminUserJSON(d.User), "identities": idents, "active_session_count": d.ActiveSessions,
+		"user": userJSON(d.User), "identities": idents, "active_session_count": d.ActiveSessions,
 		"activity_count": d.Footprint.Activities, "external_account_count": d.Footprint.ExternalAccounts,
-		"storage_bytes_used": d.Footprint.StorageBytes, "last_activity_at": adminTimePtr(d.Footprint.LastActivityAt),
+		"storage_bytes_used": d.Footprint.StorageBytes, "last_activity_at": fmtTimePtr(d.Footprint.LastActivityAt),
 	})
 }
 
@@ -148,9 +148,9 @@ func (h *AdminUserHandlers) create(w http.ResponseWriter, r *http.Request) {
 		writeActionError(w, err, "create failed")
 		return
 	}
-	out := map[string]any{"user": adminUserJSON(res.User)}
+	out := map[string]any{"user": userJSON(res.User)}
 	if res.Invite != nil {
-		out["invite"] = map[string]any{"id": res.Invite.ID.String(), "code": res.Invite.Code, "expires_at": adminTimePtr(res.Invite.ExpiresAt),
+		out["invite"] = map[string]any{"id": res.Invite.ID.String(), "code": res.Invite.Code, "expires_at": fmtTimePtr(res.Invite.ExpiresAt),
 			"signup_url": strings.TrimRight(h.PublicBaseURL, "/") + "/signup?code=" + res.Invite.Code}
 	}
 	writeJSON(w, http.StatusCreated, out)
@@ -168,7 +168,7 @@ func (h *AdminUserHandlers) update(w http.ResponseWriter, r *http.Request) {
 		writeActionError(w, err, "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": adminUserJSON(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"user": userJSON(u)})
 }
 
 func (h *AdminUserHandlers) setStatus(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +181,7 @@ func (h *AdminUserHandlers) setStatus(w http.ResponseWriter, r *http.Request) {
 		writeActionError(w, err, "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": adminUserJSON(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"user": userJSON(u)})
 }
 
 func (h *AdminUserHandlers) del(w http.ResponseWriter, r *http.Request) {
