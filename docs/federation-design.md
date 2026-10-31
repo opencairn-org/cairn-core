@@ -172,8 +172,8 @@ some set of actors/collections (public, or your followers). Reconciling them:
    `followers` collection (maps to the `followers` audience). `link` and `owner`
    audiences never federate.
 2. **The projected object is built through the EXISTING choke-point.** Reuse
-   `projectActivityJSON` / `visibilityFor` against a synthetic "public" or
-   "followers" viewer to compute the allowed `CategorySet`, then emit only those
+   `view.Visibility.For` (domain.ResolveVisibility) against an anonymous
+   viewer to compute the allowed `CategorySet`, then emit only those
    fields into `sport:summary`. An empty CategorySet ⇒ the object is **not
    federated at all** (no delivery). This guarantees federation can never leak
    more than a same-tier local viewer sees.
@@ -290,7 +290,7 @@ logic.
    (`internal/httpsig`, `cmd/server/federation*.go`.)
 3. **[DONE] Workout `Create` outbound.** A federation-enabled user's fresh,
    public activities are pushed to followers' inboxes off the ingest pipeline's
-   follow-ups (`cmd/server/federation_publish.go`). Gated on: instance flag +
+   follow-ups (`internal/usecase/federation/publish.go`). Gated on: instance flag +
    user opt-in + `Privacy=public` + `!HiddenByAdmin` + recency (≤48 h, so a
    historical backfill doesn't blast followers) + action `imported_new`. The
    object carries summary + map snapshot only — never the GPS track (§7).
@@ -300,7 +300,7 @@ logic.
    each (activity, inbox) push is a `federation_deliveries` row drained by a
    scheduler that signs + POSTs and retries transient failures (5xx / 429 /
    network) with capped exponential backoff (30 s → 6 h, 8 attempts), marking a
-   permanent 4xx reject dead immediately (`cmd/server/federation_publish.go`).
+   permanent 4xx reject dead immediately (`internal/usecase/federation/publish.go`).
    Deleting an activity (last source detached → soft-delete) enqueues a `Delete`
    carrying the same object id to followers, so the federated copy is removed.
 4. **Interactions both ways.** `Like`→kudos, `Create{Note}`→comment, plus the
@@ -309,7 +309,7 @@ logic.
      edge (stops delivery fan-out); inbound `Delete{object}` removes that item
      from the recipient's federated feed, and an actor self-`Delete` removes
      all of that actor's items + both follow edges. Scoped to the signer so a
-     remote can only remove its own content. (`cmd/server/federation.go`.)
+     remote can only remove its own content. (`internal/usecase/federation/inbox.go`.)
    - *[DONE] `Like`→kudos:* an inbound `Like` on a local public activity is
      recorded in a parallel `activity_remote_kudos` table (separate from
      `activity_kudos`, which FKs local `users`); the kudos read endpoint unions
@@ -339,7 +339,7 @@ logic.
      (~120 activities/min, burst 240) bounds inbound work per remote instance
      before the expensive signer fetch; over-limit → `429 Retry-After`. Idle
      buckets are swept so forged-domain floods can't grow the map.
-     (`cmd/server/federation_ratelimit.go`.)
+     (`InboxAllow` in `internal/adapter/primary/activitypub/handlers.go`, wired in `cmd/server/mount_federation.go`.)
    - *Remaining:* per-user remote-actor blocks, inbound `Flag`→admin queue.
 6. **Polish.** Shared-inbox fan-out, key rotation UI, `Update{Workout}`,
    followers-collection paging, NodeInfo counts.
@@ -372,7 +372,7 @@ low-risk first PR.
 Federation spans two instances, so the unit tests can't prove it alone. Two
 complementary layers:
 
-- **Wire protocol (CI, no infra)** — `cmd/server/federation_interop_test.go`
+- **Wire protocol (CI, no infra)** — `internal/adapter/secondary/activitypub/interop_test.go`
   drives the cross-instance path that's most likely to break against another
   implementation: a simulated remote serves its actor + public key over real
   HTTP, signs an activity, and the receiving side runs the exact inbound auth
@@ -389,7 +389,7 @@ complementary layers:
   LAN self-hoster needs).
 
 **Publish triggers (two paths).** A new activity defaults to `privacy=private`,
-so the ingest-time push (`runFollowUps`, gated on a fresh import + ≤48 h
+so the ingest-time push (`pipeline.Pipeline.IngestSource`, gated on a fresh import + ≤48 h
 recency) only reaches followers for activities public *at import*. The common
 "upload private, then share" flow is covered by the second path: the Connect
 `UpdateActivity` edit path injects a `port.FederationPublisher` and, on a

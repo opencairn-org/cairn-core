@@ -112,12 +112,12 @@ Module layout:
 
 ```
 api/proto/                       Proto schemas (cairn.v1 + cairn.worker.v1)
-cmd/server/                      The cairn binary (serve, migrate, REST/admin handlers, wire.go)
+cmd/server/                      The cairn binary: composition root (wire.go, mount_*), serve, migrate, CLI
 cmd/worker-strava/               Reference provider worker (Strava)
 internal/
 ├── adapter/
-│   ├── primary/{connect,web}/   Connect-RPC handlers + embedded SPA
-│   └── secondary/{postgres,nats,s3,email,geocode}/   Driven adapters
+│   ├── primary/{connect,rest,activitypub,mcp,workerrpc,web}/   Connect-RPC, REST, ActivityPub, MCP, worker NATS RPC, SPA
+│   └── secondary/{postgres,nats,s3,email,geocode,activitypub,provideroauth}/   Driven adapters
 ├── auth/                        Argon2id + AES-GCM SecretBox
 ├── config/                      Envconfig-driven Config
 ├── db/                          Pool open + goose-embedded migrations

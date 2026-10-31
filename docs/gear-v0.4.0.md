@@ -123,7 +123,7 @@ than columns on `gear`.
 
 ### Totals
 
-A follow-up stage in `runFollowUps` (nil-tolerant, logs on failure, never
+A follow-up stage in `pipeline.Pipeline` (nil-tolerant, logs on failure, never
 fails ingest): after recompute, if the activity's gear changed or its summary
 metrics changed, recompute totals for the old and the new gear with one
 aggregate query over live activities (`deleted_at IS NULL`), using the
@@ -187,7 +187,7 @@ Rules, added to the provider contract doc (§3 subjects, §5 results):
   because the gear lookup failed.
 
 Core publishes `import_gear` on account connect, on the "Sync gear" button
-(same pattern as the Garmin health import in `cmd/server/garmin_connect.go`)
+(same pattern as the Garmin health import in `internal/usecase/providerlink/jobs.go`)
 and on every scheduled reconcile, since the list is small and the endpoint
 cheap.
 
@@ -323,7 +323,7 @@ reads it through the domain source type.
 Layering, following `attachment`: `internal/domain/gear.go`,
 `internal/port/gear.go`, `internal/adapter/secondary/postgres/gear_repo.go`
 (+ inmem for tests), `internal/usecase/gear/` (crud, merge, defaults,
-totals, sync), `internal/adapter/primary/connect/gear_service.go`, wiring
+totals, sync), `internal/adapter/primary/connect/gear.go`, wiring
 in `cmd/server/wire.go` only.
 
 ## Tests
