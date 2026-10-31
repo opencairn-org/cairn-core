@@ -12,7 +12,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	segmentuc "github.com/opencairn-org/cairn-core/internal/usecase/segment"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 )
 
 type fakeSegAuthorRepo struct {
@@ -73,7 +73,7 @@ func (f *fakeSegAuthorRepo) ListSegmentEffortsFiltered(_ context.Context, _ doma
 func TestSegmentAuthoringRPCs(t *testing.T) {
 	repo := &fakeSegAuthorRepo{segs: map[domain.SegmentID]domain.Segment{}}
 	var backfills []domain.SegmentID
-	s := NewSegmentServer(view.NewSegments(repo, nil))
+	s := NewSegmentServer(segmentview.NewSegments(repo, nil))
 	s.Authoring = &segmentuc.Authoring{Segments: repo, Now: func() time.Time { return actNow }}
 	s.Backfill = func(_ domain.UserID, id domain.SegmentID, _, _ time.Time) string {
 		backfills = append(backfills, id)

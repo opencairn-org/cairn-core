@@ -6,7 +6,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
@@ -17,7 +17,7 @@ import (
 //	POST   /api/accounts/{id}/webhook-token/rotate                → { ok }
 type AccountLifecycleHandlers struct {
 	Auth     *Auth
-	Accounts *view.Accounts
+	Accounts *providerlink.Accounts
 	Remover  *accounts.Remover
 	Tokens   *webhooks.Tokens
 }

@@ -1,4 +1,4 @@
-package view
+package providerlink
 
 import (
 	"context"
@@ -8,6 +8,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
+
+// ErrUnavailable: the read needs a subsystem this instance has not wired.
+var ErrUnavailable = port.NewActionError(port.ActionErrorUnavailable, "not available on this instance")
 
 // AccountRow is one provider account with its sync status
 // (ExternalAccountService.ListExternalAccounts, GET /api/accounts).

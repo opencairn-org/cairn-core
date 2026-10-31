@@ -7,6 +7,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/domain/streamalign"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
@@ -22,7 +23,7 @@ type DetailHandlers struct {
 	Auth    *Auth
 	Access  *view.ActivityAccess
 	Details *view.Details
-	Exports *view.Exports
+	Exports *activityexport.Exports
 	Log     *slog.Logger
 	// Streams / Segments gate the routes whose subsystem is wired.
 	Streams, Segments bool
@@ -245,7 +246,7 @@ func (h *DetailHandlers) exportFile(format string) http.HandlerFunc {
 }
 
 // detailWriteFile writes an export as an attachment download.
-func detailWriteFile(w http.ResponseWriter, file view.ExportFile) {
+func detailWriteFile(w http.ResponseWriter, file activityexport.ExportFile) {
 	w.Header().Set("Content-Type", file.ContentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+file.Filename+"\"")
 	w.Header().Set("Content-Length", strconv.Itoa(len(file.Data)))

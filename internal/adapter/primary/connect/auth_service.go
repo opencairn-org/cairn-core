@@ -16,7 +16,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 )
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
@@ -38,7 +38,7 @@ type AuthServer struct {
 	// Sessions backs Logout; nil → Unavailable.
 	Sessions port.SessionRepo
 	// Quota backs GetQuota (the rule shared with GET /api/quota).
-	Quota *view.Quota
+	Quota *quota.Policy
 	// Invites backs Register; VerifyEmail (optional) mails a verification link
 	// for a self-entered address.
 	Invites     InviteRedeemer

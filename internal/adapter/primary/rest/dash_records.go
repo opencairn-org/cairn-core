@@ -8,7 +8,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 )
 
 // RecordHandlers serve personal records and best-effort progressions.
@@ -18,7 +18,7 @@ import (
 //	  → { type, metric, window_kind, window_value, best, count, items:[...] }
 type RecordHandlers struct {
 	Auth  *Auth
-	Stats *view.Stats
+	Stats *dashboard.Stats
 	Log   *slog.Logger
 }
 

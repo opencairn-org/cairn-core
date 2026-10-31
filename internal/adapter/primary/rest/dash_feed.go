@@ -9,7 +9,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 )
 
 // The standard activity filter, shared by the feed and the heatmap so the
@@ -163,10 +163,10 @@ func dashGearIDs(raw []string) []domain.GearID {
 func dashFeedPaging(q url.Values) (limit, offset int) {
 	limit, _ = strconv.Atoi(q.Get("limit"))
 	if limit <= 0 {
-		limit = view.SearchDefaultLimit
+		limit = dashboard.SearchDefaultLimit
 	}
-	if limit > view.SearchMaxLimit {
-		limit = view.SearchMaxLimit
+	if limit > dashboard.SearchMaxLimit {
+		limit = dashboard.SearchMaxLimit
 	}
 	offset, _ = strconv.Atoi(q.Get("offset"))
 	if offset < 0 {
@@ -189,7 +189,7 @@ func dashFeedActivityOf(a domain.Activity, gearPrompt bool) dashFeedActivity {
 		ElevationGainM:   a.Summary.ElevationGainM,
 		TSS:              a.Summary.TSS,
 		StartPlace:       a.StartPlace,
-		GearUnset:        view.GearUnset(a, gearPrompt),
+		GearUnset:        dashboard.GearUnset(a, gearPrompt),
 	}
 }
 
@@ -272,7 +272,7 @@ func (h *DashboardHandlers) heatmap(w http.ResponseWriter, r *http.Request) {
 }
 
 // dashHeatmapFeature builds one LineString feature at ~1 m precision.
-func dashHeatmapFeature(t view.HeatmapTrack) map[string]any {
+func dashHeatmapFeature(t dashboard.HeatmapTrack) map[string]any {
 	coords := make([][2]float64, len(t.Points))
 	for i, p := range t.Points {
 		coords[i] = [2]float64{dashRound5(p.Lon), dashRound5(p.Lat)}

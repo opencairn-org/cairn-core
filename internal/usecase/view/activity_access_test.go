@@ -16,8 +16,8 @@ func TestActivityAccess(t *testing.T) {
 	ctx := context.Background()
 	repo := inmem.NewActivityRepo()
 	owner, other := domain.UserID(uuid.New()), domain.UserID(uuid.New())
-	private := addActivity(repo, owner, domain.ActivityTypeRide, vNow, 1000, domain.PrivacyPrivate)
-	deleted := addActivity(repo, owner, domain.ActivityTypeRide, vNow, 1000, domain.PrivacyPublic)
+	private := addActivity(repo, owner, domain.ActivityTypeRide, vNow, domain.PrivacyPrivate)
+	deleted := addActivity(repo, owner, domain.ActivityTypeRide, vNow, domain.PrivacyPublic)
 	gone := repo.Activities[deleted]
 	now := time.Now()
 	gone.DeletedAt = &now

@@ -15,7 +15,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	notificationuc "github.com/opencairn-org/cairn-core/internal/usecase/notification"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
@@ -180,7 +180,7 @@ func TestExternalAccountServer(t *testing.T) {
 	acct := domain.ExternalAccount{ID: domain.ExternalAccountID(uuid.New()), UserID: user, Provider: "strava", Status: domain.ExternalAccountStatusActive, AutoImportEnabled: true}
 	repo := &fakeAcctRepo{accts: []domain.ExternalAccount{acct}, auto: map[domain.ExternalAccountID]bool{}, patches: map[domain.ExternalAccountID]map[string]any{}}
 	insight := &fakeInsightC{}
-	accounts := view.NewAccounts(repo, acctActivities{inmem.NewActivityRepo()}, nil, nil, nil, insight, nil)
+	accounts := providerlink.NewAccounts(repo, acctActivities{inmem.NewActivityRepo()}, nil, nil, nil, insight, nil)
 	s := NewExternalAccountServer(accounts, repo, insight, 900)
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 

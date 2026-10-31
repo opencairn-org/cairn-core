@@ -1,4 +1,6 @@
-package view
+// Package segmentview holds the visibility-filtered segment reads: browse,
+// efforts and leaderboards.
+package segmentview
 
 import (
 	"context"
@@ -6,18 +8,22 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
+
+// ErrUnavailable: the read needs a subsystem this instance has not wired.
+var ErrUnavailable = port.NewActionError(port.ActionErrorUnavailable, "not available on this instance")
 
 // Segments are the caller-centric segment reads (SegmentService /
 // GET /api/segments, /api/segments/{id}).
 type Segments struct {
 	segments   port.SegmentReader
-	visibility *Visibility
+	visibility *view.Visibility
 }
 
 // NewSegments wires the repo (nil → every read is ErrUnavailable). Without a
 // visibility resolver, effort reads only ever show the viewer's own efforts.
-func NewSegments(segments port.SegmentReader, visibility *Visibility) *Segments {
+func NewSegments(segments port.SegmentReader, visibility *view.Visibility) *Segments {
 	return &Segments{segments: segments, visibility: visibility}
 }
 
@@ -242,7 +248,7 @@ const (
 // scanVisible walks efforts in q's order and calls yield for each the viewer
 // may see ("segments" category), until yield returns false.
 func (s *Segments) scanVisible(ctx context.Context, viewer domain.UserID, id domain.SegmentID, q domain.SegmentEffortQuery, yield func(domain.SegmentEffortCandidate) bool) error {
-	var chk *Checker
+	var chk *view.Checker
 	if s.visibility != nil {
 		chk = s.visibility.Checker(&viewer)
 	}

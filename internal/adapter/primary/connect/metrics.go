@@ -14,8 +14,8 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	"github.com/opencairn-org/cairn-core/internal/usecase/metrics"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // MetricsServer implements cairnv1connect.MetricsServiceHandler: the metric
@@ -24,7 +24,7 @@ type MetricsServer struct {
 	cairnv1connect.UnimplementedMetricsServiceHandler
 
 	Store    *metrics.Store          // nil → metric RPCs Unavailable
-	Health   *view.Health            // nil → ListHealthSeries Unavailable
+	Health   *dashboard.Health       // nil → ListHealthSeries Unavailable
 	Athlete  port.AthleteProfileRepo // nil → athlete RPCs Unavailable
 	Settings port.UserSettingsRepo   // nil → GetUserContext carries no settings
 }
@@ -32,7 +32,7 @@ type MetricsServer struct {
 var _ cairnv1connect.MetricsServiceHandler = (*MetricsServer)(nil)
 
 // NewMetricsServer wires the server; every dependency may be nil.
-func NewMetricsServer(store *metrics.Store, health *view.Health, athlete port.AthleteProfileRepo, settings port.UserSettingsRepo) *MetricsServer {
+func NewMetricsServer(store *metrics.Store, health *dashboard.Health, athlete port.AthleteProfileRepo, settings port.UserSettingsRepo) *MetricsServer {
 	return &MetricsServer{Store: store, Health: health, Athlete: athlete, Settings: settings}
 }
 

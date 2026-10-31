@@ -83,8 +83,8 @@ func TestClubsReads(t *testing.T) {
 	users := &fakeUsers{users: map[domain.UserID]domain.User{me: {ID: me, Username: "me"}, member: {ID: member, Username: "member"}}}
 	pub := domain.Club{ID: domain.ClubID(uuid.New()), Slug: "pub", Name: "Public", IsPublic: true}
 	priv := domain.Club{ID: domain.ClubID(uuid.New()), Slug: "priv", Name: "Private"}
-	act := addActivity(repo, member, domain.ActivityTypeRun, vNow, 1000, domain.PrivacyPublic)
-	own := addActivity(repo, me, domain.ActivityTypeRun, vNow.Add(-time.Hour), 1000, domain.PrivacyPrivate)
+	act := addActivity(repo, member, domain.ActivityTypeRun, vNow, domain.PrivacyPublic)
+	own := addActivity(repo, me, domain.ActivityTypeRun, vNow.Add(-time.Hour), domain.PrivacyPrivate)
 	clubs := &fakeClubs{
 		clubs:   map[string]domain.Club{"pub": pub, "priv": priv},
 		members: map[domain.ClubID]map[domain.UserID]domain.ClubMemberRole{pub.ID: {member: domain.ClubRoleMember}, priv.ID: {me: domain.ClubRoleOwner}},
@@ -127,8 +127,8 @@ func TestProjectedAndShared(t *testing.T) {
 	repo := inmem.NewActivityRepo()
 	owner, viewer := domain.UserID(uuid.New()), domain.UserID(uuid.New())
 	users := &fakeUsers{users: map[domain.UserID]domain.User{owner: {ID: owner, Username: "owner"}}}
-	public := addActivity(repo, owner, domain.ActivityTypeRide, vNow, 1000, domain.PrivacyPublic)
-	private := addActivity(repo, owner, domain.ActivityTypeRide, vNow, 1000, domain.PrivacyPrivate)
+	public := addActivity(repo, owner, domain.ActivityTypeRide, vNow, domain.PrivacyPublic)
+	private := addActivity(repo, owner, domain.ActivityTypeRide, vNow, domain.PrivacyPrivate)
 	feeds := NewFeeds(repo, users, NewVisibility(nil, nil, nil), nil, false)
 
 	p, u, isOwner, err := feeds.Projected(context.Background(), public, &viewer, false)
@@ -160,8 +160,8 @@ func TestProfilesGet(t *testing.T) {
 	repo := inmem.NewActivityRepo()
 	owner, follower, stranger := domain.UserID(uuid.New()), domain.UserID(uuid.New()), domain.UserID(uuid.New())
 	users := &fakeUsers{users: map[domain.UserID]domain.User{owner: {ID: owner, Username: "owner"}}}
-	addActivity(repo, owner, domain.ActivityTypeRun, vNow, 1000, domain.PrivacyPublic)
-	addActivity(repo, owner, domain.ActivityTypeRun, vNow.Add(-time.Hour), 1000, domain.PrivacyPrivate)
+	addActivity(repo, owner, domain.ActivityTypeRun, vNow, domain.PrivacyPublic)
+	addActivity(repo, owner, domain.ActivityTypeRun, vNow.Add(-time.Hour), domain.PrivacyPrivate)
 	follows := &fakeFollows{following: map[domain.UserID]map[domain.UserID]bool{follower: {owner: true}}}
 	p := NewProfiles(usersByName{users}, repo, follows, nil, NewVisibility(nil, follows, nil))
 

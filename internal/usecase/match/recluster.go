@@ -24,10 +24,15 @@ import (
 // ±24h covers the UTC-day boundary and cross-timezone duplicates.
 const DefaultBucketMargin = 24 * time.Hour
 
+// Recomputer re-merges one activity; activity.RecomputeActivityFromSources satisfies it.
+type Recomputer interface {
+	Execute(ctx context.Context, id domain.ActivityID) (activity.RecomputeResult, error)
+}
+
 // ReclusterBucket re-derives the logical-activity grouping for one time bucket.
 type ReclusterBucket struct {
 	activities port.ActivityMatchStore
-	recompute  *activity.RecomputeActivityFromSources
+	recompute  Recomputer
 	denylist   port.SourceDenylistRepo // optional; nil → no detach denylist (Gap 6)
 	tx         port.TxManager
 	newID      func() uuid.UUID
@@ -54,7 +59,7 @@ func (uc *ReclusterBucket) WithEvents(sink port.AdminEventSink) *ReclusterBucket
 // falls back to dmatch.DefaultOptions when zero. denylist may be nil.
 func NewReclusterBucket(
 	activities port.ActivityMatchStore,
-	recompute *activity.RecomputeActivityFromSources,
+	recompute Recomputer,
 	denylist port.SourceDenylistRepo,
 	tx port.TxManager,
 	newID func() uuid.UUID,

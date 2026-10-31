@@ -6,8 +6,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 )
 
 // QuotaReachedError refuses an import of a user at their activity quota. It
@@ -26,14 +25,24 @@ type importActivityStore interface {
 	port.ActivityWriter
 }
 
+// QuotaChecker reports a user's quota usage; quota.Policy satisfies it.
+type QuotaChecker interface {
+	Status(ctx context.Context, userID domain.UserID) (quota.Status, error)
+}
+
+// GearLookup loads one of the user's gear; gear.Service satisfies it.
+type GearLookup interface {
+	Get(ctx context.Context, userID domain.UserID, id domain.GearID) (domain.Gear, error)
+}
+
 // Imports are the user-initiated imports (file upload, manual entry): the
 // quota gate, then the shared ingest path.
 type Imports struct {
-	Quota  *view.Quota // nil → no quota
+	Quota  QuotaChecker // nil → no quota
 	Ingest port.ImportIngester
 	// Gear validates and attaches a manual entry's gear choice (nil → any
 	// gear_id is invalid); Activities and Recompute store it.
-	Gear       *gearuc.Service
+	Gear       GearLookup
 	Activities importActivityStore
 	Recompute  *RecomputeActivityFromSources
 	Log        *slog.Logger

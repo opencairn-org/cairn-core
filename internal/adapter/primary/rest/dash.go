@@ -7,7 +7,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 )
 
 // DashboardHandlers serve the owner's dashboards.
@@ -19,9 +19,9 @@ import (
 //	GET /api/activities/heatmap  every GPS track (dash_feed.go)
 type DashboardHandlers struct {
 	Auth      *Auth
-	Overviews *view.Overviews
-	Searches  *view.Searches
-	Stats     *view.Stats
+	Overviews *dashboard.Overviews
+	Searches  *dashboard.Searches
+	Stats     *dashboard.Stats
 	Log       *slog.Logger
 }
 

@@ -14,8 +14,12 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
 )
+
+// RankRecomputer refreshes leaderboard ranks; segmentrank.ComputeSegmentRanks satisfies it.
+type RankRecomputer interface {
+	ExecuteMany(ctx context.Context, segmentIDs []domain.SegmentID) (int, error)
+}
 
 // MatchSegmentsForActivity runs the segment-matching pipeline for one
 // ActivitySource: read its stream → derive an expanded bounding box →
@@ -34,7 +38,7 @@ type MatchSegmentsForActivity struct {
 
 	// recomputeRanks is invoked once per segment that received a new
 	// effort. nil disables the follow-up (suitable for tests).
-	recomputeRanks *segmentrank.ComputeSegmentRanks
+	recomputeRanks RankRecomputer
 
 	now   func() time.Time
 	newID func() uuid.UUID
@@ -63,7 +67,7 @@ func NewMatchSegmentsForActivity(
 	streams port.StreamRepo,
 	segments port.SegmentEffortStore,
 	tx port.TxManager,
-	recomputeRanks *segmentrank.ComputeSegmentRanks,
+	recomputeRanks RankRecomputer,
 	now func() time.Time,
 	newID func() uuid.UUID,
 	tol domain.MatchTolerances,

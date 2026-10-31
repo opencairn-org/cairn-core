@@ -11,8 +11,8 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // StatsServer implements cairnv1connect.StatsServiceHandler: aggregates over
@@ -20,8 +20,8 @@ import (
 type StatsServer struct {
 	cairnv1connect.UnimplementedStatsServiceHandler
 
-	Overviews *view.Overviews
-	Stats     *view.Stats
+	Overviews *dashboard.Overviews
+	Stats     *dashboard.Stats
 	Content   port.ContentSigner
 	Gear      *gearuc.Service
 	MapETag   func(domain.Activity) string
@@ -30,7 +30,7 @@ type StatsServer struct {
 var _ cairnv1connect.StatsServiceHandler = (*StatsServer)(nil)
 
 // NewStatsServer wires the server.
-func NewStatsServer(overviews *view.Overviews, content port.ContentSigner, gear *gearuc.Service, mapETag func(domain.Activity) string) *StatsServer {
+func NewStatsServer(overviews *dashboard.Overviews, content port.ContentSigner, gear *gearuc.Service, mapETag func(domain.Activity) string) *StatsServer {
 	return &StatsServer{Overviews: overviews, Content: content, Gear: gear, MapETag: mapETag}
 }
 
