@@ -97,7 +97,7 @@ func (r *Reports) Resolve(ctx context.Context, actor audit.Actor, id domain.Cont
 }
 
 // SetActivityHidden hides or unhides an activity instance-wide.
-func (r *Reports) SetActivityHidden(ctx context.Context, actor audit.Actor, activityID uuid.UUID, hidden bool) error {
+func (r *Reports) SetActivityHidden(ctx context.Context, actor audit.Actor, activityID domain.ActivityID, hidden bool) error {
 	if r.Moderation == nil {
 		return port.NewActionError(port.ActionErrorUnavailable, "moderation is not available")
 	}

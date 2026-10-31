@@ -70,3 +70,40 @@ func TestValidateUserShape(t *testing.T) {
 		t.Error("IsActive mismatch")
 	}
 }
+
+func TestUserStatusTransitions(t *testing.T) {
+	const (
+		inv = UserStatusInvited
+		act = UserStatusActive
+		sus = UserStatusSuspended
+		del = UserStatusDeleted
+	)
+	all := []UserStatus{inv, act, sus, del}
+	allowed := map[UserStatus]map[UserStatus]bool{
+		inv: {inv: true, act: true, sus: true, del: true},
+		act: {act: true, sus: true, del: true},
+		sus: {act: true, sus: true, del: true},
+		del: {del: true},
+	}
+	for _, from := range all {
+		for _, to := range all {
+			want := allowed[from][to]
+			if got := from.CanTransitionTo(to); got != want {
+				t.Errorf("%s -> %s = %v, want %v", from, to, got, want)
+			}
+			err := from.TransitionTo(to)
+			if want && err != nil {
+				t.Errorf("%s -> %s: unexpected %v", from, to, err)
+			}
+			if !want && !errors.Is(err, ErrUserStatusTransition) {
+				t.Errorf("%s -> %s: err = %v, want ErrUserStatusTransition", from, to, err)
+			}
+		}
+	}
+	if err := UserStatus("bogus").TransitionTo(act); !errors.Is(err, ErrInvalidUserStatus) {
+		t.Errorf("unknown from: %v", err)
+	}
+	if err := act.TransitionTo("bogus"); !errors.Is(err, ErrInvalidUserStatus) {
+		t.Errorf("unknown to: %v", err)
+	}
+}

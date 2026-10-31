@@ -470,6 +470,9 @@ func ingestSegmentEvent(ctx context.Context, app *App, b *ingestBundle, seg *wor
 	} else {
 		s.ID = segID // existing → update in place
 	}
+	if err := s.Validate(); err != nil {
+		return fmt.Errorf("segment %s: %w", externalID, err)
+	}
 	if err := app.Segments.SaveSegment(ctx, s); err != nil {
 		return fmt.Errorf("save segment %s: %w", externalID, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -115,6 +116,38 @@ func (s UserStatus) Valid() bool {
 	return false
 }
 
+// userStatusTransitions lists the allowed next states; deleted is terminal
+// (hard delete removes the row and is not a transition).
+var userStatusTransitions = map[UserStatus][]UserStatus{
+	UserStatusInvited:   {UserStatusActive, UserStatusSuspended, UserStatusDeleted},
+	UserStatusActive:    {UserStatusSuspended, UserStatusDeleted},
+	UserStatusSuspended: {UserStatusActive, UserStatusDeleted},
+}
+
+// CanTransitionTo reports whether a user in s may move to next; staying put
+// is allowed so admin actions stay idempotent.
+func (s UserStatus) CanTransitionTo(next UserStatus) bool {
+	if !s.Valid() || !next.Valid() {
+		return false
+	}
+	if s == next {
+		return true
+	}
+	return slices.Contains(userStatusTransitions[s], next)
+}
+
+// TransitionTo validates s → next; ErrInvalidUserStatus for an unknown
+// state, ErrUserStatusTransition for a forbidden move.
+func (s UserStatus) TransitionTo(next UserStatus) error {
+	if !s.Valid() || !next.Valid() {
+		return ErrInvalidUserStatus
+	}
+	if !s.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %s -> %s", ErrUserStatusTransition, s, next)
+	}
+	return nil
+}
+
 // UserUnits selects the display-unit system for activity summary fields.
 // All storage is metric; this only affects rendering.
 type UserUnits string
@@ -148,6 +181,7 @@ var (
 	ErrDisplayNameRequired  = errors.New("display name required")
 	ErrInvalidUserRole      = errors.New("invalid user role")
 	ErrInvalidUserStatus    = errors.New("invalid user status")
+	ErrUserStatusTransition = errors.New("user status transition not allowed")
 	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
 	ErrAvatarURLInvalid     = errors.New("avatar url must be an absolute http(s) url")
 	ErrTimezoneInvalid      = errors.New("timezone must be an IANA zone name")

@@ -227,7 +227,7 @@ func (h *ModerationHandlers) hideActivity(w http.ResponseWriter, r *http.Request
 		Hidden bool `json:"hidden"`
 	}
 	_ = decodeJSONBody(r, &body)
-	if err := h.Reports.SetActivityHidden(r.Context(), actor(r, mod), id.UUID(), body.Hidden); err != nil {
+	if err := h.Reports.SetActivityHidden(r.Context(), actor(r, mod), id, body.Hidden); err != nil {
 		writeActionError(w, err, "update failed")
 		return
 	}
