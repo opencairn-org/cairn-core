@@ -191,7 +191,8 @@ func registerReadServices(server *connectrpc.Server, app *App, logger *slog.Logg
 // the REST handlers so the two surfaces stay in parity.
 func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivityServer {
 	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
-		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
+		app.ClassOverrides, app.Gear)
+	activitySvc.Editor = app.ActivityEditor
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
 	if app.Pipeline != nil {

@@ -154,6 +154,7 @@ type App struct {
 	IngestActivity          *activity.IngestActivityFromWorker
 	ReclusterBucket         *matchuc.ReclusterBucket
 	SourceActions           *activity.SourceActions
+	ActivityEditor          *activity.Editor
 	SourceLinks             *matchuc.SourceLinks
 	Visibility2             *view.Visibility // shared visibility resolver (REST + Connect)
 	Exports                 *view.Exports
@@ -318,6 +319,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		return nil, err
 	}
 	wireAppIngestUseCases(app, pool, logger)
+	wireActivityEditor(app, logger)
 	wireAppAccountUseCases(app, pool)
 	wireAccount(app)
 	if err := wireAppNATS(ctx, app, cfg, logger); err != nil {
@@ -403,6 +405,9 @@ func wirePipeline(app *App, logger *slog.Logger) {
 	app.Pipeline = p
 	if app.SourceActions != nil {
 		app.SourceActions.FollowUps = p
+	}
+	if app.ActivityEditor != nil {
+		app.ActivityEditor.FollowUps = p
 	}
 	if app.AccountRemover != nil && app.RecomputeActivity != nil {
 		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
@@ -548,6 +553,15 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)
+}
+
+// wireActivityEditor builds the owner edit use case; wirePipeline adds its follow-ups.
+func wireActivityEditor(app *App, logger *slog.Logger) {
+	app.ActivityEditor = activity.NewEditor(app.Activities, app.RecomputeActivity)
+	app.ActivityEditor.ClassOverrides = app.ClassOverrides
+	app.ActivityEditor.Gear = app.Gear
+	app.ActivityEditor.Federation = newFederationPublisher(app, logger)
+	app.ActivityEditor.Events = app.ActivityEvents
 }
 
 // wireAppEmail builds the email sender (gated on EMAIL_ADAPTER); nil when disabled.
