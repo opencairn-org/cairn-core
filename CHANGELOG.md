@@ -15,6 +15,12 @@ Core-only patch; the 0.6.x workers stay compatible. Run
 - The logout button signs out: a browser `POST /auth/logout` now redirects to
   `/login` (303) instead of answering 204 and leaving the page signed in.
   API clients still get 204.
+- Strava webhooks reach the right account when several athletes share one
+  Strava app. One push subscription covers every athlete of an app, and the
+  first account it was recorded on received every event of the app; lookups
+  now match subscription and athlete together, and a lookup that still fits
+  several accounts answers `{"error":"ambiguous"}` (the worker drops the
+  event, reconcile picks it up) instead of picking one.
 - Segment efforts and leaderboards no longer show other athletes' private,
   admin-hidden or deleted efforts. Each row is checked against the visibility
   model, so another athlete's efforts appear only when their activity shares
@@ -77,9 +83,22 @@ Core-only patch; the 0.6.x workers stay compatible. Run
   adapters); every handler goes through use cases. Paths, status codes and
   JSON shapes are unchanged; JSON request bodies are now capped at 1 MiB
   everywhere.
+- Connecting a provider account that another cairn user already links is
+  refused (`/connections?error=already_linked`): webhooks name only the
+  athlete, so two holders could not be told apart.
 - `POST /oauth/register` now sends `Content-Type: application/json`.
 - `recompute_activity_merges` re-clusters each activity's time bucket before
   re-merging it, which repairs groupings a failed re-cluster left behind.
+
+### Added
+- Possible duplicates in the review queue: when one provider pool imports the
+  same workout twice (a re-upload on Strava, a Garmin re-sync under a new id),
+  the matcher still keeps them apart but now lists the pair as
+  "Possible duplicate" with **Merge** and **Keep both**. REST review items
+  carry `kind` (`merge` | `duplicate`) and `duplicate_of`;
+  `POST /api/activities/{id}/reviewed` with `{"duplicate_of": "<id>"}` keeps
+  both for good. Connect `ReviewItem` gains `kind` and `duplicate_of_id`.
+  Migration 00074.
 
 ## [0.6.1] — 2026-10-30
 
