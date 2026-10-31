@@ -2,6 +2,7 @@ package view
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -25,11 +26,27 @@ func (f *fakeMetrics) ListMetricsForUser(context.Context, domain.UserID, string,
 
 type fakeBestEfforts struct {
 	port.BestEffortRepo
-	items []domain.BestEffortHistoryItem
+	items   []domain.BestEffortHistoryItem
+	records []domain.PersonalRecord
 }
 
 func (f *fakeBestEfforts) ListBestEffortHistory(context.Context, domain.UserID, string, string, string, int) ([]domain.BestEffortHistoryItem, error) {
 	return f.items, nil
+}
+
+func (f *fakeBestEfforts) ListPersonalRecords(context.Context, domain.UserID) ([]domain.PersonalRecord, error) {
+	return f.records, nil
+}
+
+func TestStatsPersonalRecords(t *testing.T) {
+	be := &fakeBestEfforts{records: []domain.PersonalRecord{{AchievedValue: 300}}}
+	recs, err := NewStats(inmem.NewActivityRepo(), nil, be, nil, nil).PersonalRecords(context.Background(), domain.UserID(uuid.New()))
+	if err != nil || len(recs) != 1 {
+		t.Fatalf("records %+v %v", recs, err)
+	}
+	if _, err := NewStats(inmem.NewActivityRepo(), nil, nil, nil, nil).PersonalRecords(context.Background(), domain.UserID(uuid.New())); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("no best-effort repo: %v", err)
+	}
 }
 
 type fakeGeo struct {

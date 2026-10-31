@@ -307,19 +307,12 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// there is no instance-global OAuth credential.
 	mountOAuthConnect(mux, app, logger, cfg.HTTP.PublicBaseURL)
 
-	// Landing dashboard: totals + by-sport + latest activities.
-	mountOverview(mux, app, logger)
-
-	// Analysis (training load) + Stats (insights) dashboards.
-	mountAnalysis(mux, app, logger)
-	mountStats(mux, app, logger)
+	// Owner dashboards: overview, stats, analysis, feed, heatmap, records, review queue.
+	mountRestDash(mux, app, logger)
 
 	// Athlete physiology profile (FTP/weight/HR time series → TSS).
 	mountAthlete(mux, app, logger)
 	mountMetricsAPI(mux, app, logger)
-
-	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
-	mountActivitiesFeed(mux, app, logger)
 
 	// An activity's segment efforts (joined to their segment).
 	mountSegmentEfforts(mux, app, logger)
@@ -334,17 +327,12 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountMergeOverrides(mux, app, logger)
 	mountMergePolicy(mux, app, logger)
 	mountMergedStream(mux, app)
-	mountRecords(mux, app, logger)
-	mountCustomRecords(mux, app, logger)
 	mountHealth(mux, app, logger)
-	mountReviewQueue(mux, app, logger)
 	mountActivityManage(mux, app, logger)
 	mountActivityExport(mux, app, logger)
 	mountActivityMapImage(mux, app, cfg.Map, logger)
-	mountActivitiesHeatmap(mux, app, logger)
 	mountInstanceFeatures(mux, cfg, logger)
 	mountActivitySimilar(mux, app, logger)
-	mountBestEffortHistory(mux, app, logger)
 	mountSegmentsList(mux, app, logger)
 	serveMountSocial(mux, app, logger)
 }
