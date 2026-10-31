@@ -10,6 +10,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/inmem"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 var saNow = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
@@ -141,5 +142,24 @@ func TestSourceActions_DeleteForeignIsNotFound(t *testing.T) {
 	}
 	if f.repo.Activities[f.act].DeletedAt != nil {
 		t.Fatal("foreign delete must not touch the row")
+	}
+}
+
+// failingDenylist refuses every entry.
+type failingDenylist struct{ port.SourceDenylistRepo }
+
+func (failingDenylist) Add(context.Context, domain.SourceDenylistEntry) error {
+	return errors.New("db down")
+}
+
+func TestSourceActions_DetachFailsWhenDenylistFails(t *testing.T) {
+	f := newSAFixture(t, 2)
+	recompute := NewRecomputeActivityFromSources(f.repo, inmem.DefaultSettings{}, nil, nil, nil, nil, inmem.PassTx{}, func() time.Time { return saNow })
+	uc := NewSourceActions(f.repo, failingDenylist{}, recompute, f.fed, func() time.Time { return saNow })
+	if _, err := uc.Detach(context.Background(), f.user, f.act, f.srcs[0], ""); err == nil {
+		t.Fatal("a detach whose denylist entry failed must fail, or the next sync resurrects it")
+	}
+	if err := uc.Delete(context.Background(), f.user, f.act); err == nil {
+		t.Fatal("a delete whose denylist entries failed must fail")
 	}
 }

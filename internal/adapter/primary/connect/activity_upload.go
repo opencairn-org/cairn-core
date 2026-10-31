@@ -114,7 +114,7 @@ func (s *ActivityServer) applyUploadHints(ctx context.Context, id domain.Activit
 			return err
 		}
 	}
-	if _, err := s.Recompute.Execute(ctx, id); err != nil {
+	if err := s.remerge(ctx, id); err != nil {
 		return connectError(connectrpc.CodeInternal, fmt.Errorf("recompute activity: %w", err))
 	}
 	return nil

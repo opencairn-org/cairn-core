@@ -30,7 +30,20 @@ type SourceActions struct {
 	federation port.FederationPublisher // optional; nil → no remote retraction
 	// Events receives live events for the owner's open streams (optional).
 	Events port.ActivityEventSink
-	now    func() time.Time
+	// FollowUps re-merges and runs the follow-ups an edit owes (optional;
+	// nil → recompute only).
+	FollowUps Remerger
+	// Tx and Lock make a detach or delete one atomic write that holds the
+	// owner's regrouping lock (optional; nil → statement by statement).
+	Tx   port.TxManager
+	Lock port.UserLock
+	now  func() time.Time
+}
+
+// Remerger re-derives an activity after an edit and runs the follow-ups it
+// owes; pipeline.Pipeline implements it.
+type Remerger interface {
+	Remerge(ctx context.Context, id domain.ActivityID) (RecomputeResult, error)
 }
 
 // NewSourceActions wires the use case; denylist and federation may be nil.
@@ -98,10 +111,14 @@ func (uc *SourceActions) Detach(ctx context.Context, userID domain.UserID, activ
 	if reason == "" {
 		reason = DetachReasonUser
 	}
-	if err := uc.activities.DetachSource(ctx, sourceID, reason, uc.now()); err != nil {
-		return DetachResult{}, fmt.Errorf("detach source: %w", err)
+	if err := uc.write(ctx, userID, func(ctx context.Context) error {
+		if err := uc.activities.DetachSource(ctx, sourceID, reason, uc.now()); err != nil {
+			return fmt.Errorf("detach source: %w", err)
+		}
+		return uc.deny(ctx, userID, src, reason)
+	}); err != nil {
+		return DetachResult{}, err
 	}
-	uc.deny(ctx, userID, src, reason)
 	res := uc.remerge(ctx, act)
 	uc.publish(domain.NewActivityEvent(domain.ActivityEventSourceDetached, userID, "activity.source_detached").
 		For(activityID, sourceID).With("provider", src.Provider))
@@ -120,15 +137,22 @@ func (uc *SourceActions) Delete(ctx context.Context, userID domain.UserID, activ
 	if err != nil {
 		return err
 	}
-	sources, err := uc.activities.ListSourcesForActivity(ctx, activityID)
-	if err != nil {
-		return fmt.Errorf("list sources: %w", err)
-	}
-	for _, src := range sources {
-		if err := uc.activities.DetachSource(ctx, src.ID, DetachReasonDelete, uc.now()); err != nil {
-			return fmt.Errorf("detach source %s: %w", src.ID, err)
+	if err := uc.write(ctx, userID, func(ctx context.Context) error {
+		sources, err := uc.activities.ListSourcesForActivity(ctx, activityID)
+		if err != nil {
+			return fmt.Errorf("list sources: %w", err)
 		}
-		uc.deny(ctx, userID, src, DetachReasonDelete)
+		for _, src := range sources {
+			if err := uc.activities.DetachSource(ctx, src.ID, DetachReasonDelete, uc.now()); err != nil {
+				return fmt.Errorf("detach source %s: %w", src.ID, err)
+			}
+			if err := uc.deny(ctx, userID, src, DetachReasonDelete); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	res := uc.remerge(ctx, act)
 	if res.RecomputeErr != nil {
@@ -148,23 +172,49 @@ func (uc *SourceActions) publish(ev domain.ActivityEvent) {
 	}
 }
 
-// deny records the source identity on the user's denylist; best-effort.
-func (uc *SourceActions) deny(ctx context.Context, userID domain.UserID, src domain.ActivitySource, reason string) {
-	if uc.denylist == nil {
-		return
+// write runs fn in one transaction holding the owner's regrouping lock, when wired.
+func (uc *SourceActions) write(ctx context.Context, userID domain.UserID, fn func(context.Context) error) error {
+	if uc.Tx == nil {
+		return fn(ctx)
 	}
-	_ = uc.denylist.Add(ctx, domain.SourceDenylistEntry{
+	return uc.Tx.InTx(ctx, func(ctx context.Context) error {
+		if uc.Lock != nil {
+			if err := uc.Lock.LockUser(ctx, userID); err != nil {
+				return err
+			}
+		}
+		return fn(ctx)
+	})
+}
+
+// deny records the source identity on the user's denylist. It is part of the
+// detach: without it the next provider sync would resurrect the source.
+func (uc *SourceActions) deny(ctx context.Context, userID domain.UserID, src domain.ActivitySource, reason string) error {
+	if uc.denylist == nil {
+		return nil
+	}
+	if err := uc.denylist.Add(ctx, domain.SourceDenylistEntry{
 		UserID:            userID,
 		Provider:          src.Provider,
 		ExternalAccountID: src.ExternalAccountID,
 		ExternalID:        src.ExternalID,
 		Reason:            reason,
-	})
+	}); err != nil {
+		return fmt.Errorf("denylist source: %w", err)
+	}
+	return nil
 }
 
 // remerge re-runs the merge over the remaining sources and federates a
 // resulting soft-delete.
 func (uc *SourceActions) remerge(ctx context.Context, act domain.Activity) DetachResult {
+	if uc.FollowUps != nil {
+		result, err := uc.FollowUps.Remerge(ctx, act.ID)
+		if err != nil {
+			return DetachResult{RecomputeErr: err}
+		}
+		return DetachResult{Recomputed: true, SoftDeleted: result.SoftDeleted, SourceCount: len(result.SourceIDs)}
+	}
 	result, err := uc.recompute.Execute(ctx, act.ID)
 	if err != nil {
 		return DetachResult{RecomputeErr: err}

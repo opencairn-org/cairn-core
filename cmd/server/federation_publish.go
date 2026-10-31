@@ -46,18 +46,12 @@ func (p *federationPublisher) PublishDelete(ctx context.Context, userID domain.U
 // one dead follower can't stall the rest. A durable retry queue is a later
 // refinement.
 
-// federationPublishMaxAge bounds which new activities get announced. A fresh
-// activity (just completed and imported) federates; a historical backfill does
-// not — so connecting an account and importing years of history doesn't blast
-// followers with hundreds of stale Creates.
-const federationPublishMaxAge = 48 * time.Hour
-
 // publishActivityCreate announces a newly-imported activity to the owner's
 // remote followers. It is a no-op unless federation is on, the owner opted in,
 // and the activity is public + non-hidden. The recency gate that stops a
-// historical backfill from blasting followers lives at the ingest call site
-// (runFollowUps), NOT here, so an explicit "make public" edit federates an
-// activity of any age.
+// historical backfill from blasting followers lives in the ingest pipeline
+// (pipeline.FederationMaxAge), NOT here, so an explicit "make public" edit
+// federates an activity of any age.
 func publishActivityCreate(ctx context.Context, app *App, log *slog.Logger, act domain.Activity) {
 	if !publishCreateEligible(ctx, app, act) {
 		return

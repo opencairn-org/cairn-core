@@ -928,3 +928,30 @@ func TestAPI_MergedIngestReturnsSurvivingActivity(t *testing.T) {
 	}
 	carol.do(http.MethodGet, "/api/activities/"+first+"/projected", nil, http.StatusOK)
 }
+
+// A source-from whose donor has no route fails as a whole: no orphan derived
+// source stays behind on the target.
+func TestAPI_SourceFromRollsBack(t *testing.T) {
+	env := newITestEnv(t)
+	dave := env.user("itdave", domain.UserRoleUser)
+	start := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Second)
+	mk := func(offset time.Duration) string {
+		return str(dave.post("/api/activities/manual", map[string]any{
+			"type": "run", "title": "Manual", "start_time": start.Add(offset).Format(time.RFC3339),
+			"elapsed_duration_s": 1800, "moving_duration_s": 1800, "distance_m": 5000,
+		}, http.StatusOK), "activity_id")
+	}
+	target, donor := mk(0), mk(96*time.Hour)
+	dave.do(http.MethodPost, "/api/activities/"+target+"/source-from",
+		map[string]any{"donor_id": donor, "groups": []string{"gps_track", "distance"}}, http.StatusBadRequest)
+
+	var manage struct {
+		Sources []map[string]any `json:"sources"`
+	}
+	if err := json.Unmarshal(dave.do(http.MethodGet, "/api/activities/"+target+"/manage", nil, http.StatusOK), &manage); err != nil {
+		t.Fatal(err)
+	}
+	if len(manage.Sources) != 1 {
+		t.Fatalf("target has %d sources after a failed borrow, want 1", len(manage.Sources))
+	}
+}

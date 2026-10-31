@@ -41,6 +41,16 @@ All notable changes to Cairn are documented here. The format follows
   holds it.
 
 ### Changed
+- Ingest, re-merge after edits and source-from share one write path
+  (`internal/usecase/pipeline`). Detaching or deleting a source, pinning a
+  field and removing a connection now refresh training load (previously
+  only the merge was recomputed).
+- "Source data from another activity" is one transaction: a failure (e.g. a
+  donor without a route) no longer leaves an orphaned derived source, and
+  the borrowed route now gets best efforts, segment matches and training
+  load.
+- Detach and delete fail when the source can't be added to the denylist,
+  instead of letting the next sync bring the activity back.
 - `recompute_activity_merges` re-clusters each activity's time bucket before
   re-merging it, which repairs groupings a failed re-cluster left behind.
 

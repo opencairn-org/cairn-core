@@ -202,6 +202,9 @@ func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivitySe
 		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
+	if app.Pipeline != nil {
+		activitySvc.Remerge = app.Pipeline
+	}
 	activitySvc.Events = app.ActivityEvents
 	activitySvc.Customs = app.CustomBestEfforts
 	activitySvc.Previews = app.SourcePreviews

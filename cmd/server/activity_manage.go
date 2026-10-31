@@ -11,9 +11,6 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/domain/capability"
-	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
-	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
-	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
 )
 
 // mountActivityManage wires the user-facing activity "manage" surface: a
@@ -150,15 +147,12 @@ func activityManageRecomputeHandler(app *App, logger *slog.Logger) http.HandlerF
 		if !ok {
 			return
 		}
-		result, err := app.RecomputeActivity.Execute(r.Context(), act.ID)
+		// Remerge retracts a soft-deleted activity from remote followers.
+		result, err := app.Pipeline.Remerge(r.Context(), act.ID)
 		if err != nil {
 			logger.Error("manage: recompute failed", "activity_id", act.ID, "error", err)
 			http.Error(w, "recompute failed", http.StatusInternalServerError)
 			return
-		}
-		// Last source gone → propagate the deletion to remote followers.
-		if result.SoftDeleted {
-			publishActivityDelete(r.Context(), app, logger, act.UserID, act.ID)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"recomputed":   true,
@@ -277,64 +271,15 @@ func (p workerPresence) LiveWorkers(ctx context.Context) []domain.LiveWorker {
 	return domainWorkers(currentWorkers(ctx, p.app, p.logger))
 }
 
-// recomputeDerivedForActivity re-runs the per-source derived computations
-// (stream aggregates, best-efforts, segment matches) for every non-detached
-// source of an activity, then recomputes the user's training load once. It
-// mirrors result_router.runFollowUps but is keyed off an existing activity
-// rather than a fresh ingest. Each step is best-effort: a failure is recorded
-// in the response but doesn't abort the rest (the same graceful-degradation
-// rule the ingest pipeline follows).
-func recomputeDerivedForActivity(ctx context.Context, app *App, logger *slog.Logger, act domain.Activity) map[string]any {
-	warnings := []string{}
-	warn := func(step string, err error) {
-		logger.Warn("recompute-derived step failed", "activity_id", act.ID, "step", step, "error", err)
-		warnings = append(warnings, step+": "+err.Error())
-	}
-
-	sources, err := app.Activities.ListSourcesForActivity(ctx, act.ID)
+// recomputeDerivedForActivity re-runs the derived computations of every
+// source plus the user's training load; failures are reported, not fatal.
+func recomputeDerivedForActivity(ctx context.Context, app *App, _ *slog.Logger, act domain.Activity) map[string]any {
+	n, warnings, err := app.Pipeline.RecomputeDerived(ctx, act)
 	if err != nil {
-		warn("list_sources", err)
-		return map[string]any{"recomputed": false, "warnings": warnings}
+		return map[string]any{"recomputed": false, "warnings": []string{"list_sources: " + err.Error()}}
 	}
-
-	for _, s := range sources {
-		activityManageRecomputeSource(ctx, app, s.ID, warn)
+	if warnings == nil {
+		warnings = []string{}
 	}
-
-	if app.ComputeTrainingLoad != nil {
-		end := time.Now().UTC()
-		if _, err := app.ComputeTrainingLoad.Execute(ctx, trainingload.Input{
-			UserID:     act.UserID,
-			Start:      end.AddDate(0, 0, -730),
-			End:        end,
-			WarmUpDays: 42,
-		}); err != nil {
-			warn("training_load", err)
-		}
-	}
-
-	return map[string]any{
-		"recomputed":   true,
-		"source_count": len(sources),
-		"warnings":     warnings,
-	}
-}
-
-// activityManageRecomputeSource re-runs the per-source derived steps, reporting failures via warn.
-func activityManageRecomputeSource(ctx context.Context, app *App, sid domain.SourceID, warn func(string, error)) {
-	if app.Streams != nil {
-		if err := app.Streams.RefreshAggregates(ctx, sid); err != nil {
-			warn("refresh_aggregates", err)
-		}
-	}
-	if app.ComputeBestEfforts != nil {
-		if _, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{ActivitySourceID: sid}); err != nil {
-			warn("best_efforts", err)
-		}
-	}
-	if app.MatchSegments != nil {
-		if _, err := app.MatchSegments.Execute(ctx, segment.Input{ActivitySourceID: sid}); err != nil {
-			warn("match_segments", err)
-		}
-	}
+	return map[string]any{"recomputed": true, "source_count": n, "warnings": warnings}
 }

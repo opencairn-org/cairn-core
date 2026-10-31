@@ -118,7 +118,7 @@ func (h *mergeOverridesAPI) setFieldSource(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// Re-derive so the pin takes effect immediately.
-	if _, err := h.app.RecomputeActivity.Execute(r.Context(), act.ID); err != nil {
+	if _, err := h.app.Pipeline.Remerge(r.Context(), act.ID); err != nil {
 		h.logger.Warn("recompute after field pin failed", "activity_id", act.ID, "error", err)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "field": body.Field, "source_id": body.SourceID})
@@ -138,7 +138,7 @@ func (h *mergeOverridesAPI) deleteFieldSource(w http.ResponseWriter, r *http.Req
 		http.Error(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
-	if _, err := h.app.RecomputeActivity.Execute(r.Context(), act.ID); err != nil {
+	if _, err := h.app.Pipeline.Remerge(r.Context(), act.ID); err != nil {
 		h.logger.Warn("recompute after field unpin failed", "activity_id", act.ID, "error", err)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

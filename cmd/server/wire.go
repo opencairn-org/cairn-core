@@ -44,6 +44,7 @@ import (
 	metricsuc "github.com/opencairn-org/cairn-core/internal/usecase/metrics"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
+	"github.com/opencairn-org/cairn-core/internal/usecase/pipeline"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
@@ -144,6 +145,7 @@ type App struct {
 
 	// Use cases
 	RecomputeActivity       *activity.RecomputeActivityFromSources
+	Pipeline                *pipeline.Pipeline // ingest → re-cluster → follow-ups; edits' follow-ups
 	IngestActivity          *activity.IngestActivityFromWorker
 	ReclusterBucket         *matchuc.ReclusterBucket
 	SourceActions           *activity.SourceActions
@@ -339,8 +341,39 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	// After the blob store: variants need it (nil → nothing is derived).
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
+	wirePipeline(app, logger)
 	wireMaintenance(app, pool)
 	return app, nil
+}
+
+// wirePipeline assembles the write path over the stages wired above and hands
+// it to the edit paths that owe follow-ups.
+func wirePipeline(app *App, logger *slog.Logger) {
+	p := &pipeline.Pipeline{
+		Activities: app.Activities, Ingester: app.IngestActivity, Recluster: app.ReclusterBucket, Recompute: app.RecomputeActivity,
+		BestEfforts: app.ComputeBestEfforts, Segments: app.MatchSegments, TrainingLoad: app.ComputeTrainingLoad, PRs: app.DispatchPR,
+		Federation: newFederationPublisher(app, logger), Log: logger,
+		Tx: app.Tx, Lock: app.Tx,
+	}
+	if app.FieldOverrides != nil {
+		p.FieldOverrides = app.FieldOverrides
+	}
+	if app.Streams != nil {
+		p.Streams = app.Streams
+	}
+	if app.ActivityEvents != nil {
+		p.Events = app.ActivityEvents
+	}
+	app.Pipeline = p
+	if app.SourceActions != nil {
+		app.SourceActions.FollowUps = p
+	}
+	if app.AccountRemover != nil && app.RecomputeActivity != nil {
+		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := p.Remerge(ctx, id)
+			return err
+		}
+	}
 }
 
 // wireAppCoreRepos builds the pool-only postgres repositories.
@@ -452,6 +485,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
 	app.SourceActions.Events = app.ActivityEvents
+	app.SourceActions.Tx, app.SourceActions.Lock = app.Tx, app.Tx
 	app.SourceLinks.Events = app.ActivityEvents
 	app.SourcePreviews = &activity.SourcePreviews{
 		Repo: app.SourcePreviewRepo, Actions: app.SourceActions, Recompute: app.RecomputeActivity,
@@ -989,13 +1023,8 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 		app.WebhookTokens.Repo = app.ExternalAccounts
 	}
 	// Account removal is a user action but needs the audit recorder built above.
+	// Recompute is set by wirePipeline (re-merge + follow-ups).
 	app.AccountRemover = &accountsuc.Remover{Accounts: app.ExternalAccounts, Activities: app.Activities, Audit: app.AuditLog}
-	if app.RecomputeActivity != nil {
-		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
-			_, err := app.RecomputeActivity.Execute(ctx, id)
-			return err
-		}
-	}
 	if app.Gear != nil {
 		app.Ops.Gear = app.Gear
 	}

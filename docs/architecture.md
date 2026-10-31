@@ -1336,14 +1336,21 @@ Crash exit: the TTL does the cleanup work after 60 s.
 
 ## 8. Async follow-ups via domain events
 
-Today best-effort compute, segment match, training load and
-PR dispatch run **synchronously** in the ingest goroutine (see `runFollowUps` in
-`cmd/server/result_router.go`). That is fine for single-server setups up to
-~100 activities/min.
+`internal/usecase/pipeline` is the write path: `IngestSource` (persist →
+re-cluster → follow the source into its surviving activity → follow-ups),
+`Remerge` (after detach, delete, field pins, account removal, Connect edits),
+`BorrowFrom` (source-from, one transaction) and `RecomputeDerived`. Each
+follow-up stage logs and recovers on failure; none fails the durable write.
+`cmd/server/result_router.go` only decodes the wire format and does the
+import bookkeeping around `IngestSource`.
+
+Today the follow-ups (stream aggregates, best efforts, segment match,
+training load, PR dispatch, federation) run **synchronously** in the ingest
+goroutine. That is fine for single-server setups up to ~100 activities/min.
 
 For multi-server or higher throughput: decouple via events. The
 transition is mechanical, because all follow-ups are already idempotent
-(see section 3).
+(see section 3), and they all live in `pipeline`.
 
 **Before:**
 

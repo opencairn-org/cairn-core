@@ -59,6 +59,10 @@ type ActivityServer struct {
 	// it, since the ingest-time publish only fires for public-at-import.
 	Federation port.FederationPublisher
 
+	// Remerge re-merges after an edit and runs the follow-ups it owes
+	// (pipeline.Pipeline). Nil → Recompute alone.
+	Remerge activity.Remerger
+
 	// Gear backs the gear_id edit (ownership check, type default on reset)
 	// and the gear names on the wire. Nil → gear edits rejected.
 	Gear *gearuc.Service
@@ -124,6 +128,16 @@ func NewActivityServer(
 		Federation:     federation,
 		Gear:           gear,
 	}
+}
+
+// remerge re-derives the activity after an edit, with follow-ups when wired.
+func (s *ActivityServer) remerge(ctx context.Context, id domain.ActivityID) error {
+	if s.Remerge != nil {
+		_, err := s.Remerge.Remerge(ctx, id)
+		return err
+	}
+	_, err := s.Recompute.Execute(ctx, id)
+	return err
 }
 
 // gearNames resolves the names of the gear attached to the given activities.
@@ -505,7 +519,7 @@ func (e *activityUpdateEdit) persist() error {
 
 	// Re-merge from all sources. preserveUserEdits copies the just-saved
 	// user fields onto the merged result, so the edit sticks.
-	if _, err := e.s.Recompute.Execute(e.ctx, e.activity.ID); err != nil {
+	if err := e.s.remerge(e.ctx, e.activity.ID); err != nil {
 		return connectError(connectrpc.CodeInternal,
 			fmt.Errorf("recompute activity: %w", err))
 	}
