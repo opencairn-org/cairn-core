@@ -138,7 +138,7 @@ func newActFixture(t *testing.T) *actFixture {
 	now := func() time.Time { return actNow }
 	recompute := activity.NewRecomputeActivityFromSources(f.repo, inmem.DefaultSettings{}, nil, nil, f.class, nil, inmem.PassTx{}, now)
 	recluster := matchuc.NewReclusterBucket(f.repo, recompute, f.deny, inmem.PassTx{}, nil, dmatch.DefaultOptions(), nil)
-	f.srv = NewActivityServer(f.repo, nil, &fakeBestEfforts{}, recompute, f.class, nil)
+	f.srv = NewActivityServer(f.repo, nil, &fakeBestEfforts{}, recompute, nil)
 	f.srv.Editor = activity.NewEditor(f.repo, recompute)
 	f.srv.Editor.ClassOverrides = f.class
 	f.srv.SourceActions = activity.NewSourceActions(f.repo, f.deny, recompute, nil, now)

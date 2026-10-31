@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 )
 
 // ---------------------------------------------------------------------------
@@ -92,87 +94,35 @@ func (s *ActivityServer) UploadActivity(ctx context.Context, req *v1.UploadActiv
 	if err != nil {
 		return nil, actionErr(err)
 	}
-	if err := s.applyUploadHints(ctx, out.ActivityID, req); err != nil {
+	if err := s.applyUploadHints(ctx, userID, out.ActivityID, req); err != nil {
 		return nil, err
 	}
 	return &v1.UploadActivityResponse{ActivityId: out.ActivityID.String()}, nil
 }
 
-// applyUploadHints stores the optional tags and type/discipline hints the way
-// UpdateActivity would: tags on the row (user-owned, survive re-merge), the
-// classification as an overlay, followed by one recompute.
-func (s *ActivityServer) applyUploadHints(ctx context.Context, id domain.ActivityID, req *v1.UploadActivityRequest) error {
-	hasClass := req.TypeHint != nil || req.DisciplineHint != nil
-	if len(req.GetTags()) == 0 && !hasClass {
+// applyUploadHints applies the optional tags and type/discipline hints through
+// the editor, as UpdateActivity would: tags appended, the classification as an
+// overlay, then one re-merge.
+func (s *ActivityServer) applyUploadHints(ctx context.Context, userID domain.UserID, id domain.ActivityID, req *v1.UploadActivityRequest) error {
+	patch := domain.ActivityPatch{AddTags: req.GetTags()}
+	if t, ok := activityTypeFromProto(req.GetTypeHint()); ok && req.TypeHint != nil {
+		patch.Overlay.Type = &domain.Clearable[domain.ActivityType]{Value: &t}
+	}
+	if d, ok := disciplineFromProto(req.GetDisciplineHint()); ok && req.DisciplineHint != nil {
+		patch.Overlay.Discipline = &domain.Clearable[domain.Discipline]{Value: &d}
+	}
+	if patch.Empty() {
 		return nil
 	}
-	if err := s.applyUploadTags(ctx, id, req.GetTags()); err != nil {
-		return err
+	if s.Editor == nil {
+		return connectrpc.NewError(connectrpc.CodeUnavailable, "activity editing is not available")
 	}
-	if hasClass {
-		if err := s.applyUploadClass(ctx, id, req); err != nil {
-			return err
+	if _, err := s.Editor.Update(ctx, userID, id, patch); err != nil {
+		var notEditable *activity.FieldNotEditableError
+		if errors.As(err, &notEditable) {
+			return connectrpc.NewError(connectrpc.CodeInvalidArgument, "type_hint/discipline_hint are not editable on this instance")
 		}
-	}
-	if err := s.remerge(ctx, id); err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("recompute activity: %w", err))
+		return activityEditError(err)
 	}
 	return nil
-}
-
-func (s *ActivityServer) applyUploadTags(ctx context.Context, id domain.ActivityID, tags []string) error {
-	if len(tags) == 0 {
-		return nil
-	}
-	act, err := s.Activities.GetActivity(ctx, id)
-	if err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("reload activity: %w", err))
-	}
-	act.Tags = mergeTags(act.Tags, tags)
-	if err := s.Activities.SaveActivity(ctx, act); err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("save tags: %w", err))
-	}
-	return nil
-}
-
-func (s *ActivityServer) applyUploadClass(ctx context.Context, id domain.ActivityID, req *v1.UploadActivityRequest) error {
-	if s.ClassOverrides == nil {
-		return connectrpc.NewError(connectrpc.CodeInvalidArgument, "type_hint/discipline_hint are not editable on this instance")
-	}
-	co, err := s.ClassOverrides.Get(ctx, id)
-	if err != nil {
-		return connectError(connectrpc.CodeInternal, err)
-	}
-	if t, ok := activityTypeFromProto(req.GetTypeHint()); ok {
-		co.Type = &t
-	}
-	if d, ok := disciplineFromProto(req.GetDisciplineHint()); ok {
-		co.Discipline = &d
-	}
-	co.ActivityID = id
-	if err := s.ClassOverrides.Set(ctx, co); err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("save classification override: %w", err))
-	}
-	return nil
-}
-
-// mergeTags appends the new tags not already present, keeping order.
-func mergeTags(have, add []string) []string {
-	seen := make(map[string]struct{}, len(have))
-	out := append([]string(nil), have...)
-	for _, t := range have {
-		seen[t] = struct{}{}
-	}
-	for _, t := range add {
-		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
-		}
-		if _, ok := seen[t]; ok {
-			continue
-		}
-		seen[t] = struct{}{}
-		out = append(out, t)
-	}
-	return out
 }

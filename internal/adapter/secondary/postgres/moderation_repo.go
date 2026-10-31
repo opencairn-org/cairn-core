@@ -158,9 +158,12 @@ func NewModerationRepo(pool *pgxpool.Pool) *ModerationRepo { return &ModerationR
 
 func (r *ModerationRepo) SetActivityHidden(ctx context.Context, activityID domain.ActivityID, hidden bool) error {
 	db := dbtx(ctx, r.pool)
-	_, err := db.Exec(ctx, `UPDATE activities SET hidden_by_admin=$2 WHERE id=$1`, activityID.UUID(), hidden)
+	tag, err := db.Exec(ctx, `UPDATE activities SET hidden_by_admin=$2 WHERE id=$1`, activityID.UUID(), hidden)
 	if err != nil {
 		return fmt.Errorf("set activity hidden: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
 	}
 	return nil
 }

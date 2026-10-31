@@ -25,5 +25,6 @@ type ReportRepo interface {
 
 // ModerationRepo is admin content actions not tied to a single aggregate.
 type ModerationRepo interface {
+	// SetActivityHidden returns domain.ErrNotFound for an unknown activity.
 	SetActivityHidden(ctx context.Context, activityID domain.ActivityID, hidden bool) error
 }

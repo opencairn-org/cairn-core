@@ -241,15 +241,6 @@ func isMutatingProcedure(procedure string) bool {
 	return true
 }
 
-func hasAnyWriteScope(scopes []string) bool {
-	for _, s := range scopes {
-		if domain.IsWriteScope(s) {
-			return true
-		}
-	}
-	return false
-}
-
 // scopesFromHandlerCtx returns the caller's OAuth scopes, or nil for a cookie
 // session or PAT (unrestricted). An OAuth token without scopes yields an empty,
 // non-nil slice so it never reads as unrestricted.

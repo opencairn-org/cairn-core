@@ -190,14 +190,10 @@ func registerReadServices(server *connectrpc.Server, app *App, logger *slog.Logg
 // re-imports, previews and custom windows share their implementation with
 // the REST handlers so the two surfaces stay in parity.
 func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivityServer {
-	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
-		app.ClassOverrides, app.Gear)
+	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity, app.Gear)
 	activitySvc.Editor = app.ActivityEditor
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
-	if app.Pipeline != nil {
-		activitySvc.Remerge = app.Pipeline
-	}
 	activitySvc.Events = app.ActivityEvents
 	activitySvc.Customs = app.CustomBestEfforts
 	activitySvc.Previews = app.SourcePreviews
