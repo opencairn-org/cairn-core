@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"net"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -226,10 +228,31 @@ func (c OAuthClient) RegisteredRedirectURI(uri string) (string, bool) {
 	for _, u := range c.RedirectURIs {
 		reg, ok := loopbackRedirect(u)
 		if ok && reg.Hostname() == req.Hostname() && reg.Path == req.Path && reg.RawQuery == req.RawQuery {
-			return uri, true
+			return loopbackOnPort(reg, req.Port())
 		}
 	}
 	return "", false
+}
+
+// loopbackOnPort is the registered loopback redirect on the port the client
+// asked for (RFC 8252 §7.3). Only the port, as a number, comes from the
+// request, so the redirect target is always built from the registration.
+func loopbackOnPort(reg *url.URL, port string) (string, bool) {
+	out := *reg
+	host := reg.Hostname()
+	switch {
+	case port == "" && strings.Contains(host, ":"):
+		out.Host = "[" + host + "]"
+	case port == "":
+		out.Host = host
+	default:
+		p, err := strconv.Atoi(port)
+		if err != nil || p < 0 || p > 65535 {
+			return "", false
+		}
+		out.Host = net.JoinHostPort(host, strconv.Itoa(p))
+	}
+	return out.String(), true
 }
 
 // loopbackRedirect parses uri when it is an http loopback-IP redirect.
