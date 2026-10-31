@@ -52,6 +52,8 @@ var (
 // branch on "not found" without each implementation defining its own.
 var (
 	ErrNotFound = errors.New("not found")
+	// ErrAmbiguous: a lookup that must resolve exactly one row matched several.
+	ErrAmbiguous = errors.New("ambiguous match")
 	// ErrUnique is wrapped by repo writes that violate a uniqueness
 	// constraint. Use cases that race on insert/lookup branch on this.
 	ErrUnique = errors.New("unique constraint violation")

@@ -75,6 +75,11 @@ func (l *AccountLookup) respond(ctx context.Context, req LookupRequest) []byte {
 		if errors.Is(err, domain.ErrNotFound) {
 			return lookupErr("not_found")
 		}
+		if errors.Is(err, domain.ErrAmbiguous) {
+			l.log().Warn("account lookup ambiguous", "provider", req.Provider,
+				"external_id", req.ExternalID, "subscription_id", req.SubscriptionID, "worker", req.WorkerName)
+			return lookupErr("ambiguous")
+		}
 		l.log().Warn("account lookup failed", "provider", req.Provider, "error", err)
 		return lookupErr("lookup_failed")
 	}
@@ -88,25 +93,27 @@ func (l *AccountLookup) respond(ctx context.Context, req LookupRequest) []byte {
 	return out
 }
 
-// find prefers the unambiguous subscription_id (#50): one provider athlete
-// may be linked by several connections. owner_id only when the subscription is unknown.
+// find matches subscription and owner together (#50): one Strava push
+// subscription spans every athlete of the app. owner_id alone only when the
+// subscription is unknown.
 func (l *AccountLookup) find(ctx context.Context, req LookupRequest) (domain.ExternalAccount, error) {
 	if req.SubscriptionID == "" {
-		return l.Accounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
+		return l.Accounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, "", req.WorkerName)
 	}
-	acct, err := l.Accounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID, req.WorkerName)
+	acct, err := l.Accounts.FindBySubscription(ctx, req.Provider, req.SubscriptionID, req.ExternalID, req.WorkerName)
 	if errors.Is(err, domain.ErrNotFound) && req.ExternalID != "" {
 		l.log().Warn("subscription unknown, falling back to external_id",
 			"provider", req.Provider, "subscription_id", req.SubscriptionID)
-		acct, err = l.Accounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.WorkerName)
+		acct, err = l.Accounts.FindByProviderAndExternalID(ctx, req.Provider, req.ExternalID, req.SubscriptionID, req.WorkerName)
 	}
 	return acct, err
 }
 
 // selfHeal records the subscription → account binding the first time an
-// event resolved via the owner_id fallback (#50).
+// event resolved via the owner_id fallback (#50). Sharing a subscription is
+// harmless: routing also matches the owner.
 func (l *AccountLookup) selfHeal(ctx context.Context, req LookupRequest, acct domain.ExternalAccount) {
-	if req.SubscriptionID == "" || acct.WebhookSubscriptionID == req.SubscriptionID {
+	if req.SubscriptionID == "" || req.ExternalID == "" || acct.WebhookSubscriptionID == req.SubscriptionID {
 		return
 	}
 	if err := l.Accounts.RegisterWebhookSubscription(ctx, req.Provider, req.SubscriptionID, acct.ID); err != nil {

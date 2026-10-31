@@ -38,12 +38,12 @@ func TestExternalAccounts_OneConnectionPerPool(t *testing.T) {
 	}
 
 	for worker, want := range map[string]domain.ExternalAccountID{"garmin-api": api, "garmin-fit": fit} {
-		got, err := accts.FindByProviderAndExternalID(ctx, "garmin", pa, worker)
+		got, err := accts.FindByProviderAndExternalID(ctx, "garmin", pa, "", worker)
 		if err != nil || got.ID != want {
 			t.Errorf("lookup for %s = %v/%v, want %s", worker, got.ID, err, want)
 		}
 	}
-	if _, err := accts.FindByProviderAndExternalID(ctx, "garmin", pa, ""); err != nil {
+	if _, err := accts.FindByProviderAndExternalID(ctx, "garmin", pa, "", ""); err != nil {
 		t.Errorf("pool-less lookup: %v", err)
 	}
 	if err := accts.SetAssignedWorker(ctx, fit, "garmin-api"); !errors.Is(err, domain.ErrPoolTaken) {
