@@ -185,8 +185,11 @@ func TestGearRepo_Integration(t *testing.T) {
 		t.Fatalf("activity not repointed: %+v", a.GearID)
 	}
 
-	// Deleting gear nulls the activities' gear (FK SET NULL) and hands a
-	// user-set choice back to the merge.
+	// The use case hands a user-set choice back to the merge, then deleting
+	// the gear nulls the activities' gear (FK SET NULL).
+	if err := gear.SetGearSetByForGear(ctx, bike.ID, domain.GearSetByMerge); err != nil {
+		t.Fatalf("SetGearSetByForGear: %v", err)
+	}
 	if err := gear.Delete(ctx, bike.ID); err != nil {
 		t.Fatalf("Delete bike: %v", err)
 	}
