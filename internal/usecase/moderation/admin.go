@@ -63,6 +63,21 @@ func (r *Reports) List(ctx context.Context, status domain.ReportStatus, limit, o
 	return out, nil
 }
 
+// File records a user's report; the reason is trimmed and capped.
+func (r *Reports) File(ctx context.Context, reporter domain.UserID, kind domain.ReportTargetKind, target uuid.UUID, reason string) (domain.ContentReportID, error) {
+	if r.Reports == nil {
+		return domain.ContentReportID{}, port.NewActionError(port.ActionErrorUnavailable, "reports are not available")
+	}
+	if !kind.Valid() {
+		return domain.ContentReportID{}, port.NewActionError(port.ActionErrorInvalid, "bad target_kind")
+	}
+	reason = strings.TrimSpace(reason)
+	if len(reason) > domain.MaxReportReasonLength {
+		reason = reason[:domain.MaxReportReasonLength]
+	}
+	return r.Reports.Create(ctx, domain.ContentReport{ReporterID: reporter, TargetKind: kind, TargetID: target, Reason: reason})
+}
+
 // Resolve marks a report reviewed or dismissed.
 func (r *Reports) Resolve(ctx context.Context, actor audit.Actor, id domain.ContentReportID, status domain.ReportStatus) (domain.ReportStatus, error) {
 	if r.Reports == nil {
