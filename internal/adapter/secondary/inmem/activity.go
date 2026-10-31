@@ -247,6 +247,17 @@ func (r *ActivityRepo) AddMatchConstraint(_ context.Context, c domain.MatchConst
 	if c.ID == (domain.MatchConstraintID{}) {
 		c.ID = domain.MatchConstraintID(uuid.New())
 	}
+	if c.SourceA.String() > c.SourceB.String() {
+		c.SourceA, c.SourceB = c.SourceB, c.SourceA
+	}
+	for i, e := range r.Constraints {
+		if e.SourceA == c.SourceA && e.SourceB == c.SourceB {
+			if c.Kind != domain.ConstraintSuspectedDuplicate {
+				r.Constraints[i].Kind, r.Constraints[i].Reason = c.Kind, c.Reason
+			}
+			return nil
+		}
+	}
 	r.Constraints = append(r.Constraints, c)
 	return nil
 }
@@ -458,9 +469,35 @@ func (r *ActivityRepo) ListFollowingFeed(_ context.Context, viewerID domain.User
 	return out, nil
 }
 
-// ListActivitiesNeedingReview: the fake tracks no review flag, so nothing is pending.
-func (r *ActivityRepo) ListActivitiesNeedingReview(context.Context, domain.UserID) ([]domain.ActivityReviewItem, error) {
-	return nil, nil
+// ListActivitiesNeedingReview: the fake tracks no review flag, so only
+// possible duplicates (suspected pairs across two live activities) are pending.
+func (r *ActivityRepo) ListActivitiesNeedingReview(_ context.Context, userID domain.UserID) ([]domain.ActivityReviewItem, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	seen := map[[2]domain.ActivityID]bool{}
+	var out []domain.ActivityReviewItem
+	for _, c := range r.Constraints {
+		sa, sb := r.Sources[c.SourceA], r.Sources[c.SourceB]
+		if c.UserID != userID || c.Kind != domain.ConstraintSuspectedDuplicate || sa.ActivityID == sb.ActivityID ||
+			sa.Status == domain.SourceStatusDetached || sb.Status == domain.SourceStatusDetached {
+			continue
+		}
+		older, newer := sa.ActivityID, sb.ActivityID
+		if older.String() > newer.String() {
+			older, newer = newer, older
+		}
+		n, okN := r.Activities[newer]
+		o, okO := r.Activities[older]
+		if !okN || !okO || n.DeletedAt != nil || o.DeletedAt != nil || seen[[2]domain.ActivityID{older, newer}] {
+			continue
+		}
+		seen[[2]domain.ActivityID{older, newer}] = true
+		out = append(out, domain.ActivityReviewItem{
+			ID: n.ID, Title: n.Title, Type: n.Type, StartTime: n.StartTime, MatchConfidence: r.MatchState[n.ID],
+			Kind: domain.ReviewKindDuplicate, DuplicateOf: o.ID,
+		})
+	}
+	return out, nil
 }
 
 // UserFootprints counts the fake's activities per user.

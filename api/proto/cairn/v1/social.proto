@@ -262,6 +262,11 @@ message ReviewItem {
   google.protobuf.Timestamp start_time = 4;
   // The matcher's confidence band that flagged the activity.
   string match_confidence = 5;
+  // Why the activity is queued: "merge" (medium-confidence merge to confirm)
+  // or "duplicate" (likely same-provider re-import kept separate).
+  string kind = 6;
+  // For kind "duplicate": the activity this one likely duplicates.
+  string duplicate_of_id = 7;
 }
 message ListReviewQueueResponse {
   repeated ReviewItem items = 1;

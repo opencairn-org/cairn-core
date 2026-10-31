@@ -140,5 +140,10 @@
 	"gear_retired_suffix": "(ausgemustert)",
 	"gear_confirm_delete": "„{name}“ löschen? {count} Aktivitäten haben danach keine Ausrüstung mehr.",
 	"gear_confirm_merge": "„{from}“ in „{to}“ zusammenführen? Aktivitäten und Anbieter-Einträge wandern mit; das lässt sich nicht rückgängig machen.",
-	"gear_sync_queued": "Ausrüstungs-Sync eingereiht — neue Ausrüstung erscheint unter Ausrüstung, sobald der Worker sie meldet."
+	"gear_sync_queued": "Ausrüstungs-Sync eingereiht — neue Ausrüstung erscheint unter Ausrüstung, sobald der Worker sie meldet.",
+	"review_dup_label": "Mögliches Duplikat",
+	"review_dup_hint": "Scheint dasselbe Training zu sein, zweimal vom selben Anbieter importiert.",
+	"review_dup_other": "Andere Kopie",
+	"review_dup_merge": "Zusammenführen",
+	"review_dup_keep": "Beide behalten"
 }

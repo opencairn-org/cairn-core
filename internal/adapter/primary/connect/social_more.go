@@ -191,7 +191,11 @@ func (s *SocialServer) ListReviewQueue(ctx context.Context, _ *v1.ListReviewQueu
 	}
 	out := &v1.ListReviewQueueResponse{}
 	for _, it := range items {
-		out.Items = append(out.Items, &v1.ReviewItem{Id: it.ID.String(), Title: it.Title, Type: activityTypeToProto(it.Type), StartTime: timestamppb.New(it.StartTime), MatchConfidence: it.MatchConfidence})
+		item := &v1.ReviewItem{Id: it.ID.String(), Title: it.Title, Type: activityTypeToProto(it.Type), StartTime: timestamppb.New(it.StartTime), MatchConfidence: it.MatchConfidence, Kind: string(it.Kind)}
+		if it.Kind == domain.ReviewKindDuplicate {
+			item.DuplicateOfId = it.DuplicateOf.String()
+		}
+		out.Items = append(out.Items, item)
 	}
 	return out, nil
 }

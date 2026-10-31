@@ -140,3 +140,72 @@ func TestSourceLinks_LinkActivities(t *testing.T) {
 		t.Fatal("not joined")
 	}
 }
+
+// A possible duplicate (same provider twice) resolved as a merge: the must-link
+// overrides the one-per-pool rule, leaving one live activity and an empty queue.
+func TestSourceLinks_MergePossibleDuplicate(t *testing.T) {
+	r := inmem.NewActivityRepo()
+	s1, _ := seedSource(r, testUser, "strava", reTime, 30000)
+	s2, _ := seedSource(r, testUser, "strava", reTime.Add(2*time.Second), 30010)
+	links := newLinks(r)
+
+	if _, err := links.recluster.Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+		t.Fatalf("recluster: %v", err)
+	}
+	items, _ := r.ListActivitiesNeedingReview(t.Context(), testUser)
+	if len(items) != 1 || items[0].Kind != domain.ReviewKindDuplicate {
+		t.Fatalf("queue %+v", items)
+	}
+	if err := links.LinkActivities(t.Context(), testUser, items[0].DuplicateOf, items[0].ID); err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	if r.Sources[s1].ActivityID != r.Sources[s2].ActivityID {
+		t.Fatal("sources not merged")
+	}
+	live := 0
+	for _, a := range r.Activities {
+		if a.DeletedAt == nil {
+			live++
+		}
+	}
+	if live != 1 {
+		t.Fatalf("want 1 live activity, got %d", live)
+	}
+	if items, _ := r.ListActivitiesNeedingReview(t.Context(), testUser); len(items) != 0 {
+		t.Fatalf("queue after merge %+v", items)
+	}
+	// A later re-cluster keeps the merge.
+	if _, err := links.recluster.Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+		t.Fatalf("recluster: %v", err)
+	}
+	if r.Sources[s1].ActivityID != r.Sources[s2].ActivityID {
+		t.Fatal("merge undone by re-cluster")
+	}
+}
+
+// "Keep both" cannot-links the pair: the item disappears for good.
+func TestSourceLinks_KeepApartDismissesDuplicate(t *testing.T) {
+	r := inmem.NewActivityRepo()
+	_, a1 := seedSource(r, testUser, "strava", reTime, 30000)
+	_, a2 := seedSource(r, testUser, "strava", reTime.Add(2*time.Second), 30010)
+	links := newLinks(r)
+	if _, err := links.recluster.Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+		t.Fatalf("recluster: %v", err)
+	}
+
+	if err := links.KeepApart(t.Context(), domain.UserID(uuid.New()), a1, a2); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("foreign keep-apart: %v", err)
+	}
+	if err := links.KeepApart(t.Context(), testUser, a1, a2); err != nil {
+		t.Fatalf("keep apart: %v", err)
+	}
+	if _, err := links.recluster.Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+		t.Fatalf("recluster: %v", err)
+	}
+	if items, _ := r.ListActivitiesNeedingReview(t.Context(), testUser); len(items) != 0 {
+		t.Fatalf("queue after keep both %+v", items)
+	}
+	if len(r.Constraints) != 1 || r.Constraints[0].Kind != domain.ConstraintCannotLink || r.Constraints[0].Reason != ReasonUserKeep {
+		t.Fatalf("constraints %+v", r.Constraints)
+	}
+}

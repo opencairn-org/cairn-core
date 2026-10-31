@@ -140,5 +140,10 @@
 	"gear_retired_suffix": "(retired)",
 	"gear_confirm_delete": "Delete “{name}”? {count} activities keep no gear afterwards.",
 	"gear_confirm_merge": "Merge “{from}” into “{to}”? Its activities and provider records move over; this cannot be undone.",
-	"gear_sync_queued": "Gear sync queued — new gear shows up under Gear as the worker reports it."
+	"gear_sync_queued": "Gear sync queued — new gear shows up under Gear as the worker reports it.",
+	"review_dup_label": "Possible duplicate",
+	"review_dup_hint": "Looks like the same workout imported twice from one provider.",
+	"review_dup_other": "Other copy",
+	"review_dup_merge": "Merge",
+	"review_dup_keep": "Keep both"
 }

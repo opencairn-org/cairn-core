@@ -27,6 +27,8 @@ type memRepo struct {
 	srcs       map[domain.SourceID]domain.ActivitySource
 	redirects  map[domain.ActivityID]domain.ActivityID
 	matchState map[domain.ActivityID]string
+	cons       []domain.MatchConstraint
+	consWrites int
 }
 
 func newMemRepo() *memRepo {
@@ -90,7 +92,13 @@ func (m *memRepo) AddActivityRedirect(_ context.Context, oldID, newID domain.Act
 }
 
 func (m *memRepo) ListMatchConstraints(_ context.Context, _ domain.UserID) ([]domain.MatchConstraint, error) {
-	return nil, nil
+	return m.cons, nil
+}
+
+func (m *memRepo) AddMatchConstraint(_ context.Context, c domain.MatchConstraint) error {
+	m.consWrites++
+	m.cons = append(m.cons, c)
+	return nil
 }
 
 func (m *memRepo) ListSourceRecordsInBucket(_ context.Context, userID domain.UserID, from, to time.Time) ([]domain.SourceMatchRecord, error) {
@@ -288,3 +296,81 @@ func TestReclusterBucket_DenylistKeepsStandalone(t *testing.T) {
 type captureEvents struct{ got []domain.AdminEvent }
 
 func (c *captureEvents) Publish(ev domain.AdminEvent) { c.got = append(c.got, ev) }
+
+// A high-scoring same-pool pair becomes a possible-duplicate suggestion for the
+// owner; the log/admin event stays and nothing merges.
+func TestReclusterBucket_SamePoolConflictSuggestsDuplicate(t *testing.T) {
+	m := newMemRepo()
+	s1, _ := mkSource(m, "strava", reTime, 30000)
+	s2, _ := mkSource(m, "strava", reTime.Add(2*time.Second), 30010)
+
+	events := &captureEvents{}
+	if _, err := newRecluster(m).WithEvents(events).Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if len(events.got) != 1 {
+		t.Errorf("admin event: %+v", events.got)
+	}
+	if len(m.cons) != 1 {
+		t.Fatalf("want 1 suggestion, got %+v", m.cons)
+	}
+	c := m.cons[0]
+	if c.Kind != domain.ConstraintSuspectedDuplicate || c.UserID != testUser || c.Reason != ReasonSamePoolConflict ||
+		pairKey(c.SourceA.String(), c.SourceB.String()) != pairKey(s1.String(), s2.String()) {
+		t.Errorf("suggestion %+v", c)
+	}
+	if m.srcs[s1].ActivityID == m.srcs[s2].ActivityID {
+		t.Error("a suggestion must not merge")
+	}
+}
+
+// A conflict below the high band is only logged, never surfaced to the owner.
+func TestReclusterBucket_LowScoreConflictNoSuggestion(t *testing.T) {
+	m := newMemRepo()
+	mkSource(m, "strava", reTime, 30000)
+	mkSource(m, "strava", reTime.Add(2*time.Second), 30010)
+
+	opts := dmatch.DefaultOptions()
+	opts.HighBand = 1.01 // every edge scores below it
+	recompute := activity.NewRecomputeActivityFromSources(m, fakeSettings{}, nil, nil, nil, nil, fakeTx{}, func() time.Time { return reTime })
+	res, err := NewReclusterBucket(m, recompute, nil, fakeTx{}, nil, opts, nil).Execute(t.Context(), Input{UserID: testUser, Around: reTime})
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if res.Conflicts != 1 || m.consWrites != 0 {
+		t.Errorf("conflicts %d, constraint writes %d", res.Conflicts, m.consWrites)
+	}
+}
+
+// Re-clustering the same window again records no second suggestion.
+func TestReclusterBucket_SuggestionIdempotent(t *testing.T) {
+	m := newMemRepo()
+	mkSource(m, "strava", reTime, 30000)
+	mkSource(m, "strava", reTime.Add(2*time.Second), 30010)
+
+	uc := newRecluster(m)
+	for range 3 {
+		if _, err := uc.Execute(t.Context(), Input{UserID: testUser, Around: reTime}); err != nil {
+			t.Fatalf("execute: %v", err)
+		}
+	}
+	if m.consWrites != 1 || len(m.cons) != 1 {
+		t.Errorf("writes %d, constraints %+v", m.consWrites, m.cons)
+	}
+}
+
+// After "keep both" (cannot-link) the pair is no longer a conflict at all.
+func TestReclusterBucket_KeptApartPairNotResuggested(t *testing.T) {
+	m := newMemRepo()
+	s1, _ := mkSource(m, "strava", reTime, 30000)
+	s2, _ := mkSource(m, "strava", reTime.Add(2*time.Second), 30010)
+	m.cons = []domain.MatchConstraint{{UserID: testUser, SourceA: s1, SourceB: s2, Kind: domain.ConstraintCannotLink, Reason: ReasonUserKeep}}
+
+	res, err := newRecluster(m).Execute(t.Context(), Input{UserID: testUser, Around: reTime})
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if res.Conflicts != 0 || m.consWrites != 0 {
+		t.Errorf("conflicts %d, constraint writes %d", res.Conflicts, m.consWrites)
+	}
+}
