@@ -7,7 +7,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"image"
 	"image/color"
@@ -32,6 +34,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/db"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/httpsig"
+	"github.com/opencairn-org/cairn-core/internal/usecase/federation"
 )
 
 // The API suite drives the real mux (all REST + Connect-RPC mounts, real Postgres, no NATS/S3)
@@ -768,6 +771,16 @@ func TestAPI_EndToEnd(t *testing.T) {
 	alice.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
 }
 
+// pubKeyPEM is the PKIX PEM of k's public half.
+func pubKeyPEM(t *testing.T, k *rsa.PrivateKey) string {
+	t.Helper()
+	der, err := x509.MarshalPKIXPublicKey(&k.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+}
+
 // itestFederation plays a remote ActivityPub server against alice: outbound follow via WebFinger,
 // then signed inbound Follow, Create, Like, reply, Undo and Delete.
 func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID string) {
@@ -829,10 +842,10 @@ func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID stri
 	follow := map[string]any{"id": id("follows"), "type": "Follow", "object": aliceActor}
 	send(follow, http.StatusAccepted)
 	send(map[string]any{"id": id("accepts"), "type": "Accept", "object": map[string]any{"type": "Follow", "actor": aliceActor, "object": actor}}, http.StatusAccepted)
-	note := buildActivityCreate(remote.URL, actor, actor+"/activities/"+uuid.NewString(), domain.Activity{
+	note := federation.BuildCreate(remote.URL, actor, actor+"/activities/"+uuid.NewString(), domain.Activity{
 		ID: domain.ActivityID(uuid.New()), Type: domain.ActivityTypeRun, Title: "Remote run",
 		StartTime: time.Now().UTC().Add(-time.Hour), MovingDuration: 30 * time.Minute, Privacy: domain.PrivacyPublic,
-	}, allCats)
+	}, domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true}))
 	send(map[string]any{"id": id("creates"), "type": "Create", "object": note["object"]}, http.StatusAccepted)
 	like := map[string]any{"id": id("likes"), "type": "Like", "object": objURL}
 	send(like, http.StatusAccepted)

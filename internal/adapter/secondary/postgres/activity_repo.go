@@ -1476,7 +1476,7 @@ func (r *ActivityRepo) ActivityTotalsForRange(ctx context.Context, userID domain
 }
 
 // SourceWorker is one (pool, package) an account's sources came from.
-type SourceWorker struct{ Name, Package string }
+type SourceWorker = domain.SourceWorker
 
 // ListSourceWorkersForAccount lists the distinct pools that imported the
 // account's live sources.

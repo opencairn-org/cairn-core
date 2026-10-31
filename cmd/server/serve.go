@@ -244,7 +244,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// All envelope decoding + signature validation + handshake protocol
 	// lives in the provider's worker (see workersdk.WebhookEvent /
 	// WebhookVerify). Core knows nothing about Strava, Garmin, etc.
-	mountWebhookForwarder(mux, app, logger)
+	mountRestWebhooks(mux, app, logger)
 	logger.Info("generic webhook forwarder mounted", "path", "/webhooks/{provider}")
 
 	// (DLQ /admin endpoints are mounted with the dev /admin/* surface above.)
@@ -256,7 +256,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// ActivityPub federation (phase 1: read-only actor + discovery). Off unless
 	// CAIRN_FEDERATION_ENABLED; per-user opt-in gates each actor.
 	if cfg.Federation.Enabled {
-		mountFederation(mux, app, cfg, logger)
+		mountRestFederation(mux, app, cfg, logger)
 		// Drain the durable outbound delivery queue (Phase 3 push fan-out).
 		if app.FederationDeliveries != nil {
 			goSupervised(ctx, logger, "runFederationDeliveryScheduler", func(ctx context.Context) { runFederationDeliveryScheduler(ctx, logger, app) })
@@ -374,7 +374,7 @@ func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mountAdminInstance(mux, app, logger)
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
-	mountSyncEndpoints(mux, app, logger)
+	mountRestSync(mux, app, logger)
 	mountAccountLifecycle(mux, app, logger)
 
 	// Build/version info (public) — shown in the UI footer.
