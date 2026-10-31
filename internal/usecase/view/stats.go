@@ -10,7 +10,7 @@ import (
 )
 
 // Stats are the aggregate reads of the stats, analysis, best-effort and
-// heatmap pages (StatsService / GET /api/stats, /api/analysis,
+// heatmap pages (StatsService / GET /api/stats, /api/analysis, /api/records,
 // /api/best-efforts/history, /api/activities/heatmap).
 type Stats struct {
 	activities  port.ActivityRepo
@@ -101,6 +101,18 @@ func (s *Stats) BestEffortHistory(ctx context.Context, userID domain.UserID, act
 		return BestEffortHistory{}, fmt.Errorf("best-effort history: %w", err)
 	}
 	return BestEffortHistory{Items: items, Best: domain.BestEffortHistoryBest(items, metric)}, nil
+}
+
+// PersonalRecords lists the caller's all-time best per (type, metric, window).
+func (s *Stats) PersonalRecords(ctx context.Context, userID domain.UserID) ([]domain.PersonalRecord, error) {
+	if s.bestEfforts == nil {
+		return nil, ErrUnavailable
+	}
+	recs, err := s.bestEfforts.ListPersonalRecords(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("personal records: %w", err)
+	}
+	return recs, nil
 }
 
 // Heatmap bounds: one response holds at most HeatmapMaxActivities tracks
