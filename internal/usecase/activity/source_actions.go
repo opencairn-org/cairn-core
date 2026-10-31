@@ -90,6 +90,35 @@ func (uc *SourceActions) OwnedSource(ctx context.Context, userID domain.UserID, 
 	return act, src, nil
 }
 
+// SourceOf loads one source of the caller's activity. withDeleted admits a
+// soft-deleted activity (its parsed payload stays viewable).
+func (uc *SourceActions) SourceOf(ctx context.Context, userID domain.UserID, activityID domain.ActivityID, sourceID domain.SourceID, withDeleted bool) (domain.ActivitySource, error) {
+	if !withDeleted {
+		_, src, err := uc.OwnedSource(ctx, userID, activityID, sourceID)
+		return src, err
+	}
+	act, err := uc.activities.GetActivity(ctx, activityID)
+	if err != nil {
+		return domain.ActivitySource{}, err
+	}
+	if act.UserID != userID {
+		return domain.ActivitySource{}, domain.ErrNotFound
+	}
+	src, err := uc.activities.GetSource(ctx, sourceID)
+	if err != nil {
+		return domain.ActivitySource{}, err
+	}
+	if src.ActivityID != activityID {
+		return domain.ActivitySource{}, ErrSourceNotOnActivity
+	}
+	return src, nil
+}
+
+// ParsedRaw is the stored normalized payload of a source loaded via SourceOf.
+func (uc *SourceActions) ParsedRaw(ctx context.Context, src domain.ActivitySource) ([]byte, error) {
+	return uc.activities.GetSourceParsedRaw(ctx, src.ID)
+}
+
 // DetachResult reports a detach. The detach itself is durable once Detach
 // returns nil; the re-merge is best-effort and reported, not failed.
 type DetachResult struct {

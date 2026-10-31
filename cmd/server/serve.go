@@ -293,12 +293,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 // serveMountFeatures mounts the user-facing REST feature endpoints.
 func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger *slog.Logger) {
-	// Drag-and-drop file import (GPX/TCX) — POST /api/activities/upload.
-	mountUploadEndpoint(mux, app, logger)
-	// Manual activity entry — POST /api/activities/manual.
-	mountManualActivityEndpoint(mux, app, logger)
-	// Source fields/route from another activity — POST /api/activities/{id}/source-from.
-	mountSourceFromEndpoint(mux, app, logger)
+	// Activity writes: upload, manual entry, source-from, source actions and
+	// previews, manage, merge overrides/policies, athlete profile, metric store.
+	mountAct(mux, app, logger)
 	// Activity attachments (photos) — /api/activities/{id}/attachments.
 	mountAttachmentEndpoints(mux, app, logger)
 
@@ -314,10 +311,6 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountAnalysis(mux, app, logger)
 	mountStats(mux, app, logger)
 
-	// Athlete physiology profile (FTP/weight/HR time series → TSS).
-	mountAthlete(mux, app, logger)
-	mountMetricsAPI(mux, app, logger)
-
 	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
 	mountActivitiesFeed(mux, app, logger)
 
@@ -327,18 +320,13 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountSegmentAuthoring(mux, app, logger)
 	mountZones(mux, app, logger)
 	mountLaps(mux, app, logger)
-	mountActivitySources(mux, app, logger)
-	mountSourcePreviews(mux, app, logger)
 	mountGarminConnect(mux, app)
 	mountGearSync(mux, app, logger)
-	mountMergeOverrides(mux, app, logger)
-	mountMergePolicy(mux, app, logger)
 	mountMergedStream(mux, app)
 	mountRecords(mux, app, logger)
 	mountCustomRecords(mux, app, logger)
 	mountHealth(mux, app, logger)
 	mountReviewQueue(mux, app, logger)
-	mountActivityManage(mux, app, logger)
 	mountActivityExport(mux, app, logger)
 	mountActivityMapImage(mux, app, cfg.Map, logger)
 	mountActivitiesHeatmap(mux, app, logger)

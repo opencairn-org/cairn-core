@@ -1,199 +1,33 @@
-package main
+// Package fileimport decodes user-supplied activity input (GPX/TCX/FIT files,
+// manual entries) into the typed payload the worker ingest path takes.
+package fileimport
 
 import (
 	"bytes"
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"io"
-	"log/slog"
 	"math"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/tormoder/fit"
-
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	cairnv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
-	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
-	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-// mountUploadEndpoint registers the drag-and-drop file import:
-//
-//	POST /api/activities/upload   multipart "file" = a .gpx/.tcx
-//
-// The file is parsed server-side into the typed ImportedActivity and run
-// through the exact same ingest path workers use (provider = "upload",
-// external_id = the file's content hash so re-uploading dedups/refreshes).
-//
-// Session-authed: the cairn_session cookie resolves the owning user.
-func mountUploadEndpoint(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	h := &uploadAPI{app: app, logger: logger}
-	mux.HandleFunc("POST /api/activities/upload", h.handle)
-
-	logger.Info("file upload endpoint mounted", "path", "/api/activities/upload")
-}
-
-// uploadMaxFileBytes caps the uploaded file; the body cap adds slack for multipart framing.
-const (
-	uploadMaxFileBytes = port.MaxUploadBytes
-	uploadMaxBodyBytes = uploadMaxFileBytes + 1<<20
-)
-
-// uploadAPI holds the dependencies of the file-upload handler.
-type uploadAPI struct {
-	app    *App
-	logger *slog.Logger
-}
-
-var _ port.UploadIngester = (*uploadAPI)(nil)
-
-// readFile reads the multipart "file" field or writes a 400.
-func (h *uploadAPI) readFile(w http.ResponseWriter, r *http.Request) ([]byte, string, bool) {
-	r.Body = http.MaxBytesReader(w, r.Body, uploadMaxBodyBytes)
-	if err := r.ParseMultipartForm(uploadMaxFileBytes); err != nil { //nolint:gosec // G120: body capped by MaxBytesReader above
-		http.Error(w, "bad multipart form: "+err.Error(), http.StatusBadRequest)
-		return nil, "", false
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, "missing file field", http.StatusBadRequest)
-		return nil, "", false
-	}
-	defer func() { _ = file.Close() }()
-
-	raw, err := io.ReadAll(io.LimitReader(file, uploadMaxFileBytes))
-	if err != nil {
-		http.Error(w, "read file: "+err.Error(), http.StatusBadRequest)
-		return nil, "", false
-	}
-	return raw, header.Filename, true
-}
-
-// archiveRaw stores the original file (best-effort — the activity is already
-// ingested). Server-side Put because the server holds the bytes; the
-// raw_blob_id lets the user download the original later. A presigned upload
-// already lives under in.RawBlobKey, so only the reference is recorded.
-func (h *uploadAPI) archiveRaw(ctx context.Context, in port.UploadInput, sourceID domain.SourceID) {
-	app := h.app
-	if app.BlobStore == nil {
-		return
-	}
-	ct := uploadContentType(uploadExt(in.Filename))
-	key := in.RawBlobKey
-	if key == "" {
-		key = fmt.Sprintf("raw/%s/%s%s", in.UserID.String(), sourceID.String(), uploadExt(in.Filename))
-		if err := app.BlobStore.Put(ctx, key, in.Raw, ct); err != nil {
-			h.logger.Warn("archive raw upload failed", "source_id", sourceID, "error", err)
-			return
-		}
-	}
-	if err := app.Activities.SetSourceRawBlob(ctx, sourceID, key, ct, int64(len(in.Raw))); err != nil {
-		h.logger.Warn("record raw blob ref failed", "source_id", sourceID, "error", err)
-	}
-}
-
-// uploadExt returns the lower-cased extension (with dot) of a filename.
-func uploadExt(filename string) string {
+// Ext returns the lower-cased extension (with dot) of a filename.
+func Ext(filename string) string {
 	if i := strings.LastIndex(filename, "."); i >= 0 {
 		return strings.ToLower(filename[i:])
 	}
 	return ""
 }
 
-// IngestUpload parses the file and runs it through the worker ingest path
-// (provider = "upload", external_id = the content hash so a re-upload dedups
-// and refreshes), then archives the original. Quota and parse failures are
-// ActionErrors.
-func (h *uploadAPI) IngestUpload(ctx context.Context, in port.UploadInput) (port.UploadResult, error) {
-	if h.app.Quotas != nil && activityQuotaStatus(ctx, h.app, in.UserID).OverLimit {
-		return port.UploadResult{}, port.NewActionError(port.ActionErrorQuota, "activity quota reached")
-	}
-	if len(in.Raw) == 0 {
-		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "empty file")
-	}
-	if len(in.Raw) > port.MaxUploadBytes {
-		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "file exceeds the upload limit")
-	}
-	payload, stream, err := parseUpload(in.Filename, in.Raw)
-	if err != nil {
-		return port.UploadResult{}, port.NewActionError(port.ActionErrorInvalid, "parse failed: "+err.Error())
-	}
-
-	sum := sha256.Sum256(in.Raw)
-	extID := hex.EncodeToString(sum[:16])
-
-	jr := &workerv1.JobResult{
-		WorkerName:    "file-upload",
-		WorkerVersion: "1.0",
-	}
-	ev := &workerv1.ImportedActivity{
-		Ref: &workerv1.ExternalRef{
-			UserId:     in.UserID.String(),
-			Provider:   "upload",
-			ExternalId: extID,
-		},
-		Payload: payload,
-		Stream:  stream,
-	}
-
-	if h.app.ActivityEvents != nil {
-		h.app.ActivityEvents.Publish(domain.NewActivityEvent(domain.ActivityEventImportStarted, in.UserID, "activity.import_started").
-			With("provider", "upload").With("filename", in.Filename))
-	}
-	out, err := ingestActivityEvent(ctx, h.app, h.logger, jr, ev)
-	if err != nil {
-		h.logger.Error("upload ingest failed", "user_id", in.UserID, "file", in.Filename, "error", err)
-		return port.UploadResult{}, fmt.Errorf("ingest: %w", err)
-	}
-	h.archiveRaw(ctx, in, out.SourceID)
-	return port.UploadResult{ActivityID: out.ActivityID, SourceID: out.SourceID, Action: string(out.Action)}, nil
-}
-
-func (h *uploadAPI) handle(w http.ResponseWriter, r *http.Request) {
-	userID, ok := resolveSessionUser(r, h.app)
-	if !ok {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return
-	}
-	raw, filename, ok := h.readFile(w, r)
-	if !ok {
-		return
-	}
-	out, err := h.IngestUpload(r.Context(), port.UploadInput{UserID: userID, Filename: filename, Raw: raw})
-	if err != nil {
-		var ae *port.ActionError
-		if errors.As(err, &ae) && ae.Kind == port.ActionErrorQuota {
-			st := activityQuotaStatus(r.Context(), h.app, userID)
-			writeJSON(w, http.StatusForbidden, map[string]any{
-				"error":            "activity quota reached",
-				"activities_used":  st.Used,
-				"activities_limit": st.Limit,
-			})
-			return
-		}
-		writeActionError(w, err, "ingest failed: "+err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"activity_id": out.ActivityID.String(),
-		"source_id":   out.SourceID.String(),
-		"action":      out.Action,
-		"filename":    filename,
-	})
-}
-
-// uploadContentType maps a file extension to a content type for the archived
-// raw blob (so a later download serves it with a sensible type).
-func uploadContentType(ext string) string {
+// ContentType maps a file extension to a content type for the archived raw
+// blob (so a later download serves it with a sensible type).
+func ContentType(ext string) string {
 	switch ext {
 	case ".gpx":
 		return "application/gpx+xml"
@@ -206,8 +40,8 @@ func uploadContentType(ext string) string {
 	}
 }
 
-// parseUpload dispatches on file extension / content sniffing.
-func parseUpload(filename string, raw []byte) (*cairnv1.ActivitySourcePayload, *cairnv1.ActivityStream, error) {
+// Parse decodes a GPX, TCX or FIT file, dispatching on extension / content sniffing.
+func Parse(filename string, raw []byte) (*cairnv1.ActivitySourcePayload, *cairnv1.ActivityStream, error) {
 	name := strings.ToLower(filename)
 	head := strings.ToLower(string(raw[:min(512, len(raw))]))
 	switch {
@@ -450,8 +284,8 @@ func (b *activityBuilder) add(p samplePoint) {
 	b.pts = append(b.pts, p)
 }
 
-// uploadColumns accumulates the per-sample stream columns and running totals.
-type uploadColumns struct {
+// columns accumulates the per-sample stream columns and running totals.
+type columns struct {
 	lat, lon, alt, dist, speed, temp              []float64
 	hr, power, cad                                []int32
 	haveLL, haveAlt, haveDist                     bool
@@ -462,21 +296,21 @@ type uploadColumns struct {
 	prevAlt                                       *float64
 }
 
-func newUploadColumns(n int) *uploadColumns {
-	return &uploadColumns{
+func newColumns(n int) *columns {
+	return &columns{
 		lat: mkF(n), lon: mkF(n), alt: mkF(n), dist: mkF(n), speed: mkF(n),
 		hr: mkI(n), power: mkI(n), cad: mkI(n),
 		temp: mkF(n),
 	}
 }
 
-// uploadInt32 converts an int sample value, saturating at the int32 range.
-func uploadInt32(v int) int32 {
+// clampInt32 converts an int sample value, saturating at the int32 range.
+func clampInt32(v int) int32 {
 	return int32(max(math.MinInt32, min(v, math.MaxInt32))) //nolint:gosec // G115: clamped to int32 range
 }
 
 // addGeo records position, distance and altitude for sample i.
-func (c *uploadColumns) addGeo(pts []samplePoint, i int) {
+func (c *columns) addGeo(pts []samplePoint, i int) {
 	p := pts[i]
 	if p.HasLatLon {
 		c.lat[i], c.lon[i] = p.Lat, p.Lon
@@ -503,25 +337,25 @@ func (c *uploadColumns) addGeo(pts []samplePoint, i int) {
 }
 
 // addSensors records speed, HR, power, cadence and temperature for sample i.
-func (c *uploadColumns) addSensors(p samplePoint, i int) {
+func (c *columns) addSensors(p samplePoint, i int) {
 	if p.Speed != nil {
 		c.speed[i] = *p.Speed
 		c.haveSpeed = true
 	}
 	if p.HR != nil {
-		c.hr[i] = uploadInt32(*p.HR)
+		c.hr[i] = clampInt32(*p.HR)
 		c.haveHR = true
 		c.sumHR += float64(*p.HR)
 		c.cntHR++
 	}
 	if p.Power != nil {
-		c.power[i] = uploadInt32(*p.Power)
+		c.power[i] = clampInt32(*p.Power)
 		c.havePow = true
 		c.sumPow += float64(*p.Power)
 		c.cntPow++
 	}
 	if p.Cad != nil {
-		c.cad[i] = uploadInt32(*p.Cad)
+		c.cad[i] = clampInt32(*p.Cad)
 		c.haveCad = true
 	}
 	if p.Temp != nil {
@@ -531,7 +365,7 @@ func (c *uploadColumns) addSensors(p samplePoint, i int) {
 }
 
 // fillStream attaches the present columns to st and lists their channels.
-func (c *uploadColumns) fillStream(st *cairnv1.ActivityStream) {
+func (c *columns) fillStream(st *cairnv1.ActivityStream) {
 	var ch []cairnv1.StreamChannel
 	if c.haveLL {
 		st.Latitude, st.Longitude = c.lat, c.lon
@@ -569,7 +403,7 @@ func (c *uploadColumns) fillStream(st *cairnv1.ActivityStream) {
 }
 
 // summary derives the activity summary from the accumulated columns.
-func (c *uploadColumns) summary(n int) *cairnv1.ActivitySummary {
+func (c *columns) summary(n int) *cairnv1.ActivitySummary {
 	summary := &cairnv1.ActivitySummary{}
 	if c.haveDist {
 		d := c.dist[n-1]
@@ -596,17 +430,17 @@ func (b *activityBuilder) finish() (*cairnv1.ActivitySourcePayload, *cairnv1.Act
 	start := b.pts[0].Time
 	end := b.pts[len(b.pts)-1].Time
 
-	typ, disc := mapUploadSport(b.sport)
+	typ, disc := mapSport(b.sport)
 	title := b.name
 	if title == "" {
 		title = "Imported Activity"
 	}
 
 	n := len(b.pts)
-	st := &cairnv1.ActivityStream{SampleCount: uploadInt32(n), ResolutionHz: 1.0}
+	st := &cairnv1.ActivityStream{SampleCount: clampInt32(n), ResolutionHz: 1.0}
 	st.TimeS = make([]float64, n)
 
-	c := newUploadColumns(n)
+	c := newColumns(n)
 	for i, p := range b.pts {
 		st.TimeS[i] = p.Time.Sub(start).Seconds()
 		c.addGeo(b.pts, i)
@@ -629,7 +463,7 @@ func (b *activityBuilder) finish() (*cairnv1.ActivitySourcePayload, *cairnv1.Act
 	return payload, st, nil
 }
 
-func mapUploadSport(sport string) (cairnv1.ActivityType, cairnv1.Discipline) {
+func mapSport(sport string) (cairnv1.ActivityType, cairnv1.Discipline) {
 	s := strings.ToLower(sport)
 	switch {
 	case strings.Contains(s, "cycl"), strings.Contains(s, "ride"), strings.Contains(s, "bike"), strings.Contains(s, "biking"):
@@ -648,8 +482,6 @@ func mapUploadSport(sport string) (cairnv1.ActivityType, cairnv1.Discipline) {
 
 func mkF(n int) []float64 { return make([]float64, n) }
 func mkI(n int) []int32   { return make([]int32, n) }
-
-// note: min() is the Go builtin (1.21+).
 
 // haversine returns the great-circle distance in metres.
 func haversine(lat1, lon1, lat2, lon2 float64) float64 {
