@@ -4,54 +4,18 @@ import (
 	"context"
 	"log/slog"
 	"maps"
-	"net/http"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
 )
 
-// Leftovers of the admin & ops group still referenced from files outside it
-// (other handler groups, wire.go, connect_rpc.go, result_router.go). The
-// integrator folds them into wire.go / the rest adapter once every group landed.
-
-// actionErrorOf (httputil.go) lost its last caller here; delete both together.
-var _ = actionErrorOf
-
-// --- request auth for handlers still in this package ---
-
-// resolveAdminUser resolves the session user and confirms they're an admin.
-func resolveAdminUser(r *http.Request, app *App) (domain.User, bool) {
-	return restAuth(app).Admin(r)
-}
-
-// resolveModeratorUser admits admins and moderators.
-func resolveModeratorUser(r *http.Request, app *App) (domain.User, bool) {
-	return restAuth(app).Moderator(r)
-}
-
-// restActor builds the audit actor of an admin request.
-func restActor(r *http.Request, admin domain.User) audit.Actor {
-	a := audit.UserActor(admin)
-	a.IP = hostOnly(clientIP(r))
-	a.UserAgent = truncateUA(r.UserAgent())
-	return a
-}
-
-// hostOnly strips a port from an address for the audit log's inet column.
-func hostOnly(addr string) string {
-	if i := strings.LastIndexByte(addr, ':'); i > 0 && strings.Count(addr, ":") == 1 {
-		addr = addr[:i]
-	}
-	return strings.Trim(addr, "[]")
-}
+// Fleet and ops wiring: presence, pool routing, NATS key and DLQ adapters.
 
 // --- adapters and closures wired by wire.go / connect_rpc.go ---
 

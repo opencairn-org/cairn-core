@@ -6,7 +6,6 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/adapter/primary/rest"
 	"github.com/opencairn-org/cairn-core/internal/config"
-	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 )
 
 // mountRestAdmin mounts the session+admin gated /api/admin/* surface.
@@ -26,13 +25,6 @@ func mountRestAdmin(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 // mountRestAdminOps mounts the operator maintenance endpoints.
 func mountRestAdminOps(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	// newAdminServer builds an equal one later; both belong in wire.go.
-	if app.Orphans == nil {
-		app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
-		if app.WorkerPools != nil {
-			app.Orphans.Pools = app.WorkerPools
-		}
-	}
 	(&rest.AdminOpsHandlers{Auth: restAuth(app), Ops: app.Ops, Jobs: app.Jobs, Orphans: app.Orphans,
 		WebhookTokens: app.WebhookTokens, Maintenance: app.Maintenance}).Mount(mux)
 	logger.Info("admin ops endpoints mounted (/api/admin/{geocode,nats,dlq})")

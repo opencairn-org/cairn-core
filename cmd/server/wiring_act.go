@@ -1,8 +1,7 @@
 package main
 
-// Still used outside the activity-writes group: the worker-presence reads,
-// the reimport dispatcher and preview capture/commit (Connect, sync, ingest),
-// and activityManageLoadOwned (activity sub-resource handlers).
+// Worker-presence reads, the reimport dispatcher and preview capture/commit,
+// shared by Connect, sync and the result router.
 
 import (
 	"context"

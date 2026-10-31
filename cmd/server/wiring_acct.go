@@ -11,8 +11,8 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-// Leftovers of the account/login group still used by handlers outside it;
-// the rest adapter has its own copies.
+// Cookie and e-mail plumbing for the composition root (Connect, rate limit,
+// OAuth connect wiring).
 
 const sessionCookieName = rest.SessionCookieName
 
@@ -54,15 +54,6 @@ func clientIP(r *http.Request) string {
 		return v
 	}
 	return r.RemoteAddr
-}
-
-// truncateUA bounds a user agent to what the session and audit rows keep.
-func truncateUA(s string) string {
-	const n = 200
-	if len(s) <= n {
-		return s
-	}
-	return s[:n]
 }
 
 // sendVerificationEmail mails a verification link (Connect signup path).

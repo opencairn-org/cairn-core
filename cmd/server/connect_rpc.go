@@ -16,7 +16,6 @@ import (
 	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 )
 
 // mountConnectRPC registers every cairn.v1.* Connect-RPC service the
@@ -232,10 +231,6 @@ func newAdminServer(app *App, logger *slog.Logger) *connectadapter.AdminServer {
 	if app.Jobs != nil {
 		app.Jobs.Replay = natsReplayer{app: app}
 		adminSvc.Jobs = app.Jobs
-	}
-	app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
-	if app.WorkerPools != nil {
-		app.Orphans.Pools = app.WorkerPools
 	}
 	adminSvc.Orphans = app.Orphans
 	adminSvc.Fleet = app.Fleet

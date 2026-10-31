@@ -51,6 +51,12 @@ All notable changes to Cairn are documented here. The format follows
   load.
 - Detach and delete fail when the source can't be added to the denylist,
   instead of letting the next sync bring the activity back.
+- The REST API moved out of the server's main package into
+  `internal/adapter/primary/rest` (plus `activitypub`, `mcp` and `workerrpc`
+  adapters); every handler goes through use cases. Paths, status codes and
+  JSON shapes are unchanged; JSON request bodies are now capped at 1 MiB
+  everywhere.
+- `POST /oauth/register` now sends `Content-Type: application/json`.
 - `recompute_activity_merges` re-clusters each activity's time bucket before
   re-merging it, which repairs groupings a failed re-cluster left behind.
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"sort"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -11,8 +10,7 @@ import (
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 )
 
-// Kept for callers outside the sync group (wire.go, connect_rpc.go,
-// account_lifecycle.go); remove once they move.
+// Sync insight and rate-budget wiring for wire.go and the Connect server.
 
 // syncInsight implements port.SyncInsight over the rate-limit KV, the pool
 // registry + presence, the provider registry and the background discovery.
@@ -68,27 +66,4 @@ func providerBudget(ctx context.Context, bus syncuc.KVOpener, provider, appID, p
 // accountAppID is the hash of the account's connection app, "" when unknown.
 func accountAppID(ctx context.Context, app *App, a domain.ExternalAccount) string {
 	return syncBudgets(app, nil).AppID(ctx, a)
-}
-
-// syncHandlers is embedded by the account lifecycle handlers.
-type syncHandlers struct {
-	app    *App
-	logger *slog.Logger
-}
-
-// ownAccount loads the caller's {id} account.
-func (h syncHandlers) ownAccount(r *http.Request) (domain.ExternalAccount, bool) {
-	userID, ok := resolveSessionUser(r, h.app)
-	if !ok {
-		return domain.ExternalAccount{}, false
-	}
-	id, err := domain.ParseUUID[domain.ExternalAccountID](r.PathValue("id"))
-	if err != nil {
-		return domain.ExternalAccount{}, false
-	}
-	a, err := h.app.ExternalAccounts.GetExternalAccount(r.Context(), id)
-	if err != nil || a.UserID != userID {
-		return domain.ExternalAccount{}, false
-	}
-	return a, true
 }

@@ -345,14 +345,18 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
 	wirePipeline(app, logger)
-	wireRestUseCases(app)
+	wireRestUseCases(app, logger)
 	wireMaintenance(app, pool)
 	return app, nil
 }
 
 // wireRestUseCases builds the use cases the REST adapter needs beyond the
 // shared ones above.
-func wireRestUseCases(app *App) {
+func wireRestUseCases(app *App, logger *slog.Logger) {
+	app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
+	if app.WorkerPools != nil {
+		app.Orphans.Pools = app.WorkerPools
+	}
 	app.Callers = &authuc.Callers{}
 	if app.Sessions != nil {
 		app.Callers.Sessions = app.Sessions

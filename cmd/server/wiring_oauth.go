@@ -10,8 +10,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 )
 
-// Leftovers of the oauth group still used outside it (sync_insight.go,
-// admin_api.go, wire.go, tests); delete with their last caller.
+// Provider registry and OAuth-connect wiring shared by the composition root.
 
 type providerMeta = providerlink.Provider
 
