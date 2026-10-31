@@ -104,8 +104,11 @@ func TestRecomputeDerivedSurvivesPanickingStage(t *testing.T) {
 	if err != nil || n != 2 || len(warnings) != 2 {
 		t.Fatalf("recompute derived: %v n=%d %v", err, n, warnings)
 	}
-	// The ingest-path variant logs instead of reporting; it must not panic either.
-	f.p.SourceChanged(context.Background(), activity.IngestResult{SourceID: domain.SourceID(uuid.New())})
+	// The event path reports the panic as a retryable error instead.
+	err = f.p.RunFollowUps(context.Background(), ActivityChanged{Kind: ChangeBorrowed, UserID: f.user, ActivityID: aid, SourceID: domain.SourceID(uuid.New())})
+	if !errors.Is(err, errPanic) {
+		t.Fatalf("run follow-ups: %v", err)
+	}
 }
 
 func TestBorrowFromValidates(t *testing.T) {

@@ -397,6 +397,9 @@ func wirePipeline(app *App, logger *slog.Logger) {
 	if app.ActivityEvents != nil {
 		p.Events = app.ActivityEvents
 	}
+	if app.NATSBus != nil {
+		p.Bus = app.NATSBus
+	}
 	app.Pipeline = p
 	if app.SourceActions != nil {
 		app.SourceActions.FollowUps = p

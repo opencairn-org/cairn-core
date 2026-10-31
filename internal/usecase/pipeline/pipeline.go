@@ -61,6 +61,10 @@ type Pipeline struct {
 	Tx             port.TxManager
 	Lock           port.UserLock
 
+	// Bus carries ActivityChanged to the follow-up consumer; nil → follow-ups run inline.
+	Bus             EventPublisher
+	FollowUpTimeout time.Duration // 0 → defaultFollowUpTimeout
+
 	Log *slog.Logger
 	Now func() time.Time
 }
@@ -79,9 +83,9 @@ func (p *Pipeline) now() time.Time {
 	return p.Now()
 }
 
-// IngestSource persists a source, re-derives its grouping and runs the
-// follow-ups against the activity it ends up in. Only the persist step can
-// fail the call; re-clustering and follow-ups log and carry on (a failed
+// IngestSource persists a source, re-derives its grouping and dispatches the
+// follow-ups for the activity it ends up in. Only the persist step can fail
+// the call; re-clustering and follow-ups log and carry on (a failed
 // re-cluster is repaired by the recompute_activity_merges maintenance job).
 func (p *Pipeline) IngestSource(ctx context.Context, in activity.IngestInput) (activity.IngestResult, error) {
 	out, err := p.Ingester.Execute(ctx, in)
@@ -94,22 +98,7 @@ func (p *Pipeline) IngestSource(ctx context.Context, in activity.IngestInput) (a
 		}
 	}
 	out = p.followSource(ctx, out)
-	p.SourceChanged(ctx, out)
-	p.userChanged(ctx, out.Activity.UserID, func(log *slog.Logger) {
-		if p.PRs != nil {
-			followUp(log, "PR dispatch", func() error {
-				_, err := p.PRs.Execute(ctx, notification.Input{ActivityID: out.ActivityID, SourceID: out.SourceID})
-				return err
-			})
-		}
-		if out.Action == activity.IngestActionImportedNew && p.Federation != nil &&
-			p.now().Sub(out.Activity.StartTime) <= FederationMaxAge {
-			followUp(log, "federation publish", func() error {
-				p.Federation.PublishCreate(ctx, out.Activity)
-				return nil
-			})
-		}
-	})
+	p.dispatch(ctx, ActivityChanged{Kind: ChangeIngested, UserID: in.UserID, ActivityID: out.ActivityID, SourceID: out.SourceID, Action: out.Action})
 	return out, nil
 }
 
@@ -133,23 +122,9 @@ func (p *Pipeline) followSource(ctx context.Context, out activity.IngestResult) 
 	return out
 }
 
-// SourceChanged runs the per-source follow-ups (stream aggregates, best
-// efforts, segment matches) for a source written outside IngestSource.
-func (p *Pipeline) SourceChanged(ctx context.Context, out activity.IngestResult) {
-	p.sourceFollowUps(ctx, out.SourceID, out, nil)
-}
-
-func (p *Pipeline) sourceFollowUps(ctx context.Context, sid domain.SourceID, out activity.IngestResult, warn func(string, error)) {
-	log := p.log().With("source_id", sid)
-	run := func(stage string, fn func() error) {
-		if warn == nil {
-			followUp(log, stage, fn)
-			return
-		}
-		if err := recovered(fn); err != nil {
-			warn(stage, err)
-		}
-	}
+// sourceFollowUps runs the per-source stages (stream aggregates, best
+// efforts, segment matches) through run.
+func (p *Pipeline) sourceFollowUps(ctx context.Context, sid domain.SourceID, out activity.IngestResult, run func(string, func() error)) {
 	// Materialise the downsampled CAggs for this (often historical) stream —
 	// the recent-window refresh policy won't, so the GPS track and charts
 	// would come back empty for a backfilled activity.
@@ -173,23 +148,20 @@ func (p *Pipeline) sourceFollowUps(ctx context.Context, sid domain.SourceID, out
 	}
 }
 
-// Remerge re-derives an activity from its sources after an edit and runs the
-// user-level follow-ups. A merge that leaves no source soft-deletes the
-// activity and retracts it from remote followers.
+// Remerge re-derives an activity from its sources after an edit and dispatches
+// the user-level follow-ups. A merge that leaves no source soft-deletes the
+// activity, and the follow-ups retract it from remote followers.
 func (p *Pipeline) Remerge(ctx context.Context, activityID domain.ActivityID) (activity.RecomputeResult, error) {
 	res, err := p.Recompute.Execute(ctx, activityID)
 	if err != nil {
 		return res, err
 	}
-	if res.SoftDeleted && p.Federation != nil {
-		p.Federation.PublishDelete(ctx, res.UserID, activityID)
-	}
-	p.userChanged(ctx, res.UserID, nil)
+	p.dispatch(ctx, ActivityChanged{Kind: ChangeRemerged, UserID: res.UserID, ActivityID: activityID, SoftDeleted: res.SoftDeleted})
 	return res, nil
 }
 
 // RecomputeDerived re-runs every per-source follow-up of an activity and the
-// user-level ones; failures are collected, not fatal.
+// user-level ones synchronously; failures are collected, not fatal.
 func (p *Pipeline) RecomputeDerived(ctx context.Context, act domain.Activity) (sources int, warnings []string, err error) {
 	srcs, err := p.Activities.ListSourcesForActivity(ctx, act.ID)
 	if err != nil {
@@ -199,8 +171,13 @@ func (p *Pipeline) RecomputeDerived(ctx context.Context, act domain.Activity) (s
 		p.log().Warn("recompute-derived step failed", "activity_id", act.ID, "step", stage, "error", err)
 		warnings = append(warnings, stage+": "+err.Error())
 	}
+	run := func(stage string, fn func() error) {
+		if err := recovered(fn); err != nil {
+			warn(stage, err)
+		}
+	}
 	for _, s := range srcs {
-		p.sourceFollowUps(ctx, s.ID, activity.IngestResult{}, warn)
+		p.sourceFollowUps(ctx, s.ID, activity.IngestResult{}, run)
 	}
 	if p.TrainingLoad != nil {
 		if err := recovered(func() error { return p.trainingLoad(ctx, act.UserID) }); err != nil {
@@ -208,17 +185,6 @@ func (p *Pipeline) RecomputeDerived(ctx context.Context, act domain.Activity) (s
 		}
 	}
 	return len(srcs), warnings, nil
-}
-
-// userChanged recomputes the user-level derived data, then runs extra.
-func (p *Pipeline) userChanged(ctx context.Context, userID domain.UserID, extra func(*slog.Logger)) {
-	log := p.log().With("user_id", userID)
-	if p.TrainingLoad != nil {
-		followUp(log, "training load", func() error { return p.trainingLoad(ctx, userID) })
-	}
-	if extra != nil {
-		extra(log)
-	}
 }
 
 func (p *Pipeline) trainingLoad(ctx context.Context, userID domain.UserID) error {
@@ -240,14 +206,6 @@ func (p *Pipeline) publishNewRecords(out activity.IngestResult, records []domain
 			With("activity_type", string(r.ActivityType)).With("metric", string(r.Metric)).
 			With("window_kind", string(r.WindowKind)).With("window_value", strconv.Itoa(r.WindowValue)).
 			With("value", strconv.FormatFloat(r.AchievedValue, 'f', 2, 64)))
-	}
-}
-
-// followUp runs one stage; an error or panic is logged so it neither skips
-// the other stages nor fails the durable write before it.
-func followUp(log *slog.Logger, stage string, fn func() error) {
-	if err := recovered(fn); err != nil {
-		log.Warn("follow-up failed", "stage", stage, "error", err)
 	}
 }
 

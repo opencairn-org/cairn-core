@@ -9,7 +9,6 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 )
 
 // Borrowing errors the adapters map to 4xx.
@@ -38,7 +37,7 @@ type BorrowInput struct {
 // values for the requested groups (plus its route, rebased to the target's
 // start, for gps_track) and pins those groups to it. Source, route, pins and
 // re-merge are one transaction under the owner's regrouping lock, so a
-// failure leaves nothing behind; the follow-ups run after it commits.
+// failure leaves nothing behind; the follow-ups are dispatched after it commits.
 func (p *Pipeline) BorrowFrom(ctx context.Context, in BorrowInput) (domain.SourceID, error) {
 	if p.FieldOverrides == nil || p.Tx == nil || p.Recompute == nil {
 		return domain.SourceID{}, port.NewActionError(port.ActionErrorUnavailable, "not available")
@@ -51,9 +50,7 @@ func (p *Pipeline) BorrowFrom(ctx context.Context, in BorrowInput) (domain.Sourc
 	if err != nil {
 		return domain.SourceID{}, err
 	}
-	act, _ := p.Activities.GetActivity(ctx, in.TargetID)
-	p.SourceChanged(ctx, activity.IngestResult{ActivityID: in.TargetID, SourceID: src.ID, Activity: act})
-	p.userChanged(ctx, in.UserID, nil)
+	p.dispatch(ctx, ActivityChanged{Kind: ChangeBorrowed, UserID: in.UserID, ActivityID: in.TargetID, SourceID: src.ID})
 	return src.ID, nil
 }
 

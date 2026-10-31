@@ -462,6 +462,11 @@ func serveStartBusHandlers(ctx context.Context, app *App, logger *slog.Logger, c
 		"start reauth notifier: %w", "reauth notifier: close error"); err != nil {
 		return err
 	}
+	// Follow-up consumer: runs the pipeline's follow-ups off activity-changed events.
+	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startFollowUpConsumer,
+		"start follow-up consumer: %w", "follow-up consumer: close error"); err != nil {
+		return err
+	}
 	// Account-lookup responder (workers resolve webhook owner_id → account).
 	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startAccountLookupHandler,
 		"start account lookup handler: %w", "account lookup handler: close error"); err != nil {
