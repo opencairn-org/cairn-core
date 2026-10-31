@@ -10,8 +10,8 @@ import (
 
 // FederationPublisher announces local activity changes to a user's remote
 // ActivityPub followers. Implemented by usecase/federation over the durable delivery
-// queue; injected into the primary adapters that change an activity's
-// visibility (e.g. the Connect UpdateActivity edit path) so making an activity
+// queue; injected into the use cases that change an activity's
+// visibility (e.g. activity.Editor) so making an activity
 // public after import still federates it. A nil publisher is a no-op.
 type FederationPublisher interface {
 	// PublishCreate announces an activity to the owner's remote followers.

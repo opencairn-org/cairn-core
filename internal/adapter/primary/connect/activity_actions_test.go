@@ -138,7 +138,9 @@ func newActFixture(t *testing.T) *actFixture {
 	now := func() time.Time { return actNow }
 	recompute := activity.NewRecomputeActivityFromSources(f.repo, inmem.DefaultSettings{}, nil, nil, f.class, nil, inmem.PassTx{}, now)
 	recluster := matchuc.NewReclusterBucket(f.repo, recompute, f.deny, inmem.PassTx{}, nil, dmatch.DefaultOptions(), nil)
-	f.srv = NewActivityServer(f.repo, nil, &fakeBestEfforts{}, recompute, f.class, nil, nil)
+	f.srv = NewActivityServer(f.repo, nil, &fakeBestEfforts{}, recompute, f.class, nil)
+	f.srv.Editor = activity.NewEditor(f.repo, recompute)
+	f.srv.Editor.ClassOverrides = f.class
 	f.srv.SourceActions = activity.NewSourceActions(f.repo, f.deny, recompute, nil, now)
 	f.srv.SourceLinks = matchuc.NewSourceLinks(f.repo, recluster)
 	f.srv.Reimporter = f.reimp
@@ -462,4 +464,40 @@ func TestNewActivityProceduresScope(t *testing.T) {
 			t.Errorf("%s: mutating=%v, want %v", proc, got, mutating)
 		}
 	}
+}
+
+func TestUpdateActivityTranslatesPatch(t *testing.T) {
+	f := newActFixture(t)
+	_, aid := seedActivity(f.repo, f.user, "manual", actNow, 5000)
+	res, err := f.srv.UpdateActivity(f.ctx, &v1.UpdateActivityRequest{
+		Id: aid.String(), FieldMask: []string{"title", "type", "distance_m"}, Title: new("Morning"), Type: new(v1.ActivityType_ACTIVITY_TYPE_RUN), DistanceM: new(4200.0),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.GetActivity().GetTitle() != "Morning" {
+		t.Fatalf("title %q", res.GetActivity().GetTitle())
+	}
+	if co := f.class.set[aid]; co.Type == nil || *co.Type != domain.ActivityTypeRun || co.DistanceM == nil || *co.DistanceM != 4200 {
+		t.Fatalf("overlay %+v", co)
+	}
+
+	for name, tc := range map[string]struct {
+		req  *v1.UpdateActivityRequest
+		code connectrpc.Code
+	}{
+		"empty mask":    {&v1.UpdateActivityRequest{Id: aid.String()}, connectrpc.CodeInvalidArgument},
+		"unknown field": {&v1.UpdateActivityRequest{Id: aid.String(), FieldMask: []string{"bogus"}}, connectrpc.CodeInvalidArgument},
+		"merge-managed": {&v1.UpdateActivityRequest{Id: aid.String(), FieldMask: []string{"primary_stream_source_id"}}, connectrpc.CodeInvalidArgument},
+		"no gear":       {&v1.UpdateActivityRequest{Id: aid.String(), FieldMask: []string{"reset_gear"}}, connectrpc.CodeUnavailable},
+		"foreign":       {&v1.UpdateActivityRequest{Id: uuid.NewString(), FieldMask: []string{"title"}}, connectrpc.CodeNotFound},
+	} {
+		if _, err := f.srv.UpdateActivity(f.ctx, tc.req); connectrpc.CodeOf(err) != tc.code {
+			t.Errorf("%s: %v, want %v", name, err, tc.code)
+		}
+	}
+
+	f.srv.Editor = nil
+	_, err = f.srv.UpdateActivity(f.ctx, &v1.UpdateActivityRequest{Id: aid.String(), FieldMask: []string{"title"}})
+	wantCode(t, err, connectrpc.CodeUnavailable)
 }
