@@ -15,7 +15,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"strings"
 	"time"
 
@@ -191,7 +190,7 @@ func (s *Signer) Upload(ctx context.Context, key, contentType string, maxBytes i
 		return port.PresignedURL{}, err
 	}
 	return port.PresignedURL{
-		URL: u.URL, Method: http.MethodPut,
+		URL: u.URL, Method: "PUT",
 		RequiredHeaders: map[string]string{"Content-Type": contentType},
 		ExpiresAt:       u.ExpiresAt,
 	}, nil

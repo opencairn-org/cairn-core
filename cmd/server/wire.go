@@ -16,8 +16,10 @@ import (
 	emailadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/email"
 	geocodeadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/geocode"
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
+	oidcadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/oidc"
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/postgres"
 	s3adapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/s3"
+	webhookadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/webhook"
 	"github.com/opencairn-org/cairn-core/internal/auth"
 	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -333,6 +335,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 			app.Users,
 			cfg.Auth.SessionTTL,
 			cfg.HTTP.PublicBaseURL,
+			oidcadapter.New(),
 		)
 	}
 
@@ -575,7 +578,7 @@ func wireAppNotifications(app *App, pool *pgxpool.Pool, cfg *config.Config, secr
 	app.QuietHours = postgres.NewQuietHoursRepo(pool)
 	app.NotificationDeliveries = postgres.NewNotificationDeliveryRepo(pool)
 	app.DeliverNotifications = notification.NewDeliverNotifications(
-		app.Users, app.Notifications, app.NotificationPrefs, emailSender, app.WebhookEndpoints, app.QuietHours, app.NotificationDeliveries, cfg.HTTP.PublicBaseURL, logger,
+		app.Users, app.Notifications, app.NotificationPrefs, emailSender, app.WebhookEndpoints, webhookadapter.New(), app.QuietHours, app.NotificationDeliveries, cfg.HTTP.PublicBaseURL, logger,
 	)
 
 	app.DispatchPR = notification.NewDispatchPRNotifications(

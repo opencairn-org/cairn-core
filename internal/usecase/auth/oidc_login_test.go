@@ -4,15 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -61,27 +56,28 @@ func (f *fakeUsers) CreateUser(_ context.Context, u domain.User, _ domain.Creden
 	return nil
 }
 
-type fakeVerifier struct {
-	endpoint oauth2.Endpoint
-	idToken  *oidc.IDToken
-	verErr   error
+// fakeOIDC records the flow inputs and returns a canned id_token.
+type fakeOIDC struct {
+	authReq      port.OIDCAuthRequest
+	codeVerifier string
+	idToken      domain.OIDCIDToken
+	err          error
 }
 
-func (v *fakeVerifier) Endpoint() oauth2.Endpoint { return v.endpoint }
-func (v *fakeVerifier) Verifier(*oidc.Config) IDTokenVerifier {
-	return &fakeIDV{tok: v.idToken, err: v.verErr}
+var _ port.OIDCClient = (*fakeOIDC)(nil)
+
+func (f *fakeOIDC) AuthCodeURL(_ context.Context, _ domain.OIDCProvider, req port.OIDCAuthRequest) (string, error) {
+	f.authReq = req
+	return "https://idp.example/authorize?state=" + req.State, f.err
 }
 
-type fakeIDV struct {
-	tok *oidc.IDToken
-	err error
+func (f *fakeOIDC) Exchange(_ context.Context, _ domain.OIDCProvider, _, _, codeVerifier string) (domain.OIDCIDToken, error) {
+	f.codeVerifier = codeVerifier
+	return f.idToken, f.err
 }
 
-func (v *fakeIDV) Verify(context.Context, string) (*oidc.IDToken, error) { return v.tok, v.err }
-
-func newOIDCLoginForTest(providers []domain.OIDCProvider, users oidcUserStore, fv *fakeVerifier) *OIDCLogin {
-	uc := NewOIDCLogin(providers, nil, nil, users, time.Hour, "http://app.example")
-	uc.SetVerifierFactory(func(context.Context, string) (OIDCVerifier, error) { return fv, nil })
+func newOIDCLoginForTest(providers []domain.OIDCProvider, users oidcUserStore, fo *fakeOIDC) *OIDCLogin {
+	uc := NewOIDCLogin(providers, nil, nil, users, time.Hour, "http://app.example/", fo)
 	uc.SetUUID(func() uuid.UUID { return uuid.MustParse("00000000-0000-0000-0000-000000000001") })
 	uc.SetClock(func() time.Time { return time.Unix(1700000000, 0).UTC() })
 	return uc
@@ -100,7 +96,7 @@ func testProvider() domain.OIDCProvider {
 func TestProvisionUser_UsernameCollisionRetries(t *testing.T) {
 	users := newFakeUsers()
 	users.takenUsername["alice"] = true // base collides; suffix should win
-	uc := newOIDCLoginForTest(nil, users, &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, users, &fakeOIDC{})
 
 	claims := map[string]any{domain.ClaimEmail: "alice@x.com", domain.ClaimUsername: "alice"}
 	u, err := uc.provisionUser(context.Background(), testProvider(), claims)
@@ -115,7 +111,7 @@ func TestProvisionUser_UsernameCollisionRetries(t *testing.T) {
 func TestProvisionUser_EmailCollisionFailsCleanly(t *testing.T) {
 	users := newFakeUsers()
 	users.takenEmail["bob@x.com"] = true
-	uc := newOIDCLoginForTest(nil, users, &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, users, &fakeOIDC{})
 
 	_, err := uc.provisionUser(context.Background(), testProvider(),
 		map[string]any{domain.ClaimEmail: "bob@x.com", domain.ClaimUsername: "bob"})
@@ -128,7 +124,7 @@ func TestProvisionUser_HonorsAdminRole(t *testing.T) {
 	users := newFakeUsers()
 	p := testProvider()
 	p.AutoProvisionRole = domain.UserRoleAdmin
-	uc := newOIDCLoginForTest(nil, users, &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, users, &fakeOIDC{})
 
 	u, err := uc.provisionUser(context.Background(), p,
 		map[string]any{domain.ClaimEmail: "admin@x.com"})
@@ -141,7 +137,7 @@ func TestProvisionUser_HonorsAdminRole(t *testing.T) {
 }
 
 func TestProvisionUser_EmailMissing(t *testing.T) {
-	uc := newOIDCLoginForTest(nil, newFakeUsers(), &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, newFakeUsers(), &fakeOIDC{})
 	_, err := uc.provisionUser(context.Background(), testProvider(), map[string]any{})
 	if !errors.Is(err, ErrEmailMissing) {
 		t.Errorf("want ErrEmailMissing, got %v", err)
@@ -155,7 +151,7 @@ func TestResolveUser_VerifiedEmailLinksToExisting(t *testing.T) {
 	existing := domain.User{ID: domain.UserID(uuid.New()), Username: "carol", Email: "carol@x.com"}
 	users.byEmail["carol@x.com"] = existing
 
-	uc := newOIDCLoginForTest(nil, users, &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, users, &fakeOIDC{})
 	got, isNew, err := uc.resolveUserForNewIdentity(context.Background(), testProvider(),
 		map[string]any{domain.ClaimEmail: "carol@x.com", domain.ClaimEmailVerified: true})
 	if err != nil {
@@ -174,7 +170,7 @@ func TestResolveUser_UnverifiedEmailNeverLinks(t *testing.T) {
 	users.byEmail["dave@x.com"] = domain.User{ID: domain.UserID(uuid.New()), Email: "dave@x.com"}
 	users.takenEmail["dave@x.com"] = true // the existing account owns the address
 
-	uc := newOIDCLoginForTest(nil, users, &fakeVerifier{})
+	uc := newOIDCLoginForTest(nil, users, &fakeOIDC{})
 	// Unverified email matching an existing account must NOT link and must NOT
 	// take it over — provision is attempted and fails on the email-unique guard.
 	_, _, err := uc.resolveUserForNewIdentity(context.Background(), testProvider(),
@@ -189,13 +185,11 @@ func TestResolveUser_UnverifiedEmailNeverLinks(t *testing.T) {
 
 // --- StartLogin ------------------------------------------------------------
 
-func TestStartLogin_BuildsAuthURLWithStateNoncePKCE(t *testing.T) {
+func TestStartLogin_StateNoncePKCE(t *testing.T) {
 	p := testProvider()
 	p.UsePKCE = true
-	fv := &fakeVerifier{endpoint: oauth2.Endpoint{
-		AuthURL: "https://idp.example/authorize", TokenURL: "https://idp.example/token",
-	}}
-	uc := newOIDCLoginForTest([]domain.OIDCProvider{p}, newFakeUsers(), fv)
+	fo := &fakeOIDC{}
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{p}, newFakeUsers(), fo)
 
 	out, err := uc.StartLogin(context.Background(), "acme")
 	if err != nil {
@@ -204,47 +198,38 @@ func TestStartLogin_BuildsAuthURLWithStateNoncePKCE(t *testing.T) {
 	if out.State == "" || out.Nonce == "" || out.CodeVerifier == "" {
 		t.Fatal("StartLogin must produce state, nonce and a PKCE verifier")
 	}
-	for _, want := range []string{
-		"https://idp.example/authorize",
-		"client_id=cid",
-		"state=" + out.State,
-		"nonce=" + out.Nonce,
-		"code_challenge=",
-		"code_challenge_method=S256",
-		"redirect_uri=",
-	} {
-		if !strings.Contains(out.AuthURL, want) {
-			t.Errorf("AuthURL missing %q\n  got %s", want, out.AuthURL)
-		}
+	want := port.OIDCAuthRequest{
+		RedirectURL: "http://app.example/auth/oidc/callback", State: out.State, Nonce: out.Nonce, CodeChallenge: s256(out.CodeVerifier),
+	}
+	if fo.authReq != want {
+		t.Errorf("auth request = %+v, want %+v", fo.authReq, want)
+	}
+	if out.AuthURL != "https://idp.example/authorize?state="+out.State {
+		t.Errorf("AuthURL = %s", out.AuthURL)
+	}
+}
+
+func TestStartLogin_NoPKCE(t *testing.T) {
+	fo := &fakeOIDC{}
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), fo)
+	out, err := uc.StartLogin(context.Background(), "acme")
+	if err != nil || out.CodeVerifier != "" || fo.authReq.CodeChallenge != "" {
+		t.Fatalf("no-PKCE provider must not send a challenge: %+v %+v %v", out, fo.authReq, err)
 	}
 }
 
 func TestStartLogin_UnknownProvider(t *testing.T) {
-	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), &fakeVerifier{})
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), &fakeOIDC{})
 	if _, err := uc.StartLogin(context.Background(), "nope"); !errors.Is(err, ErrProviderNotFound) {
 		t.Errorf("want ErrProviderNotFound, got %v", err)
 	}
 }
 
-// --- CompleteLogin: mandatory nonce ----------------------------------------
-
-func tokenEndpoint(t *testing.T) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"access_token":"a","id_token":"tok","token_type":"Bearer","expires_in":3600}`))
-	}))
-}
+// --- CompleteLogin ----------------------------------------------------------
 
 func TestCompleteLogin_NonceMismatchRejected(t *testing.T) {
-	srv := tokenEndpoint(t)
-	defer srv.Close()
-	p := testProvider()
-	fv := &fakeVerifier{
-		endpoint: oauth2.Endpoint{AuthURL: "https://idp.example/authorize", TokenURL: srv.URL},
-		idToken:  &oidc.IDToken{Subject: "sub", Nonce: "REAL"},
-	}
-	uc := newOIDCLoginForTest([]domain.OIDCProvider{p}, newFakeUsers(), fv)
+	fo := &fakeOIDC{idToken: domain.OIDCIDToken{Subject: "sub", Nonce: "REAL"}}
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), fo)
 
 	_, err := uc.CompleteLogin(context.Background(), CompleteLoginInput{
 		ProviderID: "acme", Code: "c", ExpectedNonce: "WRONG",
@@ -255,13 +240,8 @@ func TestCompleteLogin_NonceMismatchRejected(t *testing.T) {
 }
 
 func TestCompleteLogin_EmptyExpectedNonceRejected(t *testing.T) {
-	srv := tokenEndpoint(t)
-	defer srv.Close()
-	fv := &fakeVerifier{
-		endpoint: oauth2.Endpoint{AuthURL: "https://idp.example/authorize", TokenURL: srv.URL},
-		idToken:  &oidc.IDToken{Subject: "sub", Nonce: "REAL"},
-	}
-	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), fv)
+	fo := &fakeOIDC{idToken: domain.OIDCIDToken{Subject: "sub", Nonce: ""}}
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), fo)
 
 	// An empty expected nonce must be a hard failure, never a skipped check.
 	_, err := uc.CompleteLogin(context.Background(), CompleteLoginInput{
@@ -269,5 +249,28 @@ func TestCompleteLogin_EmptyExpectedNonceRejected(t *testing.T) {
 	})
 	if !errors.Is(err, ErrIDTokenVerifyFailed) {
 		t.Errorf("empty nonce must fail with ErrIDTokenVerifyFailed, got %v", err)
+	}
+}
+
+func TestCompleteLogin_ExchangeErrorPassesThrough(t *testing.T) {
+	fo := &fakeOIDC{err: fmt.Errorf("%w: boom", port.ErrOIDCCodeExchange)}
+	uc := newOIDCLoginForTest([]domain.OIDCProvider{testProvider()}, newFakeUsers(), fo)
+	_, err := uc.CompleteLogin(context.Background(), CompleteLoginInput{ProviderID: "acme", Code: "c", ExpectedNonce: "n"})
+	if !errors.Is(err, ErrCodeExchangeFailed) {
+		t.Errorf("want ErrCodeExchangeFailed, got %v", err)
+	}
+}
+
+// The PKCE verifier reaches the token endpoint only for PKCE providers.
+func TestCompleteLogin_CodeVerifierOnlyWithPKCE(t *testing.T) {
+	for _, pkce := range []bool{true, false} {
+		p := testProvider()
+		p.UsePKCE = pkce
+		fo := &fakeOIDC{idToken: domain.OIDCIDToken{Subject: "sub", Nonce: "n"}, err: errors.New("stop")}
+		uc := newOIDCLoginForTest([]domain.OIDCProvider{p}, newFakeUsers(), fo)
+		_, _ = uc.CompleteLogin(context.Background(), CompleteLoginInput{ProviderID: "acme", Code: "c", CodeVerifier: "v", ExpectedNonce: "n"})
+		if got := fo.codeVerifier != ""; got != pkce {
+			t.Errorf("pkce=%v: code verifier sent = %v", pkce, got)
+		}
 	}
 }

@@ -5,10 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"io"
-	"net"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/safehttp"
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // fakeWebhookRepo implements the dispatch-relevant subset of
@@ -65,13 +62,29 @@ func webhookNotif(t domain.NotificationType) domain.Notification {
 	return domain.Notification{ID: domain.NotificationID(nid), UserID: domain.UserID(uuid.New()), Type: t, Severity: domain.NotificationSeverityInfo}
 }
 
-func deliverWithWebhooks(repo *fakeWebhookRepo) *DeliverNotifications {
+// fakeSender records each POST and answers with a fixed status / error.
+type fakeSender struct {
+	code  int
+	err   error
+	sends []sent
+}
+
+type sent struct {
+	url     string
+	body    []byte
+	headers map[string]string
+}
+
+var _ port.WebhookSender = (*fakeSender)(nil)
+
+func (f *fakeSender) Send(_ context.Context, url string, body []byte, headers map[string]string) (int, error) {
+	f.sends = append(f.sends, sent{url, body, headers})
+	return f.code, f.err
+}
+
+func deliverWithWebhooks(repo *fakeWebhookRepo, sender *fakeSender) *DeliverNotifications {
 	// email nil → only the webhook pass runs; users/prefs unused.
-	uc := NewDeliverNotifications(nil, nil, nil, nil, repo, nil, nil, "http://x", nil)
-	// Tests post to httptest servers on 127.0.0.1, which the production SSRF
-	// dial-guard blocks. Swap in a plain client so the delivery logic is testable.
-	uc.httpClient = &http.Client{}
-	return uc
+	return NewDeliverNotifications(nil, nil, nil, nil, repo, sender, nil, nil, "http://x", nil)
 }
 
 func TestSubscribes_TypeAndSeverityGating(t *testing.T) {
@@ -98,37 +111,26 @@ func TestSubscribes_TypeAndSeverityGating(t *testing.T) {
 
 func TestDeliverWebhook_SignsAndRecords(t *testing.T) {
 	const secret = "whsec_test"
-	var (
-		gotBody []byte
-		gotSig  string
-		gotEvt  string
-	)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotBody, _ = io.ReadAll(r.Body)
-		gotSig = r.Header.Get("X-Cairn-Signature")
-		gotEvt = r.Header.Get("X-Cairn-Event")
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
+	sender := &fakeSender{code: 200}
 	repo := &fakeWebhookRepo{endpoints: []domain.WebhookEndpoint{{
 		ID: domain.WebhookEndpointID(uuid.New()), Enabled: true,
-		URL: srv.URL, SigningSecret: secret, MinSeverity: domain.NotificationSeverityInfo,
+		URL: "https://hook.example", SigningSecret: secret, MinSeverity: domain.NotificationSeverityInfo,
 	}}}
-	deliverWithWebhooks(repo).Execute(context.Background(),
+	deliverWithWebhooks(repo, sender).Execute(context.Background(),
 		[]domain.Notification{webhookNotif(domain.NotificationTypeSegmentPersonalRecord)})
 
-	if len(gotBody) == 0 {
-		t.Fatal("endpoint received no body")
+	if len(sender.sends) != 1 || len(sender.sends[0].body) == 0 || sender.sends[0].url != "https://hook.example" {
+		t.Fatalf("expected one POST with a body, got %+v", sender.sends)
 	}
+	got := sender.sends[0]
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(gotBody)
+	mac.Write(got.body)
 	want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
-	if gotSig != want {
-		t.Fatalf("signature mismatch:\n got %s\nwant %s", gotSig, want)
+	if got.headers["X-Cairn-Signature"] != want {
+		t.Fatalf("signature mismatch:\n got %s\nwant %s", got.headers["X-Cairn-Signature"], want)
 	}
-	if gotEvt != "segment_personal_record" {
-		t.Fatalf("X-Cairn-Event = %q", gotEvt)
+	if got.headers["X-Cairn-Event"] != "segment_personal_record" || got.headers["Content-Type"] != "application/json" {
+		t.Fatalf("headers = %v", got.headers)
 	}
 	if len(repo.results) != 1 || repo.results[0].code != 200 || repo.results[0].err != "" {
 		t.Fatalf("expected one 2xx success recorded, got %+v", repo.results)
@@ -136,21 +138,15 @@ func TestDeliverWebhook_SignsAndRecords(t *testing.T) {
 }
 
 func TestDeliverWebhook_SeverityFilteredOut(t *testing.T) {
-	hit := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		hit = true
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
+	sender := &fakeSender{code: 200}
 	repo := &fakeWebhookRepo{endpoints: []domain.WebhookEndpoint{{
 		ID: domain.WebhookEndpointID(uuid.New()), Enabled: true,
-		URL: srv.URL, SigningSecret: "x", MinSeverity: domain.NotificationSeverityError,
+		URL: "https://hook.example", SigningSecret: "x", MinSeverity: domain.NotificationSeverityError,
 	}}}
-	deliverWithWebhooks(repo).Execute(context.Background(),
+	deliverWithWebhooks(repo, sender).Execute(context.Background(),
 		[]domain.Notification{webhookNotif(domain.NotificationTypeActivityImported)})
 
-	if hit {
+	if len(sender.sends) != 0 {
 		t.Fatal("info notification must not reach an error-min endpoint")
 	}
 	if len(repo.results) != 0 {
@@ -159,16 +155,11 @@ func TestDeliverWebhook_SeverityFilteredOut(t *testing.T) {
 }
 
 func TestDeliverWebhook_Non2xxRecordsFailure(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-
 	repo := &fakeWebhookRepo{endpoints: []domain.WebhookEndpoint{{
 		ID: domain.WebhookEndpointID(uuid.New()), Enabled: true,
-		URL: srv.URL, SigningSecret: "x", MinSeverity: domain.NotificationSeverityInfo,
+		URL: "https://hook.example", SigningSecret: "x", MinSeverity: domain.NotificationSeverityInfo,
 	}}}
-	deliverWithWebhooks(repo).Execute(context.Background(),
+	deliverWithWebhooks(repo, &fakeSender{code: 500}).Execute(context.Background(),
 		[]domain.Notification{webhookNotif(domain.NotificationTypeActivityImported)})
 
 	if len(repo.results) != 1 || repo.results[0].code != 500 || repo.results[0].err == "" {
@@ -176,28 +167,20 @@ func TestDeliverWebhook_Non2xxRecordsFailure(t *testing.T) {
 	}
 }
 
-func TestDeliverWebhook_NilRepoNoPanic(t *testing.T) {
-	NewDeliverNotifications(nil, nil, nil, nil, nil, nil, nil, "http://x", nil).
-		Execute(context.Background(), []domain.Notification{webhookNotif(domain.NotificationTypeActivityImported)})
+func TestDeliverWebhook_TransportErrorRecordsFailure(t *testing.T) {
+	repo := &fakeWebhookRepo{endpoints: []domain.WebhookEndpoint{{
+		ID: domain.WebhookEndpointID(uuid.New()), Enabled: true,
+		URL: "https://hook.example", SigningSecret: "x", MinSeverity: domain.NotificationSeverityInfo,
+	}}}
+	deliverWithWebhooks(repo, &fakeSender{err: errors.New("blocked address")}).Execute(context.Background(),
+		[]domain.Notification{webhookNotif(domain.NotificationTypeActivityImported)})
+
+	if len(repo.results) != 1 || repo.results[0].code != 0 || repo.results[0].err != "blocked address" {
+		t.Fatalf("expected one recorded transport failure, got %+v", repo.results)
+	}
 }
 
-func TestIsBlockedWebhookIP(t *testing.T) {
-	blocked := []string{
-		"127.0.0.1", "::1", // loopback
-		"10.0.0.5", "192.168.1.1", "172.16.0.1", // private
-		"169.254.169.254", // link-local (cloud metadata)
-		"0.0.0.0",         // unspecified
-		"224.0.0.1",       // multicast
-	}
-	for _, s := range blocked {
-		if !safehttp.IsBlocked(net.ParseIP(s)) {
-			t.Errorf("%s should be blocked", s)
-		}
-	}
-	allowed := []string{"8.8.8.8", "1.1.1.1", "93.184.216.34"} // public
-	for _, s := range allowed {
-		if safehttp.IsBlocked(net.ParseIP(s)) {
-			t.Errorf("%s should be allowed", s)
-		}
-	}
+func TestDeliverWebhook_NilRepoNoPanic(t *testing.T) {
+	NewDeliverNotifications(nil, nil, nil, nil, nil, nil, nil, nil, "http://x", nil).
+		Execute(context.Background(), []domain.Notification{webhookNotif(domain.NotificationTypeActivityImported)})
 }
