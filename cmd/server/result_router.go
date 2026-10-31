@@ -306,7 +306,7 @@ func markReparseFailed(ctx context.Context, app *App, log *slog.Logger, provider
 	}
 	status, why := domain.ReimportStatusFailed, reason
 	if code == "parser_too_old" {
-		status, why = domain.ReimportStatusUpdateAvailable, "newer_parser"
+		status, why = domain.ReimportStatusUpdateAvailable, domain.ReimportReasonNewerParser
 	}
 	if err := app.Activities.SetSourceReimportStatus(ctx, src.ID, status, why); err != nil {
 		log.Warn("set reimport status after failure", "source_id", src.ID, "error", err)

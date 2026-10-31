@@ -350,7 +350,7 @@ const reparseBatch = 500
 // ReparseOutOfDate queues a quota-free re-parse for every source a newer
 // parser of its pool can read, up to a batch.
 func (u *Imports) ReparseOutOfDate(ctx context.Context, a domain.ExternalAccount) (Reparse, error) {
-	srcs, err := u.Sources.ListSourcesOutOfDate(ctx, a.ID, "newer_parser", reparseBatch)
+	srcs, err := u.Sources.ListSourcesOutOfDate(ctx, a.ID, domain.ReimportReasonNewerParser, reparseBatch)
 	if err != nil {
 		return Reparse{}, err
 	}
@@ -368,7 +368,7 @@ func (u *Imports) ReparseOutOfDate(ctx context.Context, a domain.ExternalAccount
 		out.Queued++
 	}
 	counts, _ := u.Sources.CountSourcesOutOfDate(ctx, a.ID)
-	out.Remaining = counts["newer_parser"]
+	out.Remaining = counts[domain.ReimportReasonNewerParser]
 	return out, nil
 }
 
