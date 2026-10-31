@@ -82,6 +82,8 @@
 		choose_worker:
 			'Several importers serve this provider. Choose which one this connection is for, then connect again.',
 		bad_worker: 'That importer name is not valid.',
+		already_linked:
+			'This provider account is already linked to another user. Disconnect it there first.',
 		secret_unreadable:
 			'Stored credentials could not be read (encryption changed). Open ⚙ Settings on this connection and re-enter your client secret.'
 	};

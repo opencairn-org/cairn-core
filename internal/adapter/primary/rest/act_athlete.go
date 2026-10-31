@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -73,7 +72,7 @@ func (h *AthleteHandlers) put(w http.ResponseWriter, r *http.Request) {
 		EffectiveDate string  `json:"effective_date"`
 		Value         float64 `json:"value"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSONBody(r, &body); err != nil {
 		http.Error(w, "bad json", http.StatusBadRequest)
 		return
 	}

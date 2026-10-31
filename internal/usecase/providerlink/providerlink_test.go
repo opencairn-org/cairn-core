@@ -41,6 +41,15 @@ type fakeAccounts struct {
 	failNew error
 }
 
+func (f *fakeAccounts) HeldByOtherUser(_ context.Context, provider, providerAcct string, user domain.UserID) (bool, error) {
+	for _, a := range f.byID {
+		if a.Provider == provider && a.ProviderAccountID == providerAcct && a.UserID != user {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (f *fakeAccounts) GetExternalAccount(_ context.Context, id domain.ExternalAccountID) (domain.ExternalAccount, error) {
 	a, ok := f.byID[id]
 	if !ok {
@@ -212,7 +221,8 @@ func TestImportHealth(t *testing.T) {
 }
 
 func newConnections() (*Connections, *fakeConfigs, *fakeAccounts, *fakeTokens) {
-	cfgs, accts, toks := &fakeConfigs{}, &fakeAccounts{}, &fakeTokens{}
+	cfgs, toks := &fakeConfigs{}, &fakeTokens{}
+	accts := &fakeAccounts{}
 	return &Connections{
 		Providers: Providers, Configs: cfgs, Accounts: accts, Tokens: toks,
 		Pools: fakePools{}, Exchanger: fakeExchanger{}, Log: discard,
@@ -291,6 +301,34 @@ func TestConnectRoundTrip(t *testing.T) {
 	c.Exchanger = fakeExchanger{err: errors.New("denied")}
 	if _, err := c.Complete(ctx, user, strava, id, "code", ""); !errors.Is(err, ErrExchangeFailed) {
 		t.Fatalf("exchange failure: %v", err)
+	}
+}
+
+// A provider account belongs to one user: webhooks name only the athlete.
+func TestConnectRefusesAccountOfAnotherUser(t *testing.T) {
+	ctx := context.Background()
+	c, cfgs, accts, _ := newConnections()
+	strava, _ := c.OAuthProvider("strava")
+	alice, bob := domain.UserID(uuid.New()), domain.UserID(uuid.New())
+	aliceConn, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: alice, Provider: "strava", ClientID: "app1"})
+	first, err := c.Complete(ctx, alice, strava, aliceConn, "code", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, err := c.Complete(ctx, alice, strava, aliceConn, "code", ""); err != nil || again == (domain.ExternalAccountID{}) {
+		t.Fatalf("same-user relink: %v", err)
+	}
+
+	bobSameApp, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: bob, Provider: "strava", ClientID: "app1"})
+	if _, err := c.Complete(ctx, bob, strava, bobSameApp, "code", ""); !errors.Is(err, ErrAlreadyLinked) {
+		t.Fatalf("other user, same app: %v", err)
+	}
+	bobOwnApp, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: bob, Provider: "strava", ClientID: "app2"})
+	if _, err := c.Complete(ctx, bob, strava, bobOwnApp, "code", ""); !errors.Is(err, ErrAlreadyLinked) {
+		t.Fatalf("other user, own app: %v", err)
+	}
+	if _, ok := accts.byID[first]; !ok {
+		t.Fatal("first account gone")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
@@ -16,7 +17,7 @@ import (
 // OIDCHandlers serve OIDC sign-in and the mechanism-agnostic logout.
 // Providers come from the environment; with OIDC nil only logout mounts.
 //
-//	POST /auth/logout                     → revoke session, clear cookie
+//	POST /auth/logout                     → revoke session, clear cookie; browsers go to /login
 //	GET  /auth/oidc/clients               → configured providers (login page)
 //	GET  /auth/oidc/{provider}/start      → redirect to IdP authorize
 //	GET  /auth/oidc/callback              → exchange code, set session
@@ -48,6 +49,11 @@ func (h *OIDCHandlers) logout(w http.ResponseWriter, r *http.Request) {
 		h.Sessions.End(r.Context(), c.Value)
 	}
 	acctClearSessionCookie(w, r, h.SecureCookies)
+	// A form POST navigates; without a redirect the browser stays on the signed-in page.
+	if r.Header.Get("Sec-Fetch-Mode") == "navigate" || strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

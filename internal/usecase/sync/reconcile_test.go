@@ -56,7 +56,7 @@ func (f *fakeAccounts) UpdateAccountConfig(ctx context.Context, id domain.Extern
 	return nil
 }
 
-func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID, pool string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindByProviderAndExternalID(ctx context.Context, provider, externalID, _, pool string) (domain.ExternalAccount, error) {
 	for _, a := range f.byID {
 		if a.Provider == provider && a.ProviderAccountID == externalID {
 			return a, nil
@@ -69,8 +69,12 @@ func (f *fakeAccounts) RegisterWebhookSubscription(ctx context.Context, provider
 	return nil
 }
 
-func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID, pool string) (domain.ExternalAccount, error) {
+func (f *fakeAccounts) FindBySubscription(ctx context.Context, provider, subscriptionID, _, pool string) (domain.ExternalAccount, error) {
 	return domain.ExternalAccount{}, fmt.Errorf("not found")
+}
+
+func (f *fakeAccounts) HeldByOtherUser(context.Context, string, string, domain.UserID) (bool, error) {
+	return false, nil
 }
 
 func (f *fakeAccounts) SetAssignedWorker(ctx context.Context, id domain.ExternalAccountID, name string) error {

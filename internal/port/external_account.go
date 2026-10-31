@@ -31,21 +31,28 @@ type ExternalAccountRepo interface {
 	// domain.ErrNotFound when no matching row exists — the webhook
 	// handler treats that as "orphaned event, 200-OK and ignore".
 	//
-	// Index-backed: there's a UNIQUE constraint on
-	// (provider, provider_account_id) — webhook routing latency is a
-	// single index seek.
+	// The same provider account may be linked by several users (the unique
+	// index is per user and pool), so a match across users returns
+	// domain.ErrAmbiguous instead of an arbitrary pick. A non-empty
+	// subscriptionID prefers accounts not bound to another subscription.
 	// pool narrows to the connection of that worker pool (docs/adr/0006);
 	// "" matches any.
-	FindByProviderAndExternalID(ctx context.Context, provider, externalID, pool string) (domain.ExternalAccount, error)
+	FindByProviderAndExternalID(ctx context.Context, provider, externalID, subscriptionID, pool string) (domain.ExternalAccount, error)
 
 	// RegisterWebhookSubscription records the provider push-subscription →
-	// connection mapping (#50). Idempotent on (provider, subscription_id).
+	// connection mapping (#50). Several accounts may share one subscription
+	// (one per provider app, e.g. Strava).
 	RegisterWebhookSubscription(ctx context.Context, provider, subscriptionID string, accountID domain.ExternalAccountID) error
 
-	// FindBySubscription resolves the exact account behind a provider push
-	// subscription. This is unambiguous where FindByProviderAndExternalID is
-	// not (the same provider athlete may be linked by multiple connections).
-	FindBySubscription(ctx context.Context, provider, subscriptionID, pool string) (domain.ExternalAccount, error)
+	// FindBySubscription resolves the account behind a provider push
+	// subscription. A subscription spans every athlete of the app, so a
+	// non-empty ownerID must match provider_account_id too. Several
+	// candidates return domain.ErrAmbiguous.
+	FindBySubscription(ctx context.Context, provider, subscriptionID, ownerID, pool string) (domain.ExternalAccount, error)
+
+	// HeldByOtherUser reports whether a user other than userID links the
+	// provider account (on any app or pool).
+	HeldByOtherUser(ctx context.Context, provider, providerAccountID string, userID domain.UserID) (bool, error)
 
 	// SetAutoImport toggles automatic imports (reconcile + webhook fetch) for
 	// one registered account (#93). The account stays linked either way.

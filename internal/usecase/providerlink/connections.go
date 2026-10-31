@@ -27,6 +27,9 @@ const (
 	ErrBadWorker        ConnectError = "bad_worker"
 	ErrExchangeFailed   ConnectError = "exchange_failed"
 	ErrChooseWorker     ConnectError = "choose_worker"
+	// ErrAlreadyLinked: another user holds this provider account; webhooks
+	// carry only the athlete, so two holders could not be told apart.
+	ErrAlreadyLinked ConnectError = "already_linked"
 )
 
 var (
@@ -225,6 +228,16 @@ func (c *Connections) Complete(ctx context.Context, userID domain.UserID, p Prov
 	if err != nil {
 		c.Log.Warn("oauth connect: no worker pool", "provider", p.Provider, "error", err)
 		return domain.ExternalAccountID{}, ErrChooseWorker
+	}
+	held, err := c.Accounts.HeldByOtherUser(ctx, p.Provider, providerAcctID, userID)
+	if err != nil {
+		c.Log.Error("oauth connect: holder check failed", "provider", p.Provider, "error", err)
+		return domain.ExternalAccountID{}, port.NewActionError(port.ActionErrorInternal, "could not save account")
+	}
+	if held {
+		c.Log.Warn("oauth connect: provider account already linked to another user",
+			"provider", p.Provider, "provider_account_id", providerAcctID, "connection_id", conn.ID)
+		return domain.ExternalAccountID{}, ErrAlreadyLinked
 	}
 	acctID, err := c.Accounts.CreateAccount(ctx, domain.ExternalAccount{
 		UserID: userID, Provider: p.Provider, ProviderAccountID: providerAcctID,

@@ -57,3 +57,29 @@ func TestAcctSessionCookie(t *testing.T) {
 		t.Error("the cookie wins")
 	}
 }
+
+func TestLogoutRedirectsBrowsers(t *testing.T) {
+	h := &OIDCHandlers{}
+	for name, tc := range map[string]struct {
+		header, value string
+		want          int
+	}{
+		"form navigation": {"Sec-Fetch-Mode", "navigate", http.StatusSeeOther},
+		"html accept":     {"Accept", "text/html,application/xhtml+xml", http.StatusSeeOther},
+		"api client":      {"Accept", "application/json", http.StatusNoContent},
+	} {
+		r := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+		r.Header.Set(tc.header, tc.value)
+		w := httptest.NewRecorder()
+		h.logout(w, r)
+		if w.Code != tc.want {
+			t.Errorf("%s: status %d, want %d", name, w.Code, tc.want)
+		}
+		if tc.want == http.StatusSeeOther && w.Header().Get("Location") != "/login" {
+			t.Errorf("%s: Location %q, want /login", name, w.Header().Get("Location"))
+		}
+		if c := w.Result().Cookies(); len(c) != 1 || c[0].Name != SessionCookieName || c[0].MaxAge >= 0 {
+			t.Errorf("%s: session cookie not cleared: %v", name, c)
+		}
+	}
+}

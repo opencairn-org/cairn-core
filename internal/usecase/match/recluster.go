@@ -159,6 +159,9 @@ func (uc *ReclusterBucket) reclusterInTx(ctx context.Context, userID domain.User
 				AboutUser(userID).With("provider", cf.Provider).With("source_a", cf.AID).With("source_b", cf.BID).With("score", fmt.Sprintf("%.2f", cf.Score)))
 		}
 	}
+	if err := uc.reclusterSuggestDuplicates(ctx, userID, clustered.Conflicts, cons); err != nil {
+		return err
+	}
 
 	// Reconcile clusters → stable activity ids. Denied sources are appended
 	// as their own singleton clusters so they stay standalone.
@@ -225,6 +228,46 @@ func (uc *ReclusterBucket) reclusterBuildBucket(ctx context.Context, userID doma
 		})
 	}
 	return b, nil
+}
+
+// ReasonSamePoolConflict tags a suspected_duplicate recorded by the matcher.
+const ReasonSamePoolConflict = "same_pool_conflict"
+
+// reclusterSuggestDuplicates turns high-band conflicts into possible-duplicate
+// review items; a pair with any constraint row already is left alone.
+func (uc *ReclusterBucket) reclusterSuggestDuplicates(ctx context.Context, userID domain.UserID, conflicts []dmatch.Conflict, cons []domain.MatchConstraint) error {
+	known := make(map[[2]string]bool, len(cons))
+	for _, c := range cons {
+		known[pairKey(c.SourceA.String(), c.SourceB.String())] = true
+	}
+	for _, cf := range conflicts {
+		key := pairKey(cf.AID, cf.BID)
+		if cf.Score < uc.opts.HighBand || known[key] {
+			continue
+		}
+		a, err := parseSourceID(cf.AID)
+		if err != nil {
+			return err
+		}
+		b, err := parseSourceID(cf.BID)
+		if err != nil {
+			return err
+		}
+		if err := uc.activities.AddMatchConstraint(ctx, domain.MatchConstraint{
+			UserID: userID, SourceA: a, SourceB: b, Kind: domain.ConstraintSuspectedDuplicate, Reason: ReasonSamePoolConflict,
+		}); err != nil {
+			return fmt.Errorf("record possible duplicate: %w", err)
+		}
+		known[key] = true
+	}
+	return nil
+}
+
+func pairKey(a, b string) [2]string {
+	if a > b {
+		a, b = b, a
+	}
+	return [2]string{a, b}
 }
 
 // reclusterConstraints keeps manual constraints whose both ends are in the bucket.

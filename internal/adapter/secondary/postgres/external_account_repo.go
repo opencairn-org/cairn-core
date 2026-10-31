@@ -172,34 +172,67 @@ func (r *ExternalAccountRepo) ListAccountsForUser(
 // FindByProviderAndExternalID resolves an account by its provider-side
 // id. Used by webhook routing — Strava's payload carries owner_id (the
 // athlete-side id) and we map it to our internal account via this query.
-//
-// Backed by the UNIQUE constraint on (provider, provider_account_id)
-// from migration 4 — single index seek.
+// Several users may hold the same provider account (the unique index is per
+// user + pool, migration 65), so a match across users is domain.ErrAmbiguous.
 func (r *ExternalAccountRepo) FindByProviderAndExternalID(
 	ctx context.Context,
-	provider, externalID, pool string,
+	provider, externalID, subscriptionID, pool string,
 ) (domain.ExternalAccount, error) {
+	// With a subscription, accounts bound to another one belong to another app.
+	return r.findOneRoutable(ctx, fmt.Sprintf("find external account %s/%s", provider, externalID),
+		`provider = $1 AND provider_account_id = $2`,
+		`$4 = '' OR webhook_subscription_id IS NULL OR webhook_subscription_id = $4`,
+		provider, externalID, pool, subscriptionID)
+}
+
+// findOneRoutable resolves the one account matching where ($3 is the pool):
+// the best row per user and provider account (its pool before a pool-less
+// one), narrowed to the rows matching prefer if any do. Two candidates are
+// domain.ErrAmbiguous, never an arbitrary pick.
+func (r *ExternalAccountRepo) findOneRoutable(ctx context.Context, what, where, prefer string, args ...any) (domain.ExternalAccount, error) {
 	db := dbtx(ctx, r.pool)
-	row := db.QueryRow(ctx,
-		`SELECT `+externalAccountColumns+`
-		   FROM external_accounts
-		  WHERE provider = $1
-		    AND provider_account_id = $2
-		    AND ($3 = '' OR assigned_worker_name = $3 OR assigned_worker_name IS NULL)
-		  ORDER BY assigned_worker_name IS NULL
-		  LIMIT 1`,
-		provider, externalID, pool,
-	)
-	a, err := scanExternalAccountRow(row)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.ExternalAccount{}, fmt.Errorf(
-			"find external account %s/%s: %w", provider, externalID, domain.ErrNotFound)
-	}
+	rows, err := db.Query(ctx, `
+		WITH m AS (
+			SELECT DISTINCT ON (user_id, provider_account_id) `+externalAccountColumns+`, (`+prefer+`) AS preferred
+			  FROM external_accounts
+			 WHERE `+where+`
+			   AND ($3 = '' OR assigned_worker_name = $3 OR assigned_worker_name IS NULL)
+			 ORDER BY user_id, provider_account_id, assigned_worker_name IS NULL, assigned_worker_name, id)
+		SELECT `+externalAccountColumns+` FROM m
+		 WHERE preferred OR NOT EXISTS (SELECT 1 FROM m WHERE preferred)
+		 LIMIT 2`, args...)
 	if err != nil {
-		return domain.ExternalAccount{}, fmt.Errorf(
-			"find external account %s/%s: %w", provider, externalID, err)
+		return domain.ExternalAccount{}, fmt.Errorf("%s: %w", what, err)
 	}
-	return a, nil
+	found, err := pgCollectRows(rows, scanExternalAccountRow, "scan external account row", "iterate external accounts")
+	switch {
+	case err != nil:
+		return domain.ExternalAccount{}, fmt.Errorf("%s: %w", what, err)
+	case len(found) == 0:
+		return domain.ExternalAccount{}, fmt.Errorf("%s: %w", what, domain.ErrNotFound)
+	case len(found) > 1:
+		return domain.ExternalAccount{}, fmt.Errorf("%s: %w", what, domain.ErrAmbiguous)
+	}
+	return found[0], nil
+}
+
+// HeldByOtherUser reports whether another user already links the provider account.
+func (r *ExternalAccountRepo) HeldByOtherUser(
+	ctx context.Context,
+	provider, providerAccountID string,
+	userID domain.UserID,
+) (bool, error) {
+	db := dbtx(ctx, r.pool)
+	var held bool
+	err := db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM external_accounts
+			 WHERE provider = $1 AND provider_account_id = $2 AND user_id <> $3)`,
+		provider, providerAccountID, userID.UUID()).Scan(&held)
+	if err != nil {
+		return false, fmt.Errorf("check provider account holder: %w", err)
+	}
+	return held, nil
 }
 
 // SetAutoImport toggles automatic imports for one account (#93). When false,
@@ -257,32 +290,17 @@ func (r *ExternalAccountRepo) RegisterWebhookSubscription(
 	return nil
 }
 
-// FindBySubscription resolves the exact account behind a provider push
-// subscription — unambiguous where FindByProviderAndExternalID is not (a
-// per-user-OAuth connection has its own subscription_id).
+// FindBySubscription resolves the account behind a provider push
+// subscription. One subscription covers every athlete of an app, so ownerID
+// (when given) must match too; several users matching is domain.ErrAmbiguous.
 func (r *ExternalAccountRepo) FindBySubscription(
 	ctx context.Context,
-	provider, subscriptionID, pool string,
+	provider, subscriptionID, ownerID, pool string,
 ) (domain.ExternalAccount, error) {
-	db := dbtx(ctx, r.pool)
-	row := db.QueryRow(ctx,
-		`SELECT `+externalAccountColumns+`
-		   FROM external_accounts
-		  WHERE provider = $1 AND webhook_subscription_id = $2
-		    AND ($3 = '' OR assigned_worker_name = $3 OR assigned_worker_name IS NULL)
-		  ORDER BY assigned_worker_name IS NULL
-		  LIMIT 1`,
-		provider, subscriptionID, pool)
-	a, err := scanExternalAccountRow(row)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.ExternalAccount{}, fmt.Errorf(
-			"find by subscription %s/%s: %w", provider, subscriptionID, domain.ErrNotFound)
-	}
-	if err != nil {
-		return domain.ExternalAccount{}, fmt.Errorf(
-			"find by subscription %s/%s: %w", provider, subscriptionID, err)
-	}
-	return a, nil
+	return r.findOneRoutable(ctx, fmt.Sprintf("find by subscription %s/%s", provider, subscriptionID),
+		`provider = $1 AND webhook_subscription_id = $2 AND ($4 = '' OR provider_account_id = $4)`,
+		`true`,
+		provider, subscriptionID, pool, ownerID)
 }
 
 // ListAccountsDueForReconcile returns accounts whose next reconcile is

@@ -26,6 +26,7 @@ var (
 const (
 	ReasonUserMerge = "user_merge"
 	ReasonUserSplit = "user_split"
+	ReasonUserKeep  = "user_keep_both"
 )
 
 // sourceLinkStore reads activities with their sources and records match constraints.
@@ -89,6 +90,36 @@ func (uc *SourceLinks) LinkActivities(ctx context.Context, userID domain.UserID,
 		return err
 	}
 	return uc.constrainAndRecluster(ctx, userID, srcA, []domain.ActivitySource{srcB}, domain.ConstraintMustLink, ReasonUserMerge)
+}
+
+// KeepApart records the owner's "keep both" on a possible duplicate:
+// cannot-link every source of a against every source of b. Both are already
+// separate activities, so no re-cluster is needed.
+func (uc *SourceLinks) KeepApart(ctx context.Context, userID domain.UserID, a, b domain.ActivityID) error {
+	if a == b {
+		return ErrSameActivity
+	}
+	var sides [2][]domain.ActivitySource
+	for i, id := range [2]domain.ActivityID{a, b} {
+		if err := uc.ownedActivity(ctx, userID, id); err != nil {
+			return err
+		}
+		srcs, err := uc.activities.ListSourcesForActivity(ctx, id)
+		if err != nil {
+			return fmt.Errorf("list sources: %w", err)
+		}
+		sides[i] = srcs
+	}
+	for _, x := range sides[0] {
+		for _, y := range sides[1] {
+			if err := uc.activities.AddMatchConstraint(ctx, domain.MatchConstraint{
+				UserID: userID, SourceA: x.ID, SourceB: y.ID, Kind: domain.ConstraintCannotLink, Reason: ReasonUserKeep,
+			}); err != nil {
+				return fmt.Errorf("constraint write: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 // Split peels one source off its activity: cannot-link it against every other

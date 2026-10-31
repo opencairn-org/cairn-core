@@ -274,12 +274,14 @@ type ActivityMatchStore interface {
 	// surviving one (merge). Idempotent on old_id.
 	AddActivityRedirect(ctx context.Context, oldID, newID domain.ActivityID, reason string) error
 
-	// ListMatchConstraints returns the user's manual matching decisions
-	// (must_link / cannot_link) — fed into clustering as hard constraints.
+	// ListMatchConstraints returns the user's matching decisions (must_link /
+	// cannot_link, fed into clustering as hard constraints) and the matcher's
+	// suspected_duplicate suggestions.
 	ListMatchConstraints(ctx context.Context, userID domain.UserID) ([]domain.MatchConstraint, error)
 
-	// AddMatchConstraint records a manual matching decision. The pair is stored
-	// in canonical order; a conflicting kind for the same pair is replaced.
+	// AddMatchConstraint records a matching decision. The pair is stored in
+	// canonical order; a conflicting kind for the same pair is replaced, except
+	// that a suspected_duplicate never replaces an existing row.
 	AddMatchConstraint(ctx context.Context, c domain.MatchConstraint) error
 }
 

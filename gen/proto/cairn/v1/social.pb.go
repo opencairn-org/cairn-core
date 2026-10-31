@@ -1700,8 +1700,13 @@ type ReviewItem struct {
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	// The matcher's confidence band that flagged the activity.
 	MatchConfidence string `protobuf:"bytes,5,opt,name=match_confidence,json=matchConfidence,proto3" json:"match_confidence,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Why the activity is queued: "merge" (medium-confidence merge to confirm)
+	// or "duplicate" (likely same-provider re-import kept separate).
+	Kind string `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	// For kind "duplicate": the activity this one likely duplicates.
+	DuplicateOfId string `protobuf:"bytes,7,opt,name=duplicate_of_id,json=duplicateOfId,proto3" json:"duplicate_of_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReviewItem) Reset() {
@@ -1765,6 +1770,20 @@ func (x *ReviewItem) GetStartTime() *timestamppb.Timestamp {
 func (x *ReviewItem) GetMatchConfidence() string {
 	if x != nil {
 		return x.MatchConfidence
+	}
+	return ""
+}
+
+func (x *ReviewItem) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ReviewItem) GetDuplicateOfId() string {
+	if x != nil {
+		return x.DuplicateOfId
 	}
 	return ""
 }
@@ -1966,7 +1985,7 @@ const file_cairn_v1_social_proto_rawDesc = "" +
 	"\x19GetSharedActivityResponse\x127\n" +
 	"\bactivity\x18\x01 \x01(\v2\x1b.cairn.v1.ProjectedActivityR\bactivity\x12(\n" +
 	"\x05owner\x18\x02 \x01(\v2\x12.cairn.v1.UserCardR\x05owner\"\x18\n" +
-	"\x16ListReviewQueueRequest\"\xc4\x01\n" +
+	"\x16ListReviewQueueRequest\"\x80\x02\n" +
 	"\n" +
 	"ReviewItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -1974,7 +1993,9 @@ const file_cairn_v1_social_proto_rawDesc = "" +
 	"\x04type\x18\x03 \x01(\x0e2\x16.cairn.v1.ActivityTypeR\x04type\x129\n" +
 	"\n" +
 	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12)\n" +
-	"\x10match_confidence\x18\x05 \x01(\tR\x0fmatchConfidence\"E\n" +
+	"\x10match_confidence\x18\x05 \x01(\tR\x0fmatchConfidence\x12\x12\n" +
+	"\x04kind\x18\x06 \x01(\tR\x04kind\x12&\n" +
+	"\x0fduplicate_of_id\x18\a \x01(\tR\rduplicateOfId\"E\n" +
 	"\x17ListReviewQueueResponse\x12*\n" +
 	"\x05items\x18\x01 \x03(\v2\x14.cairn.v1.ReviewItemR\x05items2\x81\a\n" +
 	"\rSocialService\x12R\n" +

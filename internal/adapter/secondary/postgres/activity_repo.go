@@ -661,15 +661,30 @@ func (r *ActivityRepo) SetActivityMatchState(ctx context.Context, id domain.Acti
 	return nil
 }
 
-// ListActivitiesNeedingReview returns the user's needs_review activities, newest
-// first (the confidence-band review queue).
+// ListActivitiesNeedingReview returns the user's review queue, newest first:
+// needs_review activities plus possible duplicates (live activity pairs joined
+// by a suspected_duplicate constraint; the newer id is the item).
 func (r *ActivityRepo) ListActivitiesNeedingReview(ctx context.Context, userID domain.UserID) ([]domain.ActivityReviewItem, error) {
 	db := dbtx(ctx, r.pool)
 	rows, err := db.Query(ctx,
-		`SELECT id, title, type, start_time, match_confidence
+		`WITH pairs AS (
+		    SELECT DISTINCT LEAST(sa.activity_id, sb.activity_id) AS older,
+		                    GREATEST(sa.activity_id, sb.activity_id) AS newer
+		      FROM match_constraints mc
+		      JOIN activity_sources sa ON sa.id = mc.source_a AND sa.status <> 'detached'
+		      JOIN activity_sources sb ON sb.id = mc.source_b AND sb.status <> 'detached'
+		     WHERE mc.user_id = $1 AND mc.kind = 'suspected_duplicate'
+		       AND sa.activity_id <> sb.activity_id
+		 )
+		 SELECT id, title, type, start_time, match_confidence, 'merge', ''
 		   FROM activities
 		  WHERE user_id = $1 AND needs_review AND deleted_at IS NULL
-		  ORDER BY start_time DESC`,
+		 UNION ALL
+		 SELECT n.id, n.title, n.type, n.start_time, n.match_confidence, 'duplicate', o.id::text
+		   FROM pairs p
+		   JOIN activities n ON n.id = p.newer AND n.deleted_at IS NULL
+		   JOIN activities o ON o.id = p.older AND o.deleted_at IS NULL
+		  ORDER BY 4 DESC, 1`,
 		userID.UUID(),
 	)
 	if err != nil {
@@ -679,21 +694,28 @@ func (r *ActivityRepo) ListActivitiesNeedingReview(ctx context.Context, userID d
 	var out []domain.ActivityReviewItem
 	for rows.Next() {
 		var (
-			id        uuid.UUID
-			title, ty string
-			start     time.Time
-			conf      string
+			id                   uuid.UUID
+			title, ty            string
+			start                time.Time
+			conf, kind, dupOfStr string
 		)
-		if err := rows.Scan(&id, &title, &ty, &start, &conf); err != nil {
+		if err := rows.Scan(&id, &title, &ty, &start, &conf, &kind, &dupOfStr); err != nil {
 			return nil, fmt.Errorf("scan review item: %w", err)
 		}
-		out = append(out, domain.ActivityReviewItem{
+		it := domain.ActivityReviewItem{
 			ID:              domain.ActivityID(id),
 			Title:           title,
 			Type:            domain.ActivityType(ty),
 			StartTime:       start,
 			MatchConfidence: conf,
-		})
+			Kind:            domain.ReviewKind(kind),
+		}
+		if dupOfStr != "" {
+			if it.DuplicateOf, err = domain.ParseUUID[domain.ActivityID](dupOfStr); err != nil {
+				return nil, fmt.Errorf("scan review item: %w", err)
+			}
+		}
+		out = append(out, it)
 	}
 	return out, rows.Err()
 }
@@ -758,7 +780,8 @@ func (r *ActivityRepo) ListMatchConstraints(ctx context.Context, userID domain.U
 	return out, rows.Err()
 }
 
-// AddMatchConstraint records a manual matching decision in canonical pair order.
+// AddMatchConstraint records a matching decision in canonical pair order. A
+// suspected_duplicate suggestion never replaces an existing row.
 func (r *ActivityRepo) AddMatchConstraint(ctx context.Context, c domain.MatchConstraint) error {
 	db := dbtx(ctx, r.pool)
 	a, b := c.SourceA, c.SourceB
@@ -773,7 +796,8 @@ func (r *ActivityRepo) AddMatchConstraint(ctx context.Context, c domain.MatchCon
 		`INSERT INTO match_constraints (id, user_id, source_a, source_b, kind, reason)
 		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (source_a, source_b)
-		 DO UPDATE SET kind = EXCLUDED.kind, reason = EXCLUDED.reason`,
+		 DO UPDATE SET kind = EXCLUDED.kind, reason = EXCLUDED.reason
+		 WHERE EXCLUDED.kind <> 'suspected_duplicate'`,
 		id.UUID(), c.UserID.UUID(), a.UUID(), b.UUID(), string(c.Kind), c.Reason,
 	)
 	if err != nil {
