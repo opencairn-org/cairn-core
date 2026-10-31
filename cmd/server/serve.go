@@ -259,7 +259,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 		mountFederation(mux, app, cfg, logger)
 		// Drain the durable outbound delivery queue (Phase 3 push fan-out).
 		if app.FederationDeliveries != nil {
-			go runFederationDeliveryScheduler(ctx, logger, app)
+			goSupervised(ctx, logger, "runFederationDeliveryScheduler", func(ctx context.Context) { runFederationDeliveryScheduler(ctx, logger, app) })
 		}
 	} else {
 		logger.Info("federation disabled (CAIRN_FEDERATION_ENABLED=false)")
@@ -635,14 +635,14 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 	// Import-queue processor: drains the persisted queue paced + rate-limit-
 	// aware. Gated on NATS (it dispatches fetch jobs to workers).
 	if app.NATSBus != nil {
-		go runImportQueueProcessor(ctx, logger, app)
+		goSupervised(ctx, logger, "runImportQueueProcessor", func(ctx context.Context) { runImportQueueProcessor(ctx, logger, app) })
 	}
 
 	// Worker-presence watcher: notifies admins when a previously-seen worker
 	// stops heartbeating (its presence KV key expires). Gated on NATS + the
 	// notifier.
 	if app.NATSBus != nil && app.NotifyWorkerOffline != nil {
-		go runWorkerPresenceWatcher(ctx, logger, app)
+		goSupervised(ctx, logger, "runWorkerPresenceWatcher", func(ctx context.Context) { runWorkerPresenceWatcher(ctx, logger, app) })
 	}
 
 	// Admin-triggered maintenance jobs run one at a time for the server's lifetime.
@@ -652,14 +652,14 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 
 	// Health watcher: raises an admin event when the instance leaves "healthy".
 	if app.SystemHealth != nil && app.AdminEvents != nil {
-		go runHealthWatcher(ctx, logger, app)
+		goSupervised(ctx, logger, "runHealthWatcher", func(ctx context.Context) { runHealthWatcher(ctx, logger, app) })
 	}
 
 	// Start-location backfiller: reverse-geocodes activities missing a
 	// start_place. Self-paced by the geocoder's policy limiter (1 req/s for
 	// OSM). Gated on the geocoder being wired (CAIRN_GEOCODER_ENABLED).
 	if app.ComputeStartPlace != nil {
-		go runStartPlaceBackfiller(ctx, logger, app, cfg.Geocoder)
+		goSupervised(ctx, logger, "runStartPlaceBackfiller", func(ctx context.Context) { runStartPlaceBackfiller(ctx, logger, app, cfg.Geocoder) })
 	}
 
 	// Notification-delivery retry processor: re-sends email/webhook deliveries
@@ -667,11 +667,11 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 	// elapsed), with capped exponential backoff. RetryDue is itself gated on
 	// the deliveries + notifications repos being wired.
 	if app.DeliverNotifications != nil {
-		go runNotificationRetryScheduler(ctx, logger, app)
+		goSupervised(ctx, logger, "runNotificationRetryScheduler", func(ctx context.Context) { runNotificationRetryScheduler(ctx, logger, app) })
 	}
 
 	if cfg.Scheduler.Enabled && app.ReconcileAccount != nil {
-		go runReconcileScheduler(ctx, logger, app, cfg.Scheduler)
+		goSupervised(ctx, logger, "runReconcileScheduler", func(ctx context.Context) { runReconcileScheduler(ctx, logger, app, cfg.Scheduler) })
 	} else {
 		switch {
 		case !cfg.Scheduler.Enabled:

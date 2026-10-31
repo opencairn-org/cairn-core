@@ -393,8 +393,9 @@ func (h *fedHandlers) inboxFollow(ctx context.Context, m fedInboxMsg) {
 		h.logger.Error("federation: store inbound follow", "error", err)
 	}
 	// Reply with a signed Accept, delivered to the follower's inbox.
-	go h.deliverAccept( //nolint:gosec // G118: the Accept is delivered after the request returns, on its own timeout
-		m.target.ID, m.act.ID, h.actorID(m.target.Username), m.body, m.remoteInbox)
+	goSafe(h.logger, "federation accept", func() {
+		h.deliverAccept(m.target.ID, m.act.ID, h.actorID(m.target.Username), m.body, m.remoteInbox)
+	})
 }
 
 // deliverAccept runs detached from the request so the Accept outlives it.

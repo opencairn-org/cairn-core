@@ -72,6 +72,6 @@ func (syncInsight) ActivityURL(provider, externalID string) string {
 }
 
 func (s syncInsight) StartFullSync(a domain.ExternalAccount, skipExisting bool) {
-	go runFullDiscovery(s.app, s.logger, a, skipExisting)
+	goSafe(s.logger, "full discovery", func() { runFullDiscovery(s.app, s.logger, a, skipExisting) })
 	s.logger.Info("full discovery started", "account_id", a.ID, "skip_existing", skipExisting)
 }

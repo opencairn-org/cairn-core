@@ -187,7 +187,7 @@ func geocodeBackfillRunner(app *App, logger *slog.Logger) func(limit int) {
 		return nil
 	}
 	return func(limit int) {
-		go func() {
+		goSafe(logger, "admin geocode backfill", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
 			n, err := app.ComputeStartPlace.BackfillBatch(ctx, limit)
@@ -196,7 +196,7 @@ func geocodeBackfillRunner(app *App, logger *slog.Logger) func(limit int) {
 				return
 			}
 			logger.Info("admin geocode backfill complete", "resolved", n)
-		}()
+		})
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -14,18 +15,19 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-// startDLQListener subscribes to JetStream's MaxDeliveries advisory
-// subject and captures every dead-letter event into Postgres for
-// operator inspection + replay.
-//
-// Advisory subject:
-//
-//	$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.<stream>.<consumer>
-//
-// The advisory itself doesn't carry the dead payload — it's the
-// observation that "this message hit MaxDeliver". For v1 we record
-// metadata only. A future revision fetches the payload via
-// js.GetMsg(stream, stream_seq) before recording.
+// Dead-letter advisories. MAX_DELIVERIES covers every consumer; a Term is
+// only a dead letter on the streams core itself consumes (workers term jobs
+// on purpose, e.g. a parser hand-back).
+const (
+	advisoryMaxDeliveries = "$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.>"
+	advisoryTerminated    = "$JS.EVENT.ADVISORY.CONSUMER.MSG_TERMINATED.>"
+)
+
+var dlqTermStreams = map[string]bool{"CAIRN_RESULTS": true, "CAIRN_EVENTS": true}
+
+// startDLQListener subscribes to JetStream's dead-letter advisories and
+// captures each event into Postgres for operator inspection + replay. The
+// payload is fetched by stream sequence while the stream still holds it.
 //
 // Gated on app.NATSBus + app.DeadLetters; returns (nil, nil) when
 // either is missing.
@@ -44,31 +46,36 @@ func startDLQListener(
 		return nil, errors.New("dlq listener: NATS connection not available")
 	}
 
-	sub, err := conn.Subscribe(
-		"$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.>",
-		func(msg *nats.Msg) {
+	subs := make([]*nats.Subscription, 0, 2)
+	for _, subject := range []string{advisoryMaxDeliveries, advisoryTerminated} {
+		sub, err := conn.Subscribe(subject, func(msg *nats.Msg) {
 			handleAdvisory(ctx, app, log, msg)
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("subscribe DLQ advisory: %w", err)
+		})
+		if err != nil {
+			for _, s := range subs {
+				_ = s.Unsubscribe()
+			}
+			return nil, fmt.Errorf("subscribe DLQ advisory %s: %w", subject, err)
+		}
+		subs = append(subs, sub)
 	}
-	log.Info("dlq listener active on $JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.>")
+	log.Info("dlq listener active", "subjects", []string{advisoryMaxDeliveries, advisoryTerminated})
 
-	return &dlqSubscription{sub: sub}, nil
+	return &dlqSubscription{subs: subs}, nil
 }
 
-type dlqSubscription struct{ sub *nats.Subscription }
+type dlqSubscription struct{ subs []*nats.Subscription }
 
 func (s *dlqSubscription) Close(_ context.Context) error {
-	if s.sub == nil {
-		return nil
+	var errs []error
+	for _, sub := range s.subs {
+		errs = append(errs, sub.Drain())
 	}
-	return s.sub.Drain()
+	return errors.Join(errs...)
 }
 
-// advisoryEvent is the JSON shape NATS publishes on the MAX_DELIVERIES
-// advisory subject.
+// advisoryEvent is the JSON shape of the MAX_DELIVERIES and MSG_TERMINATED
+// advisories (reason only on the latter).
 type advisoryEvent struct {
 	Type       string    `json:"type"`
 	ID         string    `json:"id"`
@@ -77,7 +84,11 @@ type advisoryEvent struct {
 	Consumer   string    `json:"consumer"`
 	StreamSeq  uint64    `json:"stream_seq"`
 	Deliveries int       `json:"deliveries"`
+	Reason     string    `json:"reason"`
 }
+
+// isTerminated reports whether the advisory was a Term rather than MaxDeliver.
+func (ev advisoryEvent) isTerminated() bool { return strings.HasSuffix(ev.Type, ".terminated") }
 
 func handleAdvisory(ctx context.Context, app *App, log *slog.Logger, msg *nats.Msg) {
 	var ev advisoryEvent
@@ -85,34 +96,56 @@ func handleAdvisory(ctx context.Context, app *App, log *slog.Logger, msg *nats.M
 		log.Warn("decode advisory failed", "subject", msg.Subject, "error", err)
 		return
 	}
-	if ev.Stream == "" {
+	if ev.Stream == "" || (ev.isTerminated() && !dlqTermStreams[ev.Stream]) {
 		return
 	}
-
-	// Payload-fetch via stream_seq is a future revision — for now we
-	// record what the advisory gives us. The (stream, subject, msg_id)
-	// triple is enough for operator triage; producers can re-derive
-	// the body from their own logs.
-	job := domain.DeadLetteredJob{
-		Stream:         ev.Stream,
-		Subject:        ev.Consumer, // best available; refined when we wire stream_seq fetch
-		Consumer:       ev.Consumer,
-		MsgID:          ev.ID,
-		DeliveredCount: ev.Deliveries,
-		LastError:      "exceeded MaxDeliver; advisory captured, payload pending fetch",
-		FirstSeenAt:    ev.Timestamp,
-		LastSeenAt:     ev.Timestamp,
-		Headers:        map[string]string{},
-	}
+	job := deadLetterFromAdvisory(ctx, app, log, ev)
 	if err := app.DeadLetters.Capture(ctx, job); err != nil {
 		log.Warn("dlq capture failed",
 			"stream", ev.Stream, "consumer", ev.Consumer, "error", err)
 		return
 	}
 	log.Info("dead-letter recorded",
-		"stream", ev.Stream, "consumer", ev.Consumer, "deliveries", ev.Deliveries)
+		"stream", ev.Stream, "consumer", ev.Consumer, "deliveries", ev.Deliveries, "reason", job.LastError)
 	publishAdminEvent(app, domain.NewAdminEvent(domain.AdminEventJobDeadLettered, domain.AuditWarn, "admin.job_dead_lettered").
-		AboutJob(ev.ID).With("stream", ev.Stream).With("consumer", ev.Consumer))
+		AboutJob(job.MsgID).With("stream", ev.Stream).With("consumer", ev.Consumer))
+}
+
+// deadLetterFromAdvisory builds the DLQ row, with the payload when the stream
+// still holds the message (a MaxDeliver one usually does; a Term'd one on an
+// interest stream is usually gone).
+func deadLetterFromAdvisory(ctx context.Context, app *App, log *slog.Logger, ev advisoryEvent) domain.DeadLetteredJob {
+	job := domain.DeadLetteredJob{
+		Stream:         ev.Stream,
+		Subject:        ev.Consumer,
+		Consumer:       ev.Consumer,
+		MsgID:          ev.ID,
+		DeliveredCount: ev.Deliveries,
+		LastError:      "exceeded MaxDeliver",
+		FirstSeenAt:    ev.Timestamp,
+		LastSeenAt:     ev.Timestamp,
+		Headers:        map[string]string{},
+	}
+	if ev.isTerminated() {
+		job.LastError = "terminated"
+		if ev.Reason != "" {
+			job.LastError = "terminated: " + ev.Reason
+		}
+	}
+	if ev.StreamSeq == 0 {
+		return job
+	}
+	subject, data, headers, err := app.NATSBus.StoredMsg(ctx, ev.Stream, ev.StreamSeq)
+	if err != nil {
+		log.Debug("dlq payload not available", "stream", ev.Stream, "seq", ev.StreamSeq, "error", err)
+		job.LastError += "; payload no longer in the stream"
+		return job
+	}
+	job.Subject, job.Payload, job.Headers = subject, data, headers
+	if id := headers[nats.MsgIdHdr]; id != "" {
+		job.MsgID = id
+	}
+	return job
 }
 
 // publishAdminEvent fans ev out to open admin streams; a nil hub drops it.

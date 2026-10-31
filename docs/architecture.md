@@ -1760,11 +1760,17 @@ or `account_gone` → `Term()`, further retries pointless.
 
 | Scenario | Reaction |
 |---|---|
-| `IngestActivityFromWorker.Execute()` success | publish `activity.ingested`, `Ack()` |
+| `IngestActivityFromWorker.Execute()` success | re-cluster, follow-ups, `Ack()` |
 | Worker reported `ok: false` | log with worker error detail, `Ack()` (worker already retried/term'd) |
-| DB constraint violation | `Nak()` once, then `Term()` with alert |
-| Validation error (malformed payload) | `Term()`, publish `cairn.events.fetch_source.parse_failed`, alert |
-| DB connection error | `Nak()`, JS retries |
+| Deterministic DB error (constraint, invalid data) | fail the import-queue item with the reason, `Ack()` |
+| Validation error (malformed payload) | `TermWithReason()`; the DLQ listener records it |
+| DB connection error / other transient | `NakWithDelay(5s·3^(n-1), max 5 min)`; after `MaxDeliver` → DLQ |
+| Handler panic | recovered, treated as transient |
+| Re-cluster or follow-up fails or panics | logged, the ingest still `Ack()`s; `recompute_activity_merges` re-clusters as the repair |
+
+Ingest and re-cluster hold a per-user advisory lock (`port.UserLock`,
+`pg_advisory_xact_lock`), so two instances never re-cluster one user's
+bucket from stale snapshots.
 
 ### Blob operations
 
@@ -1780,10 +1786,13 @@ or `account_gone` → `Term()`, further retries pointless.
 ### Dead-letter path
 
 ```
-NATS publishes $JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.> on reaching MaxDeliver.
+NATS publishes $JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.> on reaching MaxDeliver,
+and ...MSG_TERMINATED.> on Term (recorded for CAIRN_RESULTS / CAIRN_EVENTS only:
+workers term jobs on purpose).
 
-Server (advisory consumer):
-  - receive: stream, subject, consumer, deliveries
+Server (advisory consumer, cmd/server/dlq_listener.go):
+  - receive: stream, consumer, stream_seq, deliveries, reason
+  - fetch subject/payload/headers by stream_seq while the stream still holds it
   - INSERT INTO dead_lettered_jobs (
         stream, subject, msg_id, payload, last_error, delivered_count,
         first_seen_at, last_seen_at

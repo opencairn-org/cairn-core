@@ -34,6 +34,14 @@ type ReclusterBucket struct {
 	opts       dmatch.Options
 	logger     *slog.Logger
 	events     port.AdminEventSink // optional; receives same-provider conflicts
+	lock       port.UserLock       // optional; serialises reclusters of one user
+}
+
+// WithUserLock makes each re-cluster hold the user's regrouping lock, so two
+// instances never reassign the same bucket from stale snapshots.
+func (uc *ReclusterBucket) WithUserLock(l port.UserLock) *ReclusterBucket {
+	uc.lock = l
+	return uc
 }
 
 // WithEvents routes same-provider conflicts to the admin event channel.
@@ -111,6 +119,11 @@ type reclusterBucketInput struct {
 }
 
 func (uc *ReclusterBucket) reclusterInTx(ctx context.Context, userID domain.UserID, from, to time.Time, result *Result) error {
+	if uc.lock != nil {
+		if err := uc.lock.LockUser(ctx, userID); err != nil {
+			return err
+		}
+	}
 	records, err := uc.activities.ListSourceRecordsInBucket(ctx, userID, from, to)
 	if err != nil {
 		return fmt.Errorf("list bucket: %w", err)

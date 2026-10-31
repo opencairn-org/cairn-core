@@ -50,7 +50,7 @@ func startManifestWatcher(
 		return nil, fmt.Errorf("watch worker_manifests: %w", err)
 	}
 
-	go manifestWatchLoop(ctx, app, log, watcher)
+	goSafe(log, "manifest watcher", func() { manifestWatchLoop(ctx, app, log, watcher) })
 
 	return watcher, nil
 }

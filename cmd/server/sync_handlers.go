@@ -348,7 +348,7 @@ func (h syncHandlers) syncStart(w http.ResponseWriter, r *http.Request) {
 	// end), enqueues incrementally, and resumes across rate-limit windows.
 	// Returning immediately keeps the request fast; the UI tracks progress
 	// via the queue counts + the "discovering" flag.
-	go runFullDiscovery(h.app, h.logger, a, body.SkipExisting)
+	goSafe(h.logger, "full discovery", func() { runFullDiscovery(h.app, h.logger, a, body.SkipExisting) })
 	h.logger.Info("full discovery started", "account_id", a.ID, "skip_existing", body.SkipExisting)
 	writeJSON(w, http.StatusOK, map[string]any{"started": true})
 }

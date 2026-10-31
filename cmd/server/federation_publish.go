@@ -90,7 +90,7 @@ func publishActivityCreate(ctx context.Context, app *App, log *slog.Logger, act 
 	// signs + POSTs and retries transient failures with backoff. Falls back to
 	// best-effort inline delivery only if the queue isn't wired.
 	if app.FederationDeliveries == nil {
-		go publishCreateInline(app, log, act, actorID, inboxes, create) //nolint:gosec // G118: best-effort fan-out outlives the caller, on its own timeout
+		goSafe(log, "federation publish", func() { publishCreateInline(app, log, act, actorID, inboxes, create) })
 		return
 	}
 	queued := 0

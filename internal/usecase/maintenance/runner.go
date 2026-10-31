@@ -350,7 +350,7 @@ func (r *Runner) run(base context.Context, id string) {
 	defer cancel()
 	r.persist(&snapshot)
 
-	err := r.execute(ctx, id, op, users)
+	err := r.executeRecovered(ctx, id, op, users)
 	switch {
 	case err == nil:
 		r.finish(id, domain.MaintenanceSucceeded, "")
@@ -361,6 +361,16 @@ func (r *Runner) run(base context.Context, id string) {
 	default:
 		r.finish(id, domain.MaintenanceFailed, err.Error())
 	}
+}
+
+// executeRecovered runs the job; a panic fails it instead of the server.
+func (r *Runner) executeRecovered(ctx context.Context, id string, op domain.MaintenanceOperation, users []domain.UserID) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("maintenance job panicked: %v", p)
+		}
+	}()
+	return r.execute(ctx, id, op, users)
 }
 
 func (r *Runner) finish(id string, status domain.MaintenanceStatus, msg string) {

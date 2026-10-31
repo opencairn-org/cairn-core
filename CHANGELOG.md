@@ -26,6 +26,23 @@ All notable changes to Cairn are documented here. The format follows
   (`?share=<token>`).
 - Federated posts carry only what the owner shares with the public audience
   (no map image unless `map` is public).
+- A workout whose second source merges into an existing activity no longer
+  runs its follow-ups, live events, federation and photo attachment against
+  the dissolved singleton; the ingest result names the surviving activity.
+- Ingest and re-clustering take a per-user lock, so concurrent imports on
+  several instances cannot regroup one user's sources from stale snapshots.
+- A panic in a result handler, follow-up, maintenance job or background
+  loop is logged (loops restart) instead of crashing the server.
+- Transient ingest failures retry with back-off (5 s, 15 s, 45 s, …) instead
+  of five immediate redeliveries, so a short database outage no longer
+  dead-letters imports.
+- Terminated result/event messages are recorded in the dead-letter table
+  with their reason; dead letters carry the payload when the stream still
+  holds it.
+
+### Changed
+- `recompute_activity_merges` re-clusters each activity's time bucket before
+  re-merging it, which repairs groupings a failed re-cluster left behind.
 
 ## [0.6.1] — 2026-10-30
 

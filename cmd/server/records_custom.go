@@ -103,13 +103,13 @@ func (h *customRecordHandlers) del(w http.ResponseWriter, r *http.Request) {
 // backfillCustomRecords recomputes the user's efforts of one type in the
 // background so the request returns at once; the outcome is logged.
 func backfillCustomRecords(app *App, logger *slog.Logger, userID domain.UserID, at domain.ActivityType) {
-	go func() {
+	goSafe(logger, "custom best-effort backfill", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 		sources, failed, err := app.CustomBestEfforts.Backfill(ctx, userID, at)
 		logger.Info("custom best-effort backfill finished", "user_id", userID, "activity_type", at,
 			"sources", sources, "failed", failed, "error", err)
-	}()
+	})
 }
 
 func customBestEffortJSON(c domain.CustomBestEffort) map[string]any {

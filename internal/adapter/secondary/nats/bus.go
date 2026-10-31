@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -159,6 +160,23 @@ func (b *Bus) Close() {
 // not JetStream). NOT exposed via port.JobBus — only intra-package use.
 func (b *Bus) Conn() *nats.Conn { return b.conn }
 
+// StoredMsg reads one message still held by stream (for dead-letter capture).
+func (b *Bus) StoredMsg(ctx context.Context, stream string, seq uint64) (subject string, data []byte, headers map[string]string, err error) {
+	st, err := b.js.Stream(ctx, stream)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("nats: stream %s: %w", stream, err)
+	}
+	m, err := st.GetMsg(ctx, seq)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("nats: get %s#%d: %w", stream, seq, err)
+	}
+	headers = make(map[string]string, len(m.Header))
+	for k := range m.Header {
+		headers[k] = m.Header.Get(k)
+	}
+	return m.Subject, m.Data, headers, nil
+}
+
 // JS returns the jetstream context. Same constraint as Conn() —
 // intra-package use only.
 func (b *Bus) JS() jetstream.JetStream { return b.js }
@@ -292,7 +310,7 @@ func (b *Bus) handlePushMessage(
 	go b.natsExtendAckLoop(jm, hbDone)
 
 	pm := wrapMessage(jm)
-	err := handler(ctx, pm)
+	err := b.runHandler(ctx, jm, pm, handler)
 	if err == nil {
 		if ackErr := jm.Ack(); ackErr != nil {
 			b.logger.Warn("nats: ack failed", "subject", jm.Subject(), "error", ackErr)
@@ -301,6 +319,34 @@ func (b *Bus) handlePushMessage(
 	}
 
 	b.natsSettleFailed(jm, err)
+}
+
+// runHandler calls handler, turning a panic into a retryable error so one bad
+// message cannot take the server down.
+func (b *Bus) runHandler(ctx context.Context, jm jetstream.Msg, pm port.Message, handler port.MessageHandler) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			b.logger.Error("nats: handler panicked", "subject", jm.Subject(), "panic", p, "stack", string(debug.Stack()))
+			err = fmt.Errorf("handler panic: %v", p)
+		}
+	}()
+	return handler(ctx, pm)
+}
+
+// Redelivery back-off for transient failures: retryBase·3^(n-1), capped, so
+// MaxDeliver attempts span minutes (a DB restart) rather than milliseconds.
+var (
+	retryBase = 5 * time.Second
+	retryMax  = 5 * time.Minute
+)
+
+// retryDelay is the back-off before delivery n+1, after n failed deliveries.
+func retryDelay(delivered uint64) time.Duration {
+	d := retryBase
+	for i := uint64(1); i < delivered && d < retryMax; i++ {
+		d *= 3
+	}
+	return min(d, retryMax)
 }
 
 // natsExtendAckLoop extends jm's ack deadline every ackExtendInterval until done closes.
@@ -327,7 +373,7 @@ func (b *Bus) natsSettleFailed(jm jetstream.Msg, err error) {
 	var nakDelay *port.NakWithDelayError
 	switch {
 	case errors.As(err, &term):
-		if termErr := jm.Term(); termErr != nil {
+		if termErr := jm.TermWithReason(term.Reason); termErr != nil {
 			b.logger.Warn("nats: term failed", "subject", jm.Subject(), "error", termErr)
 		}
 		b.logger.Info("nats: message terminated",
@@ -337,7 +383,11 @@ func (b *Bus) natsSettleFailed(jm jetstream.Msg, err error) {
 			b.logger.Warn("nats: nak-with-delay failed", "subject", jm.Subject(), "error", nakErr)
 		}
 	default:
-		if nakErr := jm.Nak(); nakErr != nil {
+		var delivered uint64 = 1
+		if md, mdErr := jm.Metadata(); mdErr == nil {
+			delivered = md.NumDelivered
+		}
+		if nakErr := jm.NakWithDelay(retryDelay(delivered)); nakErr != nil {
 			b.logger.Warn("nats: nak failed", "subject", jm.Subject(), "error", nakErr)
 		}
 	}

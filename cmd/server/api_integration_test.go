@@ -911,3 +911,20 @@ func mustURL(t *testing.T, raw string) *url.URL {
 	}
 	return u
 }
+
+// A second source of the same workout merges into the existing activity; the
+// ingest response must name the surviving activity, not the dissolved singleton.
+func TestAPI_MergedIngestReturnsSurvivingActivity(t *testing.T) {
+	env := newITestEnv(t)
+	carol := env.user("itcarol", domain.UserRoleUser)
+	start := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	first := str(carol.upload("ride.gpx", gpxRide(start)), "activity_id")
+	manual := carol.post("/api/activities/manual", map[string]any{
+		"type": "ride", "title": "Same ride", "start_time": start.Format(time.RFC3339),
+		"elapsed_duration_s": 1199, "moving_duration_s": 1199,
+	}, http.StatusOK, http.StatusCreated)
+	if got := str(manual, "activity_id"); got != first || str(manual, "action") != "merged_into_existing" {
+		t.Fatalf("merged ingest returned %s, want surviving activity %s", got, first)
+	}
+	carol.do(http.MethodGet, "/api/activities/"+first+"/projected", nil, http.StatusOK)
+}

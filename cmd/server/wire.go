@@ -437,7 +437,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		app.Tx,
 		nil, // default time.Now
 		nil, // default uuid.NewV7
-	)
+	).WithUserLock(app.Tx)
 	app.ReclusterBucket = matchuc.NewReclusterBucket(
 		app.Activities,
 		app.RecomputeActivity,
@@ -446,7 +446,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default uuid.NewV7
 		dmatch.DefaultOptions(),
 		logger,
-	).WithEvents(app.AdminEvents)
+	).WithEvents(app.AdminEvents).WithUserLock(app.Tx)
 	wireAppViews(app, logger)
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
@@ -1028,10 +1028,7 @@ func wireMaintenance(app *App, pool *pgxpool.Pool) {
 		}
 	}
 	if app.RecomputeActivity != nil {
-		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error {
-			_, err := app.RecomputeActivity.Execute(ctx, id)
-			return err
-		}
+		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error { return reclusterAndRecompute(ctx, app, id) }
 	}
 	if app.ComputeTrainingLoad != nil {
 		r.TrainingLoad = func(ctx context.Context, id domain.UserID) error {
@@ -1041,6 +1038,26 @@ func wireMaintenance(app *App, pool *pgxpool.Pool) {
 		}
 	}
 	app.Maintenance = r
+}
+
+// reclusterAndRecompute re-derives the grouping around one activity, then
+// re-merges it: the repair for a re-cluster that failed after its ingest. An
+// activity an earlier step dissolved is skipped.
+func reclusterAndRecompute(ctx context.Context, app *App, id domain.ActivityID) error {
+	act, err := app.Activities.GetActivity(ctx, id)
+	if err != nil || act.IsDeleted() {
+		return nil //nolint:nilerr // dissolved by an earlier re-cluster in this run
+	}
+	if app.ReclusterBucket != nil {
+		if _, err := app.ReclusterBucket.Execute(ctx, matchuc.Input{UserID: act.UserID, Around: act.StartTime}); err != nil {
+			return fmt.Errorf("recluster: %w", err)
+		}
+		if act, err = app.Activities.GetActivity(ctx, id); err != nil || act.IsDeleted() {
+			return nil //nolint:nilerr // merged away
+		}
+	}
+	_, err = app.RecomputeActivity.Execute(ctx, id)
+	return err
 }
 
 // wireUserViews builds the small self-service reads shared by REST and Connect.

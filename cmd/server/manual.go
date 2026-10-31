@@ -100,6 +100,7 @@ func createManualActivity(w http.ResponseWriter, r *http.Request, app *App, logg
 	writeJSON(w, http.StatusOK, map[string]any{
 		"activity_id": out.ActivityID.String(),
 		"source_id":   out.SourceID.String(),
+		"action":      out.Action,
 	})
 }
 

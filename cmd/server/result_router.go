@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -618,6 +619,7 @@ func ingestActivityEvent(
 	}
 	ingestActivityGearRef(ctx, app, log, in)
 	ingestActivityRecluster(ctx, app, log, in.UserID, payload.StartTime)
+	out = ingestCurrentActivity(ctx, app, log, out)
 	log.Info("ingest succeeded",
 		"activity_id", out.ActivityID, "source_id", out.SourceID, "action", out.Action)
 	publishIngestOutcome(app, in.Provider, out)
@@ -682,6 +684,26 @@ func ingestActivityRecluster(ctx context.Context, app *App, log *slog.Logger, us
 			"affected", len(res.AffectedActivityIDs),
 			"soft_deleted", len(res.SoftDeleted), "conflicts", res.Conflicts)
 	}
+}
+
+// ingestCurrentActivity follows the source into the activity re-clustering
+// put it in: merging into an existing activity dissolves the new singleton,
+// and everything after ingest must address the surviving one.
+func ingestCurrentActivity(ctx context.Context, app *App, log *slog.Logger, out activity.IngestResult) activity.IngestResult {
+	src, err := app.Activities.GetSource(ctx, out.SourceID)
+	if err != nil || src.ActivityID == out.ActivityID {
+		return out
+	}
+	act, err := app.Activities.GetActivity(ctx, src.ActivityID)
+	if err != nil {
+		log.Warn("ingest: load re-clustered activity failed", "activity_id", src.ActivityID, "error", err)
+		return out
+	}
+	out.ActivityID, out.Activity = act.ID, act
+	if out.Action == activity.IngestActionImportedNew {
+		out.Action = activity.IngestActionMergedIntoExisting // not a new activity: no created event, no federation
+	}
+	return out
 }
 
 // ingestActivityAttachments persists attachments the worker mirrored into blob
@@ -780,36 +802,46 @@ func runFollowUps(ctx context.Context, app *App, log *slog.Logger, out activity.
 	runFollowUpsUserDerived(ctx, app, log, out)
 }
 
+// followUp runs one stage; a panic is logged like an error so it neither
+// skips the other stages nor fails the durable ingest.
+func followUp(log *slog.Logger, stage string, fn func() error) {
+	defer func() {
+		if p := recover(); p != nil {
+			log.Error("follow-up panicked", "stage", stage, "panic", p, "stack", string(debug.Stack()))
+		}
+	}()
+	if err := fn(); err != nil {
+		log.Warn("follow-up failed", "stage", stage, "error", err)
+	}
+}
+
 // runFollowUpsSourceDerived refreshes stream aggregates, best efforts and segment matches of the source.
 func runFollowUpsSourceDerived(ctx context.Context, app *App, log *slog.Logger, out activity.IngestResult) {
+	log = log.With("source_id", out.SourceID)
 	// Materialise the downsampled CAggs for this (often historical) stream — the
 	// recent-window refresh policy won't, so without this the GPS track and
 	// downsampled charts come back empty for any backfilled activity.
 	if app.Streams != nil {
-		if err := app.Streams.RefreshAggregates(ctx, out.SourceID); err != nil {
-			log.Warn("refresh stream aggregates failed", "source_id", out.SourceID, "error", err)
-		}
+		followUp(log, "refresh stream aggregates", func() error { return app.Streams.RefreshAggregates(ctx, out.SourceID) })
 	}
 	if app.ComputeBestEfforts != nil {
-		res, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{
-			ActivitySourceID: out.SourceID,
+		followUp(log, "best efforts", func() error {
+			res, err := app.ComputeBestEfforts.Execute(ctx, besteffort.Input{ActivitySourceID: out.SourceID})
+			publishNewRecords(app, out, res.NewRecords)
+			return err
 		})
-		if err != nil {
-			log.Warn("best-effort compute failed", "source_id", out.SourceID, "error", err)
-		}
-		publishNewRecords(app, out, res.NewRecords)
 	}
 	if app.MatchSegments != nil {
-		if _, err := app.MatchSegments.Execute(ctx, segment.Input{
-			ActivitySourceID: out.SourceID,
-		}); err != nil {
-			log.Warn("segment matching failed", "source_id", out.SourceID, "error", err)
-		}
+		followUp(log, "segment matching", func() error {
+			_, err := app.MatchSegments.Execute(ctx, segment.Input{ActivitySourceID: out.SourceID})
+			return err
+		})
 	}
 }
 
 // runFollowUpsUserDerived recomputes training load, dispatches PRs and federates new activities.
 func runFollowUpsUserDerived(ctx context.Context, app *App, log *slog.Logger, out activity.IngestResult) {
+	log = log.With("activity_id", out.ActivityID, "user_id", out.Activity.UserID)
 	if app.ComputeTrainingLoad != nil {
 		// Recompute over a fixed rolling window anchored at "now" rather than
 		// the (zero-valued) default Input window — a zero Start/End collapses
@@ -819,22 +851,21 @@ func runFollowUpsUserDerived(ctx context.Context, app *App, log *slog.Logger, ou
 		// a new activity lands. 730 days + 42-day warm-up covers the Analysis
 		// page's ranges while the EWMA stabilises well before the visible span.
 		end := time.Now().UTC()
-		if _, err := app.ComputeTrainingLoad.Execute(ctx, trainingload.Input{
-			UserID:     out.Activity.UserID,
-			Start:      end.AddDate(0, 0, -730),
-			End:        end,
-			WarmUpDays: 42,
-		}); err != nil {
-			log.Warn("training-load compute failed", "user_id", out.Activity.UserID, "error", err)
-		}
+		followUp(log, "training load", func() error {
+			_, err := app.ComputeTrainingLoad.Execute(ctx, trainingload.Input{
+				UserID:     out.Activity.UserID,
+				Start:      end.AddDate(0, 0, -730),
+				End:        end,
+				WarmUpDays: 42,
+			})
+			return err
+		})
 	}
 	if app.DispatchPR != nil {
-		if _, err := app.DispatchPR.Execute(ctx, notification.Input{
-			ActivityID: out.ActivityID,
-			SourceID:   out.SourceID,
-		}); err != nil {
-			log.Warn("PR dispatch failed", "activity_id", out.ActivityID, "error", err)
-		}
+		followUp(log, "PR dispatch", func() error {
+			_, err := app.DispatchPR.Execute(ctx, notification.Input{ActivityID: out.ActivityID, SourceID: out.SourceID})
+			return err
+		})
 	}
 	// Federation Phase 3: announce a genuinely-new public activity to the
 	// owner's remote followers. Gate on a fresh import (action) AND recency, so
@@ -842,7 +873,10 @@ func runFollowUpsUserDerived(ctx context.Context, app *App, log *slog.Logger, ou
 	// an activity public later federates it via the edit path, no recency gate.)
 	if out.Action == activity.IngestActionImportedNew &&
 		time.Since(out.Activity.StartTime) <= federationPublishMaxAge {
-		publishActivityCreate(ctx, app, log, out.Activity)
+		followUp(log, "federation publish", func() error {
+			publishActivityCreate(ctx, app, log, out.Activity)
+			return nil
+		})
 	}
 }
 

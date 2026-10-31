@@ -35,9 +35,16 @@ type IngestActivityFromWorker struct {
 	settings   port.UserSettingsRepo
 	recompute  *RecomputeActivityFromSources
 	tx         port.TxManager
+	lock       port.UserLock // optional; serialises with re-clustering
 
 	now   func() time.Time
 	newID func() uuid.UUID
+}
+
+// WithUserLock makes each ingest hold the owner's regrouping lock.
+func (uc *IngestActivityFromWorker) WithUserLock(l port.UserLock) *IngestActivityFromWorker {
+	uc.lock = l
+	return uc
 }
 
 // NewIngestActivityFromWorker wires the use case. now and newID default to
@@ -135,6 +142,11 @@ func (uc *IngestActivityFromWorker) Execute(ctx context.Context, in IngestInput)
 	}
 	var result IngestResult
 	err := uc.tx.InTx(ctx, func(ctx context.Context) error {
+		if uc.lock != nil {
+			if err := uc.lock.LockUser(ctx, in.UserID); err != nil {
+				return err
+			}
+		}
 		existing, err := uc.activities.FindSourceByExternalID(
 			ctx, in.Provider, in.ExternalAccountID, in.ExternalID,
 		)

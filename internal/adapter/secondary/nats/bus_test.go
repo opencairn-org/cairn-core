@@ -2,12 +2,15 @@ package nats
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+
+	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
 // startServer runs an embedded JetStream-enabled NATS server for one test.
@@ -164,5 +167,78 @@ func TestBus_PublishFallsBackToCoreWhenStreamDeleted(t *testing.T) {
 	bus.mu.Unlock()
 	if cached {
 		t.Fatal("route for a deleted stream must be forgotten")
+	}
+}
+
+func TestRetryDelayBacksOff(t *testing.T) {
+	want := []time.Duration{5 * time.Second, 15 * time.Second, 45 * time.Second, 135 * time.Second, 5 * time.Minute, 5 * time.Minute}
+	for i, w := range want {
+		if got := retryDelay(uint64(i + 1)); got != w {
+			t.Errorf("retryDelay(%d) = %v, want %v", i+1, got, w)
+		}
+	}
+}
+
+func TestBus_HandlerPanicIsRetried(t *testing.T) {
+	bus, _ := newTestBus(t)
+	ctx := context.Background()
+	defer func(d time.Duration) { retryBase = d }(retryBase)
+	retryBase = 20 * time.Millisecond
+
+	calls := make(chan int, 4)
+	n := 0
+	sub, err := bus.Subscribe(ctx, port.ConsumerConfig{Stream: "JOBS", Durable: "panicky", Subject: "jobs.p", AckWait: 5 * time.Second, MaxDeliver: 3},
+		func(context.Context, port.Message) error {
+			n++
+			calls <- n
+			if n == 1 {
+				panic("boom")
+			}
+			return nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close(ctx) }()
+	if err := bus.Publish(ctx, "jobs.p", "p1", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	for want := 1; want <= 2; want++ {
+		select {
+		case got := <-calls:
+			if got != want {
+				t.Fatalf("call %d, want %d", got, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("delivery %d never arrived after a panic", want)
+		}
+	}
+}
+
+func TestBus_TerminalErrorTermsWithReason(t *testing.T) {
+	bus, _ := newTestBus(t)
+	ctx := context.Background()
+	adv := make(chan *nats.Msg, 1)
+	asub, err := bus.conn.ChanSubscribe("$JS.EVENT.ADVISORY.CONSUMER.MSG_TERMINATED.>", adv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = asub.Unsubscribe() }()
+	sub, err := bus.Subscribe(ctx, port.ConsumerConfig{Stream: "JOBS", Durable: "terming", Subject: "jobs.t", AckWait: 5 * time.Second},
+		func(context.Context, port.Message) error { return &port.TerminalError{Reason: "bad_payload"} })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close(ctx) }()
+	if err := bus.Publish(ctx, "jobs.t", "t1", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case m := <-adv:
+		if !strings.Contains(string(m.Data), `"reason":"bad_payload"`) || !strings.Contains(string(m.Data), `.terminated"`) {
+			t.Fatalf("advisory without reason: %s", m.Data)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no terminated advisory")
 	}
 }
