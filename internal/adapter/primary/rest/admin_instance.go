@@ -1,65 +1,58 @@
-package main
+package rest
 
 import (
-	"context"
-	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/usecase/instance"
+	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 )
 
-// mountAdminInstance is the REST twin of the instance-level admin RPCs:
+// AdminInstanceHandlers are the REST twin of the instance-level admin RPCs.
+// Routes whose use case is nil are not mounted, except the test email (503).
 //
 //	GET  /api/admin/instance/settings
 //	PUT  /api/admin/instance/settings   { instance_name?, ..., allowed_email_domains?, per_user_storage_quota_bytes?, per_user_max_external_accounts? }
 //	POST /api/admin/email/test          { to? }
 //	GET  /api/admin/health
 //	POST /api/admin/invites/{id}/resend
-func mountAdminInstance(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	h := &adminInstanceHandlers{app: app, logger: logger}
-	if app.InstanceSettings != nil {
+type AdminInstanceHandlers struct {
+	Auth      *Auth
+	Settings  *instance.Settings
+	TestEmail *instance.TestEmail
+	Health    *instance.Health
+	Invites   *invite.Admin
+}
+
+// Mount registers the routes.
+func (h *AdminInstanceHandlers) Mount(mux *http.ServeMux) {
+	if h.Settings != nil {
 		mux.HandleFunc("GET /api/admin/instance/settings", h.getSettings)
 		mux.HandleFunc("PUT /api/admin/instance/settings", h.putSettings)
 	}
 	mux.HandleFunc("POST /api/admin/email/test", h.testEmail)
-	if app.SystemHealth != nil {
+	if h.Health != nil {
 		mux.HandleFunc("GET /api/admin/health", h.health)
 	}
-	if app.InviteAdmin != nil {
+	if h.Invites != nil {
 		mux.HandleFunc("POST /api/admin/invites/{id}/resend", h.resendInvite)
 	}
 }
 
-type adminInstanceHandlers struct {
-	app    *App
-	logger *slog.Logger
-}
-
-func (h *adminInstanceHandlers) gate(w http.ResponseWriter, r *http.Request) (domain.User, bool) {
-	admin, ok := resolveAdminUser(r, h.app)
-	if !ok {
-		http.Error(w, "admin only", http.StatusForbidden)
-	}
-	return admin, ok
-}
-
-func (h *adminInstanceHandlers) getSettings(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.gate(w, r); !ok {
+func (h *AdminInstanceHandlers) getSettings(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminGate(h.Auth, w, r); !ok {
 		return
 	}
-	cur, err := h.app.InstanceSettings.Get(r.Context())
+	cur, err := h.Settings.Get(r.Context())
 	if err != nil {
 		writeActionError(w, err, "load failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": instanceSettingsJSON(cur)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": adminInstanceSettingsJSON(cur)})
 }
 
-type instanceSettingsBody struct {
+type adminInstanceSettingsBody struct {
 	Name                       *string   `json:"instance_name"`
 	Description                *string   `json:"instance_description"`
 	SupportEmail               *string   `json:"support_email"`
@@ -76,12 +69,12 @@ type instanceSettingsBody struct {
 	PerUserMaxExternalAccounts **int     `json:"per_user_max_external_accounts"`
 }
 
-func (h *adminInstanceHandlers) putSettings(w http.ResponseWriter, r *http.Request) {
-	admin, ok := h.gate(w, r)
+func (h *AdminInstanceHandlers) putSettings(w http.ResponseWriter, r *http.Request) {
+	admin, ok := adminGate(h.Auth, w, r)
 	if !ok || !requireJSON(w, r) {
 		return
 	}
-	var b instanceSettingsBody
+	var b adminInstanceSettingsBody
 	if err := decodeJSONBody(r, &b); err != nil {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
@@ -95,20 +88,20 @@ func (h *adminInstanceHandlers) putSettings(w http.ResponseWriter, r *http.Reque
 		u := domain.UserUnits(*b.DefaultUnits)
 		p.DefaultUnits = &u
 	}
-	cur, err := h.app.InstanceSettings.Update(r.Context(), restActor(r, admin), p)
+	cur, err := h.Settings.Update(r.Context(), actor(r, admin), p)
 	if err != nil {
 		writeActionError(w, err, "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": instanceSettingsJSON(cur)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": adminInstanceSettingsJSON(cur)})
 }
 
-func (h *adminInstanceHandlers) testEmail(w http.ResponseWriter, r *http.Request) {
-	admin, ok := h.gate(w, r)
+func (h *AdminInstanceHandlers) testEmail(w http.ResponseWriter, r *http.Request) {
+	admin, ok := adminGate(h.Auth, w, r)
 	if !ok {
 		return
 	}
-	if h.app.TestEmail == nil {
+	if h.TestEmail == nil {
 		http.Error(w, "no email adapter is configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -119,7 +112,7 @@ func (h *adminInstanceHandlers) testEmail(w http.ResponseWriter, r *http.Request
 	if b.To == "" {
 		b.To = admin.Email
 	}
-	took, err := h.app.TestEmail.Send(r.Context(), b.To)
+	took, err := h.TestEmail.Send(r.Context(), b.To)
 	if err != nil {
 		if _, isAction := actionErrorOf(err); isAction {
 			writeActionError(w, err, "send failed")
@@ -131,11 +124,11 @@ func (h *adminInstanceHandlers) testEmail(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]any{"delivered": true, "duration_ms": took.Milliseconds()})
 }
 
-func (h *adminInstanceHandlers) health(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.gate(w, r); !ok {
+func (h *AdminInstanceHandlers) health(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminGate(h.Auth, w, r); !ok {
 		return
 	}
-	rep := h.app.SystemHealth.Check(r.Context())
+	rep := h.Health.Check(r.Context())
 	comp := func(c instance.Component) map[string]any {
 		return map[string]any{"state": string(c.State), "detail": c.Detail, "measurements": c.Measurements}
 	}
@@ -147,17 +140,16 @@ func (h *adminInstanceHandlers) health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *adminInstanceHandlers) resendInvite(w http.ResponseWriter, r *http.Request) {
-	admin, ok := h.gate(w, r)
+func (h *AdminInstanceHandlers) resendInvite(w http.ResponseWriter, r *http.Request) {
+	admin, ok := adminGate(h.Auth, w, r)
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
+	id, ok := adminParseID[domain.InviteID](w, r)
+	if !ok {
 		return
 	}
-	res, err := h.app.InviteAdmin.Resend(r.Context(), restActor(r, admin), domain.InviteID(id))
+	res, err := h.Invites.Resend(r.Context(), actor(r, admin), id)
 	if err != nil {
 		writeActionError(w, err, "resend failed")
 		return
@@ -169,7 +161,7 @@ func (h *adminInstanceHandlers) resendInvite(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, out)
 }
 
-func instanceSettingsJSON(s domain.InstanceSettings) map[string]any {
+func adminInstanceSettingsJSON(s domain.InstanceSettings) map[string]any {
 	return map[string]any{
 		"instance_name": s.Name, "instance_description": s.Description, "support_email": s.SupportEmail, "instance_url": s.URL,
 		"logo_url": s.LogoURL, "primary_color": s.PrimaryColor, "default_locale": s.DefaultLocale, "default_timezone": s.DefaultTimezone,
@@ -178,68 +170,5 @@ func instanceSettingsJSON(s domain.InstanceSettings) map[string]any {
 		"email_from_address": s.EmailFromAddress, "storage_adapter": s.StorageAdapter, "storage_configured": s.StorageConfigured,
 		"per_user_storage_quota_bytes": s.PerUserStorageQuotaBytes, "per_user_max_external_accounts": s.PerUserMaxExternalAccounts,
 		"updated_at": s.UpdatedAt.UTC().Format(time.RFC3339),
-	}
-}
-
-// liveWorkerCounts grades the worker fleet for the health report: live
-// instances with a compatible release are healthy, incompatible ones
-// degraded, and registered pools without a live instance offline.
-func liveWorkerCounts(app *App, logger *slog.Logger) func(ctx context.Context) instance.WorkerCounts {
-	return func(ctx context.Context) instance.WorkerCounts {
-		var c instance.WorkerCounts
-		online := map[string]bool{}
-		for _, w := range currentWorkers(ctx, app, logger) {
-			online[w.provider+"/"+w.name] = true
-			if w.compatible {
-				c.Healthy++
-			} else {
-				c.Degraded++
-			}
-		}
-		c.Offline = offlinePools(ctx, app, online)
-		return c
-	}
-}
-
-// offlinePools counts registered, unretired pools without a live instance.
-func offlinePools(ctx context.Context, app *App, online map[string]bool) int {
-	if app.WorkerPools == nil {
-		return 0
-	}
-	pools, err := app.WorkerPools.ListAll(ctx)
-	if err != nil {
-		return 0
-	}
-	n := 0
-	for _, p := range pools {
-		if p.RetiredAt == nil && !online[p.Provider+"/"+p.Name] {
-			n++
-		}
-	}
-	return n
-}
-
-// natsHealth reports the message bus connection for the health report.
-func natsHealth(app *App) func() (bool, string) {
-	return func() (bool, string) {
-		if app.NATSBus == nil {
-			return false, "message bus not configured"
-		}
-		nc := app.NATSBus.Conn()
-		if nc == nil || !nc.IsConnected() {
-			return false, "not connected"
-		}
-		return true, "connected to " + nc.ConnectedUrl()
-	}
-}
-
-// liveWorkerNames lists the pool names currently online.
-func liveWorkerNames(app *App, logger *slog.Logger) func(ctx context.Context) []string {
-	return func(ctx context.Context) []string {
-		var out []string
-		for _, w := range currentWorkers(ctx, app, logger) {
-			out = append(out, w.name)
-		}
-		return out
 	}
 }

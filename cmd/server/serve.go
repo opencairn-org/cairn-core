@@ -236,7 +236,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// backfill). The legacy token-gated /admin/* smoketest surface was removed —
 	// listings/recompute/detach now live on the Connect-RPC AdminService + the
 	// per-activity /api/* surface.
-	mountAdminOps(mux, app, logger)
+	mountRestAdminOps(mux, app, logger)
 
 	// Provider-agnostic webhook forwarder. POST /webhooks/{provider}
 	// forwards raw bodies to cairn.webhooks.<provider>.event;
@@ -336,13 +336,13 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountMergedStream(mux, app)
 	mountRecords(mux, app, logger)
 	mountCustomRecords(mux, app, logger)
-	mountHealth(mux, app, logger)
+	mountRestHealthMetrics(mux, app, logger)
 	mountReviewQueue(mux, app, logger)
 	mountActivityManage(mux, app, logger)
 	mountActivityExport(mux, app, logger)
 	mountActivityMapImage(mux, app, cfg.Map, logger)
 	mountActivitiesHeatmap(mux, app, logger)
-	mountInstanceFeatures(mux, cfg, logger)
+	mountRestInstanceFeatures(mux, cfg, logger)
 	mountActivitySimilar(mux, app, logger)
 	mountBestEffortHistory(mux, app, logger)
 	mountSegmentsList(mux, app, logger)
@@ -369,9 +369,7 @@ func serveMountSocial(mux *http.ServeMux, app *App, logger *slog.Logger) {
 // serveMountPlatform mounts admin API, sync, version, metrics, Connect-RPC and the web UI.
 func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// Session+admin-gated admin API (worker onboarding) for the admin UI.
-	mountAdminAPI(mux, app, logger)
-	mountAdminUsers(mux, app, logger)
-	mountAdminInstance(mux, app, logger)
+	mountRestAdmin(mux, app, logger)
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
 	mountSyncEndpoints(mux, app, logger)
