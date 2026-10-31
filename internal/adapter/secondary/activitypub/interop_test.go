@@ -1,12 +1,15 @@
-package main
+package activitypub
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,9 +20,10 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/httpsig"
+	"github.com/opencairn-org/cairn-core/internal/usecase/federation"
 )
 
-// federation_interop_test exercises the cross-instance ActivityPub wire protocol
+// interop_test exercises the cross-instance ActivityPub wire protocol
 // end to end over real HTTP — the parts most likely to break interop with
 // another Cairn (or a Mastodon-family server): a remote actor publishes its
 // public key, a signed activity crosses the boundary, and the receiving side
@@ -94,7 +98,7 @@ func TestFederationInterop_InboundActivityAcrossHTTP(t *testing.T) {
 		Privacy:        domain.PrivacyPublic,
 	}
 	objID := bobActor + "/activities/" + act.ID.String()
-	create := buildActivityCreate(srv.URL, bobActor, objID, act, allCats)
+	create := federation.BuildCreate(srv.URL, bobActor, objID, act, allCats())
 	body, err := json.Marshal(create)
 	if err != nil {
 		t.Fatal(err)
@@ -116,19 +120,14 @@ func TestFederationInterop_InboundActivityAcrossHTTP(t *testing.T) {
 	}
 
 	// Dereference the signer's actor document over real HTTP and parse its key.
-	resp, err := http.Get(signerActor)
+	actor, err := testClient(srv).FetchActor(context.Background(), signerActor)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("fetch actor: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	var actor apActor
-	if err := json.NewDecoder(resp.Body).Decode(&actor); err != nil {
-		t.Fatalf("decode actor: %v", err)
+	if actor.Inbox == "" || actor.Domain != strings.TrimPrefix(srv.URL, "http://") {
+		t.Fatalf("fetched actor = %+v", actor)
 	}
-	if actor.Inbox == "" || actor.PublicKey.PublicKeyPem == "" {
-		t.Fatal("fetched actor missing inbox or public key")
-	}
-	pub, err := parsePublicKeyPEM(actor.PublicKey.PublicKeyPem)
+	pub, err := federation.ParsePublicKeyPEM(actor.PublicKeyPEM)
 	if err != nil {
 		t.Fatalf("parse key: %v", err)
 	}
@@ -139,14 +138,14 @@ func TestFederationInterop_InboundActivityAcrossHTTP(t *testing.T) {
 	}
 
 	// And the object parses into the feed item the receiver would store.
-	var env apActivity
+	var env federation.Activity
 	if err := json.Unmarshal(body, &env); err != nil {
 		t.Fatal(err)
 	}
 	if env.Type != "Create" {
 		t.Fatalf("activity type = %q", env.Type)
 	}
-	item, ok := feedItemFromObject(domain.UserID(uuid.New()), bobActor, env.Object)
+	item, ok := federation.FeedItemFromObject(domain.UserID(uuid.New()), bobActor, env.Object)
 	if !ok {
 		t.Fatal("receiver could not parse the Create object into a feed item")
 	}
@@ -156,7 +155,7 @@ func TestFederationInterop_InboundActivityAcrossHTTP(t *testing.T) {
 
 	// The matching Delete targets the same object id, so the receiver's Delete
 	// handler removes exactly this item.
-	del := buildActivityDelete(bobActor, objID)
+	del := federation.BuildDelete(bobActor, objID)
 	if del["object"] != item.ActivityAPID {
 		t.Errorf("Delete object %v != feed item ap id %q", del["object"], item.ActivityAPID)
 	}
@@ -191,26 +190,42 @@ func TestFederationInterop_OutboundSignatureIsVerifiable(t *testing.T) {
 		"object":   "https://peer.test/users/bob",
 	}
 	body, _ := json.Marshal(follow)
-	req, _ := http.NewRequest(http.MethodPost, "https://peer.test/users/bob/inbox", bytes.NewReader(body))
-	if err := httpsig.Sign(req, aliceActor+"#main-key", aliceKey, body); err != nil {
-		t.Fatal(err)
-	}
 
-	// The peer fetches Alice's key and verifies — the interop guarantee.
-	resp, err := http.Get(aliceActor)
+	// The peer fetches Alice's key and verifies what Deliver posts — the interop guarantee.
+	actor, err := testClient(srv).FetchActor(context.Background(), aliceActor)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	var actor apActor
-	if err := json.NewDecoder(resp.Body).Decode(&actor); err != nil {
-		t.Fatal(err)
-	}
-	pub, err := parsePublicKeyPEM(actor.PublicKey.PublicKeyPem)
+	pub, err := federation.ParsePublicKeyPEM(actor.PublicKeyPEM)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := httpsig.Verify(req, body, pub); err != nil {
-		t.Fatalf("peer could not verify Cairn's signed request: %v", err)
+	var verifyErr error
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ := io.ReadAll(r.Body)
+		if !bytes.Equal(got, body) {
+			verifyErr = errors.New("body changed in transit")
+		} else {
+			verifyErr = httpsig.Verify(r, got, pub)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer peer.Close()
+	code, err := testClient(peer).Deliver(context.Background(), aliceKey, aliceActor+"#main-key", peer.URL+"/users/bob/inbox", body)
+	if err != nil || code != http.StatusAccepted {
+		t.Fatalf("deliver = %d, %v", code, err)
 	}
+	if verifyErr != nil {
+		t.Fatalf("peer could not verify Cairn's signed request: %v", verifyErr)
+	}
+}
+
+// testClient talks plain http to an httptest server.
+func testClient(srv *httptest.Server) *Client {
+	return &Client{HTTP: srv.Client(), Scheme: "http"}
+}
+
+// allCats is every category, as an owner sees them.
+func allCats() domain.CategorySet {
+	return domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true})
 }

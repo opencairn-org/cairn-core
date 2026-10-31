@@ -1,4 +1,4 @@
-package main
+package federation
 
 import (
 	"encoding/json"
@@ -13,11 +13,11 @@ import (
 // allCats is every category, as an owner sees them.
 var allCats = domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true})
 
-func TestBuildActivityDelete_MatchesCreateObjectID(t *testing.T) {
+func TestBuildDelete_MatchesCreateObjectID(t *testing.T) {
 	actorID := "https://cairn.example/users/alice"
 	objID := actorID + "/activities/019ea3be-f1d5-7b39-8305-26603838c8ee"
 
-	del := buildActivityDelete(actorID, objID)
+	del := BuildDelete(actorID, objID)
 	if del["type"] != "Delete" {
 		t.Fatalf("type = %v", del["type"])
 	}
@@ -39,20 +39,20 @@ func TestDeliveryBackoff(t *testing.T) {
 		4: 240 * time.Second,
 	}
 	for attempts, want := range cases {
-		if got := deliveryBackoff(attempts); got != want {
-			t.Errorf("deliveryBackoff(%d) = %v, want %v", attempts, got, want)
+		if got := DeliveryBackoff(attempts); got != want {
+			t.Errorf("DeliveryBackoff(%d) = %v, want %v", attempts, got, want)
 		}
 	}
 	// Capped at 6h and never exceeds it, however many attempts.
 	for _, a := range []int{12, 20, 100} {
-		if got := deliveryBackoff(a); got != 6*time.Hour {
-			t.Errorf("deliveryBackoff(%d) = %v, want 6h cap", a, got)
+		if got := DeliveryBackoff(a); got != 6*time.Hour {
+			t.Errorf("DeliveryBackoff(%d) = %v, want 6h cap", a, got)
 		}
 	}
 	// Monotonic non-decreasing.
 	prev := time.Duration(0)
 	for a := 1; a <= 12; a++ {
-		d := deliveryBackoff(a)
+		d := DeliveryBackoff(a)
 		if d < prev {
 			t.Errorf("backoff decreased at attempt %d: %v < %v", a, d, prev)
 		}
@@ -63,7 +63,7 @@ func TestDeliveryBackoff(t *testing.T) {
 // The outbound Create we publish (Phase 3) must round-trip through the inbound
 // parser (Phase 2) so a remote Cairn surfaces our activity in its home feed.
 // This locks the two sides' object shape together.
-func TestBuildActivityCreate_RoundTripsThroughInboundParser(t *testing.T) {
+func TestBuildCreate_RoundTripsThroughInboundParser(t *testing.T) {
 	dist := 12345.6
 	elev := 210.0
 	act := domain.Activity{
@@ -81,7 +81,7 @@ func TestBuildActivityCreate_RoundTripsThroughInboundParser(t *testing.T) {
 	actorID := base + "/users/alice"
 	objID := actorID + "/activities/" + act.ID.String()
 
-	create := buildActivityCreate(base, actorID, objID, act, allCats)
+	create := BuildCreate(base, actorID, objID, act, allCats)
 	if create["type"] != "Create" {
 		t.Fatalf("create type = %v, want Create", create["type"])
 	}
@@ -95,7 +95,7 @@ func TestBuildActivityCreate_RoundTripsThroughInboundParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	item, ok := feedItemFromObject(act.UserID, actorID, objJSON)
+	item, ok := FeedItemFromObject(act.UserID, actorID, objJSON)
 	if !ok {
 		t.Fatal("feedItemFromObject rejected our own Create object")
 	}

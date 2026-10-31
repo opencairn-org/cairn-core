@@ -1,4 +1,4 @@
-package main
+package federation
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestApActivity_UndoFollowParsing(t *testing.T) {
+func TestActivity_UndoFollowParsing(t *testing.T) {
 	// An Undo wrapping the original Follow (Mastodon-style: embedded object).
 	raw := `{
 	  "type": "Undo",
@@ -19,33 +19,33 @@ func TestApActivity_UndoFollowParsing(t *testing.T) {
 	    "object": "https://cairn.example/users/alice"
 	  }
 	}`
-	var a apActivity
+	var a Activity
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
 		t.Fatal(err)
 	}
 	if a.Type != "Undo" {
 		t.Fatalf("type = %q", a.Type)
 	}
-	if got := a.objectType(); got != "Follow" {
+	if got := a.ObjectType(); got != "Follow" {
 		t.Errorf("objectType = %q, want Follow", got)
 	}
-	if got := a.undoneFollowTarget(); got != "https://cairn.example/users/alice" {
+	if got := a.UndoneFollowTarget(); got != "https://cairn.example/users/alice" {
 		t.Errorf("undoneFollowTarget = %q", got)
 	}
 }
 
-func TestApActivity_UndoNonFollowHasNoTarget(t *testing.T) {
+func TestActivity_UndoNonFollowHasNoTarget(t *testing.T) {
 	raw := `{"type":"Undo","object":{"type":"Like","object":"https://x/o/1"}}`
-	var a apActivity
+	var a Activity
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := a.undoneFollowTarget(); got != "" {
+	if got := a.UndoneFollowTarget(); got != "" {
 		t.Errorf("undoneFollowTarget for Undo{Like} = %q, want empty", got)
 	}
 }
 
-func TestApActivity_UndoLikeObject(t *testing.T) {
+func TestActivity_UndoLikeObject(t *testing.T) {
 	raw := `{
 	  "type": "Undo",
 	  "actor": "https://remote.example/users/bob",
@@ -55,21 +55,21 @@ func TestApActivity_UndoLikeObject(t *testing.T) {
 	    "object": "https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee"
 	  }
 	}`
-	var a apActivity
+	var a Activity
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := a.undoneObject("Like"); got != "https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee" {
+	if got := a.UndoneObject("Like"); got != "https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee" {
 		t.Errorf("undoneObject(Like) = %q", got)
 	}
-	if got := a.undoneObject("Follow"); got != "" {
+	if got := a.UndoneObject("Follow"); got != "" {
 		t.Errorf("undoneObject(Follow) on Undo{Like} = %q, want empty", got)
 	}
 }
 
-func TestLocalActivityIDFromAPURL(t *testing.T) {
+func TestLocalActivityID(t *testing.T) {
 	const host = "cairn.example"
-	id, ok := localActivityIDFromAPURL("https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee", host)
+	id, ok := LocalActivityID("https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee", host)
 	if !ok {
 		t.Fatal("expected to parse an activity id")
 	}
@@ -77,15 +77,15 @@ func TestLocalActivityIDFromAPURL(t *testing.T) {
 		t.Errorf("id = %s", id.String())
 	}
 	// A non-activity URL yields ok=false.
-	if _, ok := localActivityIDFromAPURL("https://cairn.example/users/alice", host); ok {
+	if _, ok := LocalActivityID("https://cairn.example/users/alice", host); ok {
 		t.Error("expected no activity id for an actor URL")
 	}
 	// A garbage tail (not a UUID) yields ok=false.
-	if _, ok := localActivityIDFromAPURL("https://cairn.example/users/alice/activities/not-a-uuid", host); ok {
+	if _, ok := LocalActivityID("https://cairn.example/users/alice/activities/not-a-uuid", host); ok {
 		t.Error("expected no activity id for a non-UUID tail")
 	}
 	// A FOREIGN host bearing a real local UUID is rejected (no host spoofing).
-	if _, ok := localActivityIDFromAPURL("https://attacker.example/users/x/activities/019ea3be-f1d5-7b39-8305-26603838c8ee", host); ok {
+	if _, ok := LocalActivityID("https://attacker.example/users/x/activities/019ea3be-f1d5-7b39-8305-26603838c8ee", host); ok {
 		t.Error("expected rejection of a foreign-host URL")
 	}
 }
@@ -95,7 +95,7 @@ func TestRemoteComment(t *testing.T) {
 	note := `{"id":"https://remote.example/notes/1","type":"Note",
 	  "inReplyTo":"https://cairn.example/users/alice/activities/019ea3be-f1d5-7b39-8305-26603838c8ee",
 	  "content":"<p>nice <b>ride</b>!</p>"}`
-	id, inReplyTo, body, ok := remoteComment([]byte(note))
+	id, inReplyTo, body, ok := RemoteComment([]byte(note))
 	if !ok {
 		t.Fatal("expected a reply to parse")
 	}
@@ -114,32 +114,32 @@ func TestRemoteComment(t *testing.T) {
 	}
 
 	// A workout Create object (no inReplyTo) is NOT a comment.
-	if _, _, _, ok := remoteComment([]byte(`{"id":"x","name":"Ride","sport:summary":{}}`)); ok {
+	if _, _, _, ok := RemoteComment([]byte(`{"id":"x","name":"Ride","sport:summary":{}}`)); ok {
 		t.Error("a workout object should not parse as a comment")
 	}
 	// Empty content → not a comment.
-	if _, _, _, ok := remoteComment([]byte(`{"id":"x","inReplyTo":"y","content":"  "}`)); ok {
+	if _, _, _, ok := RemoteComment([]byte(`{"id":"x","inReplyTo":"y","content":"  "}`)); ok {
 		t.Error("blank content should not parse as a comment")
 	}
 }
 
-func TestApActivity_DeleteObjectID(t *testing.T) {
+func TestActivity_DeleteObjectID(t *testing.T) {
 	// Delete with a bare-string object (Tombstone-less form).
 	raw := `{"type":"Delete","actor":"https://remote.example/users/bob","object":"https://remote.example/users/bob/activities/9"}`
-	var a apActivity
+	var a Activity
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := a.objectID(); got != "https://remote.example/users/bob/activities/9" {
+	if got := a.ObjectID(); got != "https://remote.example/users/bob/activities/9" {
 		t.Errorf("objectID = %q", got)
 	}
 	// Actor self-delete: object id == actor.
 	raw2 := `{"type":"Delete","actor":"https://remote.example/users/bob","object":{"id":"https://remote.example/users/bob","type":"Person"}}`
-	var a2 apActivity
+	var a2 Activity
 	if err := json.Unmarshal([]byte(raw2), &a2); err != nil {
 		t.Fatal(err)
 	}
-	if got := a2.objectID(); got != "https://remote.example/users/bob" {
+	if got := a2.ObjectID(); got != "https://remote.example/users/bob" {
 		t.Errorf("self-delete objectID = %q", got)
 	}
 }

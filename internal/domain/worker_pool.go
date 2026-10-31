@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// SourceWorker is one (pool, package) an account's sources were imported by.
+type SourceWorker struct{ Name, Package string }
+
 // WorkerPool is a worker identity: every instance with one name for one
 // provider (docs/adr/0006). The name is permanent and bound to one package;
 // a different implementation needs a new name.

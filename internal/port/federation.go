@@ -9,7 +9,7 @@ import (
 )
 
 // FederationPublisher announces local activity changes to a user's remote
-// ActivityPub followers. Implemented in package main over the durable delivery
+// ActivityPub followers. Implemented by usecase/federation over the durable delivery
 // queue; injected into the primary adapters that change an activity's
 // visibility (e.g. the Connect UpdateActivity edit path) so making an activity
 // public after import still federates it. A nil publisher is a no-op.
@@ -103,4 +103,34 @@ type FederationFeedRepo interface {
 	// DeleteAllFromActor removes every item from one actor — on an actor
 	// self-Delete (the remote leaving the network).
 	DeleteAllFromActor(ctx context.Context, recipient domain.UserID, actorID string) error
+}
+
+// FederationClient speaks ActivityPub over HTTP to remote instances.
+type FederationClient interface {
+	// FetchActor dereferences a remote actor document (no caching).
+	FetchActor(ctx context.Context, actorID string) (domain.FederatedActor, error)
+	// ResolveHandle turns user@host into an actor URL via WebFinger.
+	ResolveHandle(ctx context.Context, handle string) (string, error)
+	// Deliver POSTs a body signed with key to an inbox; status 0 on transport error.
+	Deliver(ctx context.Context, key *rsa.PrivateKey, keyID, inboxURL string, body []byte) (int, error)
+}
+
+// FederationActivityRepo reads the local activities federation exposes.
+type FederationActivityRepo interface {
+	GetActivity(ctx context.Context, id domain.ActivityID) (domain.Activity, error)
+	// ListPublicActivitiesForUser pages a user's public, non-hidden activities.
+	ListPublicActivitiesForUser(ctx context.Context, userID domain.UserID, limit, offset int) ([]domain.Activity, error)
+	CountPublicActivitiesForUser(ctx context.Context, userID domain.UserID) (int, error)
+}
+
+// RemoteEngagementRepo stores kudos and comments from remote actors.
+type RemoteEngagementRepo interface {
+	AddRemoteKudos(ctx context.Context, a domain.ActivityID, remoteActorID, likeActivityID string) error
+	RemoveRemoteKudos(ctx context.Context, a domain.ActivityID, remoteActorID string) error
+	AddRemoteComment(ctx context.Context, a domain.ActivityID, remoteActorID, noteAPID, body string) error
+	DeleteRemoteComment(ctx context.Context, remoteActorID, noteAPID string) error
+	// DeleteRemoteKudosFromActor / DeleteRemoteCommentsFromActor drop an
+	// actor's engagement on one owner's activities.
+	DeleteRemoteKudosFromActor(ctx context.Context, ownerUserID domain.UserID, remoteActorID string) error
+	DeleteRemoteCommentsFromActor(ctx context.Context, ownerUserID domain.UserID, remoteActorID string) error
 }
