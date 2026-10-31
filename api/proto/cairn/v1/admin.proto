@@ -874,8 +874,9 @@ enum MaintenanceOperation {
   // Recompute best efforts and user records for all activities. Triggered
   // when the best-effort algorithm changes.
   MAINTENANCE_OPERATION_RECOMPUTE_BEST_EFFORTS = 2;
-  // Recompute the merged Activity rows from sources. Triggered after a
-  // merge-engine update.
+  // Re-cluster each activity's time bucket, then recompute the merged Activity
+  // rows from sources. Triggered after a merge-engine update; also repairs a
+  // grouping a failed re-cluster left behind.
   MAINTENANCE_OPERATION_RECOMPUTE_ACTIVITY_MERGES = 3;
   // Recompute daily CTL/ATL/TSB metrics for all users.
   MAINTENANCE_OPERATION_RECOMPUTE_TRAINING_LOAD = 4;
