@@ -6,6 +6,11 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-10-31
+
+Core-only patch; the 0.6.x workers stay compatible. Run
+`cairn attachments backfill-variants` once after upgrading.
+
 ### Fixed
 - The logout button signs out: a browser `POST /auth/logout` now redirects to
   `/login` (303) instead of answering 204 and leaving the page signed in.
