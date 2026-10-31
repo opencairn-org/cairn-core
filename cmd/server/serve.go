@@ -290,12 +290,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 // serveMountFeatures mounts the user-facing REST feature endpoints.
 func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger *slog.Logger) {
-	// Drag-and-drop file import (GPX/TCX) — POST /api/activities/upload.
-	mountUploadEndpoint(mux, app, logger)
-	// Manual activity entry — POST /api/activities/manual.
-	mountManualActivityEndpoint(mux, app, logger)
-	// Source fields/route from another activity — POST /api/activities/{id}/source-from.
-	mountSourceFromEndpoint(mux, app, logger)
+	// Activity writes: upload, manual entry, source-from, source actions and
+	// previews, manage, merge overrides/policies, athlete profile, metric store.
+	mountAct(mux, app, logger)
 	// Activity detail reads, exports, course image and photos.
 	mountDetail(mux, app, cfg, logger)
 
@@ -307,20 +304,11 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// Owner dashboards: overview, stats, analysis, feed, heatmap, records, review queue.
 	mountRestDash(mux, app, logger)
 
-	// Athlete physiology profile (FTP/weight/HR time series → TSS).
-	mountAthlete(mux, app, logger)
-	mountMetricsAPI(mux, app, logger)
-
 	// Segment library, authoring, leaderboards and an activity's efforts.
 	mountRestSegments(mux, app, logger)
-	mountActivitySources(mux, app, logger)
-	mountSourcePreviews(mux, app, logger)
 	mountGarminConnect(mux, app)
 	mountGearSync(mux, app, logger)
-	mountMergeOverrides(mux, app, logger)
-	mountMergePolicy(mux, app, logger)
 	mountHealth(mux, app, logger)
-	mountActivityManage(mux, app, logger)
 	mountInstanceFeatures(mux, cfg, logger)
 	serveMountSocial(mux, app, logger)
 }
