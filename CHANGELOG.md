@@ -48,6 +48,10 @@ All notable changes to Cairn are documented here. The format follows
   data lands a moment later, failed follow-ups are retried with back-off and
   dead-lettered instead of only logged, and a client disconnect no longer
   cancels them.
+- Hiding an unknown activity (`POST /api/admin/activities/{id}/hide`,
+  Connect `SetActivityHidden`) answers 404 / NotFound instead of success.
+- An upload with type/tag hints now also emits the `activity.updated` live
+  event, like any other edit.
 - Admins can no longer reactivate a soft-deleted user through the status
   API; user status changes follow one transition table.
 - Ingest, re-merge after edits and source-from share one write path
