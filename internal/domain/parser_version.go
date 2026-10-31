@@ -60,6 +60,23 @@ const (
 	UpgradeNewDataset                       // newer archive format: re-fetch only
 )
 
+// Reimport reasons stored on a flagged source (reimport_status_reason).
+const (
+	ReimportReasonNewerParser  = "newer_parser"
+	ReimportReasonNewerDataset = "newer_dataset"
+)
+
+// Reason is the reimport reason a source flagged for u carries; "" for none.
+func (u ReparseUpgrade) Reason() string {
+	switch u {
+	case UpgradeNewParser:
+		return ReimportReasonNewerParser
+	case UpgradeNewDataset:
+		return ReimportReasonNewerDataset
+	}
+	return ""
+}
+
 func (v ParserVersion) UpgradeFor(stored ParserVersion) ReparseUpgrade {
 	switch {
 	case v.Dataset > stored.Dataset:

@@ -20,8 +20,8 @@ type BestEffortRepo struct {
 
 // ListPersonalRecords returns the user's all-time best per (activity type,
 // metric, window) across every activity. DISTINCT ON keeps only the best row
-// per group; the ordering makes "best" pace ASC (smaller is better) and every
-// other metric DESC (larger is better) via a sign flip. Always current — it
+// per group; "best" is ASC for the domain's smaller-is-better metrics and DESC
+// for every other metric, via a sign flip. Always current — it
 // reads live best_efforts, so a new best automatically becomes the PR with no
 // invalidation step.
 func (r *BestEffortRepo) ListPersonalRecords(ctx context.Context, userID domain.UserID) ([]domain.PersonalRecord, error) {
@@ -33,9 +33,9 @@ func (r *BestEffortRepo) ListPersonalRecords(ctx context.Context, userID domain.
 		  FROM best_efforts
 		 WHERE user_id = $1
 		 ORDER BY activity_type, metric, window_kind, window_value,
-		          (CASE WHEN metric = 'pace' THEN achieved_value ELSE -achieved_value END) ASC,
+		          (CASE WHEN metric = ANY($2) THEN achieved_value ELSE -achieved_value END) ASC,
 		          ts ASC`,
-		userID.UUID(),
+		userID.UUID(), smallerIsBetterMetrics(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list personal records: %w", err)
@@ -276,4 +276,14 @@ func (r *BestEffortRepo) ListBestEffortHistory(
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].StartTime.Before(out[j].StartTime) })
 	return out, nil
+}
+
+// smallerIsBetterMetrics is domain.SmallerIsBetterMetrics as a text[] parameter.
+func smallerIsBetterMetrics() []string {
+	ms := domain.SmallerIsBetterMetrics()
+	out := make([]string, len(ms))
+	for i, m := range ms {
+		out[i] = string(m)
+	}
+	return out
 }

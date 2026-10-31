@@ -418,6 +418,39 @@ type UserSegmentStats struct {
 	Native   int // distinct native (Cairn) segments
 }
 
+// Same-route heuristic: same sport, start within ~250-350 m (a lat/lng box;
+// 0.0035° is ~390 m of latitude) and distance within ±15%. It clusters
+// repeated loops and commutes even where segment coverage is sparse.
+const (
+	SimilarStartToleranceDeg = 0.0035
+	SimilarDistanceTolerance = 0.15
+)
+
+// SimilarRouteQuery asks for the owner's other activities over the same route.
+type SimilarRouteQuery struct {
+	ActivityID        ActivityID
+	UserID            UserID
+	Type              ActivityType
+	StartLat          float64
+	StartLng          float64
+	DistanceM         float64
+	StartToleranceDeg float64
+	DistanceTolerance float64 // fraction of DistanceM
+}
+
+// SimilarRouteQueryFor builds the same-route query for act; false when act has
+// no start coordinates or distance to compare.
+func SimilarRouteQueryFor(act Activity) (SimilarRouteQuery, bool) {
+	if act.StartLat == nil || act.StartLng == nil || act.Summary.DistanceM == nil || *act.Summary.DistanceM <= 0 {
+		return SimilarRouteQuery{}, false
+	}
+	return SimilarRouteQuery{
+		ActivityID: act.ID, UserID: act.UserID, Type: act.Type,
+		StartLat: *act.StartLat, StartLng: *act.StartLng, DistanceM: *act.Summary.DistanceM,
+		StartToleranceDeg: SimilarStartToleranceDeg, DistanceTolerance: SimilarDistanceTolerance,
+	}, true
+}
+
 // SimilarActivity is one activity that covers roughly the same route as a
 // reference activity, detected by shared segment efforts. Carries the display
 // metrics the progression view needs.

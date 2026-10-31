@@ -108,16 +108,19 @@ func (r *GearRepo) Save(ctx context.Context, g domain.Gear) error {
 	return nil
 }
 
-// Delete removes the gear. Its activities go back to merge-assigned first:
-// the FK nulls gear_id, and a sticky 'user' would otherwise read as "no
-// gear, by choice" and never be re-derived.
+// SetGearSetByForGear implements port.GearRepo.
+func (r *GearRepo) SetGearSetByForGear(ctx context.Context, id domain.GearID, by domain.GearSetBy) error {
+	if _, err := dbtx(ctx, r.pool).Exec(ctx,
+		`UPDATE activities SET gear_set_by = $2, updated_at = now() WHERE gear_id = $1`,
+		id.UUID(), string(by)); err != nil {
+		return fmt.Errorf("set gear_set_by for gear %s: %w", id, err)
+	}
+	return nil
+}
+
+// Delete removes the gear (the FK nulls gear_id on its activities).
 func (r *GearRepo) Delete(ctx context.Context, id domain.GearID) error {
 	db := dbtx(ctx, r.pool)
-	if _, err := db.Exec(ctx,
-		`UPDATE activities SET gear_set_by = 'merge', updated_at = now() WHERE gear_id = $1`,
-		id.UUID()); err != nil {
-		return fmt.Errorf("delete gear %s: reset activities: %w", id, err)
-	}
 	tag, err := db.Exec(ctx, `DELETE FROM gear WHERE id = $1`, id.UUID())
 	if err != nil {
 		return fmt.Errorf("delete gear %s: %w", id, err)

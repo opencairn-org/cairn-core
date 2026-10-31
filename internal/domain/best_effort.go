@@ -59,11 +59,27 @@ const (
 	BestEffortMetricVAM       BestEffortMetric = "vam"
 )
 
+// BestEffortMetrics lists every metric.
+var BestEffortMetrics = []BestEffortMetric{
+	BestEffortMetricPace, BestEffortMetricSpeed, BestEffortMetricPower, BestEffortMetricHeartRate, BestEffortMetricVAM,
+}
+
 // SmallerIsBetter reports whether a smaller AchievedValue is the better
 // effort for this metric. Used by user-record queries to ORDER BY ASC
 // vs DESC.
 func (m BestEffortMetric) SmallerIsBetter() bool {
 	return m == BestEffortMetricPace
+}
+
+// SmallerIsBetterMetrics lists the metrics where the smallest value wins.
+func SmallerIsBetterMetrics() []BestEffortMetric {
+	var out []BestEffortMetric
+	for _, m := range BestEffortMetrics {
+		if m.SmallerIsBetter() {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // PersonalRecord is the user's all-time best for one (activity type, metric,
