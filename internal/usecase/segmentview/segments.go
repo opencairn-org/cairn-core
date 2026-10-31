@@ -177,7 +177,7 @@ func (s *Segments) Efforts(ctx context.Context, viewer domain.UserID, id domain.
 		q.UserID = &viewer
 	}
 	want, skip := clampLimit(q.Limit), max(0, q.Offset)
-	out := make([]domain.SegmentEffort, 0, want)
+	out := make([]domain.SegmentEffort, 0, SegmentsDefaultLimit)
 	err = s.scanVisible(ctx, viewer, id, q, func(c domain.SegmentEffortCandidate) bool {
 		if skip > 0 {
 			skip--
