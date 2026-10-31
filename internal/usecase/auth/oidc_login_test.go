@@ -23,7 +23,8 @@ import (
 // fakeUsers implements only the two UserRepo methods the OIDC provision path
 // touches; the embedded nil interface satisfies the rest (never called).
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
+	port.UserLifecycleStore
 	byEmail       map[string]domain.User
 	takenUsername map[string]bool
 	takenEmail    map[string]bool
@@ -78,7 +79,7 @@ type fakeIDV struct {
 
 func (v *fakeIDV) Verify(context.Context, string) (*oidc.IDToken, error) { return v.tok, v.err }
 
-func newOIDCLoginForTest(providers []domain.OIDCProvider, users port.UserRepo, fv *fakeVerifier) *OIDCLogin {
+func newOIDCLoginForTest(providers []domain.OIDCProvider, users oidcUserStore, fv *fakeVerifier) *OIDCLogin {
 	uc := NewOIDCLogin(providers, nil, nil, users, time.Hour, "http://app.example")
 	uc.SetVerifierFactory(func(context.Context, string) (OIDCVerifier, error) { return fv, nil })
 	uc.SetUUID(func() uuid.UUID { return uuid.MustParse("00000000-0000-0000-0000-000000000001") })

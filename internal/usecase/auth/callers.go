@@ -15,9 +15,9 @@ import (
 // OAuth access token. Every primary adapter authenticates through it.
 type Callers struct {
 	Sessions port.SessionRepo
-	PATs     port.PATRepo         // optional
-	OAuth    port.OAuthServerRepo // optional
-	Users    port.UserRepo        // role gates; optional
+	PATs     port.PATRepo          // optional
+	OAuth    port.OAuthTokenLookup // optional
+	Users    port.UserReader       // role gates; optional
 	Now      func() time.Time
 }
 

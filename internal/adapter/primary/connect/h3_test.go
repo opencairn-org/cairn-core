@@ -16,7 +16,7 @@ import (
 )
 
 type fakeSegmentsH3 struct {
-	port.SegmentRepo
+	port.SegmentReader
 	stats   domain.UserSegmentStats
 	items   []domain.UserSegmentListItem
 	seg     domain.Segment

@@ -41,6 +41,12 @@ var (
 // available" case now (env providers are always enabled).
 var ErrClientDisabled = ErrProviderNotFound
 
+// oidcUserStore finds users by email and creates them on first sign-in.
+type oidcUserStore interface {
+	port.UserReader
+	port.UserLifecycleStore
+}
+
 // ---------------------------------------------------------------------------
 // OIDCLogin — two-phase: StartLogin (build authorize URL) / CompleteLogin
 // (verify the callback, find/create the user, write a session). Never touches
@@ -52,7 +58,7 @@ type OIDCLogin struct {
 	order           []string // config order, for Providers()
 	Identities      port.LinkedIdentityRepo
 	Sessions        port.SessionRepo
-	Users           port.UserRepo
+	Users           oidcUserStore
 	SessionTTL      time.Duration
 	RedirectBaseURL string // e.g. "https://cairn.example.com"; callback path appended
 
@@ -80,7 +86,7 @@ func NewOIDCLogin(
 	providers []domain.OIDCProvider,
 	identities port.LinkedIdentityRepo,
 	sessions port.SessionRepo,
-	users port.UserRepo,
+	users oidcUserStore,
 	sessionTTL time.Duration,
 	redirectBaseURL string,
 ) *OIDCLogin {

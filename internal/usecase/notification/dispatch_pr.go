@@ -32,7 +32,7 @@ import (
 // same dedup keys, and the repo's coalesce-or-insert path handles
 // repeated writes gracefully.
 type DispatchPRNotifications struct {
-	segments      port.SegmentRepo
+	segments      port.SegmentReader
 	notifications port.NotificationRepo
 	tx            port.TxManager
 	// deliver fans notifications out to side-channels (email). Optional — nil
@@ -46,7 +46,7 @@ type DispatchPRNotifications struct {
 }
 
 func NewDispatchPRNotifications(
-	segments port.SegmentRepo,
+	segments port.SegmentReader,
 	notifications port.NotificationRepo,
 	tx port.TxManager,
 	deliver *DeliverNotifications,

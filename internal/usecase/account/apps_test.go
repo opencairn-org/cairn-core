@@ -12,7 +12,7 @@ import (
 )
 
 type fakeOAuth struct {
-	port.OAuthServerRepo
+	port.OAuthGrantStore
 	grants  []domain.OAuthGrant
 	revoked map[string]int
 }

@@ -15,7 +15,7 @@ import (
 )
 
 type fakeOAuthGrants struct {
-	port.OAuthServerRepo
+	port.OAuthGrantStore
 	grants []domain.OAuthGrant
 }
 

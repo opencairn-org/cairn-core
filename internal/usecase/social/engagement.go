@@ -16,7 +16,7 @@ type SocialGate interface {
 
 // Engagement gives and takes back kudos and comments.
 type Engagement struct {
-	Activities port.ActivityRepo
+	Activities port.ActivityReader
 	Repo       port.EngagementRepo
 	Gate       SocialGate
 }

@@ -54,8 +54,8 @@ type ProviderRow struct {
 // Accounts are the provider-account reads shared by REST and Connect.
 type Accounts struct {
 	accounts    port.ExternalAccountRepo
-	activities  port.ActivityRepo
-	queue       port.ImportQueueRepo
+	activities  port.SourceReader
+	queue       port.ImportQueueAccountView
 	events      port.ImportEventRepo
 	connections port.UserProviderConfigRepo
 	insight     port.SyncInsight
@@ -63,7 +63,7 @@ type Accounts struct {
 }
 
 // NewAccounts wires the reads; queue, events, connections and insight may be nil.
-func NewAccounts(accounts port.ExternalAccountRepo, activities port.ActivityRepo, queue port.ImportQueueRepo, events port.ImportEventRepo,
+func NewAccounts(accounts port.ExternalAccountRepo, activities port.SourceReader, queue port.ImportQueueAccountView, events port.ImportEventRepo,
 	connections port.UserProviderConfigRepo, insight port.SyncInsight, now func() time.Time) *Accounts {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }

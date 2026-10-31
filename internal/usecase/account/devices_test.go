@@ -12,7 +12,8 @@ import (
 )
 
 type fakeDeviceRepo struct {
-	port.OAuthServerRepo
+	port.OAuthClientStore
+	port.OAuthDeviceCodeStore
 	codes    map[string]domain.OAuthDeviceCode
 	client   domain.OAuthClient
 	decided  []string

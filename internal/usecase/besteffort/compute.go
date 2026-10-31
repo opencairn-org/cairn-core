@@ -34,7 +34,7 @@ import (
 //   - Windows requiring more samples than the stream contains are skipped
 //     silently — short activities legitimately have no "20 minute power".
 type ComputeBestEffortsForSource struct {
-	activities  port.ActivityRepo
+	activities  port.ActivityAggregateReader
 	streams     port.StreamRepo
 	bestEfforts port.BestEffortRepo
 	tx          port.TxManager
@@ -46,7 +46,7 @@ type ComputeBestEffortsForSource struct {
 }
 
 func NewComputeBestEffortsForSource(
-	activities port.ActivityRepo,
+	activities port.ActivityAggregateReader,
 	streams port.StreamRepo,
 	bestEfforts port.BestEffortRepo,
 	tx port.TxManager,

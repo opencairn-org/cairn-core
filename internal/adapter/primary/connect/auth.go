@@ -100,7 +100,7 @@ const (
 // `Authorization: Bearer cairn_pat_…` personal access token (CLI/API), stashing
 // the user id in the context. Touches last-seen/last-used best-effort. `pats`
 // may be nil (PAT auth then disabled).
-func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthServerRepo, sessionCookieName string) connectrpc.ServerInterceptor {
+func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthTokenLookup, sessionCookieName string) connectrpc.ServerInterceptor {
 	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		if authed, ok := connectAuthenticate(ctx, requestHeader(ctx), sessions, pats, oauth, sessionCookieName); ok {
 			return next(authed)
@@ -111,7 +111,7 @@ func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port
 }
 
 // connectAuthenticate tries cookie, PAT, then OAuth token; ok reports whether one matched.
-func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthServerRepo, sessionCookieName string) (context.Context, bool) {
+func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthTokenLookup, sessionCookieName string) (context.Context, bool) {
 	// 1. Session cookie.
 	if authed, ok := connectAuthSessionCookie(ctx, h, sessions, sessionCookieName); ok {
 		return authed, true
@@ -349,7 +349,7 @@ func userIDFromHandlerCtx(ctx context.Context) (domain.UserID, error) {
 // Cost: one extra UserRepo.GetUser lookup per call. Cache later if it
 // shows up on traces — admin endpoints are low-volume so the join is
 // fine for now.
-func RequireAdminInterceptor(users port.UserRepo) connectrpc.ServerInterceptor {
+func RequireAdminInterceptor(users port.UserReader) connectrpc.ServerInterceptor {
 	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
 		v := ctx.Value(ctxKeyUserID)
 		if v == nil {

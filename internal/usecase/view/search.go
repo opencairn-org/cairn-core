@@ -31,12 +31,12 @@ type GearLister interface {
 // Searches runs the faceted activity list (GET /api/activities/feed,
 // ActivityService.SearchActivities).
 type Searches struct {
-	activities port.ActivityRepo
+	activities port.ActivityReader
 	gear       GearLister // optional
 }
 
 // NewSearches wires the repos; gear may be nil.
-func NewSearches(activities port.ActivityRepo, gear GearLister) *Searches {
+func NewSearches(activities port.ActivityReader, gear GearLister) *Searches {
 	return &Searches{activities: activities, gear: gear}
 }
 

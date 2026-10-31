@@ -35,7 +35,7 @@ import (
 // works in single-process mode (no email) or before webhooks are wired.
 // (quiet hours + per-event delivery audit are the remaining follow-ups.)
 type DeliverNotifications struct {
-	users         port.UserRepo
+	users         port.UserReader
 	notifications port.NotificationRepo // reload an event when retrying a failed delivery
 	prefs         port.NotificationPreferenceRepo
 	email         port.EmailSender
@@ -49,7 +49,7 @@ type DeliverNotifications struct {
 }
 
 func NewDeliverNotifications(
-	users port.UserRepo,
+	users port.UserReader,
 	notifications port.NotificationRepo,
 	prefs port.NotificationPreferenceRepo,
 	email port.EmailSender,

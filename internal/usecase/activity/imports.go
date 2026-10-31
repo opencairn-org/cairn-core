@@ -20,6 +20,12 @@ func (e *QuotaReachedError) Unwrap() error {
 	return port.NewActionError(port.ActionErrorQuota, e.Error())
 }
 
+// importActivityStore reads and saves merged activities.
+type importActivityStore interface {
+	port.ActivityReader
+	port.ActivityWriter
+}
+
 // Imports are the user-initiated imports (file upload, manual entry): the
 // quota gate, then the shared ingest path.
 type Imports struct {
@@ -28,7 +34,7 @@ type Imports struct {
 	// Gear validates and attaches a manual entry's gear choice (nil → any
 	// gear_id is invalid); Activities and Recompute store it.
 	Gear       *gearuc.Service
-	Activities port.ActivityRepo
+	Activities importActivityStore
 	Recompute  *RecomputeActivityFromSources
 	Log        *slog.Logger
 }

@@ -98,12 +98,12 @@ type ClubMemberRow struct {
 // Clubs are the club reads (SocialService, GET /api/clubs…).
 type Clubs struct {
 	clubs port.ClubRepo
-	users port.UserRepo
+	users port.UserReader
 	feeds *Feeds
 }
 
 // NewClubs wires the reads; clubs may be nil (→ ErrUnavailable).
-func NewClubs(clubs port.ClubRepo, users port.UserRepo, feeds *Feeds) *Clubs {
+func NewClubs(clubs port.ClubRepo, users port.UserReader, feeds *Feeds) *Clubs {
 	return &Clubs{clubs: clubs, users: users, feeds: feeds}
 }
 
@@ -215,15 +215,15 @@ type ProfileView struct {
 
 // Profiles are the public profile reads (SocialService.GetProfile, GET /api/profiles/{username}).
 type Profiles struct {
-	users      port.UserRepo
-	activities port.ActivityRepo
+	users      port.UserReader
+	activities port.ActivityReader
 	follows    port.FollowRepo
 	blocks     port.BlockRepo
 	visibility *Visibility
 }
 
 // NewProfiles wires the reads; follows and blocks may be nil.
-func NewProfiles(users port.UserRepo, activities port.ActivityRepo, follows port.FollowRepo, blocks port.BlockRepo, visibility *Visibility) *Profiles {
+func NewProfiles(users port.UserReader, activities port.ActivityReader, follows port.FollowRepo, blocks port.BlockRepo, visibility *Visibility) *Profiles {
 	return &Profiles{users: users, activities: activities, follows: follows, blocks: blocks, visibility: visibility}
 }
 

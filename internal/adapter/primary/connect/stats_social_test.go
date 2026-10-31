@@ -16,7 +16,7 @@ import (
 )
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
 	users map[domain.UserID]domain.User
 }
 

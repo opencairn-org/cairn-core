@@ -20,7 +20,7 @@ type Replayer interface {
 
 // Jobs lists and steers queue items and dead letters.
 type Jobs struct {
-	Queue       port.ImportQueueRepo
+	Queue       port.ImportQueueAdmin
 	DeadLetters port.DeadLetterRepo
 	Replay      Replayer
 	Audit       *audit.Recorder

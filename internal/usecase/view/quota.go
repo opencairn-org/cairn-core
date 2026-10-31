@@ -12,14 +12,14 @@ import (
 // set, else the instance default; zero means unlimited. Shared by
 // GET /api/quota, the upload and manual-entry gates and AuthService.GetQuota.
 type Quota struct {
-	activities port.ActivityRepo
+	activities port.ActivityReader
 	quotas     port.QuotaRepo // optional
 	// maxActivities is the instance default.
 	maxActivities int
 }
 
 // NewQuota wires the reads; quotas may be nil.
-func NewQuota(activities port.ActivityRepo, quotas port.QuotaRepo, maxActivities int) *Quota {
+func NewQuota(activities port.ActivityReader, quotas port.QuotaRepo, maxActivities int) *Quota {
 	return &Quota{activities: activities, quotas: quotas, maxActivities: maxActivities}
 }
 

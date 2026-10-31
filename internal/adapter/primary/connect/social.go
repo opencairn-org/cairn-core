@@ -29,7 +29,7 @@ type SocialServer struct {
 	Clubs      *view.Clubs
 	Profiles   *view.Profiles
 	ShareLinks port.ShareLinkRepo
-	Activities port.ActivityRepo
+	Activities port.ActivityReviewQueue
 }
 
 var _ cairnv1connect.SocialServiceHandler = (*SocialServer)(nil)

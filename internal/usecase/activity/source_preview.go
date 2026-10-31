@@ -10,6 +10,12 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// previewActivityStore reads activities and flags source reimport status.
+type previewActivityStore interface {
+	port.ActivityReader
+	port.SourceWriter
+}
+
 // SourcePreviews runs dry-run reimports: a pending preview claims the next
 // worker result for its source, the result is diffed against the current
 // source and merge instead of being ingested, and the owner then commits
@@ -19,7 +25,7 @@ type SourcePreviews struct {
 	Actions    *SourceActions
 	Recompute  *RecomputeActivityFromSources
 	Reimporter port.SourceReimporter
-	Activities port.ActivityRepo
+	Activities previewActivityStore
 	Events     port.ActivityEventSink
 	Now        func() time.Time
 }

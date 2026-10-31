@@ -10,10 +10,16 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// federatedUserStore reads users and their federation opt-in.
+type federatedUserStore interface {
+	port.UserReader
+	port.UserFederationStore
+}
+
 // Actors are the local users as ActivityPub actors.
 type Actors struct {
 	Instance   Instance
-	Users      port.UserRepo
+	Users      federatedUserStore
 	Keys       port.FederationKeyRepo
 	Follows    port.FollowRepo
 	Activities port.FederationActivityRepo

@@ -27,9 +27,9 @@ import (
 // (modulo algorithm-version drift); the use case wipes prior efforts
 // for the source before writing the new set, all in one transaction.
 type MatchSegmentsForActivity struct {
-	activities port.ActivityRepo
+	activities port.ActivityAggregateReader
 	streams    port.StreamRepo
-	segments   port.SegmentRepo
+	segments   port.SegmentEffortStore
 	tx         port.TxManager
 
 	// recomputeRanks is invoked once per segment that received a new
@@ -59,9 +59,9 @@ type MatchSegmentsForActivity struct {
 // rank-refresh follow-up is skipped (and operators must run it manually
 // via /admin/segments/{id}/compute-ranks).
 func NewMatchSegmentsForActivity(
-	activities port.ActivityRepo,
+	activities port.ActivityAggregateReader,
 	streams port.StreamRepo,
-	segments port.SegmentRepo,
+	segments port.SegmentEffortStore,
 	tx port.TxManager,
 	recomputeRanks *segmentrank.ComputeSegmentRanks,
 	now func() time.Time,

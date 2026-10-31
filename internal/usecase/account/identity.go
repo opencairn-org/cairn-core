@@ -11,7 +11,7 @@ import (
 // Identities lists and unlinks OIDC identities. Passkeys may be nil.
 type Identities struct {
 	Repo      port.LinkedIdentityRepo
-	Users     port.UserRepo
+	Users     port.UserLoginStore
 	Passkeys  port.PasskeyRepo
 	Providers []domain.OIDCProvider
 }

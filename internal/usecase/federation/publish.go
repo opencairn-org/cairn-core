@@ -17,7 +17,7 @@ import (
 type Publisher struct {
 	Enabled    bool
 	Instance   Instance
-	Users      port.UserRepo
+	Users      federatedUserStore
 	Keys       port.FederationKeyRepo
 	Follows    port.FederationFollowRepo
 	Deliveries port.FederationDeliveryRepo // nil: best-effort inline delivery

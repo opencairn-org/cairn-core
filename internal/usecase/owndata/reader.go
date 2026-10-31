@@ -17,9 +17,9 @@ const (
 
 // Reader reads the caller's own activities, records and profile.
 type Reader struct {
-	Activities  port.ActivityRepo
+	Activities  port.ActivityReader
 	BestEfforts port.BestEffortRepo
-	Users       port.UserRepo
+	Users       port.UserReader
 }
 
 // Recent lists the user's newest activities; limit is clamped to

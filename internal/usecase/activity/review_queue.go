@@ -8,10 +8,16 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// reviewActivityStore reads activities and serves the review queue.
+type reviewActivityStore interface {
+	port.ActivityReader
+	port.ActivityReviewQueue
+}
+
 // ReviewQueue is the confidence-band review queue: activities the matcher
 // merged with only medium confidence, for the owner to confirm.
 type ReviewQueue struct {
-	Activities port.ActivityRepo
+	Activities reviewActivityStore
 }
 
 // List returns the caller's activities awaiting review.

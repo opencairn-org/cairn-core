@@ -18,7 +18,7 @@ const ResetTTL = time.Hour
 // Passwords changes and resets passwords. Mail may be nil (reset requests
 // then still answer generically so they never reveal whether an address exists).
 type Passwords struct {
-	Users    port.UserRepo
+	Users    port.UserLoginStore
 	Hasher   PasswordHasher
 	Tokens   port.AuthTokenRepo
 	Sessions port.SessionRepo

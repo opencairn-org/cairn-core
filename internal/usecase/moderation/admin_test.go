@@ -38,7 +38,7 @@ func (f *fakeReports) UpdateStatus(_ context.Context, id domain.ContentReportID,
 }
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
 	names map[domain.UserID]string
 }
 

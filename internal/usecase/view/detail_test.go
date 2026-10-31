@@ -13,7 +13,7 @@ import (
 )
 
 type fakeSegments struct {
-	port.SegmentRepo
+	port.SegmentReader
 	efforts []domain.SegmentEffort
 	segs    map[domain.SegmentID]domain.Segment
 	similar []domain.SimilarActivity

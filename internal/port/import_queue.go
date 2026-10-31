@@ -7,8 +7,6 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-// ImportQueueRepo persists the core-driven import work list. See migration
-// 00017 and docs in domain.ImportQueueItem.
 // ImportQueueFilter narrows the admin listing; zero values mean "any".
 type ImportQueueFilter struct {
 	Statuses      []domain.ImportItemStatus
@@ -19,7 +17,8 @@ type ImportQueueFilter struct {
 	Limit, Offset int
 }
 
-type ImportQueueRepo interface {
+// ImportQueueProcessor drives the queue: enqueue, claim, complete and recover items.
+type ImportQueueProcessor interface {
 	// Enqueue bulk-inserts pending items, skipping ones already queued for
 	// the same (account, type, external_id) — ON CONFLICT DO NOTHING.
 	// Returns the number of rows newly inserted.
@@ -49,6 +48,20 @@ type ImportQueueRepo interface {
 	// capacity-gated queue doesn't deadlock on a permanently-bad item.
 	MarkFailedByExternalID(ctx context.Context, accountID domain.ExternalAccountID, itemType domain.ImportItemType, externalID, reason string) error
 
+	// RequeueStale flips items that have sat in_progress longer than olderThan
+	// back to pending so they get re-dispatched; items already at maxAttempts
+	// are failed instead. Guards against dispatched jobs whose result never
+	// arrives (worker Term/DLQ, lost message) deadlocking a queue slot forever.
+	// Returns (requeued, failed).
+	RequeueStale(ctx context.Context, olderThan time.Duration, maxAttempts int) (int, int, error)
+
+	// AccountsWithPending lists external_account ids that currently have
+	// pending items — the processor's scan target.
+	AccountsWithPending(ctx context.Context, limit int) ([]domain.ExternalAccountID, error)
+}
+
+// ImportQueueAccountView serves an account's queue view and its per-item actions.
+type ImportQueueAccountView interface {
 	// CountByStatus returns per-status counts for an account — the UI queue
 	// view ("142 pending, 8 failed").
 	CountByStatus(ctx context.Context, accountID domain.ExternalAccountID) (map[domain.ImportItemStatus]int, error)
@@ -68,29 +81,31 @@ type ImportQueueRepo interface {
 	// pending maximum so it is claimed next. Returns false when the item
 	// doesn't exist or isn't pending.
 	MoveToTop(ctx context.Context, accountID domain.ExternalAccountID, id domain.ImportQueueItemID) (bool, error)
+}
 
-	// ---- instance-wide (admin) ----
-
+// ImportQueueAdmin serves the instance-wide admin queue view.
+type ImportQueueAdmin interface {
 	// ListAll pages items across every account with the filter applied,
 	// in-progress first then newest; the total ignores the page.
 	ListAll(ctx context.Context, f ImportQueueFilter) ([]domain.ImportQueueItem, int, error)
+
 	// Get returns one item by id; domain.ErrNotFound when absent.
 	Get(ctx context.Context, id domain.ImportQueueItemID) (domain.ImportQueueItem, error)
+
 	// CountAllByStatus counts items per status across the instance.
 	CountAllByStatus(ctx context.Context, f ImportQueueFilter) (map[domain.ImportItemStatus]int, error)
+
 	// Retry puts a failed or skipped item back to pending; reset clears attempts.
 	Retry(ctx context.Context, id domain.ImportQueueItemID, reset bool) (bool, error)
+
 	// Cancel marks a pending or in-progress item skipped.
 	Cancel(ctx context.Context, id domain.ImportQueueItemID, reason string) (bool, error)
+}
 
-	// RequeueStale flips items that have sat in_progress longer than olderThan
-	// back to pending so they get re-dispatched; items already at maxAttempts
-	// are failed instead. Guards against dispatched jobs whose result never
-	// arrives (worker Term/DLQ, lost message) deadlocking a queue slot forever.
-	// Returns (requeued, failed).
-	RequeueStale(ctx context.Context, olderThan time.Duration, maxAttempts int) (int, int, error)
-
-	// AccountsWithPending lists external_account ids that currently have
-	// pending items — the processor's scan target.
-	AccountsWithPending(ctx context.Context, limit int) ([]domain.ExternalAccountID, error)
+// ImportQueueRepo persists the core-driven import work list. See migration
+// 00017 and docs in domain.ImportQueueItem.
+type ImportQueueRepo interface {
+	ImportQueueProcessor
+	ImportQueueAccountView
+	ImportQueueAdmin
 }

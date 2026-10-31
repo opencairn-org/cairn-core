@@ -27,7 +27,7 @@ type Users struct {
 	PATs             port.PATRepo
 	Passkeys         port.PasskeyRepo
 	Identities       port.LinkedIdentityRepo
-	Activities       port.ActivityRepo
+	Activities       port.ActivityAdminStats
 	ExternalAccounts port.ExternalAccountRepo
 	Create           *admin.CreateUser
 	Invites          *invite.CreateInvite

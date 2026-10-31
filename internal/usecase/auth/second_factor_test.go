@@ -46,7 +46,7 @@ func (f *fakeChallenges) Consume(_ context.Context, hash []byte, now time.Time) 
 }
 
 type sfUsers struct {
-	port.UserRepo
+	port.UserCredentialStore
 	enabled map[domain.UserID]bool
 }
 

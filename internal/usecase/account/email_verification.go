@@ -19,7 +19,7 @@ var ErrEmailUnavailable = errors.New("email unavailable")
 
 // EmailVerification mails and confirms email-verification links. Mail may be nil.
 type EmailVerification struct {
-	Users  port.UserRepo
+	Users  port.UserProfileStore
 	Tokens port.AuthTokenRepo
 	Mail   port.EmailSender
 	// Link turns a verification code into the absolute URL the mail carries.

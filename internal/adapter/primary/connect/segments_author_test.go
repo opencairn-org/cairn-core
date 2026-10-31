@@ -16,7 +16,8 @@ import (
 )
 
 type fakeSegAuthorRepo struct {
-	port.SegmentRepo
+	port.SegmentReader
+	port.SegmentWriter
 	segs   map[domain.SegmentID]domain.Segment
 	name   string
 	listed domain.SegmentListFilter

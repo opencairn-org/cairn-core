@@ -24,7 +24,7 @@ const recalcWarmUpDays = 42
 // Profile is the user's athlete profile plus its retroactive recalculation.
 type Profile struct {
 	Repo         port.AthleteProfileRepo
-	Activities   port.ActivityRepo
+	Activities   port.ActivityReader
 	Recompute    *activity.RecomputeActivityFromSources   // nil → Recalculate unavailable
 	TrainingLoad *trainingload.ComputeTrainingLoadForUser // nil → curves left as they are
 	Log          *slog.Logger

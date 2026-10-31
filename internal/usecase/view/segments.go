@@ -11,13 +11,13 @@ import (
 // Segments are the caller-centric segment reads (SegmentService /
 // GET /api/segments, /api/segments/{id}).
 type Segments struct {
-	segments   port.SegmentRepo
+	segments   port.SegmentReader
 	visibility *Visibility
 }
 
 // NewSegments wires the repo (nil → every read is ErrUnavailable). Without a
 // visibility resolver, effort reads only ever show the viewer's own efforts.
-func NewSegments(segments port.SegmentRepo, visibility *Visibility) *Segments {
+func NewSegments(segments port.SegmentReader, visibility *Visibility) *Segments {
 	return &Segments{segments: segments, visibility: visibility}
 }
 

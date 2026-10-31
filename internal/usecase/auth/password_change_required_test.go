@@ -12,7 +12,7 @@ import (
 )
 
 type pcUsers struct {
-	port.UserRepo
+	port.UserLoginStore
 	rows   map[domain.UserID]*domain.User
 	hashes map[domain.UserID]string
 }

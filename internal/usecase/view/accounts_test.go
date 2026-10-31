@@ -37,7 +37,7 @@ func (f *fakeAccounts) GetExternalAccount(_ context.Context, id domain.ExternalA
 }
 
 type fakeQueue struct {
-	port.ImportQueueRepo
+	port.ImportQueueAccountView
 	items []domain.ImportQueueItem
 }
 

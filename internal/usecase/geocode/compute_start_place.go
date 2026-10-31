@@ -17,7 +17,7 @@ import (
 // ComputeStartPlace resolves an activity's start location from the first GPS
 // point of its primary stream and stores the place name on the activity.
 type ComputeStartPlace struct {
-	activities port.ActivityRepo
+	activities port.ActivityGeoStore
 	streams    port.StreamRepo
 	geocoder   port.Geocoder
 	logger     *slog.Logger
@@ -26,7 +26,7 @@ type ComputeStartPlace struct {
 // NewComputeStartPlace wires the use case. logger may be nil (falls back to the
 // default logger).
 func NewComputeStartPlace(
-	activities port.ActivityRepo,
+	activities port.ActivityGeoStore,
 	streams port.StreamRepo,
 	geocoder port.Geocoder,
 	logger *slog.Logger,

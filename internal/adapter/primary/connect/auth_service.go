@@ -28,7 +28,7 @@ import (
 type AuthServer struct {
 	cairnv1connect.UnimplementedAuthServiceHandler
 
-	Users port.UserRepo
+	Users port.UserProfileStore
 	// OIDCProviders are the env-configured (CAIRN_OIDC_*) providers. Immutable
 	// at runtime — there is no client database. Empty means OIDC is disabled.
 	OIDCProviders []domain.OIDCProvider
@@ -62,7 +62,7 @@ type AuthServer struct {
 
 var _ cairnv1connect.AuthServiceHandler = (*AuthServer)(nil)
 
-func NewAuthServer(users port.UserRepo, providers []domain.OIDCProvider) *AuthServer {
+func NewAuthServer(users port.UserProfileStore, providers []domain.OIDCProvider) *AuthServer {
 	return &AuthServer{Users: users, OIDCProviders: providers}
 }
 

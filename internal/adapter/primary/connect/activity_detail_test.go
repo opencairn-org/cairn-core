@@ -16,7 +16,7 @@ import (
 )
 
 type fakeSegmentsD struct {
-	port.SegmentRepo
+	port.SegmentReader
 	efforts []domain.SegmentEffort
 	segs    map[domain.SegmentID]domain.Segment
 }

@@ -12,6 +12,14 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// ingestActivityStore is what ingest needs: identity lookup, source and activity writes, start coords.
+type ingestActivityStore interface {
+	port.SourceReader
+	port.SourceWriter
+	port.ActivityWriter
+	port.ActivityGeoStore
+}
+
 // IngestActivityFromWorker is the entry point for new activity data arriving
 // from a worker. The worker has already parsed provider data into an
 // ActivitySourcePayload; this use case resolves the source's IDENTITY and
@@ -30,7 +38,7 @@ import (
 // kept a pure, re-runnable decision over the archived sources rather than an
 // irreversible attach-on-ingest. There is no legacy heuristic dedup path.
 type IngestActivityFromWorker struct {
-	activities port.ActivityRepo
+	activities ingestActivityStore
 	streams    port.StreamRepo
 	settings   port.UserSettingsRepo
 	recompute  *RecomputeActivityFromSources
@@ -51,7 +59,7 @@ func (uc *IngestActivityFromWorker) WithUserLock(l port.UserLock) *IngestActivit
 // time.Now and uuid.NewV7 when nil. streams may be nil — callers that include
 // Stream samples then get an error.
 func NewIngestActivityFromWorker(
-	activities port.ActivityRepo,
+	activities ingestActivityStore,
 	streams port.StreamRepo,
 	settings port.UserSettingsRepo,
 	recompute *RecomputeActivityFromSources,

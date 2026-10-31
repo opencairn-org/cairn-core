@@ -12,7 +12,7 @@ import (
 // runs in the transport, the credential blob is opaque here.
 type Passkeys struct {
 	Repo  port.PasskeyRepo
-	Users port.UserRepo
+	Users port.UserReader
 }
 
 // Holder loads a user and their passkeys for a WebAuthn ceremony.

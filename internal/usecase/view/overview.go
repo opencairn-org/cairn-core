@@ -26,12 +26,12 @@ const RecentCount = 6
 
 // Overviews computes the dashboard overview (GET /api/overview, StatsService.GetOverview).
 type Overviews struct {
-	activities port.ActivityRepo
+	activities port.ActivityReader
 	now        func() time.Time
 }
 
 // NewOverviews wires the repo; now defaults to time.Now.
-func NewOverviews(activities port.ActivityRepo, now func() time.Time) *Overviews {
+func NewOverviews(activities port.ActivityReader, now func() time.Time) *Overviews {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}

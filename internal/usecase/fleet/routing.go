@@ -23,7 +23,7 @@ type Routing struct {
 	Pools      port.WorkerPoolRepo
 	Presence   port.WorkerPresence
 	Accounts   port.ExternalAccountRepo
-	Activities port.ActivityRepo
+	Activities port.SourceReader
 	Log        *slog.Logger
 }
 

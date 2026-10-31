@@ -211,7 +211,8 @@ func TestInbox_LikeNeedsPublicAudience(t *testing.T) {
 }
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
+	port.UserFederationStore
 	user    domain.User
 	enabled bool
 }

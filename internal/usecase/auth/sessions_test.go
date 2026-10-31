@@ -66,7 +66,7 @@ func TestSessionsIssueLookupEnd(t *testing.T) {
 }
 
 type loginUsers struct {
-	port.UserRepo
+	port.UserCredentialStore
 	user domain.User
 	hash string
 	err  error

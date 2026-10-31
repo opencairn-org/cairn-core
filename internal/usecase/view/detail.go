@@ -15,20 +15,20 @@ import (
 // manage view, shared by REST and Connect. Optional repos may be nil; the
 // corresponding read then reports ErrUnavailable.
 type Details struct {
-	activities port.ActivityRepo
+	activities port.SourceReader
 	streams    port.StreamRepo
-	segments   port.SegmentRepo
+	segments   port.SegmentReader
 	athlete    port.AthleteProfileRepo
 	engagement port.EngagementRepo
-	users      port.UserRepo
+	users      port.UserReader
 	overrides  port.FieldOverrideRepo
 	presence   port.WorkerPresence
 	visibility *Visibility
 }
 
 // NewDetails wires the reads; every repo but activities may be nil.
-func NewDetails(activities port.ActivityRepo, streams port.StreamRepo, segments port.SegmentRepo, athlete port.AthleteProfileRepo,
-	engagement port.EngagementRepo, users port.UserRepo, overrides port.FieldOverrideRepo, presence port.WorkerPresence, visibility *Visibility) *Details {
+func NewDetails(activities port.SourceReader, streams port.StreamRepo, segments port.SegmentReader, athlete port.AthleteProfileRepo,
+	engagement port.EngagementRepo, users port.UserReader, overrides port.FieldOverrideRepo, presence port.WorkerPresence, visibility *Visibility) *Details {
 	return &Details{activities: activities, streams: streams, segments: segments, athlete: athlete, engagement: engagement,
 		users: users, overrides: overrides, presence: presence, visibility: visibility}
 }

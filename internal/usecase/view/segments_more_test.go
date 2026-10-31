@@ -13,7 +13,7 @@ import (
 )
 
 type fakeSegBrowse struct {
-	port.SegmentRepo
+	port.SegmentReader
 	seg   domain.Segment
 	owns  bool
 	gotQ  domain.SegmentEffortQuery

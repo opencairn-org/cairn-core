@@ -45,7 +45,7 @@ func (g *Graph) Unblock(ctx context.Context, me, target domain.UserID) error {
 
 // Privacy edits the caller's profile visibility, default policy and privacy zones.
 type Privacy struct {
-	Users      port.UserRepo
+	Users      port.UserProfileWriter
 	Visibility port.VisibilityRepo
 }
 

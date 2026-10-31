@@ -180,7 +180,7 @@ func TestClubs(t *testing.T) {
 }
 
 type fakeActivities struct {
-	port.ActivityRepo
+	port.ActivityReader
 	acts map[domain.ActivityID]domain.Activity
 }
 

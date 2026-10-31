@@ -63,7 +63,9 @@ func (f *fakeSessions) RevokeAllForUser(_ context.Context, uid domain.UserID) er
 }
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
+	port.UserCredentialStore
+	port.UserProfileWriter
 	user     domain.User
 	hash     string
 	password string

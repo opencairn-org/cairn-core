@@ -12,7 +12,7 @@ import (
 )
 
 type fakeActivities struct {
-	port.ActivityRepo
+	port.ActivityReader
 	act       domain.Activity
 	lastLimit int
 }

@@ -41,7 +41,7 @@ import (
 type ActivityServer struct {
 	cairnv1connect.UnimplementedActivityServiceHandler
 
-	Activities  port.ActivityRepo
+	Activities  port.ActivityAggregateStore
 	Streams     port.StreamRepo
 	BestEfforts port.BestEffortRepo
 
@@ -111,7 +111,7 @@ var _ cairnv1connect.ActivityServiceHandler = (*ActivityServer)(nil)
 // NewActivityServer wires the server with its dependencies. Callers pass
 // the concrete repos coming out of wire.go.
 func NewActivityServer(
-	activities port.ActivityRepo,
+	activities port.ActivityAggregateStore,
 	streams port.StreamRepo,
 	bestEfforts port.BestEffortRepo,
 	recompute *activity.RecomputeActivityFromSources,

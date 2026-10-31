@@ -72,7 +72,7 @@ func (f *fakeUsers) ListUsers(_ context.Context, page port.UserListPage) ([]doma
 }
 
 type footprintActivities struct {
-	port.ActivityRepo
+	port.ActivityAdminStats
 	counts map[domain.UserID]int
 }
 

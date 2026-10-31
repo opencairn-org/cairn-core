@@ -35,9 +35,15 @@ const (
 	trainingLoadWarmUp = 42
 )
 
+// pipelineActivityStore reads activities with their sources and saves sources.
+type pipelineActivityStore interface {
+	port.ActivityAggregateReader
+	port.SourceWriter
+}
+
 // Pipeline wires the stages. Every follow-up stage is optional (nil → skipped).
 type Pipeline struct {
-	Activities port.ActivityRepo
+	Activities pipelineActivityStore
 	Ingester   *activity.IngestActivityFromWorker
 	Recluster  *match.ReclusterBucket // nil → no re-clustering
 	Recompute  *activity.RecomputeActivityFromSources

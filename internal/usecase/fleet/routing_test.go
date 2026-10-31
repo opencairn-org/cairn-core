@@ -136,7 +136,7 @@ func (a accounts) GetExternalAccount(context.Context, domain.ExternalAccountID) 
 }
 
 type sources struct {
-	port.ActivityRepo
+	port.SourceReader
 	src domain.ActivitySource
 }
 

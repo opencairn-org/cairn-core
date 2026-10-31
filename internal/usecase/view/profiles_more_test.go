@@ -90,7 +90,7 @@ func TestProfilesFollowListsAndBlocks(t *testing.T) {
 }
 
 type totalsActivities struct {
-	port.ActivityRepo
+	port.ActivityReader
 	count int
 	fail  bool
 }

@@ -13,7 +13,7 @@ import (
 // heatmap pages (StatsService / GET /api/stats, /api/analysis, /api/records,
 // /api/best-efforts/history, /api/activities/heatmap).
 type Stats struct {
-	activities  port.ActivityRepo
+	activities  port.ActivityReader
 	metrics     port.MetricRepo
 	bestEfforts port.BestEffortRepo
 	streams     port.StreamRepo
@@ -21,7 +21,7 @@ type Stats struct {
 }
 
 // NewStats wires the repos; metrics, bestEfforts and streams may be nil.
-func NewStats(activities port.ActivityRepo, metrics port.MetricRepo, bestEfforts port.BestEffortRepo, streams port.StreamRepo, now func() time.Time) *Stats {
+func NewStats(activities port.ActivityReader, metrics port.MetricRepo, bestEfforts port.BestEffortRepo, streams port.StreamRepo, now func() time.Time) *Stats {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}

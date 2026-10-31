@@ -25,7 +25,7 @@ var ErrEmailChangeUnsupported = errors.New("email changes are not supported; con
 
 // Profiles edits the caller's own profile.
 type Profiles struct {
-	Users port.UserRepo
+	Users port.UserProfileStore
 }
 
 // Update validates the patch over the current row, writes it and returns the new row.

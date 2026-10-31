@@ -26,7 +26,7 @@ const DefaultBucketMargin = 24 * time.Hour
 
 // ReclusterBucket re-derives the logical-activity grouping for one time bucket.
 type ReclusterBucket struct {
-	activities port.ActivityRepo
+	activities port.ActivityMatchStore
 	recompute  *activity.RecomputeActivityFromSources
 	denylist   port.SourceDenylistRepo // optional; nil → no detach denylist (Gap 6)
 	tx         port.TxManager
@@ -53,7 +53,7 @@ func (uc *ReclusterBucket) WithEvents(sink port.AdminEventSink) *ReclusterBucket
 // NewReclusterBucket wires the use-case. newID/logger default sensibly; opts
 // falls back to dmatch.DefaultOptions when zero. denylist may be nil.
 func NewReclusterBucket(
-	activities port.ActivityRepo,
+	activities port.ActivityMatchStore,
 	recompute *activity.RecomputeActivityFromSources,
 	denylist port.SourceDenylistRepo,
 	tx port.TxManager,

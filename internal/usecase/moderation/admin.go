@@ -29,7 +29,7 @@ type ReportRow struct {
 type Reports struct {
 	Reports    port.ReportRepo
 	Moderation port.ModerationRepo
-	Users      port.UserRepo
+	Users      port.UserReader
 	Audit      *audit.Recorder
 }
 

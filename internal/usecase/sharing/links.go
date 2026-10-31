@@ -18,7 +18,7 @@ var ErrUnavailable = port.NewActionError(port.ActionErrorUnavailable, "share lin
 // Links is the owner's share-link management plus token checks for readers.
 type Links struct {
 	Repo       port.ShareLinkRepo
-	Activities port.ActivityRepo
+	Activities port.ActivityReader
 }
 
 // owned loads the caller's live activity; anything else is not found.

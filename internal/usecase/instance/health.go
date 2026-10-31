@@ -45,7 +45,7 @@ type Health struct {
 	Blobs       port.BlobStore
 	Mail        port.EmailSender
 	Workers     func(ctx context.Context) WorkerCounts
-	Queue       port.ImportQueueRepo
+	Queue       port.ImportQueueAdmin
 	DeadLetters port.DeadLetterRepo
 	Now         func() time.Time
 }

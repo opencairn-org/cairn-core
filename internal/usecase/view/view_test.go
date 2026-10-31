@@ -15,7 +15,7 @@ import (
 var vNow = time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC) // a Wednesday
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
 	users map[domain.UserID]domain.User
 }
 

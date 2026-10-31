@@ -11,12 +11,12 @@ import (
 // viewer may see a category of, or any live one (signed-URL reads, where the
 // token is the authorization). Every refusal is domain.ErrNotFound.
 type ActivityAccess struct {
-	activities port.ActivityRepo
+	activities port.ActivityReader
 	visibility *Visibility
 }
 
 // NewActivityAccess wires the loader.
-func NewActivityAccess(activities port.ActivityRepo, visibility *Visibility) *ActivityAccess {
+func NewActivityAccess(activities port.ActivityReader, visibility *Visibility) *ActivityAccess {
 	return &ActivityAccess{activities: activities, visibility: visibility}
 }
 

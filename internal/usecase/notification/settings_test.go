@@ -13,7 +13,7 @@ import (
 )
 
 type settingsUsers struct {
-	port.UserRepo
+	port.UserReader
 	user domain.User
 }
 

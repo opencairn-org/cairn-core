@@ -75,7 +75,8 @@ func (f *impSources) CountSourcesOutOfDate(context.Context, domain.ExternalAccou
 }
 
 type impQueue struct {
-	port.ImportQueueRepo
+	port.ImportQueueProcessor
+	port.ImportQueueAccountView
 	enqueued, requeued []domain.ImportQueueItem
 	inProgress         int
 	claimable          []domain.ImportQueueItem

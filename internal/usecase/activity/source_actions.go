@@ -20,11 +20,17 @@ const (
 	DetachReasonDelete = "user_delete"
 )
 
+// sourceActionStore reads activities with their sources and detaches sources.
+type sourceActionStore interface {
+	port.ActivityAggregateReader
+	port.SourceWriter
+}
+
 // SourceActions are the owner-initiated mutations of an activity's source set
 // that both the REST and the Connect surface expose: detach one source, or
 // delete the whole activity. Shared here so the two surfaces cannot drift.
 type SourceActions struct {
-	activities port.ActivityRepo
+	activities sourceActionStore
 	denylist   port.SourceDenylistRepo // optional; nil → detaches are not durable against re-push
 	recompute  *RecomputeActivityFromSources
 	federation port.FederationPublisher // optional; nil → no remote retraction
@@ -48,7 +54,7 @@ type Remerger interface {
 
 // NewSourceActions wires the use case; denylist and federation may be nil.
 func NewSourceActions(
-	activities port.ActivityRepo,
+	activities sourceActionStore,
 	denylist port.SourceDenylistRepo,
 	recompute *RecomputeActivityFromSources,
 	federation port.FederationPublisher,

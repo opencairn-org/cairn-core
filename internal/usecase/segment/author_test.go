@@ -13,7 +13,8 @@ import (
 )
 
 type fakeSegRepo struct {
-	port.SegmentRepo
+	port.SegmentReader
+	port.SegmentWriter
 	segs    map[domain.SegmentID]domain.Segment
 	efforts map[domain.SegmentID]int
 	owns    bool

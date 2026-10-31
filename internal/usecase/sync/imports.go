@@ -14,6 +14,12 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// importQueue drives the queue and serves per-account queue actions.
+type importQueue interface {
+	port.ImportQueueProcessor
+	port.ImportQueueAccountView
+}
+
 // Imports drives a connection's imports: full-sync discovery, single-item
 // imports, the persisted import queue and the connection settings.
 //
@@ -23,7 +29,7 @@ import (
 type Imports struct {
 	Accounts   port.ExternalAccountRepo
 	Sources    port.AccountSourceRepo
-	Queue      port.ImportQueueRepo
+	Queue      importQueue
 	Events     port.ImportEventRepo // may be nil
 	Bus        port.JobBus
 	Router     port.WorkerRouter

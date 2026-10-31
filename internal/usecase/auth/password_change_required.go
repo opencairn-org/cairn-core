@@ -17,7 +17,7 @@ import (
 // initial passwords set the flag; UpdatePassword clears it.
 type PasswordChangeRequired struct {
 	Challenges port.LoginChallengeRepo
-	Users      port.UserRepo
+	Users      port.UserLoginStore
 	Hasher     interface {
 		Hash(password string) (string, error)
 	}

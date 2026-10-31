@@ -18,7 +18,7 @@ import (
 type Settings struct {
 	QuietHours port.QuietHoursRepo
 	Deliveries port.NotificationDeliveryRepo
-	Users      port.UserRepo
+	Users      port.UserReader
 	Mail       port.EmailSender
 }
 

@@ -11,7 +11,7 @@ import (
 )
 
 type fakeUserRepo struct {
-	port.UserRepo
+	port.UserReader
 	email string
 }
 

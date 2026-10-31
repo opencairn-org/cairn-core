@@ -17,7 +17,7 @@ var ErrPinSourceNotOnActivity = errors.New("activity: pinned source not on this 
 // already owns (see SourceActions.OwnedActivity). A change re-merges at once;
 // that re-merge is best-effort, the pin itself is durable.
 type FieldPins struct {
-	Activities port.ActivityRepo
+	Activities port.SourceReader
 	Overrides  port.FieldOverrideRepo
 	Remerge    Remerger
 	Log        *slog.Logger

@@ -18,7 +18,7 @@ var (
 
 // PasswordLogin checks a username-or-email + password pair behind the login guard.
 type PasswordLogin struct {
-	Users  port.UserRepo
+	Users  port.UserCredentialStore
 	Hasher interface {
 		Verify(password, encoded string) (bool, error)
 	}

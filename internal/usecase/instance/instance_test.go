@@ -70,7 +70,7 @@ func TestSettingsUpdate(t *testing.T) {
 }
 
 type fakeQueue struct {
-	port.ImportQueueRepo
+	port.ImportQueueAdmin
 	counts map[domain.ImportItemStatus]int
 }
 
