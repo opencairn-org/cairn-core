@@ -746,7 +746,7 @@ func wireAppViews(app *App, logger *slog.Logger) {
 		bestEfforts = app.BestEfforts
 	}
 	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
-	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
+	app.SegmentViews = view.NewSegments(nilIfNilSegments(app), app.Visibility2)
 	app.HealthViews = view.NewHealth(app.Health, nil)
 	if app.Metrics != nil {
 		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}

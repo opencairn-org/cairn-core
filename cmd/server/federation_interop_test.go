@@ -94,7 +94,7 @@ func TestFederationInterop_InboundActivityAcrossHTTP(t *testing.T) {
 		Privacy:        domain.PrivacyPublic,
 	}
 	objID := bobActor + "/activities/" + act.ID.String()
-	create := buildActivityCreate(srv.URL, bobActor, objID, act)
+	create := buildActivityCreate(srv.URL, bobActor, objID, act, allCats)
 	body, err := json.Marshal(create)
 	if err != nil {
 		t.Fatal(err)

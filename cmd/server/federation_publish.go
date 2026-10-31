@@ -79,7 +79,7 @@ func publishActivityCreate(ctx context.Context, app *App, log *slog.Logger, act 
 	base := strings.TrimRight(app.PublicBaseURL, "/")
 	actorID := base + "/users/" + u.Username
 	objID := actorID + "/activities/" + act.ID.String()
-	create := buildActivityCreate(base, actorID, objID, act)
+	create := buildActivityCreate(base, actorID, objID, act, fedPublicCats(ctx, app, act))
 	body, err := json.Marshal(create)
 	if err != nil {
 		log.Warn("federation publish: marshal Create failed", "activity_id", act.ID, "error", err)
@@ -112,17 +112,25 @@ func publishActivityCreate(ctx context.Context, app *App, log *slog.Logger, act 
 		"activity_id", act.ID, "followers", len(inboxes), "queued", queued)
 }
 
-// publishCreateEligible: federation on, owner opted in, activity public + non-hidden.
+// publishCreateEligible: federation on, owner opted in, summary open to the public audience.
 func publishCreateEligible(ctx context.Context, app *App, act domain.Activity) bool {
 	if !app.FederationEnabled || app.FederationFollows == nil || app.FederationKeys == nil || app.Users == nil {
 		return false
 	}
-	// Only public, non-hidden activities are announced.
-	if act.Privacy != domain.PrivacyPublic || act.HiddenByAdmin {
+	if !fedPublicCats(ctx, app, act).Has(domain.CategorySummary) {
 		return false
 	}
 	enabled, err := app.Users.IsFederationEnabled(ctx, act.UserID)
 	return err == nil && enabled
+}
+
+// fedPublicCats is what an anonymous viewer may see of act; federated copies
+// are public, so they never carry more.
+func fedPublicCats(ctx context.Context, app *App, act domain.Activity) domain.CategorySet {
+	if app.Visibility2 == nil {
+		return domain.CategorySet{}
+	}
+	return app.Visibility2.For(ctx, &act, nil, false)
 }
 
 // publishCreateInline is the best-effort fallback; detached from the caller's context.
@@ -303,8 +311,8 @@ func itoa(n int) string { return strconv.Itoa(n) }
 
 // buildActivityCreate assembles the Create activity + its embedded object. The
 // object's `sport:summary` block + `image` are exactly what feedItemFromObject
-// reads on the receiving side.
-func buildActivityCreate(base, actorID, objID string, act domain.Activity) map[string]any {
+// reads on the receiving side. The map image is only linked when cats has it.
+func buildActivityCreate(base, actorID, objID string, act domain.Activity, cats domain.CategorySet) map[string]any {
 	sport := map[string]any{"discipline": string(act.Type)}
 	if act.Summary.DistanceM != nil {
 		sport["distance_m"] = *act.Summary.DistanceM
@@ -330,8 +338,10 @@ func buildActivityCreate(base, actorID, objID string, act domain.Activity) map[s
 		"content":       act.Description,
 		"url":           base + "/a/" + act.ID.String(),
 		"published":     act.StartTime.UTC().Format(time.RFC3339),
-		"image":         base + "/api/activities/" + act.ID.String() + "/map.png",
 		"sport:summary": sport,
+	}
+	if cats.Has(domain.CategoryMap) {
+		object["image"] = base + "/api/activities/" + act.ID.String() + "/map.png"
 	}
 	return map[string]any{
 		"@context":  "https://www.w3.org/ns/activitystreams",

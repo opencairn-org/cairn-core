@@ -143,7 +143,7 @@ func (r *AttachmentRepo) ListWithoutVariants(ctx context.Context, limit int) ([]
 		        content_type, caption, width, height, position, created_at,
 		        thumb_blob_id, medium_blob_id, blurhash
 		   FROM activity_attachments
-		  WHERE thumb_blob_id = '' OR blurhash = ''
+		  WHERE thumb_blob_id = '' OR medium_blob_id = '' OR blurhash = ''
 		  ORDER BY created_at
 		  LIMIT $1`,
 		limit,

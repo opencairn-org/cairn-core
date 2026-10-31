@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
@@ -123,11 +124,29 @@ func (h *shareLinksAPI) read(w http.ResponseWriter, r *http.Request) {
 		writeActionError(w, err, "load failed")
 		return
 	}
+	act := projectedJSON(p)
+	// The map and photo endpoints resolve the link audience from ?share=.
+	for _, k := range []string{"map_image_url", "photos_url"} {
+		if u, ok := act[k].(string); ok {
+			act[k] = u + "?share=" + url.QueryEscape(r.PathValue("token"))
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"activity": projectedJSON(p),
+		"activity": act,
 		"owner":    userCardJSON(owner),
 		"shared":   true,
 	})
+}
+
+// shareTokenFor reports whether the request's ?share= token is an active
+// share link for actID.
+func shareTokenFor(r *http.Request, app *App, actID domain.ActivityID) bool {
+	token := r.URL.Query().Get("share")
+	if token == "" || app.ShareLinks == nil {
+		return false
+	}
+	link, err := app.ShareLinks.GetActive(r.Context(), token)
+	return err == nil && link.ActivityID == actID
 }
 
 // newShareToken returns a 24-byte URL-safe random token (~32 chars).

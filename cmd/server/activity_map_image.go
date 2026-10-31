@@ -109,8 +109,8 @@ func renderActivityMap(ctx context.Context, app *App, act domain.Activity, trim 
 	}
 
 	var zones []domain.PrivacyZone
-	if trim && app.Visibility != nil {
-		zones, _ = app.Visibility.ListPrivacyZones(ctx, act.UserID)
+	if app.Visibility2 != nil {
+		zones = app.Visibility2.OwnerZones(ctx, act.UserID, !trim)
 	}
 
 	pts := make([]staticmap.LatLng, 0, len(stream.Samples))
@@ -235,7 +235,7 @@ func (h activityMapImageHandlers) viewerTrim(r *http.Request, act domain.Activit
 	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewerPtr = &v
 	}
-	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewerPtr, false)
+	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewerPtr, shareTokenFor(r, h.app, act.ID))
 	if !ok || (!vw.IsOwner && !vw.Cats.Has(domain.CategoryMap)) {
 		return false, false // the map isn't shared with this viewer
 	}

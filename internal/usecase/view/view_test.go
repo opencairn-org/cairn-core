@@ -114,7 +114,8 @@ func TestFeedsHomeMergesSources(t *testing.T) {
 	addActivity(repo, friend, domain.ActivityTypeRun, vNow.Add(-3*time.Hour), 1000, domain.PrivacyPrivate) // private: not in the feed
 	addActivity(repo, stranger, domain.ActivityTypeRun, vNow, 1000, domain.PrivacyPublic)                  // not followed
 
-	feeds := NewFeeds(repo, users, NewVisibility(nil, nil, nil), nil, false)
+	follows := &fakeFollows{following: repo.Following}
+	feeds := NewFeeds(repo, users, NewVisibility(nil, follows, nil), nil, false)
 	items := feeds.Home(context.Background(), me, 10, 0)
 	if len(items) != 2 {
 		t.Fatalf("items %d", len(items))

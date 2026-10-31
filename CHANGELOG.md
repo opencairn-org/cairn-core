@@ -6,6 +6,27 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Segment efforts and leaderboards no longer show other athletes' private,
+  admin-hidden or deleted efforts. Each row is checked against the visibility
+  model, so another athlete's efforts appear only when their activity shares
+  the `segments` category with the viewer (followers by default, not the
+  public audience).
+- The `followers` activity privacy is enforced: non-followers no longer see
+  a followers-only activity's public summary (profile, club feed, projected
+  view, map image, federation).
+- Kudos and comments are refused on private, admin-hidden and deleted
+  activities; deleted activities are no longer readable through the projected
+  view or a share link.
+- Non-owners get re-encoded photo variants only; the original upload, which
+  can carry EXIF GPS, is owner-only. Small photos now get a medium variant
+  too; run `cairn attachments backfill-variants` once to cover older ones.
+- Follower and following lists respect blocks and non-public profiles.
+- A share link now also opens the activity's map image and photos
+  (`?share=<token>`).
+- Federated posts carry only what the owner shares with the public audience
+  (no map image unless `map` is public).
+
 ## [0.6.1] — 2026-10-30
 
 Core-only patch; the 0.6.0 workers stay compatible. Instances without object

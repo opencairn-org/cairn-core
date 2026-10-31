@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -71,29 +72,29 @@ func (h *attachmentsHandlers) authOwner(w http.ResponseWriter, r *http.Request) 
 }
 
 // authView: owner sees photos; a non-owner sees them only when the activity
-// is non-private and the CategoryPhotos gate is open for them (mirrors the
+// is visible and the CategoryPhotos gate is open for them (mirrors the
 // map.png visibility re-check). Reads only.
-func (h *attachmentsHandlers) authView(w http.ResponseWriter, r *http.Request) (domain.ActivityID, bool) {
+func (h *attachmentsHandlers) authView(w http.ResponseWriter, r *http.Request) (domain.ActivityID, bool, bool) {
 	aid, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "invalid activity id", http.StatusBadRequest)
-		return domain.ActivityID{}, false
+		return domain.ActivityID{}, false, false
 	}
 	act, err := h.app.Activities.GetActivity(r.Context(), domain.ActivityID(aid))
-	if err != nil || act.IsDeleted() {
+	if err != nil {
 		http.NotFound(w, r)
-		return domain.ActivityID{}, false
+		return domain.ActivityID{}, false, false
 	}
 	var viewer *domain.UserID
 	if v, ok := optionalSessionUser(r, h.app); ok {
 		viewer = &v
 	}
-	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewer, false)
+	vw, ok := h.app.Visibility2.Resolve(r.Context(), act, viewer, shareTokenFor(r, h.app, act.ID))
 	if !ok || (!vw.IsOwner && !vw.Cats.Has(domain.CategoryPhotos)) {
 		http.NotFound(w, r)
-		return domain.ActivityID{}, false
+		return domain.ActivityID{}, false, false
 	}
-	return act.ID, true
+	return act.ID, vw.IsOwner, true
 }
 
 // ownedAttachment loads the {aid} attachment and checks it belongs to activityID.
@@ -112,7 +113,7 @@ func (h *attachmentsHandlers) ownedAttachment(w http.ResponseWriter, r *http.Req
 }
 
 func (h *attachmentsHandlers) list(w http.ResponseWriter, r *http.Request) {
-	activityID, ok := h.authView(w, r)
+	activityID, isOwner, ok := h.authView(w, r)
 	if !ok {
 		return
 	}
@@ -125,7 +126,7 @@ func (h *attachmentsHandlers) list(w http.ResponseWriter, r *http.Request) {
 	for _, a := range atts {
 		item := map[string]any{
 			"id":           a.ID.String(),
-			"url":          fmt.Sprintf("/api/activities/%s/attachments/%s/raw", activityID.String(), a.ID.String()),
+			"url":          fmt.Sprintf("/api/activities/%s/attachments/%s/raw", activityID.String(), a.ID.String()) + shareSuffix(r),
 			"caption":      a.Caption,
 			"content_type": a.ContentType,
 			"width":        a.Width,
@@ -134,7 +135,7 @@ func (h *attachmentsHandlers) list(w http.ResponseWriter, r *http.Request) {
 		}
 		// Signed per-variant URLs (same mechanism as the Connect Attachment
 		// message); "url" stays for the web until it migrates.
-		if urls := attachmentContentURLs(r.Context(), h.app, a); len(urls) > 0 {
+		if urls := attachmentContentURLs(r.Context(), h.app, a, isOwner); len(urls) > 0 {
 			item["urls"] = urls
 		}
 		out = append(out, item)
@@ -142,13 +143,27 @@ func (h *attachmentsHandlers) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"attachments": out})
 }
 
-// attachmentContentURLs signs the original and the derived variants that exist.
-func attachmentContentURLs(ctx context.Context, app *App, a domain.Attachment) map[string]any {
+// shareSuffix carries a ?share= token onto links that point back at a
+// link-gated endpoint; authView already checked it.
+func shareSuffix(r *http.Request) string {
+	if t := r.URL.Query().Get("share"); t != "" {
+		return "?share=" + url.QueryEscape(t)
+	}
+	return ""
+}
+
+// attachmentContentURLs signs the derived variants that exist, plus the
+// original (which keeps its EXIF) for the owner.
+func attachmentContentURLs(ctx context.Context, app *App, a domain.Attachment, isOwner bool) map[string]any {
 	if app.Content == nil {
 		return nil
 	}
+	original := ""
+	if isOwner {
+		original = a.BlobID
+	}
 	out := map[string]any{}
-	for name, key := range map[string]string{"original": a.BlobID, "medium": a.MediumBlobID, "thumb": a.ThumbBlobID} {
+	for name, key := range map[string]string{"original": original, "medium": a.MediumBlobID, "thumb": a.ThumbBlobID} {
 		if key == "" {
 			continue
 		}
@@ -164,7 +179,7 @@ func attachmentContentURLs(ctx context.Context, app *App, a domain.Attachment) m
 }
 
 func (h *attachmentsHandlers) raw(w http.ResponseWriter, r *http.Request) {
-	activityID, ok := h.authView(w, r)
+	activityID, isOwner, ok := h.authView(w, r)
 	if !ok {
 		return
 	}
@@ -176,13 +191,22 @@ func (h *attachmentsHandlers) raw(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	data, ct, err := h.app.BlobStore.Get(r.Context(), att.BlobID)
+	// Non-owners only get a re-encoded variant: the original keeps EXIF GPS.
+	key, wantCT := att.BlobID, att.ContentType
+	if !isOwner {
+		key, wantCT = att.DisplayBlobID(), "image/jpeg"
+		if key == "" {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	data, ct, err := h.app.BlobStore.Get(r.Context(), key)
 	if err != nil {
 		http.Error(w, "blob unavailable", http.StatusBadGateway)
 		return
 	}
-	if att.ContentType != "" {
-		ct = att.ContentType
+	if wantCT != "" {
+		ct = wantCT
 	}
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "private, max-age=86400")

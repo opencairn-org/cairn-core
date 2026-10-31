@@ -69,9 +69,8 @@ func TestSegmentRepoAuthoringReads(t *testing.T) {
 	if n, err := repo.CountEffortsForSegment(ctx, seg.ID); err != nil || n != 0 {
 		t.Fatalf("count: %d %v", n, err)
 	}
-	entries, mine, err := repo.SegmentLeaderboard(ctx, seg.ID, owner, domain.LeaderboardQuery{})
-	if err != nil || len(entries) != 0 || mine != nil {
-		t.Fatalf("empty board: %v %+v %+v", err, entries, mine)
+	if cands, err := repo.ListSegmentEffortsFiltered(ctx, seg.ID, owner, domain.SegmentEffortQuery{FastestFirst: true}); err != nil || len(cands) != 0 {
+		t.Fatalf("no efforts: %v %+v", err, cands)
 	}
 	if ok, err := repo.ViewerOwnsAccount(ctx, owner, domain.ExternalAccountID(uuid.New())); err != nil || ok {
 		t.Fatalf("owns unknown account: %v %v", ok, err)
@@ -103,4 +102,57 @@ func encodePolyline5(points []domain.GeoPoint) string {
 		prevLat, prevLon = lat, lon
 	}
 	return string(out)
+}
+
+func TestSegmentEffortCandidatesPrefilter(t *testing.T) {
+	ctx, pool := requirePool(t)
+	owner, other := seedUser(t), seedUser(t)
+	acts, segs, mod := NewActivityRepo(pool), NewSegmentRepo(pool), NewModerationRepo(pool)
+	now := time.Now().UTC()
+	seg, err := domain.NewNativeSegment(domain.SegmentID(uuid.New()), owner, domain.NativeSegmentInput{
+		Name: "Prefilter " + owner.String()[:8], ActivityType: domain.ActivityTypeRide,
+		Polyline: encodePolyline5([]domain.GeoPoint{{Lat: 48.0, Lon: 11.0}, {Lat: 48.01, Lon: 11.0}}), Scope: domain.SegmentScopeInstance,
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := segs.SaveSegment(ctx, seg); err != nil {
+		t.Fatal(err)
+	}
+	effort := func(uid domain.UserID, privacy domain.ActivityPrivacy, elapsed float64) domain.ActivityID {
+		aid, sid := seedMaintenanceActivity(t, acts, uid, "")
+		if privacy != domain.PrivacyPrivate {
+			if _, err := pool.Exec(ctx, `UPDATE activities SET privacy=$2 WHERE id=$1`, aid.UUID(), string(privacy)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := segs.SaveSegmentEffort(ctx, domain.SegmentEffort{
+			ID: domain.SegmentEffortID(uuid.New()), SegmentID: seg.ID, ActivityID: aid, ActivitySourceID: sid, UserID: uid,
+			StartTime: now, ElapsedS: elapsed, MovingS: elapsed, EndOffset: 1,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return aid
+	}
+	ownPrivate := effort(owner, domain.PrivacyPrivate, 100)
+	otherPublic := effort(other, domain.PrivacyPublic, 110)
+	effort(other, domain.PrivacyPrivate, 90)
+	hidden := effort(other, domain.PrivacyPublic, 80)
+	deleted := effort(other, domain.PrivacyPublic, 70)
+	if err := mod.SetActivityHidden(ctx, hidden.UUID(), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := acts.SoftDeleteActivity(ctx, deleted, now); err != nil {
+		t.Fatal(err)
+	}
+
+	cands, err := segs.ListSegmentEffortsFiltered(ctx, seg.ID, owner, domain.SegmentEffortQuery{FastestFirst: true, Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 2 || cands[0].Activity.ID != ownPrivate || cands[1].Activity.ID != otherPublic ||
+		cands[1].Activity.Privacy != domain.PrivacyPublic || cands[1].Activity.UserID != other {
+		t.Fatalf("prefilter: %+v", cands)
+	}
+	_ = segs.DeleteSegment(ctx, seg.ID)
 }

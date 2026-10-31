@@ -80,7 +80,7 @@ func (f *Feeds) Following(ctx context.Context, me domain.UserID, limit, offset i
 	zones := map[domain.UserID][]domain.PrivacyZone{}
 	var items []FeedItem
 	for _, a := range acts {
-		cats := f.visibility.For(ctx, a.UserID, &me, a.ID, false)
+		cats := f.visibility.For(ctx, &a, &me, false)
 		if len(cats) == 0 {
 			continue
 		}

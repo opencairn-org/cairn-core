@@ -101,7 +101,7 @@ func TestVariantsDeriveAndEnsure(t *testing.T) {
 	if err := uc.Ensure(context.Background(), b); err != nil {
 		t.Fatal(err)
 	}
-	if r := repo.rows[b.ID]; !r.HasVariants() || r.MediumBlobID != "" || r.Width != 200 {
+	if r := repo.rows[b.ID]; !r.HasVariants() || r.MediumBlobID == "" || r.Width != 200 {
 		t.Fatalf("ensured %+v", r)
 	}
 	// Already derived: no new objects.

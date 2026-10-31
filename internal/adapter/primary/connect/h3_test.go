@@ -131,7 +131,7 @@ func TestSegmentServer(t *testing.T) {
 			{ID: domain.SegmentEffortID(uuid.New()), SegmentID: segID, UserID: user, ElapsedS: 320, PersonalRank: 2, StartTime: actNow},
 		},
 	}
-	s := NewSegmentServer(view.NewSegments(f))
+	s := NewSegmentServer(view.NewSegments(f, nil))
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 
 	mine, err := s.ListMySegments(ctx, &v1.ListMySegmentsRequest{Page: &v1.PageRequest{Limit: 1}})

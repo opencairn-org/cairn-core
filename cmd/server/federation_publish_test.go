@@ -10,6 +10,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
+// allCats is every category, as an owner sees them.
+var allCats = domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true})
+
 func TestBuildActivityDelete_MatchesCreateObjectID(t *testing.T) {
 	actorID := "https://cairn.example/users/alice"
 	objID := actorID + "/activities/019ea3be-f1d5-7b39-8305-26603838c8ee"
@@ -78,7 +81,7 @@ func TestBuildActivityCreate_RoundTripsThroughInboundParser(t *testing.T) {
 	actorID := base + "/users/alice"
 	objID := actorID + "/activities/" + act.ID.String()
 
-	create := buildActivityCreate(base, actorID, objID, act)
+	create := buildActivityCreate(base, actorID, objID, act, allCats)
 	if create["type"] != "Create" {
 		t.Fatalf("create type = %v, want Create", create["type"])
 	}

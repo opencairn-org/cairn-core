@@ -250,7 +250,11 @@ func (h *fedHandlers) outbox(w http.ResponseWriter, r *http.Request) {
 	aid := h.actorID(u.Username)
 	items := make([]any, 0, len(acts))
 	for _, a := range acts {
-		create := buildActivityCreate(h.base, aid, aid+"/activities/"+a.ID.String(), a)
+		cats := fedPublicCats(r.Context(), h.app, a)
+		if !cats.Has(domain.CategorySummary) {
+			continue
+		}
+		create := buildActivityCreate(h.base, aid, aid+"/activities/"+a.ID.String(), a, cats)
 		delete(create, "@context") // embedded items inherit the page's context
 		items = append(items, create)
 	}
@@ -409,9 +413,9 @@ func (h *fedHandlers) deliverAccept(targetID domain.UserID, followID, actID stri
 	}
 }
 
-// fedOwnsPublic reports whether a is the target's own public, non-hidden activity.
-func fedOwnsPublic(a domain.Activity, targetID domain.UserID) bool {
-	return a.UserID == targetID && a.Privacy == domain.PrivacyPublic && !a.HiddenByAdmin
+// fedOwnsPublic reports whether a is the target's own activity and open to the public audience.
+func (h *fedHandlers) fedOwnsPublic(ctx context.Context, a domain.Activity, targetID domain.UserID) bool {
+	return a.UserID == targetID && len(fedPublicCats(ctx, h.app, a)) > 0
 }
 
 // inboxCreate: a reply (Note with inReplyTo a local public activity) → comment.
@@ -426,7 +430,7 @@ func (h *fedHandlers) inboxCreate(ctx context.Context, m fedInboxMsg) {
 	if !ok {
 		return
 	}
-	if act2, err := h.app.Activities.GetActivity(ctx, aid); err == nil && fedOwnsPublic(act2, m.target.ID) {
+	if act2, err := h.app.Activities.GetActivity(ctx, aid); err == nil && h.fedOwnsPublic(ctx, act2, m.target.ID) {
 		body = truncateUTF8(body, domain.MaxCommentLength)
 		if err := h.app.Engagement.AddRemoteComment(ctx, aid, m.remoteActorID, noteID, body); err != nil {
 			h.logger.Warn("federation: add remote comment", "error", err)
@@ -456,7 +460,7 @@ func (h *fedHandlers) inboxLike(ctx context.Context, m fedInboxMsg) {
 	if !ok {
 		return
 	}
-	if liked, err := h.app.Activities.GetActivity(ctx, aid); err == nil && fedOwnsPublic(liked, m.target.ID) {
+	if liked, err := h.app.Activities.GetActivity(ctx, aid); err == nil && h.fedOwnsPublic(ctx, liked, m.target.ID) {
 		if err := h.app.Engagement.AddRemoteKudos(ctx, aid, m.remoteActorID, m.act.ID); err != nil {
 			h.logger.Warn("federation: add remote kudos", "error", err)
 		}

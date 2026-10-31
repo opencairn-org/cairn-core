@@ -116,7 +116,7 @@ func (h *socialAPI) followState(w http.ResponseWriter, r *http.Request) {
 // listHandler serves the followers ("followers") or following list of a user.
 func (h *socialAPI) listHandler(which string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, target, ok := h.meAndTarget(w, r)
+		me, target, ok := h.meAndTarget(w, r)
 		if !ok {
 			return
 		}
@@ -126,9 +126,13 @@ func (h *socialAPI) listHandler(which string) http.HandlerFunc {
 		if which == "followers" {
 			list = h.app.ProfileViews.Followers
 		}
-		users, err := list(r.Context(), target, limit, offset)
+		users, err := list(r.Context(), me, target, limit, offset)
+		if errors.Is(err, domain.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
 		if err != nil {
-			http.Error(w, "load failed", http.StatusInternalServerError)
+			writeActionError(w, err, "load failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"users": userCardsJSON(users)})

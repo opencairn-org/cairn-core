@@ -11,11 +11,15 @@ import (
 // Segments are the caller-centric segment reads (SegmentService /
 // GET /api/segments, /api/segments/{id}).
 type Segments struct {
-	segments port.SegmentRepo
+	segments   port.SegmentRepo
+	visibility *Visibility
 }
 
-// NewSegments wires the repo (nil → every read is ErrUnavailable).
-func NewSegments(segments port.SegmentRepo) *Segments { return &Segments{segments: segments} }
+// NewSegments wires the repo (nil → every read is ErrUnavailable). Without a
+// visibility resolver, effort reads only ever show the viewer's own efforts.
+func NewSegments(segments port.SegmentRepo, visibility *Visibility) *Segments {
+	return &Segments{segments: segments, visibility: visibility}
+}
 
 // Segment list paging bounds.
 const (
@@ -155,44 +159,113 @@ func (s *Segments) SearchBBox(ctx context.Context, viewer domain.UserID, box por
 	return segs, nil
 }
 
-// Efforts lists efforts on a visible segment. A private segment only shows
-// the viewer's own efforts; an instance one shows everyone's.
+// Efforts lists efforts on a visible segment that the viewer may see: their
+// own, plus other athletes' whose activity shares "segments" with them. A
+// private segment only shows the viewer's own efforts.
 func (s *Segments) Efforts(ctx context.Context, viewer domain.UserID, id domain.SegmentID, q domain.SegmentEffortQuery) ([]domain.SegmentEffort, error) {
 	seg, err := s.Visible(ctx, viewer, id)
 	if err != nil {
 		return nil, err
 	}
-	if !seg.InstanceShared() {
+	if !seg.InstanceShared() || s.visibility == nil {
 		q.UserID = &viewer
 	}
-	q.Limit = clampLimit(q.Limit)
-	efforts, err := s.segments.ListSegmentEffortsFiltered(ctx, id, q)
+	want, skip := clampLimit(q.Limit), max(0, q.Offset)
+	out := make([]domain.SegmentEffort, 0, want)
+	err = s.scanVisible(ctx, viewer, id, q, func(c domain.SegmentEffortCandidate) bool {
+		if skip > 0 {
+			skip--
+			return true
+		}
+		out = append(out, c.Effort)
+		return len(out) < want
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list efforts: %w", err)
 	}
-	return efforts, nil
+	return out, nil
 }
 
-// Leaderboard ranks athletes on an instance-scoped segment; on a private
-// segment the board is just the viewer.
+// Leaderboard ranks each athlete's fastest effort the viewer may see on an
+// instance-scoped segment; on a private segment the board is just the viewer.
 func (s *Segments) Leaderboard(ctx context.Context, viewer domain.UserID, id domain.SegmentID, q domain.LeaderboardQuery) ([]domain.LeaderboardEntry, *domain.LeaderboardEntry, error) {
 	seg, err := s.Visible(ctx, viewer, id)
 	if err != nil {
 		return nil, nil, err
 	}
-	q.Limit = clampLimit(q.Limit)
-	entries, mine, err := s.segments.SegmentLeaderboard(ctx, id, viewer, q)
+	eq := domain.SegmentEffortQuery{From: q.From, To: q.To, FastestFirst: true}
+	if !seg.InstanceShared() || s.visibility == nil {
+		eq.UserID = &viewer
+	}
+	limit, offset := clampLimit(q.Limit), max(0, q.Offset)
+	var (
+		ranked []domain.LeaderboardEntry
+		mine   *domain.LeaderboardEntry
+		seen   = map[domain.UserID]bool{}
+	)
+	err = s.scanVisible(ctx, viewer, id, eq, func(c domain.SegmentEffortCandidate) bool {
+		if seen[c.Effort.UserID] {
+			return true
+		}
+		seen[c.Effort.UserID] = true
+		e := domain.LeaderboardEntry{
+			Rank: len(ranked) + 1, UserID: c.Effort.UserID, DisplayName: c.DisplayName, AvatarURL: c.AvatarURL,
+			ElapsedS: c.Effort.ElapsedS, StartTime: c.Effort.StartTime, EffortID: c.Effort.ID, ActivityID: c.Effort.ActivityID,
+		}
+		if n := len(ranked); n > 0 && ranked[n-1].ElapsedS == e.ElapsedS && ranked[n-1].StartTime.Equal(e.StartTime) {
+			e.Rank = ranked[n-1].Rank
+		}
+		ranked = append(ranked, e)
+		if e.UserID == viewer {
+			m := e
+			mine = &m
+		}
+		// Ranks only depend on faster rows, so stop once the page and the
+		// viewer's own row are known.
+		return len(ranked) < offset+limit || mine == nil
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("leaderboard: %w", err)
 	}
-	if !seg.InstanceShared() {
-		entries = entries[:0]
-		if mine != nil {
-			mine.Rank = 1
-			entries = append(entries, *mine)
-		}
+	if offset >= len(ranked) {
+		return []domain.LeaderboardEntry{}, mine, nil
 	}
-	return entries, mine, nil
+	return ranked[offset:min(len(ranked), offset+limit)], mine, nil
+}
+
+// effortScanPage / effortScanMax bound how many effort rows one read walks.
+const (
+	effortScanPage = 200
+	effortScanMax  = 20000
+)
+
+// scanVisible walks efforts in q's order and calls yield for each the viewer
+// may see ("segments" category), until yield returns false.
+func (s *Segments) scanVisible(ctx context.Context, viewer domain.UserID, id domain.SegmentID, q domain.SegmentEffortQuery, yield func(domain.SegmentEffortCandidate) bool) error {
+	var chk *Checker
+	if s.visibility != nil {
+		chk = s.visibility.Checker(&viewer)
+	}
+	visible := func(c *domain.SegmentEffortCandidate) bool {
+		return c.Effort.UserID == viewer || (chk != nil && chk.For(ctx, &c.Activity).Has(domain.CategorySegments))
+	}
+	q.Limit, q.Offset = effortScanPage, 0
+	for q.Offset < effortScanMax {
+		page, err := s.segments.ListSegmentEffortsFiltered(ctx, id, viewer, q)
+		if err != nil {
+			return err
+		}
+		for i := range page {
+			if visible(&page[i]) && !yield(page[i]) {
+				return nil
+			}
+		}
+		if len(page) < q.Limit {
+			return nil
+		}
+		q.Offset += q.Limit
+	}
+	return nil
 }
 
 func clampLimit(limit int) int {

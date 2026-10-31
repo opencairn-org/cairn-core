@@ -2,6 +2,8 @@ package view
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -37,6 +39,9 @@ type fakeBlocks struct {
 func (f *fakeBlocks) ListBlocked(context.Context, domain.UserID) ([]domain.UserID, error) {
 	return f.blocked, nil
 }
+func (f *fakeBlocks) IsBlockedEitherWay(_ context.Context, a, b domain.UserID) (bool, error) {
+	return slices.Contains(f.blocked, a) || slices.Contains(f.blocked, b), nil
+}
 
 func TestProfilesFollowListsAndBlocks(t *testing.T) {
 	ctx := t.Context()
@@ -54,15 +59,23 @@ func TestProfilesFollowListsAndBlocks(t *testing.T) {
 		t.Fatalf("self: %+v", st)
 	}
 	// Unknown users are dropped from the cards, paging is passed through.
-	cards, err := p.Followers(ctx, alice, 10, 0)
+	cards, err := p.Followers(ctx, me, alice, 10, 0)
 	if err != nil || len(cards) != 2 || cards[0].Username != "bob" || cards[1].Username != "alice" {
 		t.Fatalf("followers: %v %+v", err, cards)
 	}
-	if cards, _ := p.Followers(ctx, alice, 10, 2); len(cards) != 1 || cards[0].ID != alice {
+	if cards, _ := p.Followers(ctx, me, alice, 10, 2); len(cards) != 1 || cards[0].ID != alice {
 		t.Fatalf("followers page: %+v", cards)
 	}
-	if cards, _ := p.Following(ctx, me, 10, 0); len(cards) != 1 || cards[0].ID != alice {
+	if cards, _ := p.Following(ctx, me, me, 10, 0); len(cards) != 1 || cards[0].ID != alice {
 		t.Fatalf("following: %+v", cards)
+	}
+	// A blocked user's graph is gone; a private profile is for followers only.
+	if _, err := p.Followers(ctx, me, bob, 10, 0); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("blocked graph: %v", err)
+	}
+	stranger := domain.UserID(uuid.New())
+	if _, err := p.Following(ctx, stranger, alice, 10, 0); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("private graph: %v", err)
 	}
 	if cards, _ := p.Blocked(ctx, me); len(cards) != 1 || cards[0].ID != bob {
 		t.Fatalf("blocked: %+v", cards)

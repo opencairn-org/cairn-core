@@ -24,26 +24,76 @@ func NewVisibility(blocks port.BlockRepo, follows port.FollowRepo, policies port
 	return &Visibility{blocks: blocks, follows: follows, policies: policies}
 }
 
-// For computes the categories viewer may see of ownerID's activity. viewer is
-// nil for anonymous; hasLink is true when a valid share token was presented.
-// A block in either direction hides everything.
-func (v *Visibility) For(ctx context.Context, ownerID domain.UserID, viewer *domain.UserID, activityID domain.ActivityID, hasLink bool) domain.CategorySet {
-	in := domain.VisibilityInput{
-		IsOwner:      viewer != nil && *viewer == ownerID,
-		HasValidLink: hasLink,
+// For computes the categories viewer may see of act. viewer is nil for
+// anonymous; hasLink is true when a valid share token was presented. The
+// activity's privacy, hidden and deleted state are part of the decision
+// (domain.ResolveVisibility); a block in either direction hides everything.
+func (v *Visibility) For(ctx context.Context, act *domain.Activity, viewer *domain.UserID, hasLink bool) domain.CategorySet {
+	return v.resolve(ctx, act, viewer, hasLink, v.owner(ctx, viewer, act.UserID))
+}
+
+// ownerContext is what For needs to know about one (viewer, owner) pair.
+type ownerContext struct {
+	blocked, follower bool
+	policy            domain.VisibilityPolicy
+}
+
+func (v *Visibility) owner(ctx context.Context, viewer *domain.UserID, ownerID domain.UserID) ownerContext {
+	var oc ownerContext
+	if viewer != nil && *viewer == ownerID {
+		return oc
 	}
+	if viewer != nil {
+		oc.blocked, oc.follower = v.relation(ctx, *viewer, ownerID)
+	}
+	if v.policies != nil {
+		if p, err := v.policies.GetUserPolicy(ctx, ownerID); err == nil {
+			oc.policy = p
+		}
+	}
+	return oc
+}
+
+func (v *Visibility) resolve(ctx context.Context, act *domain.Activity, viewer *domain.UserID, hasLink bool, oc ownerContext) domain.CategorySet {
+	in := domain.VisibilityInputFor(act)
+	in.IsOwner = viewer != nil && *viewer == act.UserID
+	in.HasValidLink = hasLink
 	if in.IsOwner {
 		return domain.ResolveVisibility(in)
 	}
-	if viewer != nil {
-		blocked, follower := v.relation(ctx, *viewer, ownerID)
-		if blocked {
-			return domain.CategorySet{}
-		}
-		in.IsFollower = follower
+	if oc.blocked {
+		return domain.CategorySet{}
 	}
-	v.loadPolicies(ctx, &in, ownerID, activityID)
+	in.IsFollower, in.OwnerPolicy = oc.follower, oc.policy
+	if v.policies != nil {
+		if ov, err := v.policies.GetActivityOverride(ctx, act.ID); err == nil {
+			in.ActivityPolicy = ov
+		}
+	}
 	return domain.ResolveVisibility(in)
+}
+
+// Checker resolves many activities for one viewer, loading each owner's
+// relation and policy once.
+type Checker struct {
+	v      *Visibility
+	viewer *domain.UserID
+	owners map[domain.UserID]ownerContext
+}
+
+// Checker starts a batch for viewer (nil = anonymous).
+func (v *Visibility) Checker(viewer *domain.UserID) *Checker {
+	return &Checker{v: v, viewer: viewer, owners: map[domain.UserID]ownerContext{}}
+}
+
+// For is Visibility.For without a share link, cached per owner.
+func (c *Checker) For(ctx context.Context, act *domain.Activity) domain.CategorySet {
+	oc, ok := c.owners[act.UserID]
+	if !ok {
+		oc = c.v.owner(ctx, c.viewer, act.UserID)
+		c.owners[act.UserID] = oc
+	}
+	return c.v.resolve(ctx, act, c.viewer, false, oc)
 }
 
 // relation reports a block in either direction and whether viewer follows owner.
@@ -59,19 +109,6 @@ func (v *Visibility) relation(ctx context.Context, viewer, owner domain.UserID) 
 		}
 	}
 	return false, follower
-}
-
-// loadPolicies fills the owner and per-activity policies, ignoring load errors.
-func (v *Visibility) loadPolicies(ctx context.Context, in *domain.VisibilityInput, ownerID domain.UserID, activityID domain.ActivityID) {
-	if v.policies == nil {
-		return
-	}
-	if p, err := v.policies.GetUserPolicy(ctx, ownerID); err == nil {
-		in.OwnerPolicy = p
-	}
-	if ov, err := v.policies.GetActivityOverride(ctx, activityID); err == nil {
-		in.ActivityPolicy = ov
-	}
 }
 
 // OwnerZones returns the owner's privacy zones for a NON-owner projection, nil
@@ -97,19 +134,16 @@ type Viewer struct {
 	IsOwner bool
 }
 
-// Resolve answers "may viewer see act, and how". Owners see everything; a
-// private or admin-hidden activity is invisible to everyone else.
+// Resolve answers "may viewer see act, and how". Deleted activities are gone
+// for everyone; owners see everything else; non-owners get what For grants.
 func (v *Visibility) Resolve(ctx context.Context, act domain.Activity, viewer *domain.UserID, hasLink bool) (Viewer, bool) {
 	if act.IsDeleted() {
 		return Viewer{}, false
 	}
+	cats := v.For(ctx, &act, viewer, hasLink)
 	if viewer != nil && *viewer == act.UserID {
-		return Viewer{Cats: v.For(ctx, act.UserID, viewer, act.ID, hasLink), IsOwner: true}, true
+		return Viewer{Cats: cats, IsOwner: true}, true
 	}
-	if act.Privacy == domain.PrivacyPrivate || act.HiddenByAdmin {
-		return Viewer{}, false
-	}
-	cats := v.For(ctx, act.UserID, viewer, act.ID, hasLink)
 	if len(cats) == 0 {
 		return Viewer{}, false
 	}

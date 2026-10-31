@@ -832,7 +832,7 @@ func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID stri
 	note := buildActivityCreate(remote.URL, actor, actor+"/activities/"+uuid.NewString(), domain.Activity{
 		ID: domain.ActivityID(uuid.New()), Type: domain.ActivityTypeRun, Title: "Remote run",
 		StartTime: time.Now().UTC().Add(-time.Hour), MovingDuration: 30 * time.Minute, Privacy: domain.PrivacyPublic,
-	})
+	}, allCats)
 	send(map[string]any{"id": id("creates"), "type": "Create", "object": note["object"]}, http.StatusAccepted)
 	like := map[string]any{"id": id("likes"), "type": "Like", "object": objURL}
 	send(like, http.StatusAccepted)

@@ -42,13 +42,13 @@ func TestDeriveLargePhoto(t *testing.T) {
 	}
 }
 
-func TestDeriveSmallPhotoKeepsNoMedium(t *testing.T) {
+func TestDeriveSmallPhotoStillReencodesMedium(t *testing.T) {
 	v, err := Derive(pngOf(300, 200))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Medium != nil {
-		t.Fatal("an original within the medium bound needs no medium variant")
+	if mc, _, err := image.DecodeConfig(bytes.NewReader(v.Medium)); err != nil || mc.Width != 300 {
+		t.Fatalf("a small original still gets a re-encoded medium (no metadata): %v %+v", err, mc)
 	}
 	cfg, _, _ := image.DecodeConfig(bytes.NewReader(v.Thumb))
 	if cfg.Width != 300 || cfg.Height != 200 {

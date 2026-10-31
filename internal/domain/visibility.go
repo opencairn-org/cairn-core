@@ -115,6 +115,15 @@ type VisibilityInput struct {
 	IsFollower     bool // viewer is an accepted follower of the owner
 	OwnerPolicy    VisibilityPolicy
 	ActivityPolicy *VisibilityPolicy // optional per-activity override (merged over owner default)
+
+	Privacy ActivityPrivacy // the activity's privacy; unknown values count as private
+	Hidden  bool            // hidden by an admin
+	Deleted bool            // soft-deleted
+}
+
+// VisibilityInputFor seeds the activity-state fields from act.
+func VisibilityInputFor(act *Activity) VisibilityInput {
+	return VisibilityInput{Privacy: act.Privacy, Hidden: act.HiddenByAdmin, Deleted: act.IsDeleted()}
 }
 
 // ResolveAudience picks the single most-privileged audience for a viewer.
@@ -132,12 +141,17 @@ func ResolveAudience(in VisibilityInput) Audience {
 }
 
 // ResolveVisibility returns the categories a viewer may see for an activity.
-// The owner always sees everything. For non-owners, the per-activity override
-// (if any) wins over the owner's default for the resolved audience.
+// The owner always sees everything. Non-owners see nothing of a deleted or
+// admin-hidden activity; a share link opens a private one; otherwise private
+// shuts everyone out and followers-only shuts out non-followers. What is left
+// comes from the per-activity override, else the owner's default policy.
 func ResolveVisibility(in VisibilityInput) CategorySet {
 	aud := ResolveAudience(in)
 	if aud == AudienceOwner {
 		return categorySetOf(AllCategories...)
+	}
+	if !privacyAdmits(in, aud) {
+		return CategorySet{}
 	}
 	if in.ActivityPolicy != nil {
 		if s, ok := in.ActivityPolicy.ByAudience[aud]; ok {
@@ -145,6 +159,24 @@ func ResolveVisibility(in VisibilityInput) CategorySet {
 		}
 	}
 	return in.OwnerPolicy.allowedFor(aud)
+}
+
+// privacyAdmits applies the activity's state and privacy enum to a non-owner audience.
+func privacyAdmits(in VisibilityInput, aud Audience) bool {
+	if in.Deleted || in.Hidden {
+		return false
+	}
+	if aud == AudienceLink {
+		return true
+	}
+	switch in.Privacy {
+	case PrivacyPublic:
+		return true
+	case PrivacyFollowers:
+		return aud == AudienceFollowers
+	default:
+		return false
+	}
 }
 
 // ---------------------------------------------------------------------------

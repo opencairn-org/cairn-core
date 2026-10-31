@@ -164,13 +164,11 @@ type SegmentRepo interface {
 	// SearchSegmentsInBBox returns visible segments whose bbox intersects box.
 	SearchSegmentsInBBox(ctx context.Context, viewer domain.UserID, box BoundingBox, types []domain.ActivityType, includeInstance bool, limit int) ([]domain.Segment, error)
 
-	// ListSegmentEffortsFiltered lists efforts on one segment (visibility is
-	// the caller's job) with the query applied.
-	ListSegmentEffortsFiltered(ctx context.Context, segmentID domain.SegmentID, q domain.SegmentEffortQuery) ([]domain.SegmentEffort, error)
-
-	// SegmentLeaderboard ranks each athlete's best effort in the window.
-	// mine is the viewer's own entry (nil when they have none).
-	SegmentLeaderboard(ctx context.Context, segmentID domain.SegmentID, viewer domain.UserID, q domain.LeaderboardQuery) (entries []domain.LeaderboardEntry, mine *domain.LeaderboardEntry, err error)
+	// ListSegmentEffortsFiltered pages efforts on one segment with their
+	// activity's visibility state. Deleted activities, and other users'
+	// private or admin-hidden ones, are pre-filtered; callers still resolve
+	// visibility per row (view.Visibility).
+	ListSegmentEffortsFiltered(ctx context.Context, segmentID domain.SegmentID, viewer domain.UserID, q domain.SegmentEffortQuery) ([]domain.SegmentEffortCandidate, error)
 }
 
 // LeaderboardScope selects which efforts contribute to a leaderboard query.
