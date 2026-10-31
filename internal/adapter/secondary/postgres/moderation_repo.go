@@ -156,9 +156,9 @@ type ModerationRepo struct{ pool *pgxpool.Pool }
 
 func NewModerationRepo(pool *pgxpool.Pool) *ModerationRepo { return &ModerationRepo{pool: pool} }
 
-func (r *ModerationRepo) SetActivityHidden(ctx context.Context, activityID uuid.UUID, hidden bool) error {
+func (r *ModerationRepo) SetActivityHidden(ctx context.Context, activityID domain.ActivityID, hidden bool) error {
 	db := dbtx(ctx, r.pool)
-	_, err := db.Exec(ctx, `UPDATE activities SET hidden_by_admin=$2 WHERE id=$1`, activityID, hidden)
+	_, err := db.Exec(ctx, `UPDATE activities SET hidden_by_admin=$2 WHERE id=$1`, activityID.UUID(), hidden)
 	if err != nil {
 		return fmt.Errorf("set activity hidden: %w", err)
 	}

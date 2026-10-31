@@ -346,6 +346,9 @@ func (s *Service) retireFromProvider(ctx context.Context, id domain.GearID) erro
 	}
 	now := s.now()
 	g.Retired, g.RetiredAt = true, &now
+	if err := g.Validate(); err != nil {
+		return err
+	}
 	return s.gear.Save(ctx, g)
 }
 

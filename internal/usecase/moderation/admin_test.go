@@ -93,7 +93,7 @@ func TestReportsAndBlocks(t *testing.T) {
 	if st, _ := r.Resolve(ctx, audit.Actor{}, open, domain.ReportDismissed); st != domain.ReportDismissed {
 		t.Fatalf("dismiss: %s", st)
 	}
-	if err := r.SetActivityHidden(ctx, audit.Actor{}, uuid.New(), true); kindOf(t, err) != port.ActionErrorUnavailable {
+	if err := r.SetActivityHidden(ctx, audit.Actor{}, domain.ActivityID(uuid.New()), true); kindOf(t, err) != port.ActionErrorUnavailable {
 		t.Fatalf("no moderation repo: %v", err)
 	}
 

@@ -139,7 +139,7 @@ func TestSegmentEffortCandidatesPrefilter(t *testing.T) {
 	effort(other, domain.PrivacyPrivate, 90)
 	hidden := effort(other, domain.PrivacyPublic, 80)
 	deleted := effort(other, domain.PrivacyPublic, 70)
-	if err := mod.SetActivityHidden(ctx, hidden.UUID(), true); err != nil {
+	if err := mod.SetActivityHidden(ctx, hidden, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := acts.SoftDeleteActivity(ctx, deleted, now); err != nil {
