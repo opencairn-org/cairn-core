@@ -210,7 +210,7 @@ func (h *attachmentsHandlers) raw(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "private, max-age=86400")
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) //nolint:gosec // G705: stored bytes were sniffed as image/* at upload; served with nosniff
 }
 
 // readUpload parses the multipart body and returns the image bytes and sniffed content type.

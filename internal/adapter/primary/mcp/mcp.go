@@ -1,55 +1,46 @@
-package main
-
-// MCP server — an OAuth-protected Model Context Protocol endpoint that lets AI
-// agents read a single user's Cairn data. Read-only by design.
+// Package mcp is an OAuth-protected Model Context Protocol endpoint that lets
+// AI agents read a single user's Cairn data. Read-only by design.
 //
-// Transport: Streamable HTTP. The client POSTs JSON-RPC 2.0 to /mcp; we reply
-// with a single JSON-RPC response (we don't use the SSE streaming channel —
-// these tools are request/response). Auth is an OAuth 2.1 bearer access token
-// (cairn_at_…); a missing/invalid token gets a 401 with a WWW-Authenticate
-// header pointing at the protected-resource metadata (RFC 9728), which is how
-// MCP clients discover the authorization server and start the OAuth dance.
-//
-// Tools execute in-process against the same repos the API uses, always scoped
-// to the token's user and gated on the token's scopes.
+// Transport: Streamable HTTP. The client POSTs JSON-RPC 2.0 to /mcp and gets a
+// single JSON-RPC response (no SSE channel: the tools are request/response).
+// Auth is an OAuth 2.1 bearer access token; a missing or invalid one gets a
+// 401 whose WWW-Authenticate points at the protected-resource metadata (RFC
+// 9728), which is how MCP clients discover the authorization server.
+package mcp
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/oauthserver"
+	"github.com/opencairn-org/cairn-core/internal/usecase/owndata"
 )
 
 const mcpProtocolVersion = "2025-06-18"
 
-// mountMCP registers the MCP endpoint. No-op unless the OAuth AS is wired
-// (MCP auth depends on OAuth access tokens).
-func mountMCP(mux *http.ServeMux, app *App, logger *slog.Logger, baseURL string) {
-	if app.OAuth == nil {
-		return
-	}
-	s := &mcpServer{app: app, log: logger, baseURL: strings.TrimRight(baseURL, "/")}
-	mux.HandleFunc("POST /mcp", s.handle)
-	// MCP clients may probe with GET; tell them where to authenticate.
-	mux.HandleFunc("GET /mcp", func(w http.ResponseWriter, r *http.Request) {
-		s.challenge(w)
-	})
-	logger.Info("mcp server mounted", "path", "/mcp", "tools", len(mcpTools))
+// Server serves the MCP endpoint. Tools run in-process, scoped to the token's
+// user and gated on its scopes.
+type Server struct {
+	Tokens *oauthserver.Server
+	Data   *owndata.Reader
+	// BaseURL is the public base URL, without a trailing slash.
+	BaseURL string
 }
 
-type mcpServer struct {
-	app     *App
-	log     *slog.Logger
-	baseURL string
+// Mount registers the routes.
+func (s *Server) Mount(mux *http.ServeMux) {
+	mux.HandleFunc("POST /mcp", s.handle)
+	// MCP clients may probe with GET; tell them where to authenticate.
+	mux.HandleFunc("GET /mcp", func(w http.ResponseWriter, _ *http.Request) { s.challenge(w) })
 }
+
+// ToolCount is the number of tools offered.
+func ToolCount() int { return len(mcpTools) }
 
 // ---------------------------------------------------------------------------
 // JSON-RPC envelope
@@ -74,7 +65,13 @@ type jsonrpcError struct {
 	Message string `json:"message"`
 }
 
-func (s *mcpServer) handle(w http.ResponseWriter, r *http.Request) {
+func writeJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
+}
+
+func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	// Authenticate the bearer access token up front.
 	at, ok := s.authToken(r)
 	if !ok {
@@ -126,25 +123,16 @@ func (s *mcpServer) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 // challenge emits a 401 telling the client where to authenticate (RFC 9728).
-func (s *mcpServer) challenge(w http.ResponseWriter) {
+func (s *Server) challenge(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate",
-		fmt.Sprintf(`Bearer resource_metadata="%s/.well-known/oauth-protected-resource"`, s.baseURL))
+		fmt.Sprintf(`Bearer resource_metadata="%s/.well-known/oauth-protected-resource"`, s.BaseURL))
 	writeJSON(w, http.StatusUnauthorized, jsonrpcResp{JSONRPC: "2.0",
 		Error: &jsonrpcError{Code: -32001, Message: "authentication required"}})
 }
 
 // authToken validates the OAuth bearer access token.
-func (s *mcpServer) authToken(r *http.Request) (domain.OAuthAccessToken, bool) {
-	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if !strings.HasPrefix(tok, oauthAccessTokenPrefix) {
-		return domain.OAuthAccessToken{}, false
-	}
-	hash := sha256.Sum256([]byte(tok))
-	at, err := s.app.OAuth.FindAccessToken(r.Context(), hash[:])
-	if err != nil || !at.IsValidAt(time.Now().UTC()) {
-		return domain.OAuthAccessToken{}, false
-	}
-	return at, true
+func (s *Server) authToken(r *http.Request) (domain.OAuthAccessToken, bool) {
+	return s.Tokens.AccessToken(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 }
 
 // ---------------------------------------------------------------------------
@@ -212,7 +200,7 @@ type toolCallParams struct {
 	Arguments json.RawMessage `json:"arguments"`
 }
 
-func (s *mcpServer) callTool(r *http.Request, at domain.OAuthAccessToken, raw json.RawMessage) (any, *jsonrpcError) {
+func (s *Server) callTool(r *http.Request, at domain.OAuthAccessToken, raw json.RawMessage) (any, *jsonrpcError) {
 	var p toolCallParams
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, &jsonrpcError{Code: -32602, Message: "invalid params"}
@@ -248,18 +236,12 @@ func (s *mcpServer) callTool(r *http.Request, at domain.OAuthAccessToken, raw js
 	return nil, &jsonrpcError{Code: -32601, Message: "tool not implemented"}
 }
 
-func (s *mcpServer) toolListActivities(ctx context.Context, uid domain.UserID, raw json.RawMessage) (any, *jsonrpcError) {
+func (s *Server) toolListActivities(ctx context.Context, uid domain.UserID, raw json.RawMessage) (any, *jsonrpcError) {
 	var args struct {
 		Limit int `json:"limit"`
 	}
 	_ = json.Unmarshal(raw, &args)
-	if args.Limit <= 0 {
-		args.Limit = 20
-	}
-	if args.Limit > 100 {
-		args.Limit = 100
-	}
-	acts, err := s.app.Activities.ListRecentActivitiesForUser(ctx, uid, args.Limit)
+	acts, err := s.Data.Recent(ctx, uid, args.Limit)
 	if err != nil {
 		return toolError("could not list activities"), nil
 	}
@@ -270,29 +252,26 @@ func (s *mcpServer) toolListActivities(ctx context.Context, uid domain.UserID, r
 	return toolJSON(map[string]any{"activities": items, "count": len(items)})
 }
 
-func (s *mcpServer) toolGetActivity(ctx context.Context, uid domain.UserID, raw json.RawMessage) (any, *jsonrpcError) {
+func (s *Server) toolGetActivity(ctx context.Context, uid domain.UserID, raw json.RawMessage) (any, *jsonrpcError) {
 	var args struct {
 		ActivityID string `json:"activity_id"`
 	}
 	if err := json.Unmarshal(raw, &args); err != nil || args.ActivityID == "" {
 		return toolError("activity_id is required"), nil
 	}
-	id, err := parseActivityID(args.ActivityID)
+	id, err := domain.ParseUUID[domain.ActivityID](args.ActivityID)
 	if err != nil {
 		return toolError("invalid activity_id"), nil
 	}
-	a, err := s.app.Activities.GetActivity(ctx, id)
+	a, err := s.Data.Activity(ctx, uid, id)
 	if err != nil {
-		return toolError("activity not found"), nil
-	}
-	if a.UserID != uid { // owner-only — never leak other users' activities
 		return toolError("activity not found"), nil
 	}
 	return toolJSON(activityDetailJSON(a))
 }
 
-func (s *mcpServer) toolActivityStats(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
-	t, err := s.app.Activities.ActivityTotals(ctx, uid)
+func (s *Server) toolActivityStats(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
+	t, err := s.Data.Totals(ctx, uid)
 	if err != nil {
 		return toolError("could not compute totals"), nil
 	}
@@ -304,8 +283,8 @@ func (s *mcpServer) toolActivityStats(ctx context.Context, uid domain.UserID) (a
 	})
 }
 
-func (s *mcpServer) toolPersonalRecords(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
-	prs, err := s.app.BestEfforts.ListPersonalRecords(ctx, uid)
+func (s *Server) toolPersonalRecords(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
+	prs, err := s.Data.PersonalRecords(ctx, uid)
 	if err != nil {
 		return toolError("could not list personal records"), nil
 	}
@@ -324,8 +303,8 @@ func (s *mcpServer) toolPersonalRecords(ctx context.Context, uid domain.UserID) 
 	return toolJSON(map[string]any{"personal_records": items, "count": len(items)})
 }
 
-func (s *mcpServer) toolProfile(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
-	u, err := s.app.Users.GetUser(ctx, uid)
+func (s *Server) toolProfile(ctx context.Context, uid domain.UserID) (any, *jsonrpcError) {
+	u, err := s.Data.Profile(ctx, uid)
 	if err != nil {
 		return toolError("could not load profile"), nil
 	}
@@ -414,13 +393,4 @@ func toolError(msg string) map[string]any {
 		"content": []map[string]any{{"type": "text", "text": msg}},
 		"isError": true,
 	}
-}
-
-// parseActivityID parses a UUID string into a typed ActivityID.
-func parseActivityID(s string) (domain.ActivityID, error) {
-	u, err := uuid.Parse(s)
-	if err != nil {
-		return domain.ActivityID{}, err
-	}
-	return domain.ActivityID(u), nil
 }
