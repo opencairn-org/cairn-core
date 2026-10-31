@@ -251,7 +251,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 	// OIDC sign-in endpoints. Providers come from CAIRN_OIDC_* env vars
 	// (parsed in newApp); gated on app.OIDCLogin being non-nil.
-	mountOIDCEndpoints(mux, app, logger)
+	mountAcctOIDC(mux, app, cfg.Auth.SessionTTL, logger)
 
 	// ActivityPub federation (phase 1: read-only actor + discovery). Off unless
 	// CAIRN_FEDERATION_ENABLED; per-user opt-in gates each actor.
@@ -265,23 +265,20 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 		logger.Info("federation disabled (CAIRN_FEDERATION_ENABLED=false)")
 	}
 
-	// Username/email + password sign-in. The /login page posts here and
+	// Username/email + password sign-in plus password reset and email
+	// verification. The /login page posts here and
 	// GetLoginMethods advertises password as available, so this is the
 	// default sign-in path for instances without an external IdP.
-	mountPasswordAuth(mux, app, logger, cfg.Auth.SessionTTL)
+	mountAcctPasswordAuth(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
 	// WebAuthn / passkey ceremonies + management (REST).
-	mountWebAuthn(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
+	mountAcctWebAuthn(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
 	// Invite create (admin) + redeem (public self-service signup).
-	mountInvites(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
-	mountAuthRecovery(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
+	mountAcctInvites(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
-	// Personal access tokens (CLI/API auth).
-	mountPATs(mux, app, logger)
-	// Password change, sessions, linked identities, profile (AuthService twins).
-	mountAccount(mux, app, logger)
-	mountAuthorizedApps(mux, app)
+	// Password change, sessions, identities, profile, authorized apps, PATs (AuthService twins).
+	mountAcctAccount(mux, app, logger, cfg.Auth.SessionTTL)
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {
@@ -331,11 +328,7 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 // serveMountSocial mounts social, moderation, club and notification endpoints.
 func serveMountSocial(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mountRestSocial(mux, app, logger)
-	mountNotificationEmailTest(mux, app, logger)
-	mountNotificationPrefs(mux, app, logger)
-	mountNotificationWebhooks(mux, app, logger)
-	mountNotificationQuietHours(mux, app, logger)
-	mountNotificationDeliveries(mux, app, logger)
+	mountAcctNotifications(mux, app, logger)
 }
 
 // serveMountPlatform mounts admin API, sync, version, metrics, Connect-RPC and the web UI.
@@ -347,7 +340,7 @@ func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
 	mountSyncEndpoints(mux, app, logger)
-	mountAccountLifecycle(mux, app, logger)
+	mountAcctLifecycle(mux, app, logger)
 
 	// Build/version info (public) — shown in the UI footer.
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, _ *http.Request) {
