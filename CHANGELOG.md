@@ -41,6 +41,15 @@ All notable changes to Cairn are documented here. The format follows
   holds it.
 
 ### Changed
+- Follow-ups of an import or edit (best efforts, segment matches, training
+  load, PR notifications, federation) run from a durable event
+  (`cairn.events.activity.changed`, consumer `activity-follow-ups`) when NATS
+  is wired: uploads, manual entry and edits answer without waiting, derived
+  data lands a moment later, failed follow-ups are retried with back-off and
+  dead-lettered instead of only logged, and a client disconnect no longer
+  cancels them.
+- Admins can no longer reactivate a soft-deleted user through the status
+  API; user status changes follow one transition table.
 - Ingest, re-merge after edits and source-from share one write path
   (`internal/usecase/pipeline`). Detaching or deleting a source, pinning a
   field and removing a connection now refresh training load (previously
