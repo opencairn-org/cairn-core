@@ -508,7 +508,7 @@ func (r *UserRepo) ListUsers(
 	}
 	defer rows.Close()
 
-	out := make([]domain.User, 0, size)
+	out := make([]domain.User, 0, 50) // the default page; append grows to the clamped size
 	for rows.Next() {
 		u, err := scanUserRow(rows)
 		if err != nil {
