@@ -37,9 +37,9 @@ import (
 )
 
 const (
-	oauthAccessTokenPrefix  = "cairn_at_"
-	oauthRefreshTokenPrefix = "cairn_rt_" //nolint:gosec // G101: token prefix marker, not a credential
-	oauthAuthCodePrefix     = "cairn_ac_"
+	oauthAccessTokenPrefix  = domain.OAuthAccessTokenPrefix
+	oauthRefreshTokenPrefix = domain.OAuthRefreshTokenPrefix
+	oauthAuthCodePrefix     = domain.OAuthAuthCodePrefix
 )
 
 // mountOAuthServer wires the OAuth 2.1 authorization-server endpoints. No-op

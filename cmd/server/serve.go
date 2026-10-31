@@ -354,7 +354,7 @@ func serveMountSocial(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	mountSocial(mux, app, logger)
 	mountHomeFeed(mux, app, logger)
 	mountProfiles(mux, app, logger)
-	mountShareLinks(mux, app, logger)
+	mountRestShare(mux, app, logger)
 	mountEngagement(mux, app, logger)
 	mountModeration(mux, app, logger)
 	mountQuota(mux, app, logger)

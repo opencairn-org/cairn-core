@@ -47,6 +47,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/pipeline"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
+	"github.com/opencairn-org/cairn-core/internal/usecase/sharing"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
@@ -146,6 +147,8 @@ type App struct {
 	// Use cases
 	RecomputeActivity       *activity.RecomputeActivityFromSources
 	Pipeline                *pipeline.Pipeline // ingest → re-cluster → follow-ups; edits' follow-ups
+	Callers                 *authuc.Callers    // credential → user, shared by REST and Connect
+	Shares                  *sharing.Links
 	IngestActivity          *activity.IngestActivityFromWorker
 	ReclusterBucket         *matchuc.ReclusterBucket
 	SourceActions           *activity.SourceActions
@@ -342,8 +345,31 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
 	wirePipeline(app, logger)
+	wireRestUseCases(app)
 	wireMaintenance(app, pool)
 	return app, nil
+}
+
+// wireRestUseCases builds the use cases the REST adapter needs beyond the
+// shared ones above.
+func wireRestUseCases(app *App) {
+	app.Callers = &authuc.Callers{}
+	if app.Sessions != nil {
+		app.Callers.Sessions = app.Sessions
+	}
+	if app.PATs != nil {
+		app.Callers.PATs = app.PATs
+	}
+	if app.OAuth != nil {
+		app.Callers.OAuth = app.OAuth
+	}
+	if app.Users != nil {
+		app.Callers.Users = app.Users
+	}
+	app.Shares = &sharing.Links{Activities: app.Activities}
+	if app.ShareLinks != nil {
+		app.Shares.Repo = app.ShareLinks
+	}
 }
 
 // wirePipeline assembles the write path over the stages wired above and hands
