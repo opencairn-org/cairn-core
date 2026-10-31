@@ -27,6 +27,8 @@ type Credential struct {
 	Bearer   string // Authorization: Bearer value
 	Mutating bool   // the request changes state: an OAuth token then needs a write scope
 	NoOAuth  bool   // refuse OAuth access tokens (e.g. approving a device grant)
+	// TouchSession records last-seen on a session hit.
+	TouchSession bool
 }
 
 func (c *Callers) now() time.Time {
@@ -36,65 +38,95 @@ func (c *Callers) now() time.Time {
 	return c.Now()
 }
 
+// CallerKind says which credential authenticated a caller.
+type CallerKind int
+
+const (
+	CallerSession CallerKind = iota + 1 // cookie or cairn_ses_ bearer
+	CallerPAT
+	CallerOAuth
+)
+
+// Caller is the authenticated principal behind a credential.
+type Caller struct {
+	UserID    domain.UserID
+	Kind      CallerKind
+	SessionID domain.SessionID // CallerSession only
+	Scopes    []string         // CallerOAuth only; never nil then
+}
+
 // Resolve returns the user behind cred, trying cookie, bearer session, PAT
 // and OAuth token in that order.
 func (c *Callers) Resolve(ctx context.Context, cred Credential) (domain.UserID, bool) {
+	caller, ok := c.Authenticate(ctx, cred)
+	return caller.UserID, ok
+}
+
+// Authenticate is Resolve returning the whole principal.
+func (c *Callers) Authenticate(ctx context.Context, cred Credential) (Caller, bool) {
 	if cred.Cookie != "" {
-		if uid, ok := c.session(ctx, cred.Cookie); ok {
-			return uid, true
+		if caller, ok := c.session(ctx, cred.Cookie, cred.TouchSession); ok {
+			return caller, true
 		}
 	}
 	tok := cred.Bearer
 	switch {
 	case strings.HasPrefix(tok, domain.SessionTokenPrefix):
-		return c.session(ctx, tok)
+		return c.session(ctx, tok, cred.TouchSession)
 	case strings.HasPrefix(tok, domain.PATTokenPrefix):
 		return c.pat(ctx, tok)
 	case strings.HasPrefix(tok, domain.OAuthAccessTokenPrefix) && !cred.NoOAuth:
 		return c.oauth(ctx, tok, cred.Mutating)
 	}
-	return domain.UserID{}, false
+	return Caller{}, false
 }
 
-func (c *Callers) session(ctx context.Context, tok string) (domain.UserID, bool) {
+func (c *Callers) session(ctx context.Context, tok string, touch bool) (Caller, bool) {
 	if c.Sessions == nil {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
 	hash := sha256.Sum256([]byte(tok))
 	sess, err := c.Sessions.GetByTokenHash(ctx, hash[:])
 	if err != nil || !sess.IsActive(c.now()) {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
-	return sess.UserID, true
+	if touch {
+		_ = c.Sessions.TouchLastSeen(ctx, sess.ID)
+	}
+	return Caller{UserID: sess.UserID, Kind: CallerSession, SessionID: sess.ID}, true
 }
 
-func (c *Callers) pat(ctx context.Context, tok string) (domain.UserID, bool) {
+func (c *Callers) pat(ctx context.Context, tok string) (Caller, bool) {
 	if c.PATs == nil {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
 	hash := sha256.Sum256([]byte(tok))
 	pat, err := c.PATs.FindByTokenHash(ctx, hash[:])
 	if err != nil || !pat.IsValidAt(c.now()) {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
 	_ = c.PATs.TouchLastUsed(ctx, pat.ID)
-	return pat.UserID, true
+	return Caller{UserID: pat.UserID, Kind: CallerPAT}, true
 }
 
 // oauth admits a read-only token only to non-mutating requests.
-func (c *Callers) oauth(ctx context.Context, tok string, mutating bool) (domain.UserID, bool) {
+func (c *Callers) oauth(ctx context.Context, tok string, mutating bool) (Caller, bool) {
 	if c.OAuth == nil {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
 	hash := sha256.Sum256([]byte(tok))
 	at, err := c.OAuth.FindAccessToken(ctx, hash[:])
 	if err != nil || !at.IsValidAt(c.now()) {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
 	if mutating && !domain.ScopesHaveAnyWrite(at.Scope) {
-		return domain.UserID{}, false
+		return Caller{}, false
 	}
-	return at.UserID, true
+	scopes := domain.ParseScopes(at.Scope)
+	if scopes == nil {
+		scopes = []string{} // a scopeless token must never read as unrestricted
+	}
+	return Caller{UserID: at.UserID, Kind: CallerOAuth, Scopes: scopes}, true
 }
 
 // WithRole loads id when allow admits their role.

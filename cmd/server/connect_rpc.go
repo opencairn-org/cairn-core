@@ -25,16 +25,9 @@ import (
 // embeds the generated UnimplementedXxxServiceHandler so the surface
 // grows method-by-method; clients calling an unimplemented RPC get
 // CodeUnimplemented, not a 404.
-//
-// Auth is currently header-based (X-Cairn-User-ID), set by the SvelteKit
-// hooks.server.ts. The proper session-cookie / OIDC path replaces that
-// header check once OIDC adapters land.
 func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	// Session interceptor: resolves the cairn_session cookie into a
-	// context-stashed user id. Handlers read via userIDFromHandlerCtx;
-	// the X-Cairn-User-ID header path stays as a fallback so the
-	// SvelteKit dev proxy can keep working during the OIDC roll-out.
-	sessionInterceptor := connectadapter.SessionInterceptor(app.Sessions, app.PATs, app.OAuth, sessionCookieName)
+	// Session interceptor: resolves cookie or bearer through the shared Callers use case.
+	sessionInterceptor := connectadapter.SessionInterceptor(app.Callers, sessionCookieName)
 	// ScopeInterceptor keeps read-only OAuth tokens read-only; no-op for
 	// cookie/PAT callers. Runs after the session resolver.
 	server := connectrpc.NewServer(sessionInterceptor, connectadapter.ScopeInterceptor())
