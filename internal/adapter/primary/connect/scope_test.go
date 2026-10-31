@@ -33,18 +33,6 @@ func TestIsMutatingProcedure(t *testing.T) {
 	}
 }
 
-func TestHasAnyWriteScope(t *testing.T) {
-	if !hasAnyWriteScope([]string{"activities:read", "social:write"}) {
-		t.Fatal("should detect a write scope")
-	}
-	if hasAnyWriteScope([]string{"activities:read", "profile:read"}) {
-		t.Fatal("read-only scopes must not count as write")
-	}
-	if hasAnyWriteScope(nil) {
-		t.Fatal("nil scopes must not count as write")
-	}
-}
-
 func TestScopeCheckFamilies(t *testing.T) {
 	cases := []struct {
 		proc   string

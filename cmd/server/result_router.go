@@ -19,6 +19,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/protoconv"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 )
 
 // startResultRouter subscribes to cairn.results.fetch_source.> and feeds
@@ -136,12 +137,12 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 	// Activities and segments/efforts arrive as separate JobResult messages (the
 	// worker splits them so a segment-heavy activity's stream doesn't blow the
 	// NATS payload limit). Within a segment message, segments come before
-	// efforts; b.segByExternal lets an effort resolve a segment created moments
-	// earlier without a DB round-trip. Each effort resolves its activity by
+	// efforts; the bundle's segment batch lets an effort resolve a segment
+	// created moments earlier without a DB round-trip. Each effort resolves its activity by
 	// external id (FindSourceByExternalID), so the segment message is
 	// self-contained.
 	job, _, _, _ := domain.ResultSubjectPool(subject)
-	b := &ingestBundle{segByExternal: map[string]domain.SegmentID{}, job: job}
+	b := &ingestBundle{job: job}
 
 	for _, ev := range jr.GetEvents() {
 		if err := processWorkerEvent(ctx, app, log, jr, b, ev); err != nil {
@@ -434,73 +435,39 @@ func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *w
 	return err
 }
 
-// ingestBundle memoises segments created earlier in the same JobResult message
-// so efforts resolve them without a DB round-trip.
+// ingestBundle carries per-message state: the segment batch memoises
+// segments upserted earlier in the same JobResult.
 type ingestBundle struct {
-	segByExternal map[string]domain.SegmentID
-	job           string // job kind of the result subject
+	segments *segment.ProviderSegmentBatch
+	job      string // job kind of the result subject
 }
 
-// ingestSegmentEvent find-or-creates the external (provider-mirrored) segment
-// and registers its external-id → SegmentID in the bundle.
+func (b *ingestBundle) segmentBatch(app *App) *segment.ProviderSegmentBatch {
+	if b.segments == nil {
+		b.segments = app.ProviderSegments.Batch()
+	}
+	return b.segments
+}
+
+// ingestSegmentEvent decodes a provider segment and upserts it.
 func ingestSegmentEvent(ctx context.Context, app *App, b *ingestBundle, seg *workerv1.ImportedSegment) error {
-	if app.Segments == nil || seg == nil {
+	if app.ProviderSegments == nil || seg == nil {
 		return nil
 	}
 	ref := seg.GetRef()
-	externalID := ref.GetExternalId()
-	if externalID == "" {
-		return errors.New("segment event missing external_id")
-	}
 	accUUID, err := uuid.Parse(ref.GetExternalAccountId())
 	if err != nil {
 		return fmt.Errorf("segment event bad external_account_id: %w", err)
 	}
-	accountID := domain.ExternalAccountID(accUUID)
-
-	// Dedup + update like activities: if this external segment already exists,
-	// reuse its id and refresh its fields; otherwise create it. SaveSegment
-	// upserts by id (ON CONFLICT id DO UPDATE).
-	s := protoconv.SegmentFromProto(seg.GetPayload(), externalID, accountID)
-	segID, err := app.Segments.FindSegmentIDByExternal(ctx, accountID, externalID)
-	if errors.Is(err, domain.ErrNotFound) {
-		s.ID = domain.SegmentID(uuid.New())
-	} else if err != nil {
-		return fmt.Errorf("find segment %s: %w", externalID, err)
-	} else {
-		s.ID = segID // existing → update in place
-	}
-	if err := s.Validate(); err != nil {
-		return fmt.Errorf("segment %s: %w", externalID, err)
-	}
-	if err := app.Segments.SaveSegment(ctx, s); err != nil {
-		return fmt.Errorf("save segment %s: %w", externalID, err)
-	}
-	b.segByExternal[externalID] = s.ID
-	return nil
+	s := protoconv.SegmentFromProto(seg.GetPayload(), ref.GetExternalId(), domain.ExternalAccountID(accUUID))
+	_, err = b.segmentBatch(app).Upsert(ctx, s)
+	return err
 }
 
-// providerEffortAttachToleranceS is how far apart (seconds) the matcher's and
-// the provider's start times may lie and still describe the same traversal.
-// Matcher anchors on the first sample within start tolerance; providers use
-// their own indexing — a few samples of disagreement is normal.
-const providerEffortAttachToleranceS = 60
-
-// ingestSegmentEffortEvent applies the canonical-effort rule to one
-// provider-reported effort:
-//
-//   - GPS-bearing source → the geometric matcher owns the efforts (it already
-//     ran in the ingest follow-ups and is re-run on every reimport/recompute).
-//     The provider's record only enriches the overlapping matcher effort with
-//     its external id; a provider effort with NO overlapping matcher effort is
-//     dropped — trusting one canonical source is what keeps leaderboards free
-//     of double-counted traversals.
-//   - streamless/no-GPS source → the matcher cannot run, so the provider
-//     effort is stored as-is (the only signal there is).
-//
-// Then refreshes the segment's denormalised ranks.
+// ingestSegmentEffortEvent decodes a provider effort and records it under the
+// canonical-effort rule (segment.ProviderSegmentBatch.RecordEffort).
 func ingestSegmentEffortEvent(ctx context.Context, app *App, log *slog.Logger, b *ingestBundle, eff *workerv1.ImportedSegmentEffort) error {
-	if app.Segments == nil || eff == nil {
+	if app.ProviderSegments == nil || eff == nil {
 		return nil
 	}
 	ref := eff.GetRef()
@@ -508,58 +475,22 @@ func ingestSegmentEffortEvent(ctx context.Context, app *App, log *slog.Logger, b
 	if err != nil {
 		return fmt.Errorf("segment effort bad external_account_id: %w", err)
 	}
-	accountID := domain.ExternalAccountID(accUUID)
-
-	segExtID := eff.GetSegmentExternalId()
-	segID, ok := b.segByExternal[segExtID]
-	if !ok {
-		id, err := app.Segments.FindSegmentIDByExternal(ctx, accountID, segExtID)
-		if err != nil {
-			return fmt.Errorf("effort references unknown segment %s: %w", segExtID, err)
-		}
-		segID = id
-		b.segByExternal[segExtID] = segID
-	}
-
-	// Resolve the activity this effort was achieved in. Segments/efforts arrive
-	// in a message separate from the activity, so look it up by external id.
-	src, err := app.Activities.FindSourceByExternalID(ctx, ref.GetProvider(), &accountID, eff.GetActivityExternalId())
+	res, err := b.segmentBatch(app).RecordEffort(ctx, segment.ProviderEffort{
+		Provider:           ref.GetProvider(),
+		AccountID:          domain.ExternalAccountID(accUUID),
+		SegmentExternalID:  eff.GetSegmentExternalId(),
+		ActivityExternalID: eff.GetActivityExternalId(),
+		ProviderEffortID:   ref.GetExternalId(),
+		Effort:             protoconv.SegmentEffortFromProto(eff.GetPayload(), ref.GetExternalId()),
+	})
 	if err != nil {
-		return fmt.Errorf("effort activity %s not found: %w", eff.GetActivityExternalId(), err)
+		return err
 	}
-
-	e := protoconv.SegmentEffortFromProto(eff.GetPayload(), ref.GetExternalId())
-
-	// GPS-bearing source: matcher is canonical — enrich its effort, don't
-	// insert a competing row.
-	if src.Parsed.HasStream && src.StartLat != nil {
-		attached, aerr := app.Segments.AttachProviderEffortRef(ctx, segID, src.ID,
-			ref.GetExternalId(), e.StartTime, providerEffortAttachToleranceS)
-		if aerr != nil {
-			return fmt.Errorf("attach provider effort %s: %w", ref.GetExternalId(), aerr)
-		}
-		if !attached {
-			// The matcher found no traversal where the provider reports one —
-			// segment geometry gap or tolerance miss. Log for observability;
-			// the matcher stays authoritative.
-			log.Info("provider effort has no matching matcher effort; dropped",
-				"segment_id", segID, "source_id", src.ID,
-				"provider_effort", ref.GetExternalId(), "start_time", e.StartTime)
-		}
-		return nil
-	}
-
-	// Streamless source: the provider effort is the only signal — store it.
-	e.ID = domain.SegmentEffortID(uuid.New())
-	e.SegmentID = segID
-	e.ActivityID = src.ActivityID
-	e.ActivitySourceID = src.ID
-	e.UserID = src.UserID
-	if err := app.Segments.SaveSegmentEffort(ctx, e); err != nil {
-		return fmt.Errorf("save segment effort: %w", err)
-	}
-	if err := app.Segments.RecomputeRanksForSegment(ctx, segID); err != nil {
-		return fmt.Errorf("recompute ranks for %s: %w", segID, err)
+	if res.Outcome == segment.EffortDropped {
+		// Segment geometry gap or tolerance miss; the matcher stays authoritative.
+		log.Info("provider effort has no matching matcher effort; dropped",
+			"segment_id", res.SegmentID, "source_id", res.SourceID,
+			"provider_effort", ref.GetExternalId(), "start_time", eff.GetPayload().GetStartTime().AsTime())
 	}
 	return nil
 }

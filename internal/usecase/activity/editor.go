@@ -122,6 +122,9 @@ func applyUserFields(act *domain.Activity, p domain.ActivityPatch) {
 	if p.Tags != nil {
 		act.Tags = *p.Tags
 	}
+	if len(p.AddTags) > 0 {
+		act.Tags = domain.MergeTags(act.Tags, p.AddTags)
+	}
 	if p.Privacy != nil {
 		act.Privacy = *p.Privacy
 	}

@@ -253,3 +253,17 @@ func TestEditor_OverlayMergesOntoStored(t *testing.T) {
 		t.Fatal("overlay edit must re-merge")
 	}
 }
+
+func TestEditor_AddTagsAppendsMissing(t *testing.T) {
+	f := newEditorFixture(domain.PrivacyPrivate)
+	a := f.repo.Activities[f.act]
+	a.Tags = []string{"race"}
+	f.repo.Activities[f.act] = a
+	got, err := f.update(t, domain.ActivityPatch{AddTags: []string{" ", "race", "long", "long"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "race" || got.Tags[1] != "long" {
+		t.Fatalf("tags %v", got.Tags)
+	}
+}

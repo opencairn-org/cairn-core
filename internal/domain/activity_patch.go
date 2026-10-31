@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Clearable is an edit to a nullable overlay field; a nil Value reverts it to
 // the merged value.
@@ -18,7 +21,9 @@ type ActivityPatch struct {
 	Title       *string
 	Description *string
 	// Tags replaces the whole set (empty clears it).
-	Tags    *[]string
+	Tags *[]string
+	// AddTags appends the tags not yet present, after Tags.
+	AddTags []string
 	Privacy *ActivityPrivacy
 	Gear    *GearEdit
 	// PrimaryStreamSourceID is merge-managed (gps_track pin) and always rejected.
@@ -28,8 +33,29 @@ type ActivityPatch struct {
 
 // Empty reports whether the patch touches no field.
 func (p ActivityPatch) Empty() bool {
-	return p.Title == nil && p.Description == nil && p.Tags == nil && p.Privacy == nil &&
+	return p.Title == nil && p.Description == nil && p.Tags == nil && len(p.AddTags) == 0 && p.Privacy == nil &&
 		p.Gear == nil && p.PrimaryStreamSourceID == nil && p.Overlay.Empty()
+}
+
+// MergeTags appends the trimmed, non-empty tags of add not already present, keeping order.
+func MergeTags(have, add []string) []string {
+	seen := make(map[string]struct{}, len(have))
+	out := append([]string(nil), have...)
+	for _, t := range have {
+		seen[t] = struct{}{}
+	}
+	for _, t := range add {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
 }
 
 // OverlayPatch edits the ClassificationOverride overlay; a nil field is untouched.

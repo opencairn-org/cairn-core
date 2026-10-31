@@ -232,6 +232,7 @@ type App struct {
 	CustomBestEfforts        *besteffort.Customs
 	SourcePreviews           *activity.SourcePreviews
 	SegmentAuthoring         *segment.Authoring
+	ProviderSegments         *segment.ProviderSegments
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -545,7 +546,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		domain.MatchTolerances{}, // zero → DefaultMatchTolerances
 		nil,                      // default slog.Default
 	)
-	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
+	wireSegmentWriters(app)
 	app.ComputeTrainingLoad = trainingload.NewComputeTrainingLoadForUser(
 		app.Activities,
 		app.Metrics,
@@ -553,6 +554,12 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)
+}
+
+// wireSegmentWriters builds native authoring and provider segment ingest.
+func wireSegmentWriters(app *App) {
+	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
+	app.ProviderSegments = segment.NewProviderSegments(app.Segments, app.Activities)
 }
 
 // wireActivityEditor builds the owner edit use case; wirePipeline adds its follow-ups.

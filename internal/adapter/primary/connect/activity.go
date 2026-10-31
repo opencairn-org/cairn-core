@@ -51,15 +51,7 @@ type ActivityServer struct {
 	// keeps the edit across future source imports.
 	Recompute *activity.RecomputeActivityFromSources
 
-	// ClassOverrides persists the user's classification overlay (type/flags),
-	// applied after the merge by Recompute so the edit survives re-derivation.
-	ClassOverrides port.ClassificationOverrideRepo
-
-	// Remerge re-merges after an upload hint and runs the follow-ups it owes
-	// (pipeline.Pipeline). Nil → Recompute alone.
-	Remerge activity.Remerger
-
-	// Editor applies UpdateActivity (nil → Unavailable).
+	// Editor applies UpdateActivity and the upload hints (nil → Unavailable).
 	Editor *activity.Editor
 
 	// Gear resolves the gear names on the wire.
@@ -113,27 +105,15 @@ func NewActivityServer(
 	streams port.StreamRepo,
 	bestEfforts port.BestEffortRepo,
 	recompute *activity.RecomputeActivityFromSources,
-	classOverrides port.ClassificationOverrideRepo,
 	gear *gearuc.Service,
 ) *ActivityServer {
 	return &ActivityServer{
-		Activities:     activities,
-		Streams:        streams,
-		BestEfforts:    bestEfforts,
-		Recompute:      recompute,
-		ClassOverrides: classOverrides,
-		Gear:           gear,
+		Activities:  activities,
+		Streams:     streams,
+		BestEfforts: bestEfforts,
+		Recompute:   recompute,
+		Gear:        gear,
 	}
-}
-
-// remerge re-derives the activity after an upload edit, with follow-ups when wired.
-func (s *ActivityServer) remerge(ctx context.Context, id domain.ActivityID) error {
-	if s.Remerge != nil {
-		_, err := s.Remerge.Remerge(ctx, id)
-		return err
-	}
-	_, err := s.Recompute.Execute(ctx, id)
-	return err
 }
 
 // gearNames resolves the names of the gear attached to the given activities.
