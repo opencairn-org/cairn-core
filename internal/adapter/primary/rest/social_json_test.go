@@ -1,4 +1,4 @@
-package main
+package rest
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
-func testActivityWithStart() domain.Activity {
+func socialTestActivity() domain.Activity {
 	lat, lng := 50.1000, 10.2000
 	return domain.Activity{
 		Title:      "Morning Run",
@@ -19,13 +19,13 @@ func testActivityWithStart() domain.Activity {
 	}
 }
 
-func locationCats() domain.CategorySet {
+func socialLocationCats() domain.CategorySet {
 	return domain.CategorySet{domain.CategorySummary: true, domain.CategoryLocation: true}
 }
 
 func TestProjectActivityJSON_NoZones_ExposesStart(t *testing.T) {
-	a := testActivityWithStart()
-	out := projectActivityJSON(a, locationCats(), nil)
+	a := socialTestActivity()
+	out := projectActivityJSON(a, socialLocationCats(), nil)
 	if out["start_lat"] == nil || out["start_lng"] == nil {
 		t.Fatal("with no zones the start coords must be present")
 	}
@@ -38,9 +38,9 @@ func TestProjectActivityJSON_NoZones_ExposesStart(t *testing.T) {
 }
 
 func TestProjectActivityJSON_StartInZone_Redacted(t *testing.T) {
-	a := testActivityWithStart()
+	a := socialTestActivity()
 	zones := []domain.PrivacyZone{{Lat: 50.1000, Lng: 10.2000, RadiusM: 200}}
-	out := projectActivityJSON(a, locationCats(), zones)
+	out := projectActivityJSON(a, socialLocationCats(), zones)
 	if out["start_lat"] != nil || out["start_lng"] != nil {
 		t.Error("coords must be suppressed for a start inside a privacy zone")
 	}
@@ -53,17 +53,17 @@ func TestProjectActivityJSON_StartInZone_Redacted(t *testing.T) {
 }
 
 func TestProjectActivityJSON_StartOutsideZone_Exposed(t *testing.T) {
-	a := testActivityWithStart()
+	a := socialTestActivity()
 	// Zone is ~1 km away → start is outside it.
 	zones := []domain.PrivacyZone{{Lat: 50.1090, Lng: 10.2000, RadiusM: 200}}
-	out := projectActivityJSON(a, locationCats(), zones)
+	out := projectActivityJSON(a, socialLocationCats(), zones)
 	if out["start_lat"] == nil {
 		t.Error("coords must be present for a start outside every zone")
 	}
 }
 
 func TestProjectActivityJSON_NoLocationCategory_NoStart(t *testing.T) {
-	a := testActivityWithStart()
+	a := socialTestActivity()
 	cats := domain.CategorySet{domain.CategorySummary: true} // no location
 	out := projectActivityJSON(a, cats, nil)
 	if out["start_lat"] != nil || out["start_place"] != nil {

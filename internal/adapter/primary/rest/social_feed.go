@@ -1,37 +1,43 @@
-package main
+package rest
 
 import (
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
-// mountHomeFeed serves the logged-in landing feed: the user's own activities,
-// the local following feed (projected through the visibility choke-point) and
-// federated activities from followed remote actors, newest first.
-func mountHomeFeed(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	mux.HandleFunc("GET /api/feed/home", func(w http.ResponseWriter, r *http.Request) {
-		me, ok := resolveSessionUser(r, app)
-		if !ok {
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
-			return
-		}
-		limit := parseIntQuery(r, "limit", view.FeedDefaultLimit)
-		offset := parseIntQuery(r, "offset", 0)
-		items := app.Feeds.Home(r.Context(), me, limit, offset)
-		out := make([]map[string]any, 0, len(items))
-		for _, it := range items {
-			out = append(out, feedItemJSON(it))
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"activities": out})
-	})
-	logger.Info("home feed endpoint mounted", "path", "/api/feed/home")
+// HomeFeedHandlers serve the logged-in landing feed: own activities, the local
+// following feed (projected) and federated activities, newest first.
+//
+//	GET /api/feed/home
+type HomeFeedHandlers struct {
+	Auth  *Auth
+	Feeds *view.Feeds
 }
 
-// feedItemJSON renders one feed row in the REST shape.
-func feedItemJSON(it view.FeedItem) map[string]any {
+// Mount registers the route.
+func (h *HomeFeedHandlers) Mount(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/feed/home", h.home)
+}
+
+func (h *HomeFeedHandlers) home(w http.ResponseWriter, r *http.Request) {
+	me, ok := h.Auth.requireUser(w, r)
+	if !ok {
+		return
+	}
+	limit := parseIntQuery(r, "limit", view.FeedDefaultLimit)
+	offset := parseIntQuery(r, "offset", 0)
+	items := h.Feeds.Home(r.Context(), me, limit, offset)
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, socialFeedItemJSON(it))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"activities": out})
+}
+
+// socialFeedItemJSON renders one home-feed row in the REST shape.
+func socialFeedItemJSON(it view.FeedItem) map[string]any {
 	switch {
 	case it.Own != nil:
 		a := it.Own
