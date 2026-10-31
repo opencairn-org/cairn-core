@@ -13,8 +13,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 )
 
-// Replayer republishes a dead-lettered payload; implemented in package main
-// over the NATS bus and injected here.
+// Replayer republishes a dead-lettered payload (nats.DeadLetterReplayer).
 type Replayer interface {
 	Replay(ctx context.Context, job domain.DeadLetteredJob) (newMsgID string, err error)
 }

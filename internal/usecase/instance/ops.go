@@ -62,8 +62,7 @@ func validFieldGroup(fg domain.FieldGroup) bool {
 	return false
 }
 
-// KeyManager runs the NATS account signing-key operations; implemented in
-// package main over the nats adapter (needs the secret box and the issuer cache).
+// KeyManager runs the NATS account signing-key operations (nats.AccountKeys).
 type KeyManager interface {
 	Bootstrap(ctx context.Context, by *domain.UserID) (key domain.SigningKey, created bool, err error)
 	Rotate(ctx context.Context, by *domain.UserID) (newKey domain.SigningKey, oldPublicKey string, err error)
