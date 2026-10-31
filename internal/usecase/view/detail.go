@@ -157,9 +157,9 @@ func (d *Details) Similar(ctx context.Context, act domain.Activity) (domain.Simi
 		return domain.SimilarGroup{}, ErrUnavailable
 	}
 	var matches []domain.SimilarActivity
-	if act.StartLat != nil && act.StartLng != nil && act.Summary.DistanceM != nil {
+	if q, ok := domain.SimilarRouteQueryFor(act); ok {
 		var err error
-		matches, err = d.segments.FindSimilarActivities(ctx, act.ID, act.UserID, *act.StartLat, *act.StartLng, *act.Summary.DistanceM, string(act.Type))
+		matches, err = d.segments.FindSimilarActivities(ctx, q)
 		if err != nil {
 			return domain.SimilarGroup{}, fmt.Errorf("find similar: %w", err)
 		}

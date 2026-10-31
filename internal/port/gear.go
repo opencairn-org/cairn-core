@@ -18,10 +18,11 @@ type GearRepo interface {
 	ListForUser(ctx context.Context, userID domain.UserID, includeRetired bool) ([]domain.Gear, error)
 	// Save upserts the gear row by ID. Totals and refs are not written here.
 	Save(ctx context.Context, g domain.Gear) error
-	// Delete removes the gear; its activities lose the gear (FK SET NULL)
-	// and go back to merge-assigned so recompute can re-derive them; refs
-	// and defaults cascade. ErrNotFound when absent.
+	// Delete removes the gear; its activities lose the gear (FK SET NULL),
+	// refs and defaults cascade. ErrNotFound when absent.
 	Delete(ctx context.Context, id domain.GearID) error
+	// SetGearSetByForGear sets gear_set_by on every activity carrying the gear.
+	SetGearSetByForGear(ctx context.Context, id domain.GearID, by domain.GearSetBy) error
 	// Names returns id → name for the given gear (any owner; callers pass
 	// ids taken from the caller's own activities).
 	Names(ctx context.Context, ids []domain.GearID) (map[domain.GearID]string, error)
