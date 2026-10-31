@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/usecase/social"
@@ -10,11 +9,6 @@ import (
 )
 
 // Leftovers of the social group still used by handlers in this package.
-
-// optionalSessionUser is the session user; ok=false means anonymous.
-func optionalSessionUser(r *http.Request, app *App) (domain.UserID, bool) {
-	return resolveSessionUser(r, app)
-}
 
 // activityQuotaStatus is view.Quota's usage; a counting failure reads as no
 // usage so a transient DB hiccup never wrongly blocks an upload.

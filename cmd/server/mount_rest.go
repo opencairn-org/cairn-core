@@ -17,11 +17,6 @@ func resolveSessionUser(r *http.Request, app *App) (domain.UserID, bool) {
 	return restAuth(app).User(r)
 }
 
-// shareTokenFor reports whether the request's ?share= token opens actID.
-func shareTokenFor(r *http.Request, app *App, actID domain.ActivityID) bool {
-	return app.Shares.Grants(r.Context(), r.URL.Query().Get("share"), actID)
-}
-
 func mountRestShare(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	if app.ShareLinks == nil {
 		return
