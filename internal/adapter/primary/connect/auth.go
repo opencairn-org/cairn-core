@@ -2,15 +2,14 @@ package connect
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"strings"
-	"time"
 
 	connectrpc "connectrpc.com/connect/v2"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 )
 
 // connectErrNotAuthenticated is returned when no identity is in the context.
@@ -61,20 +60,6 @@ func requestHeader(ctx context.Context) *connectrpc.Header {
 	return &connectrpc.Header{}
 }
 
-// ---------------------------------------------------------------------------
-// SessionInterceptor
-//
-// A Connect-RPC interceptor that reads the cairn_session cookie, looks
-// up the session row, verifies it's active, and stuffs the resolved
-// user ID into the request context. Handlers then call
-// userIDFromHandlerCtx which checks the context.
-//
-// Unauthenticated requests pass through — the interceptor doesn't deny;
-// it only enriches. The handler decides whether the operation needs
-// auth and emits CodeUnauthenticated when userIDFromHandlerCtx finds
-// nothing.
-// ---------------------------------------------------------------------------
-
 type ctxKey int
 
 const (
@@ -88,91 +73,40 @@ const (
 	ctxKeySessionID
 )
 
-// patTokenPrefix marks a personal access token; oauthTokenPrefix marks an
-// OAuth 2.1 access token issued by Cairn's authorization server.
-const (
-	patTokenPrefix   = "cairn_pat_" //nolint:gosec // G101: token prefix, not a credential
-	oauthTokenPrefix = "cairn_at_"
-)
-
-// SessionInterceptor builds a connect.ServerInterceptor that resolves the caller's
-// identity from either the cairn_session cookie (browser) or an
-// `Authorization: Bearer cairn_pat_…` personal access token (CLI/API), stashing
-// the user id in the context. Touches last-seen/last-used best-effort. `pats`
-// may be nil (PAT auth then disabled).
-func SessionInterceptor(sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthTokenLookup, sessionCookieName string) connectrpc.ServerInterceptor {
+// SessionInterceptor resolves the caller from the session cookie or an
+// Authorization bearer (cairn_ses_, PAT or OAuth access token) through the
+// shared Callers use case and stashes the principal in the context. It never
+// refuses: handlers decide whether a call needs auth.
+func SessionInterceptor(callers *authuc.Callers, sessionCookieName string) connectrpc.ServerInterceptor {
 	return serverInterceptor(func(ctx context.Context, _ connectrpc.Spec, next func(context.Context) error) error {
-		if authed, ok := connectAuthenticate(ctx, requestHeader(ctx), sessions, pats, oauth, sessionCookieName); ok {
-			return next(authed)
+		if callers == nil {
+			return next(ctx)
 		}
-		// Not authenticated; handlers decide whether to refuse.
-		return next(ctx)
+		h := requestHeader(ctx)
+		// Mutating stays false: ScopeInterceptor enforces OAuth scopes per procedure.
+		caller, ok := callers.Authenticate(ctx, authuc.Credential{
+			Cookie:       readSessionCookie(h.Get("Cookie"), sessionCookieName),
+			Bearer:       strings.TrimPrefix(h.Get("Authorization"), "Bearer "),
+			TouchSession: true,
+		})
+		if !ok {
+			return next(ctx)
+		}
+		return next(withCaller(ctx, caller))
 	})
 }
 
-// connectAuthenticate tries cookie, PAT, then OAuth token; ok reports whether one matched.
-func connectAuthenticate(ctx context.Context, h *connectrpc.Header, sessions port.SessionRepo, pats port.PATRepo, oauth port.OAuthTokenLookup, sessionCookieName string) (context.Context, bool) {
-	// 1. Session cookie.
-	if authed, ok := connectAuthSessionCookie(ctx, h, sessions, sessionCookieName); ok {
-		return authed, true
+// withCaller stashes an authenticated principal for handlers and interceptors.
+func withCaller(ctx context.Context, caller authuc.Caller) context.Context {
+	ctx = context.WithValue(ctx, ctxKeyUserID, caller.UserID)
+	switch caller.Kind {
+	case authuc.CallerSession:
+		ctx = context.WithValue(ctx, ctxKeySessionID, caller.SessionID)
+	case authuc.CallerOAuth:
+		ctx = context.WithValue(ctx, ctxKeyScopes, caller.Scopes)
+	case authuc.CallerPAT:
 	}
-	// Bearer credential: session token (Complete2FA), PAT or OAuth access token.
-	tok := strings.TrimPrefix(h.Get("Authorization"), "Bearer ")
-	if authed, ok := connectAuthBearerSession(ctx, tok, sessions); ok {
-		return authed, true
-	}
-	// 2. Personal access token (full user access).
-	if pats != nil && strings.HasPrefix(tok, patTokenPrefix) {
-		hash := sha256.Sum256([]byte(tok))
-		if pat, err := pats.FindByTokenHash(ctx, hash[:]); err == nil && pat.IsValidAt(time.Now().UTC()) {
-			_ = pats.TouchLastUsed(ctx, pat.ID)
-			return context.WithValue(ctx, ctxKeyUserID, pat.UserID), true
-		}
-	}
-	// 3. OAuth 2.1 access token (scoped access; ScopeInterceptor enforces).
-	if oauth != nil && strings.HasPrefix(tok, oauthTokenPrefix) {
-		hash := sha256.Sum256([]byte(tok))
-		if at, err := oauth.FindAccessToken(ctx, hash[:]); err == nil && at.IsValidAt(time.Now().UTC()) {
-			ctx = context.WithValue(ctx, ctxKeyUserID, at.UserID)
-			ctx = context.WithValue(ctx, ctxKeyScopes, domain.ParseScopes(at.Scope))
-			return ctx, true
-		}
-	}
-	return ctx, false
-}
-
-// connectAuthBearerSession resolves a `cairn_ses_…` bearer session token
-// (issued by Complete2FA) the same way a cookie session is.
-func connectAuthBearerSession(ctx context.Context, tok string, sessions port.SessionRepo) (context.Context, bool) {
-	if sessions == nil || !strings.HasPrefix(tok, domain.SessionTokenPrefix) {
-		return ctx, false
-	}
-	hash := sha256.Sum256([]byte(tok))
-	sess, err := sessions.GetByTokenHash(ctx, hash[:])
-	if err != nil || !sess.IsActive(time.Now().UTC()) {
-		return ctx, false
-	}
-	_ = sessions.TouchLastSeen(ctx, sess.ID)
-	ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
-	return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
-}
-
-// connectAuthSessionCookie resolves the caller from the session cookie, if any.
-func connectAuthSessionCookie(ctx context.Context, h *connectrpc.Header, sessions port.SessionRepo, sessionCookieName string) (context.Context, bool) {
-	if sessions == nil {
-		return ctx, false
-	}
-	token := readSessionCookie(h.Get("Cookie"), sessionCookieName)
-	if token == "" {
-		return ctx, false
-	}
-	hash := sha256.Sum256([]byte(token))
-	if sess, err := sessions.GetByTokenHash(ctx, hash[:]); err == nil && sess.IsActive(time.Now().UTC()) {
-		_ = sessions.TouchLastSeen(ctx, sess.ID)
-		ctx = context.WithValue(ctx, ctxKeyUserID, sess.UserID)
-		return context.WithValue(ctx, ctxKeySessionID, sess.ID), true
-	}
-	return ctx, false
+	return ctx
 }
 
 // sessionIDFromHandlerCtx returns the cookie session behind the call, if any.
