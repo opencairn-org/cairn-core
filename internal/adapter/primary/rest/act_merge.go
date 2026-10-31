@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -74,7 +73,7 @@ func (h *MergeOverrideHandlers) setFieldSource(w http.ResponseWriter, r *http.Re
 		Field    string `json:"field"`
 		SourceID string `json:"source_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSONBody(r, &body); err != nil {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
@@ -132,7 +131,7 @@ func (h *MergeOverrideHandlers) merge(w http.ResponseWriter, r *http.Request) {
 		ActivityA string `json:"activity_a"`
 		ActivityB string `json:"activity_b"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSONBody(r, &body); err != nil {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
@@ -188,7 +187,7 @@ func (h *MergeOverrideHandlers) split(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		SourceID string `json:"source_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSONBody(r, &body); err != nil {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return
 	}
@@ -326,7 +325,7 @@ func actDecodePolicies(w http.ResponseWriter, r *http.Request) (map[domain.Activ
 	var body struct {
 		Policies map[string]actPolicyJSON `json:"policies"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeJSONBody(r, &body); err != nil {
 		http.Error(w, "bad body", http.StatusBadRequest)
 		return nil, false
 	}

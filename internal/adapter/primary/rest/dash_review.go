@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -72,7 +71,7 @@ func (h *ReviewHandlers) reviewed(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		DuplicateOf string `json:"duplicate_of"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&body) // optional; empty or other bodies keep the plain-dismiss behaviour
+	_ = decodeJSONBody(r, &body) // optional; empty or other bodies keep the plain-dismiss behaviour
 	if body.DuplicateOf != "" {
 		h.keepBoth(w, r, userID, id, body.DuplicateOf)
 		return
