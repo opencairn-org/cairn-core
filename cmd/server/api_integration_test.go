@@ -7,7 +7,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"image"
 	"image/color"
@@ -32,6 +34,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/db"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/httpsig"
+	"github.com/opencairn-org/cairn-core/internal/usecase/federation"
 )
 
 // The API suite drives the real mux (all REST + Connect-RPC mounts, real Postgres, no NATS/S3)
@@ -768,6 +771,16 @@ func TestAPI_EndToEnd(t *testing.T) {
 	alice.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
 }
 
+// pubKeyPEM is the PKIX PEM of k's public half.
+func pubKeyPEM(t *testing.T, k *rsa.PrivateKey) string {
+	t.Helper()
+	der, err := x509.MarshalPKIXPublicKey(&k.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+}
+
 // itestFederation plays a remote ActivityPub server against alice: outbound follow via WebFinger,
 // then signed inbound Follow, Create, Like, reply, Undo and Delete.
 func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID string) {
@@ -829,10 +842,10 @@ func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID stri
 	follow := map[string]any{"id": id("follows"), "type": "Follow", "object": aliceActor}
 	send(follow, http.StatusAccepted)
 	send(map[string]any{"id": id("accepts"), "type": "Accept", "object": map[string]any{"type": "Follow", "actor": aliceActor, "object": actor}}, http.StatusAccepted)
-	note := buildActivityCreate(remote.URL, actor, actor+"/activities/"+uuid.NewString(), domain.Activity{
+	note := federation.BuildCreate(remote.URL, actor, actor+"/activities/"+uuid.NewString(), domain.Activity{
 		ID: domain.ActivityID(uuid.New()), Type: domain.ActivityTypeRun, Title: "Remote run",
 		StartTime: time.Now().UTC().Add(-time.Hour), MovingDuration: 30 * time.Minute, Privacy: domain.PrivacyPublic,
-	})
+	}, domain.ResolveVisibility(domain.VisibilityInput{IsOwner: true}))
 	send(map[string]any{"id": id("creates"), "type": "Create", "object": note["object"]}, http.StatusAccepted)
 	like := map[string]any{"id": id("likes"), "type": "Like", "object": objURL}
 	send(like, http.StatusAccepted)
@@ -910,4 +923,48 @@ func mustURL(t *testing.T, raw string) *url.URL {
 		t.Fatal(err)
 	}
 	return u
+}
+
+// A second source of the same workout merges into the existing activity; the
+// ingest response must name the surviving activity, not the dissolved singleton.
+func TestAPI_MergedIngestReturnsSurvivingActivity(t *testing.T) {
+	env := newITestEnv(t)
+	carol := env.user("itcarol", domain.UserRoleUser)
+	start := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	first := str(carol.upload("ride.gpx", gpxRide(start)), "activity_id")
+	manual := carol.post("/api/activities/manual", map[string]any{
+		"type": "ride", "title": "Same ride", "start_time": start.Format(time.RFC3339),
+		"elapsed_duration_s": 1199, "moving_duration_s": 1199,
+	}, http.StatusOK, http.StatusCreated)
+	if got := str(manual, "activity_id"); got != first || str(manual, "action") != "merged_into_existing" {
+		t.Fatalf("merged ingest returned %s, want surviving activity %s", got, first)
+	}
+	carol.do(http.MethodGet, "/api/activities/"+first+"/projected", nil, http.StatusOK)
+}
+
+// A source-from whose donor has no route fails as a whole: no orphan derived
+// source stays behind on the target.
+func TestAPI_SourceFromRollsBack(t *testing.T) {
+	env := newITestEnv(t)
+	dave := env.user("itdave", domain.UserRoleUser)
+	start := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Second)
+	mk := func(offset time.Duration) string {
+		return str(dave.post("/api/activities/manual", map[string]any{
+			"type": "run", "title": "Manual", "start_time": start.Add(offset).Format(time.RFC3339),
+			"elapsed_duration_s": 1800, "moving_duration_s": 1800, "distance_m": 5000,
+		}, http.StatusOK), "activity_id")
+	}
+	target, donor := mk(0), mk(96*time.Hour)
+	dave.do(http.MethodPost, "/api/activities/"+target+"/source-from",
+		map[string]any{"donor_id": donor, "groups": []string{"gps_track", "distance"}}, http.StatusBadRequest)
+
+	var manage struct {
+		Sources []map[string]any `json:"sources"`
+	}
+	if err := json.Unmarshal(dave.do(http.MethodGet, "/api/activities/"+target+"/manage", nil, http.StatusOK), &manage); err != nil {
+		t.Fatal(err)
+	}
+	if len(manage.Sources) != 1 {
+		t.Fatalf("target has %d sources after a failed borrow, want 1", len(manage.Sources))
+	}
 }

@@ -12,6 +12,14 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// ingestActivityStore is what ingest needs: identity lookup, source and activity writes, start coords.
+type ingestActivityStore interface {
+	port.SourceReader
+	port.SourceWriter
+	port.ActivityWriter
+	port.ActivityGeoStore
+}
+
 // IngestActivityFromWorker is the entry point for new activity data arriving
 // from a worker. The worker has already parsed provider data into an
 // ActivitySourcePayload; this use case resolves the source's IDENTITY and
@@ -30,21 +38,28 @@ import (
 // kept a pure, re-runnable decision over the archived sources rather than an
 // irreversible attach-on-ingest. There is no legacy heuristic dedup path.
 type IngestActivityFromWorker struct {
-	activities port.ActivityRepo
+	activities ingestActivityStore
 	streams    port.StreamRepo
 	settings   port.UserSettingsRepo
 	recompute  *RecomputeActivityFromSources
 	tx         port.TxManager
+	lock       port.UserLock // optional; serialises with re-clustering
 
 	now   func() time.Time
 	newID func() uuid.UUID
+}
+
+// WithUserLock makes each ingest hold the owner's regrouping lock.
+func (uc *IngestActivityFromWorker) WithUserLock(l port.UserLock) *IngestActivityFromWorker {
+	uc.lock = l
+	return uc
 }
 
 // NewIngestActivityFromWorker wires the use case. now and newID default to
 // time.Now and uuid.NewV7 when nil. streams may be nil — callers that include
 // Stream samples then get an error.
 func NewIngestActivityFromWorker(
-	activities port.ActivityRepo,
+	activities ingestActivityStore,
 	streams port.StreamRepo,
 	settings port.UserSettingsRepo,
 	recompute *RecomputeActivityFromSources,
@@ -135,6 +150,11 @@ func (uc *IngestActivityFromWorker) Execute(ctx context.Context, in IngestInput)
 	}
 	var result IngestResult
 	err := uc.tx.InTx(ctx, func(ctx context.Context) error {
+		if uc.lock != nil {
+			if err := uc.lock.LockUser(ctx, in.UserID); err != nil {
+				return err
+			}
+		}
 		existing, err := uc.activities.FindSourceByExternalID(
 			ctx, in.Provider, in.ExternalAccountID, in.ExternalID,
 		)

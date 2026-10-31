@@ -11,8 +11,8 @@ import (
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // SearchActivities is the faceted list (GET /api/activities/feed).
@@ -47,7 +47,7 @@ func (s *ActivityServer) SearchActivities(ctx context.Context, req *v1.SearchAct
 	names := s.gearNames(ctx, res.Activities...)
 	for _, a := range res.Activities {
 		wire := decorateActivity(ctx, activityToProto(a, nil), a, names, s.Content, s.MapETag)
-		wire.GearUnset = view.GearUnset(a, res.GearPrompt)
+		wire.GearUnset = dashboard.GearUnset(a, res.GearPrompt)
 		out.Activities = append(out.Activities, wire)
 	}
 	if filter.Offset+len(res.Activities) < res.Matched {

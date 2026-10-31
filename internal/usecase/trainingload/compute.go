@@ -35,7 +35,7 @@ import (
 // window. Existing computed rows in the same window are wiped first so
 // re-runs are idempotent.
 type ComputeTrainingLoadForUser struct {
-	activities port.ActivityRepo
+	activities port.ActivityReader
 	metrics    port.MetricRepo
 	tx         port.TxManager
 
@@ -44,7 +44,7 @@ type ComputeTrainingLoadForUser struct {
 }
 
 func NewComputeTrainingLoadForUser(
-	activities port.ActivityRepo,
+	activities port.ActivityReader,
 	metrics port.MetricRepo,
 	tx port.TxManager,
 	now func() time.Time,

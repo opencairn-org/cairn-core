@@ -24,7 +24,7 @@ import (
 // sources, runs the pure-function merge engine, applies the user-edit
 // preservation rules, validates, and persists.
 type RecomputeActivityFromSources struct {
-	activities    port.ActivityRepo
+	activities    port.ActivityAggregateStore
 	settings      port.UserSettingsRepo
 	athlete       port.AthleteProfileRepo         // optional; nil → TSS uses engine defaults
 	overrides     port.FieldOverrideRepo          // optional; nil → no manual field pins
@@ -38,7 +38,7 @@ type RecomputeActivityFromSources struct {
 // to time.Now when nil — injection is for deterministic tests. athlete may be
 // nil (TSS then falls back to engine-default thresholds).
 func NewRecomputeActivityFromSources(
-	activities port.ActivityRepo,
+	activities port.ActivityAggregateStore,
 	settings port.UserSettingsRepo,
 	athlete port.AthleteProfileRepo,
 	overrides port.FieldOverrideRepo,

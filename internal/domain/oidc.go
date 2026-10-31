@@ -58,6 +58,14 @@ const (
 	ClaimDisplayName   = "name"
 )
 
+// OIDCIDToken is a signature-, issuer- and audience-verified id_token. Claims
+// is the full claim set (persisted as LinkedIdentity.LastClaims).
+type OIDCIDToken struct {
+	Subject string
+	Nonce   string
+	Claims  map[string]any
+}
+
 // ---------------------------------------------------------------------------
 // LinkedIdentity
 //

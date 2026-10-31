@@ -15,7 +15,7 @@ import (
 type Customs struct {
 	Repo        port.CustomBestEffortRepo
 	BestEfforts port.BestEffortRepo
-	Activities  port.ActivityRepo
+	Activities  port.ActivityAggregateReader
 	Compute     *ComputeBestEffortsForSource
 }
 

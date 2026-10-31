@@ -24,16 +24,29 @@ import (
 // ±24h covers the UTC-day boundary and cross-timezone duplicates.
 const DefaultBucketMargin = 24 * time.Hour
 
+// Recomputer re-merges one activity; activity.RecomputeActivityFromSources satisfies it.
+type Recomputer interface {
+	Execute(ctx context.Context, id domain.ActivityID) (activity.RecomputeResult, error)
+}
+
 // ReclusterBucket re-derives the logical-activity grouping for one time bucket.
 type ReclusterBucket struct {
-	activities port.ActivityRepo
-	recompute  *activity.RecomputeActivityFromSources
+	activities port.ActivityMatchStore
+	recompute  Recomputer
 	denylist   port.SourceDenylistRepo // optional; nil → no detach denylist (Gap 6)
 	tx         port.TxManager
 	newID      func() uuid.UUID
 	opts       dmatch.Options
 	logger     *slog.Logger
 	events     port.AdminEventSink // optional; receives same-provider conflicts
+	lock       port.UserLock       // optional; serialises reclusters of one user
+}
+
+// WithUserLock makes each re-cluster hold the user's regrouping lock, so two
+// instances never reassign the same bucket from stale snapshots.
+func (uc *ReclusterBucket) WithUserLock(l port.UserLock) *ReclusterBucket {
+	uc.lock = l
+	return uc
 }
 
 // WithEvents routes same-provider conflicts to the admin event channel.
@@ -45,8 +58,8 @@ func (uc *ReclusterBucket) WithEvents(sink port.AdminEventSink) *ReclusterBucket
 // NewReclusterBucket wires the use-case. newID/logger default sensibly; opts
 // falls back to dmatch.DefaultOptions when zero. denylist may be nil.
 func NewReclusterBucket(
-	activities port.ActivityRepo,
-	recompute *activity.RecomputeActivityFromSources,
+	activities port.ActivityMatchStore,
+	recompute Recomputer,
 	denylist port.SourceDenylistRepo,
 	tx port.TxManager,
 	newID func() uuid.UUID,
@@ -111,6 +124,11 @@ type reclusterBucketInput struct {
 }
 
 func (uc *ReclusterBucket) reclusterInTx(ctx context.Context, userID domain.UserID, from, to time.Time, result *Result) error {
+	if uc.lock != nil {
+		if err := uc.lock.LockUser(ctx, userID); err != nil {
+			return err
+		}
+	}
 	records, err := uc.activities.ListSourceRecordsInBucket(ctx, userID, from, to)
 	if err != nil {
 		return fmt.Errorf("list bucket: %w", err)

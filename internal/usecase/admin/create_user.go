@@ -22,7 +22,7 @@ import (
 // for the first time and auto-provision is enabled, a thin variant of this
 // is invoked from the OIDC callback handler (different inputs, same repo).
 type CreateUser struct {
-	users  port.UserRepo
+	users  port.UserLifecycleStore
 	hasher *auth.PasswordHasher
 
 	now   func() time.Time
@@ -32,7 +32,7 @@ type CreateUser struct {
 // NewCreateUser wires the use case. now and newID default to time.Now and
 // uuid.NewV7 when nil — overridable for deterministic tests.
 func NewCreateUser(
-	users port.UserRepo,
+	users port.UserLifecycleStore,
 	hasher *auth.PasswordHasher,
 	now func() time.Time,
 	newID func() uuid.UUID,

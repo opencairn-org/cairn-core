@@ -12,11 +12,17 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
+// authorSegmentStore reads and writes segments.
+type authorSegmentStore interface {
+	port.SegmentReader
+	port.SegmentWriter
+}
+
 // Authoring creates, edits and deletes Cairn-native segments and re-runs
 // matching on request. Match may be nil (rematch then reports Unavailable).
 type Authoring struct {
-	Segments   port.SegmentRepo
-	Activities port.ActivityRepo
+	Segments   authorSegmentStore
+	Activities port.ActivityAggregateReader
 	Match      *MatchSegmentsForActivity
 	Now        func() time.Time
 	NewID      func() uuid.UUID

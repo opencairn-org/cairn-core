@@ -50,6 +50,10 @@ func TestMarkSourcesOutOfDate_ParserVersions(t *testing.T) {
 			if got.ReimportStatusReason != reason || (reason != "") != (got.ReimportStatus == domain.ReimportStatusUpdateAvailable) {
 				t.Errorf("%v: source %s = %s/%q, want %q", live, v, got.ReimportStatus, got.ReimportStatusReason, reason)
 			}
+			// The SQL classification must agree with the domain rule.
+			if stored, err := domain.ParseParserVersion(v); err == nil && reason != "" && live.UpgradeFor(stored).Reason() != reason {
+				t.Errorf("%v: SQL reason %q for %s disagrees with domain %q", live, reason, v, live.UpgradeFor(stored).Reason())
+			}
 			if got.SourceWorkerRelease != "v0.5.0" {
 				t.Errorf("release not round-tripped: %q", got.SourceWorkerRelease)
 			}

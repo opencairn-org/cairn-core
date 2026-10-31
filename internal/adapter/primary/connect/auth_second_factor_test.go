@@ -45,7 +45,9 @@ func (c *creatingSessions) Create(_ context.Context, s domain.Session) (domain.S
 }
 
 type sfUserRepo struct {
-	port.UserRepo
+	port.UserReader
+	port.UserProfileWriter
+	port.UserCredentialStore
 	user    domain.User
 	enabled bool
 }

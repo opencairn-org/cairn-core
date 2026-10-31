@@ -142,7 +142,7 @@ func revokeOthers(ctx context.Context, repo port.SessionRepo, userID domain.User
 
 // AuthorizedApps lists and revokes the OAuth clients holding tokens for a user.
 type AuthorizedApps struct {
-	OAuth port.OAuthServerRepo
+	OAuth port.OAuthGrantStore
 	Now   func() time.Time
 }
 

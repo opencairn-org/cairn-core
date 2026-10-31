@@ -35,7 +35,7 @@ var ErrTooLarge = errors.New("imaging: image exceeds the pixel limit")
 type Variants struct {
 	Width, Height int    // of the original
 	Thumb         []byte // JPEG, longest side ≤ ThumbMaxEdge
-	Medium        []byte // JPEG, longest side ≤ MediumMaxEdge; nil when the original is already that small
+	Medium        []byte // JPEG, longest side ≤ MediumMaxEdge; always re-encoded so it carries no metadata
 	Blurhash      string // 4x3 component blurhash of the thumb
 }
 
@@ -58,10 +58,8 @@ func Derive(raw []byte) (Variants, error) {
 	if v.Thumb, err = EncodeJPEG(thumb); err != nil {
 		return Variants{}, err
 	}
-	if max(cfg.Width, cfg.Height) > MediumMaxEdge {
-		if v.Medium, err = EncodeJPEG(Scale(img, MediumMaxEdge)); err != nil {
-			return Variants{}, err
-		}
+	if v.Medium, err = EncodeJPEG(Scale(img, MediumMaxEdge)); err != nil {
+		return Variants{}, err
 	}
 	// Blurhash from the thumb: the hash only encodes a few DCT components,
 	// a 320 px source is plenty and far cheaper than the original.

@@ -12,11 +12,12 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/inmem"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 )
 
 type fakeSegmentsH3 struct {
-	port.SegmentRepo
+	port.SegmentReader
 	stats   domain.UserSegmentStats
 	items   []domain.UserSegmentListItem
 	seg     domain.Segment
@@ -100,7 +101,7 @@ func TestStatsServerStatsAndHeatmap(t *testing.T) {
 	repo.Activities[id] = a
 	geo := &fakeGeoH3{tracks: map[domain.SourceID][]domain.GeoPoint{sid: {{Lat: 49.0, Lon: 8.0}, {Lat: 49.001, Lon: 8.001}}}}
 	s := NewStatsServer(nil, &fakeContent{}, nil, func(domain.Activity) string { return "e" })
-	s.Stats = view.NewStats(repo, nil, nil, geo, func() time.Time { return actNow })
+	s.Stats = dashboard.NewStats(repo, nil, nil, geo, func() time.Time { return actNow })
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 
 	st, err := s.GetStats(ctx, &v1.GetStatsRequest{})
@@ -131,7 +132,7 @@ func TestSegmentServer(t *testing.T) {
 			{ID: domain.SegmentEffortID(uuid.New()), SegmentID: segID, UserID: user, ElapsedS: 320, PersonalRank: 2, StartTime: actNow},
 		},
 	}
-	s := NewSegmentServer(view.NewSegments(f))
+	s := NewSegmentServer(segmentview.NewSegments(f, nil))
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 
 	mine, err := s.ListMySegments(ctx, &v1.ListMySegmentsRequest{Page: &v1.PageRequest{Limit: 1}})

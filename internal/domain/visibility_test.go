@@ -29,7 +29,7 @@ func TestResolveVisibility_OwnerSeesAll(t *testing.T) {
 }
 
 func TestResolveVisibility_PublicDefaultsToSummaryOnly(t *testing.T) {
-	got := ResolveVisibility(VisibilityInput{OwnerPolicy: DefaultVisibilityPolicy()})
+	got := ResolveVisibility(VisibilityInput{Privacy: PrivacyPublic, OwnerPolicy: DefaultVisibilityPolicy()})
 	if !got.Has(CategorySummary) {
 		t.Error("public must see summary")
 	}
@@ -41,7 +41,7 @@ func TestResolveVisibility_PublicDefaultsToSummaryOnly(t *testing.T) {
 }
 
 func TestResolveVisibility_FollowerSeesMoreThanPublic(t *testing.T) {
-	fol := ResolveVisibility(VisibilityInput{IsFollower: true, OwnerPolicy: DefaultVisibilityPolicy()})
+	fol := ResolveVisibility(VisibilityInput{IsFollower: true, Privacy: PrivacyPublic, OwnerPolicy: DefaultVisibilityPolicy()})
 	if !fol.Has(CategoryMap) || !fol.Has(CategorySegments) {
 		t.Error("follower should see map + segments by default")
 	}
@@ -57,7 +57,7 @@ func TestResolveVisibility_ActivityOverrideWins(t *testing.T) {
 		AudienceFollowers: categorySetOf(CategorySummary, CategoryHR),
 	}}
 	got := ResolveVisibility(VisibilityInput{
-		IsFollower: true, OwnerPolicy: DefaultVisibilityPolicy(), ActivityPolicy: override,
+		IsFollower: true, Privacy: PrivacyPublic, OwnerPolicy: DefaultVisibilityPolicy(), ActivityPolicy: override,
 	})
 	if !got.Has(CategoryHR) {
 		t.Error("activity override should expose HR to followers")
@@ -73,11 +73,38 @@ func TestResolveVisibility_LinkBypassesPrivate(t *testing.T) {
 		AudiencePublic:    categorySetOf(),
 		AudienceFollowers: categorySetOf(),
 	}}
-	got := ResolveVisibility(VisibilityInput{HasValidLink: true, OwnerPolicy: locked})
+	got := ResolveVisibility(VisibilityInput{HasValidLink: true, Privacy: PrivacyPrivate, OwnerPolicy: locked})
 	// link falls back to the DEFAULT link set (followers-equivalent) since `locked`
 	// doesn't define link.
 	if !got.Has(CategorySummary) {
 		t.Error("link holder should see at least summary via the default link policy")
+	}
+}
+
+func TestResolveVisibility_PrivacyAndState(t *testing.T) {
+	def := DefaultVisibilityPolicy()
+	cases := []struct {
+		name string
+		in   VisibilityInput
+		want bool // any category visible
+	}{
+		{"public stranger", VisibilityInput{Privacy: PrivacyPublic}, true},
+		{"followers-only stranger", VisibilityInput{Privacy: PrivacyFollowers}, false},
+		{"followers-only follower", VisibilityInput{Privacy: PrivacyFollowers, IsFollower: true}, true},
+		{"followers-only link", VisibilityInput{Privacy: PrivacyFollowers, HasValidLink: true}, true},
+		{"private follower", VisibilityInput{Privacy: PrivacyPrivate, IsFollower: true}, false},
+		{"private link", VisibilityInput{Privacy: PrivacyPrivate, HasValidLink: true}, true},
+		{"unknown privacy fails closed", VisibilityInput{IsFollower: true}, false},
+		{"hidden public", VisibilityInput{Privacy: PrivacyPublic, Hidden: true, IsFollower: true}, false},
+		{"hidden link", VisibilityInput{Privacy: PrivacyPublic, Hidden: true, HasValidLink: true}, false},
+		{"deleted link", VisibilityInput{Privacy: PrivacyPublic, Deleted: true, HasValidLink: true}, false},
+		{"owner sees own private", VisibilityInput{Privacy: PrivacyPrivate, IsOwner: true}, true},
+	}
+	for _, c := range cases {
+		c.in.OwnerPolicy = def
+		if got := len(ResolveVisibility(c.in)) > 0; got != c.want {
+			t.Errorf("%s: visible=%v, want %v", c.name, got, c.want)
+		}
 	}
 }
 

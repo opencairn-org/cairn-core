@@ -747,26 +747,12 @@ func (r *SegmentRepo) UserSegmentStats(ctx context.Context, userID domain.UserID
 	return st, nil
 }
 
-// FindSimilarActivities returns the viewer's OTHER activities that cover roughly
-// the same route as the reference activity. The primary signal is start
-// location + distance: same start point (within ~250-350m bbox), same sport,
-// and distance within ±15% — which reliably clusters repeated loops/commutes
-// even when segment coverage is sparse. Shared segment-effort count is returned
-// as an additional confidence hint (not required). Chronological (oldest first).
-//
-// Requires the reference to have start coordinates + a distance; returns empty
-// otherwise (the signal needs both).
-func (r *SegmentRepo) FindSimilarActivities(
-	ctx context.Context,
-	activityID domain.ActivityID,
-	userID domain.UserID,
-	startLat, startLng, distanceM float64,
-	activityType string,
-) ([]domain.SimilarActivity, error) {
-	if distanceM <= 0 {
+// FindSimilarActivities implements port.SegmentRepo; the criteria come from
+// the query (domain.SimilarRouteQueryFor).
+func (r *SegmentRepo) FindSimilarActivities(ctx context.Context, q domain.SimilarRouteQuery) ([]domain.SimilarActivity, error) {
+	if q.DistanceM <= 0 {
 		return nil, nil
 	}
-	const bbox = 0.0035 // ~250m lat / ~250-350m lng at mid latitudes
 	db := dbtx(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT a.id, a.title, a.type, a.start_time, a.distance_m,
@@ -790,10 +776,10 @@ func (r *SegmentRepo) FindSimilarActivities(
 		    AND a.start_lat BETWEEN $4::float8 - $7::float8 AND $4::float8 + $7::float8
 		    AND a.start_lng BETWEEN $5::float8 - $7::float8 AND $5::float8 + $7::float8
 		    AND a.distance_m IS NOT NULL
-		    AND abs(a.distance_m - $6::float8) <= 0.15 * $6::float8
+		    AND abs(a.distance_m - $6::float8) <= $8::float8 * $6::float8
 		  ORDER BY a.start_time ASC`,
-		activityID.UUID(), userID.UUID(), activityType,
-		startLat, startLng, distanceM, bbox,
+		q.ActivityID.UUID(), q.UserID.UUID(), string(q.Type),
+		q.StartLat, q.StartLng, q.DistanceM, q.StartToleranceDeg, q.DistanceTolerance,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("find similar activities: %w", err)

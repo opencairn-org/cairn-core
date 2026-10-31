@@ -20,7 +20,7 @@ type OrphanGroup struct {
 // Orphans finds sources whose worker pool is gone: not live and either
 // unknown or retired.
 type Orphans struct {
-	Activities port.ActivityRepo
+	Activities port.ActivityAdminStats
 	Pools      port.WorkerPoolRepo
 	// LiveWorkers returns the names of the worker pools currently online.
 	LiveWorkers func(ctx context.Context) []string

@@ -19,7 +19,7 @@ import (
 // hands back the user id so the transport can issue the session.
 type SecondFactor struct {
 	Challenges port.LoginChallengeRepo
-	Users      port.UserRepo
+	Users      port.UserCredentialStore
 	Passkeys   port.PasskeyRepo
 	Now        func() time.Time
 }

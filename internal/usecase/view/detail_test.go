@@ -13,7 +13,7 @@ import (
 )
 
 type fakeSegments struct {
-	port.SegmentRepo
+	port.SegmentReader
 	efforts []domain.SegmentEffort
 	segs    map[domain.SegmentID]domain.Segment
 	similar []domain.SimilarActivity
@@ -25,7 +25,7 @@ func (f *fakeSegments) ListEffortsForActivity(context.Context, domain.ActivityID
 func (f *fakeSegments) GetSegment(_ context.Context, id domain.SegmentID) (domain.Segment, error) {
 	return f.segs[id], nil
 }
-func (f *fakeSegments) FindSimilarActivities(context.Context, domain.ActivityID, domain.UserID, float64, float64, float64, string) ([]domain.SimilarActivity, error) {
+func (f *fakeSegments) FindSimilarActivities(context.Context, domain.SimilarRouteQuery) ([]domain.SimilarActivity, error) {
 	return f.similar, nil
 }
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
@@ -133,89 +131,64 @@ func (r *SegmentRepo) SearchSegmentsInBBox(ctx context.Context, viewer domain.Us
 	return pgCollectRows(rows, scanSegmentRow, "scan segment", "iterate segments")
 }
 
-func (r *SegmentRepo) ListSegmentEffortsFiltered(ctx context.Context, segmentID domain.SegmentID, q domain.SegmentEffortQuery) ([]domain.SegmentEffort, error) {
+func (r *SegmentRepo) ListSegmentEffortsFiltered(ctx context.Context, segmentID domain.SegmentID, viewer domain.UserID, q domain.SegmentEffortQuery) ([]domain.SegmentEffortCandidate, error) {
 	db := dbtx(ctx, r.pool)
 	limit, offset := q.Limit, max(0, q.Offset)
 	if limit <= 0 {
 		limit = 50
 	}
-	order := "start_time DESC"
+	order := "e.start_time DESC, e.id"
 	if q.FastestFirst {
-		order = "elapsed_s ASC, start_time ASC"
+		order = "e.elapsed_s ASC, e.start_time ASC, e.id"
 	}
 	var userParam any
 	if q.UserID != nil {
 		userParam = q.UserID.UUID()
 	}
+	// Coarse pre-filter only; the visibility decision is the caller's.
 	rows, err := db.Query(ctx,
-		`SELECT `+segmentEffortColumns+`
-		   FROM segment_efforts
-		  WHERE segment_id = $1
-		    AND ($2::uuid IS NULL OR user_id = $2)
-		    AND ($3::timestamptz IS NULL OR start_time >= $3)
-		    AND ($4::timestamptz IS NULL OR start_time < $4)
+		`SELECT `+prefixedColumns(segmentEffortColumns, "e.")+`,
+		        a.privacy, a.hidden_by_admin, u.display_name, COALESCE(u.avatar_url, '')
+		   FROM segment_efforts e
+		   JOIN activities a ON a.id = e.activity_id
+		   JOIN users u ON u.id = e.user_id
+		  WHERE e.segment_id = $1
+		    AND a.deleted_at IS NULL
+		    AND (e.user_id = $2 OR (a.privacy <> 'private' AND a.hidden_by_admin = false))
+		    AND ($3::uuid IS NULL OR e.user_id = $3)
+		    AND ($4::timestamptz IS NULL OR e.start_time >= $4)
+		    AND ($5::timestamptz IS NULL OR e.start_time < $5)
 		  ORDER BY `+order+`
-		  LIMIT $5 OFFSET $6`,
-		segmentID.UUID(), userParam, nullableTime(q.From), nullableTime(q.To), limit, offset)
+		  LIMIT $6 OFFSET $7`,
+		segmentID.UUID(), viewer.UUID(), userParam, nullableTime(q.From), nullableTime(q.To), limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list segment efforts: %w", err)
 	}
-	return pgCollectRows(rows, scanSegmentEffortRow, "scan effort", "iterate efforts")
+	return pgCollectRows(rows, scanSegmentEffortCandidate, "scan effort", "iterate efforts")
 }
 
-const leaderboardSQL = `
-	WITH best AS (
-		SELECT DISTINCT ON (e.user_id) e.id, e.user_id, e.activity_id, e.elapsed_s, e.start_time
-		  FROM segment_efforts e
-		 WHERE e.segment_id = $1
-		   AND ($2::timestamptz IS NULL OR e.start_time >= $2)
-		   AND ($3::timestamptz IS NULL OR e.start_time < $3)
-		 ORDER BY e.user_id, e.elapsed_s ASC, e.start_time ASC
-	), ranked AS (
-		SELECT b.*, rank() OVER (ORDER BY b.elapsed_s ASC, b.start_time ASC) AS rnk,
-		       u.display_name, COALESCE(u.avatar_url, '') AS avatar_url
-		  FROM best b JOIN users u ON u.id = b.user_id
-	)`
-
-func (r *SegmentRepo) SegmentLeaderboard(ctx context.Context, segmentID domain.SegmentID, viewer domain.UserID, q domain.LeaderboardQuery) ([]domain.LeaderboardEntry, *domain.LeaderboardEntry, error) {
-	db := dbtx(ctx, r.pool)
-	limit, offset := q.Limit, max(0, q.Offset)
-	if limit <= 0 {
-		limit = 50
-	}
-	rows, err := db.Query(ctx, leaderboardSQL+`
-		SELECT rnk, user_id, display_name, avatar_url, elapsed_s, start_time, id, activity_id
-		  FROM ranked ORDER BY rnk LIMIT $4 OFFSET $5`,
-		segmentID.UUID(), nullableTime(q.From), nullableTime(q.To), limit, offset)
-	if err != nil {
-		return nil, nil, fmt.Errorf("segment leaderboard: %w", err)
-	}
-	entries, err := pgCollectRows(rows, scanLeaderboardEntry, "scan leaderboard entry", "iterate leaderboard")
-	if err != nil {
-		return nil, nil, err
-	}
-	mine, err := scanLeaderboardEntry(db.QueryRow(ctx, leaderboardSQL+`
-		SELECT rnk, user_id, display_name, avatar_url, elapsed_s, start_time, id, activity_id
-		  FROM ranked WHERE user_id = $4`,
-		segmentID.UUID(), nullableTime(q.From), nullableTime(q.To), viewer.UUID()))
-	if err != nil {
-		return entries, nil, nil //nolint:nilerr // no row for the viewer is the common case
-	}
-	return entries, &mine, nil
-}
-
-func scanLeaderboardEntry(row rowScanner) (domain.LeaderboardEntry, error) {
+func scanSegmentEffortCandidate(row rowScanner) (domain.SegmentEffortCandidate, error) {
 	var (
-		e             domain.LeaderboardEntry
-		uid, eid, aid uuid.UUID
-		rank          int64
+		c       domain.SegmentEffortCandidate
+		privacy string
 	)
-	if err := row.Scan(&rank, &uid, &e.DisplayName, &e.AvatarURL, &e.ElapsedS, &e.StartTime, &eid, &aid); err != nil {
-		return domain.LeaderboardEntry{}, err
+	e, err := scanSegmentEffortRow(multiScanner{row: row, tail: []any{&privacy, &c.Activity.HiddenByAdmin, &c.DisplayName, &c.AvatarURL}})
+	if err != nil {
+		return c, err
 	}
-	e.Rank, e.UserID, e.EffortID, e.ActivityID = int(rank), domain.UserID(uid), domain.SegmentEffortID(eid), domain.ActivityID(aid)
-	return e, nil
+	c.Effort = e
+	c.Activity.ID, c.Activity.UserID, c.Activity.Privacy = e.ActivityID, e.UserID, domain.ActivityPrivacy(privacy)
+	return c, nil
 }
+
+// multiScanner appends extra destinations to a scan, so a row scanner for a
+// column list can be reused on a query that selects more.
+type multiScanner struct {
+	row  rowScanner
+	tail []any
+}
+
+func (m multiScanner) Scan(dest ...any) error { return m.row.Scan(append(dest, m.tail...)...) }
 
 // stringsOf renders a slice of string-kinded values for an ANY($n) bind.
 func stringsOf[T ~string](in []T) []string {

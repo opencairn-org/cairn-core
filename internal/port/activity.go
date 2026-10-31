@@ -96,30 +96,11 @@ type ActivityListFilter struct {
 	Offset int // page offset; 0 = first page
 }
 
-// ActivityRepo persists and retrieves the Activity aggregate.
-//
-// The aggregate has two parts: the merged Activity row and zero-or-more
-// ActivitySource rows. ActivityRepo manages both because their consistency
-// is jointly enforced — a merge that updates one usually updates the other.
-//
-// Read methods return domain.ErrNotFound when the requested entity does
-// not exist. Adapters wrap the sentinel: `return Activity{}, fmt.Errorf("get activity %s: %w", id, domain.ErrNotFound)`.
-type ActivityRepo interface {
-	// -------------------------------------------------------------------
-	// Activity (the merged aggregate root)
-	// -------------------------------------------------------------------
-
+// ActivityReader reads merged activities: lookups, lists, feeds and dashboard aggregates.
+type ActivityReader interface {
 	// GetActivity returns one Activity by ID. Soft-deleted activities
 	// are included; callers filter by Activity.IsDeleted() when needed.
 	GetActivity(ctx context.Context, id domain.ActivityID) (domain.Activity, error)
-
-	// SaveActivity upserts the Activity row by ID. Used both for the
-	// initial insert and for re-merge after sources change.
-	SaveActivity(ctx context.Context, a domain.Activity) error
-
-	// SoftDeleteActivity sets activities.deleted_at. Hard delete is a
-	// separate maintenance operation (not exposed via the use-case API).
-	SoftDeleteActivity(ctx context.Context, id domain.ActivityID, at time.Time) error
 
 	// ListActivitiesForUser returns the user's activities whose start_time
 	// falls within [start, end] (inclusive on both ends), ordered by
@@ -150,13 +131,6 @@ type ActivityRepo interface {
 	// activities: count, total distance (m), total moving time (s), total
 	// elevation gain (m). Used by the overview dashboard.
 	ActivityTotals(ctx context.Context, userID domain.UserID) (ActivityTotalsResult, error)
-
-	// SourceWorkerGroups counts active sources per importing worker pool.
-	SourceWorkerGroups(ctx context.Context) ([]SourceWorkerGroup, error)
-
-	// UserFootprints returns per-user admin counters for the given users
-	// (missing users map to a zero footprint).
-	UserFootprints(ctx context.Context, userIDs []domain.UserID) (map[domain.UserID]UserFootprint, error)
 
 	// ActivityTotalsForRange returns totals for activities whose start_time
 	// falls in [start, end) — the dashboard's this/last week.
@@ -195,11 +169,21 @@ type ActivityRepo interface {
 		viewerID domain.UserID,
 		limit, offset int,
 	) ([]domain.Activity, error)
+}
 
-	// -------------------------------------------------------------------
-	// ActivitySource (component of the aggregate)
-	// -------------------------------------------------------------------
+// ActivityWriter persists the merged activity row.
+type ActivityWriter interface {
+	// SaveActivity upserts the Activity row by ID. Used both for the
+	// initial insert and for re-merge after sources change.
+	SaveActivity(ctx context.Context, a domain.Activity) error
 
+	// SoftDeleteActivity sets activities.deleted_at. Hard delete is a
+	// separate maintenance operation (not exposed via the use-case API).
+	SoftDeleteActivity(ctx context.Context, id domain.ActivityID, at time.Time) error
+}
+
+// SourceReader reads activity sources and their provider identity.
+type SourceReader interface {
 	// GetSource returns one ActivitySource by ID.
 	GetSource(ctx context.Context, id domain.SourceID) (domain.ActivitySource, error)
 
@@ -232,11 +216,43 @@ type ActivityRepo interface {
 	// which excludes them).
 	ListAllSourcesForActivity(ctx context.Context, id domain.ActivityID) ([]domain.ActivitySource, error)
 
+	// FindSourceByExternalID resolves a source's identity: exact match on
+	// (provider, external_account_id, external_id). Returns domain.ErrNotFound
+	// when no such source exists. Same-activity GROUPING is the matcher's job,
+	// not this lookup's.
+	FindSourceByExternalID(
+		ctx context.Context,
+		provider string,
+		externalAccountID *domain.ExternalAccountID,
+		externalID string,
+	) (domain.ActivitySource, error)
+}
+
+// SourceWriter persists activity sources and their per-source state.
+type SourceWriter interface {
 	// SaveSource upserts a source by ID. Used by the ingest pipeline
 	// when a worker delivers a new payload and by the preview-commit
 	// flow when a dry-run reimport is applied.
 	SaveSource(ctx context.Context, s domain.ActivitySource) error
 
+	// SetSourceRawBlob records the archived raw-file reference (S3 key +
+	// content-type + size) on a source after a server-side upload archival.
+	SetSourceRawBlob(ctx context.Context, id domain.SourceID, blobID, contentType string, sizeBytes int64) error
+
+	// DetachSource marks a source as detached and bumps the parent
+	// activity's updated_at. Detached sources stay in storage for audit
+	// but no longer contribute to the merge. The caller is responsible
+	// for invoking RecomputeActivityFromSources afterwards.
+	DetachSource(ctx context.Context, id domain.SourceID, reason string, at time.Time) error
+
+	// SetSourceReimportStatus flips a source's reimport_status (+reason),
+	// e.g. to 'updating' when a user-initiated re-fetch/re-parse job is
+	// published. The ingest pipeline resets it to 'current' on the result.
+	SetSourceReimportStatus(ctx context.Context, id domain.SourceID, status domain.ReimportStatus, reason string) error
+}
+
+// ActivityMatchStore backs the re-clustering engine: bucket records, reassignment, match state, redirects and manual constraints.
+type ActivityMatchStore interface {
 	// ListSourceRecordsInBucket returns the lightweight match-feature view of
 	// every non-detached source for a user with start_utc in [from, to) — the
 	// candidate-generation query the re-clustering engine walks per
@@ -254,14 +270,6 @@ type ActivityRepo interface {
 	// on an activity (re-cluster output).
 	SetActivityMatchState(ctx context.Context, id domain.ActivityID, confidence string, needsReview bool) error
 
-	// ListActivitiesNeedingReview returns the user's activities flagged
-	// needs_review (medium-confidence merges), newest first — the review queue
-	// (brief §7.3). Lightweight projection; does not load the full Activity.
-	ListActivitiesNeedingReview(ctx context.Context, userID domain.UserID) ([]domain.ActivityReviewItem, error)
-
-	// ClearNeedsReview clears the needs_review flag (user confirmed the merge).
-	ClearNeedsReview(ctx context.Context, id domain.ActivityID) error
-
 	// AddActivityRedirect records that a dissolved activity id now resolves to a
 	// surviving one (merge). Idempotent on old_id.
 	AddActivityRedirect(ctx context.Context, oldID, newID domain.ActivityID, reason string) error
@@ -273,11 +281,21 @@ type ActivityRepo interface {
 	// AddMatchConstraint records a manual matching decision. The pair is stored
 	// in canonical order; a conflicting kind for the same pair is replaced.
 	AddMatchConstraint(ctx context.Context, c domain.MatchConstraint) error
+}
 
-	// SetSourceRawBlob records the archived raw-file reference (S3 key +
-	// content-type + size) on a source after a server-side upload archival.
-	SetSourceRawBlob(ctx context.Context, id domain.SourceID, blobID, contentType string, sizeBytes int64) error
+// ActivityReviewQueue lists and clears medium-confidence merges awaiting review.
+type ActivityReviewQueue interface {
+	// ListActivitiesNeedingReview returns the user's activities flagged
+	// needs_review (medium-confidence merges), newest first — the review queue
+	// (brief §7.3). Lightweight projection; does not load the full Activity.
+	ListActivitiesNeedingReview(ctx context.Context, userID domain.UserID) ([]domain.ActivityReviewItem, error)
 
+	// ClearNeedsReview clears the needs_review flag (user confirmed the merge).
+	ClearNeedsReview(ctx context.Context, id domain.ActivityID) error
+}
+
+// ActivityGeoStore maintains the denormalised start coordinates and geocoded place.
+type ActivityGeoStore interface {
 	// SetStartLocation writes the denormalised start coordinates and reverse-
 	// geocoded place name for an activity. Managed out-of-band from the merge
 	// engine so a re-merge never clobbers a resolved place. place == "" marks
@@ -293,30 +311,45 @@ type ActivityRepo interface {
 	// activities that have a primary stream but no start_place yet, newest
 	// first. Drives the geocode backfiller's work queue.
 	ListActivitiesMissingStartPlace(ctx context.Context, limit int) ([]StartPlaceCandidate, error)
+}
 
-	// DetachSource marks a source as detached and bumps the parent
-	// activity's updated_at. Detached sources stay in storage for audit
-	// but no longer contribute to the merge. The caller is responsible
-	// for invoking RecomputeActivityFromSources afterwards.
-	DetachSource(ctx context.Context, id domain.SourceID, reason string, at time.Time) error
+// ActivityAdminStats serves instance-admin counters over activities and sources.
+type ActivityAdminStats interface {
+	// SourceWorkerGroups counts active sources per importing worker pool.
+	SourceWorkerGroups(ctx context.Context) ([]SourceWorkerGroup, error)
 
-	// SetSourceReimportStatus flips a source's reimport_status (+reason),
-	// e.g. to 'updating' when a user-initiated re-fetch/re-parse job is
-	// published. The ingest pipeline resets it to 'current' on the result.
-	SetSourceReimportStatus(ctx context.Context, id domain.SourceID, status domain.ReimportStatus, reason string) error
+	// UserFootprints returns per-user admin counters for the given users
+	// (missing users map to a zero footprint).
+	UserFootprints(ctx context.Context, userIDs []domain.UserID) (map[domain.UserID]UserFootprint, error)
+}
 
-	// -------------------------------------------------------------------
-	// Identity lookup (used by the ingest pipeline)
-	// -------------------------------------------------------------------
+// ActivityAggregateReader reads activities together with their sources.
+type ActivityAggregateReader interface {
+	ActivityReader
+	SourceReader
+}
 
-	// FindSourceByExternalID resolves a source's identity: exact match on
-	// (provider, external_account_id, external_id). Returns domain.ErrNotFound
-	// when no such source exists. Same-activity GROUPING is the matcher's job,
-	// not this lookup's.
-	FindSourceByExternalID(
-		ctx context.Context,
-		provider string,
-		externalAccountID *domain.ExternalAccountID,
-		externalID string,
-	) (domain.ActivitySource, error)
+// ActivityAggregateStore reads activities with their sources and persists the merged row.
+type ActivityAggregateStore interface {
+	ActivityAggregateReader
+	ActivityWriter
+}
+
+// ActivityRepo persists and retrieves the Activity aggregate.
+//
+// The aggregate has two parts: the merged Activity row and zero-or-more
+// ActivitySource rows. ActivityRepo manages both because their consistency
+// is jointly enforced — a merge that updates one usually updates the other.
+//
+// Read methods return domain.ErrNotFound when the requested entity does
+// not exist. Adapters wrap the sentinel: `return Activity{}, fmt.Errorf("get activity %s: %w", id, domain.ErrNotFound)`.
+type ActivityRepo interface {
+	ActivityReader
+	ActivityWriter
+	SourceReader
+	SourceWriter
+	ActivityMatchStore
+	ActivityReviewQueue
+	ActivityGeoStore
+	ActivityAdminStats
 }

@@ -88,13 +88,24 @@ Zones never apply to the `owner` audience.
 ResolveVisibility(viewer, owner, activity, follow, shareToken) -> AllowedCategories
 
   1. owner?            → all categories (+ raw map, no zone masking)
-  2. valid shareToken? → audience = link
-  3. follow active?    → audience = followers
-  4. else              → audience = public
-  5. categories = activity.override[audience] ?? owner.default[audience]
-  6. if 'map'/'location' allowed and audience != owner: apply privacy zones
-  7. return categories
+  2. deleted / hidden? → nothing
+  3. valid shareToken? → audience = link (opens even a private activity)
+  4. follow active?    → audience = followers
+  5. else              → audience = public
+  6. activity.privacy: private → nothing; followers → nothing unless
+     audience = followers; public (or a link) → continue. Unknown → private.
+  7. categories = activity.override[audience] ?? owner.default[audience]
+  8. if 'map'/'location' allowed and audience != owner: apply privacy zones
+  9. return categories
 ```
+
+Steps 1–7 are `domain.ResolveVisibility`; `view.Visibility.Resolve` (and
+`For`, which takes the activity) is the only way the read paths ask. SQL
+filters on `privacy`/`hidden_by_admin` are page pre-filters, never the
+decision. Cross-user aggregates follow the same rule per row: a segment
+leaderboard ranks only efforts whose activity grants the viewer `segments`;
+federation sends what the anonymous public audience may see. Non-owners only
+ever get re-encoded photo variants: the original keeps its EXIF (GPS).
 
 Every non-owner read path (feed item, public profile activity, shared-activity
 view, and a non-owner viewing the normal activity detail) projects the activity

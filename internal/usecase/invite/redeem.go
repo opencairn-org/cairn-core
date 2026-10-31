@@ -10,16 +10,21 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 )
 
+// UserCreator provisions the account; admin.CreateUser satisfies it.
+type UserCreator interface {
+	Execute(ctx context.Context, in admin.CreateUserInput) (admin.CreateUserResult, error)
+}
+
 // RedeemInvite turns a valid invite code into a new user account. The invite is
 // claimed atomically (race-safe) before the user is created; if creation fails
 // the claim is released so the code can be retried.
 type RedeemInvite struct {
 	invites    port.InviteRepo
-	createUser *admin.CreateUser
+	createUser UserCreator
 	now        func() time.Time
 }
 
-func NewRedeemInvite(invites port.InviteRepo, createUser *admin.CreateUser, now func() time.Time) *RedeemInvite {
+func NewRedeemInvite(invites port.InviteRepo, createUser UserCreator, now func() time.Time) *RedeemInvite {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}

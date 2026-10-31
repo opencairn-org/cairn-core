@@ -23,7 +23,7 @@ func (f *Feeds) Project(ctx context.Context, acts []domain.Activity, viewer *dom
 	for i := range acts {
 		a := acts[i]
 		isOwner := viewer != nil && *viewer == a.UserID
-		cats := f.visibility.For(ctx, a.UserID, viewer, a.ID, false)
+		cats := f.visibility.For(ctx, &a, viewer, false)
 		if !isOwner && len(cats) == 0 {
 			continue
 		}
@@ -51,19 +51,15 @@ func (f *Feeds) Projected(ctx context.Context, id domain.ActivityID, viewer *dom
 	if err != nil {
 		return domain.ProjectedActivity{}, domain.User{}, false, domain.ErrNotFound
 	}
-	isOwner := viewer != nil && *viewer == a.UserID
-	if !isOwner && !hasLink && (a.Privacy == domain.PrivacyPrivate || a.HiddenByAdmin) {
-		return domain.ProjectedActivity{}, domain.User{}, false, ErrForbidden
-	}
-	if hasLink && a.HiddenByAdmin {
+	if a.IsDeleted() || (hasLink && a.HiddenByAdmin) {
 		return domain.ProjectedActivity{}, domain.User{}, false, domain.ErrNotFound
 	}
-	cats := f.visibility.For(ctx, a.UserID, viewer, a.ID, hasLink)
-	if !isOwner && len(cats) == 0 {
+	vw, ok := f.visibility.Resolve(ctx, a, viewer, hasLink)
+	if !ok {
 		return domain.ProjectedActivity{}, domain.User{}, false, ErrForbidden
 	}
 	owner, _ := f.users.GetUser(ctx, a.UserID)
-	return domain.ProjectActivity(a, cats, f.visibility.OwnerZones(ctx, a.UserID, isOwner)), owner, isOwner, nil
+	return domain.ProjectActivity(a, vw.Cats, vw.Zones), owner, vw.IsOwner, nil
 }
 
 // Shared resolves a share link: the token is the authorization and resolves
@@ -102,12 +98,12 @@ type ClubMemberRow struct {
 // Clubs are the club reads (SocialService, GET /api/clubs…).
 type Clubs struct {
 	clubs port.ClubRepo
-	users port.UserRepo
+	users port.UserReader
 	feeds *Feeds
 }
 
 // NewClubs wires the reads; clubs may be nil (→ ErrUnavailable).
-func NewClubs(clubs port.ClubRepo, users port.UserRepo, feeds *Feeds) *Clubs {
+func NewClubs(clubs port.ClubRepo, users port.UserReader, feeds *Feeds) *Clubs {
 	return &Clubs{clubs: clubs, users: users, feeds: feeds}
 }
 
@@ -219,15 +215,15 @@ type ProfileView struct {
 
 // Profiles are the public profile reads (SocialService.GetProfile, GET /api/profiles/{username}).
 type Profiles struct {
-	users      port.UserRepo
-	activities port.ActivityRepo
+	users      port.UserReader
+	activities port.ActivityReader
 	follows    port.FollowRepo
 	blocks     port.BlockRepo
 	visibility *Visibility
 }
 
 // NewProfiles wires the reads; follows and blocks may be nil.
-func NewProfiles(users port.UserRepo, activities port.ActivityRepo, follows port.FollowRepo, blocks port.BlockRepo, visibility *Visibility) *Profiles {
+func NewProfiles(users port.UserReader, activities port.ActivityReader, follows port.FollowRepo, blocks port.BlockRepo, visibility *Visibility) *Profiles {
 	return &Profiles{users: users, activities: activities, follows: follows, blocks: blocks, visibility: visibility}
 }
 
@@ -270,10 +266,7 @@ func (p *Profiles) recent(ctx context.Context, u domain.User, viewer *domain.Use
 	zones := p.visibility.OwnerZones(ctx, u.ID, isOwner)
 	out := make([]domain.ProjectedActivity, 0, len(recent))
 	for _, a := range recent {
-		if !isOwner && (a.Privacy == domain.PrivacyPrivate || a.HiddenByAdmin) {
-			continue
-		}
-		cats := p.visibility.For(ctx, u.ID, viewer, a.ID, false)
+		cats := p.visibility.For(ctx, &a, viewer, false)
 		if !isOwner && len(cats) == 0 {
 			continue
 		}
@@ -303,10 +296,13 @@ func (p *Profiles) FollowState(ctx context.Context, me, target domain.UserID) (F
 }
 
 // Followers lists the users following target as cards; a user that cannot
-// be loaded is skipped.
-func (p *Profiles) Followers(ctx context.Context, target domain.UserID, limit, offset int) ([]domain.User, error) {
+// be loaded is skipped. me must be allowed to see target's profile.
+func (p *Profiles) Followers(ctx context.Context, me, target domain.UserID, limit, offset int) ([]domain.User, error) {
 	if p.follows == nil {
 		return nil, ErrUnavailable
+	}
+	if err := p.canSeeGraph(ctx, me, target); err != nil {
+		return nil, err
 	}
 	ids, err := p.follows.ListFollowers(ctx, target, limit, offset)
 	if err != nil {
@@ -315,16 +311,43 @@ func (p *Profiles) Followers(ctx context.Context, target domain.UserID, limit, o
 	return p.cards(ctx, ids), nil
 }
 
-// Following lists the users target follows as cards.
-func (p *Profiles) Following(ctx context.Context, target domain.UserID, limit, offset int) ([]domain.User, error) {
+// Following lists the users target follows as cards, under the same rule as Followers.
+func (p *Profiles) Following(ctx context.Context, me, target domain.UserID, limit, offset int) ([]domain.User, error) {
 	if p.follows == nil {
 		return nil, ErrUnavailable
+	}
+	if err := p.canSeeGraph(ctx, me, target); err != nil {
+		return nil, err
 	}
 	ids, err := p.follows.ListFollowing(ctx, target, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	return p.cards(ctx, ids), nil
+}
+
+// canSeeGraph applies Get's profile rule to the follow lists: a block hides
+// the profile, a non-public one is for its owner and followers only.
+func (p *Profiles) canSeeGraph(ctx context.Context, me, target domain.UserID) error {
+	if me == target {
+		return nil
+	}
+	u, err := p.users.GetUser(ctx, target)
+	if err != nil {
+		return domain.ErrNotFound
+	}
+	if p.blocks != nil {
+		if blocked, _ := p.blocks.IsBlockedEitherWay(ctx, me, target); blocked {
+			return domain.ErrNotFound
+		}
+	}
+	if u.ProfileIsPublic {
+		return nil
+	}
+	if following, _ := p.follows.IsFollowing(ctx, me, target); following {
+		return nil
+	}
+	return ErrForbidden
 }
 
 // Blocked lists the users me has blocked as cards.

@@ -29,7 +29,11 @@
 // fmt.Errorf so use-case code can branch with errors.Is.
 package port
 
-import "context"
+import (
+	"context"
+
+	"github.com/opencairn-org/cairn-core/internal/domain"
+)
 
 // TxManager runs work in a database transaction. Repository methods called
 // with the context yielded to fn execute against the same transaction;
@@ -39,4 +43,11 @@ import "context"
 // Returning an error from fn rolls back; returning nil commits.
 type TxManager interface {
 	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+// UserLock serialises the writes that regroup one user's sources (ingest,
+// re-cluster, detach) across goroutines and server instances. LockUser must
+// be called inside InTx; the lock is held until that transaction ends.
+type UserLock interface {
+	LockUser(ctx context.Context, userID domain.UserID) error
 }

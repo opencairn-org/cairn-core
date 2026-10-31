@@ -3,6 +3,7 @@ package moderation
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -27,13 +28,17 @@ func (f *fakeReports) List(_ context.Context, status domain.ReportStatus, _ int,
 	}
 	return out, nil
 }
+func (f *fakeReports) Create(_ context.Context, r domain.ContentReport) (domain.ContentReportID, error) {
+	f.rows = append(f.rows, r)
+	return domain.ContentReportID(uuid.New()), nil
+}
 func (f *fakeReports) UpdateStatus(_ context.Context, id domain.ContentReportID, st domain.ReportStatus, _ domain.UserID) error {
 	f.updated[id] = st
 	return nil
 }
 
 type fakeUsers struct {
-	port.UserRepo
+	port.UserReader
 	names map[domain.UserID]string
 }
 
@@ -88,7 +93,7 @@ func TestReportsAndBlocks(t *testing.T) {
 	if st, _ := r.Resolve(ctx, audit.Actor{}, open, domain.ReportDismissed); st != domain.ReportDismissed {
 		t.Fatalf("dismiss: %s", st)
 	}
-	if err := r.SetActivityHidden(ctx, audit.Actor{}, uuid.New(), true); kindOf(t, err) != port.ActionErrorUnavailable {
+	if err := r.SetActivityHidden(ctx, audit.Actor{}, domain.ActivityID(uuid.New()), true); kindOf(t, err) != port.ActionErrorUnavailable {
 		t.Fatalf("no moderation repo: %v", err)
 	}
 
@@ -111,5 +116,26 @@ func TestReportsAndBlocks(t *testing.T) {
 	}
 	if _, err := (&Blocks{}).List(ctx); kindOf(t, err) != port.ActionErrorUnavailable {
 		t.Fatalf("no federation: %v", err)
+	}
+}
+
+func TestReportsFile(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeReports{}
+	r := &Reports{Reports: repo}
+	me, target := domain.UserID(uuid.New()), uuid.New()
+	if _, err := r.File(ctx, me, "planet", target, ""); err == nil {
+		t.Fatal("unknown target kind must fail")
+	}
+	long := strings.Repeat("x", domain.MaxReportReasonLength+10)
+	if _, err := r.File(ctx, me, domain.ReportTargetActivity, target, "  "+long+"  "); err != nil {
+		t.Fatal(err)
+	}
+	got := repo.rows[0]
+	if got.ReporterID != me || got.TargetID != target || len(got.Reason) != domain.MaxReportReasonLength {
+		t.Fatalf("report = %+v", got)
+	}
+	if _, err := (&Reports{}).File(ctx, me, domain.ReportTargetActivity, target, ""); err == nil {
+		t.Fatal("no repo must be unavailable")
 	}
 }

@@ -18,6 +18,16 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 )
 
+// UserCreator provisions an account; admin.CreateUser satisfies it.
+type UserCreator interface {
+	Execute(ctx context.Context, in admin.CreateUserInput) (admin.CreateUserResult, error)
+}
+
+// InviteCreator mints an invite; invite.CreateInvite satisfies it.
+type InviteCreator interface {
+	Execute(ctx context.Context, in invite.CreateInviteInput) (invite.CreateInviteResult, error)
+}
+
 // Users is the admin user management behind AdminService and
 // /api/admin/users: every action is audited and refuses to leave the
 // instance without an active admin.
@@ -27,10 +37,10 @@ type Users struct {
 	PATs             port.PATRepo
 	Passkeys         port.PasskeyRepo
 	Identities       port.LinkedIdentityRepo
-	Activities       port.ActivityRepo
+	Activities       port.ActivityAdminStats
 	ExternalAccounts port.ExternalAccountRepo
-	Create           *admin.CreateUser
-	Invites          *invite.CreateInvite
+	Create           UserCreator
+	Invites          InviteCreator
 	Hasher           interface {
 		Hash(password string) (string, error)
 	}
@@ -87,6 +97,14 @@ func internalErr(op string, err error) error {
 }
 
 func invalid(err error) error { return port.NewActionError(port.ActionErrorInvalid, err.Error()) }
+
+// transitionErr maps a refused status change to a precondition failure.
+func transitionErr(err error) error {
+	if errors.Is(err, domain.ErrUserStatusTransition) {
+		return port.NewActionError(port.ActionErrorPrecondition, err.Error())
+	}
+	return invalid(err)
+}
 
 // load returns the user or a not-found action error.
 func (u *Users) load(ctx context.Context, id domain.UserID) (domain.User, error) {
@@ -304,6 +322,9 @@ func (u *Users) SetStatus(ctx context.Context, actor audit.Actor, id domain.User
 	if err != nil {
 		return domain.User{}, err
 	}
+	if err := user.Status.TransitionTo(status); err != nil {
+		return domain.User{}, transitionErr(err)
+	}
 	if actor.UserID != nil && *actor.UserID == id && status == domain.UserStatusSuspended {
 		return domain.User{}, port.NewActionError(port.ActionErrorPrecondition, "you cannot suspend yourself")
 	}
@@ -333,16 +354,8 @@ func (u *Users) Delete(ctx context.Context, actor audit.Actor, id domain.UserID,
 	if err != nil {
 		return DeleteCounts{}, err
 	}
-	if !strings.EqualFold(strings.TrimSpace(confirmUsername), user.Username) {
-		return DeleteCounts{}, port.NewActionError(port.ActionErrorPrecondition, "confirm_username does not match")
-	}
-	if actor.UserID != nil && *actor.UserID == id {
-		return DeleteCounts{}, port.NewActionError(port.ActionErrorPrecondition, "you cannot delete yourself")
-	}
-	if user.Role == domain.UserRoleAdmin {
-		if err := u.notLastAdmin(ctx); err != nil {
-			return DeleteCounts{}, err
-		}
+	if err := u.canDelete(ctx, actor, user, confirmUsername, hard); err != nil {
+		return DeleteCounts{}, err
 	}
 	var counts DeleteCounts
 	if fps, err := u.Footprints(ctx, []domain.UserID{id}); err == nil {
@@ -364,6 +377,25 @@ func (u *Users) Delete(ctx context.Context, actor audit.Actor, id domain.UserID,
 	}
 	u.Audit.High(ctx, actor, domain.AuditUserDeleted, "user", id.String(), map[string]string{"username": user.Username, "hard": fmt.Sprint(hard)})
 	return counts, nil
+}
+
+// canDelete checks the confirmation, self-delete, status and last-admin rules.
+func (u *Users) canDelete(ctx context.Context, actor audit.Actor, user domain.User, confirmUsername string, hard bool) error {
+	if !strings.EqualFold(strings.TrimSpace(confirmUsername), user.Username) {
+		return port.NewActionError(port.ActionErrorPrecondition, "confirm_username does not match")
+	}
+	if actor.UserID != nil && *actor.UserID == user.ID {
+		return port.NewActionError(port.ActionErrorPrecondition, "you cannot delete yourself")
+	}
+	if !hard {
+		if err := user.Status.TransitionTo(domain.UserStatusDeleted); err != nil {
+			return transitionErr(err)
+		}
+	}
+	if user.Role == domain.UserRoleAdmin {
+		return u.notLastAdmin(ctx)
+	}
+	return nil
 }
 
 // ResetPassword sets a temporary password the user must change and ends

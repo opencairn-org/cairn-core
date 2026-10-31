@@ -467,8 +467,9 @@ const (
 	// Recompute best efforts and user records for all activities. Triggered
 	// when the best-effort algorithm changes.
 	MaintenanceOperation_MAINTENANCE_OPERATION_RECOMPUTE_BEST_EFFORTS MaintenanceOperation = 2
-	// Recompute the merged Activity rows from sources. Triggered after a
-	// merge-engine update.
+	// Re-cluster each activity's time bucket, then recompute the merged Activity
+	// rows from sources. Triggered after a merge-engine update; also repairs a
+	// grouping a failed re-cluster left behind.
 	MaintenanceOperation_MAINTENANCE_OPERATION_RECOMPUTE_ACTIVITY_MERGES MaintenanceOperation = 3
 	// Recompute daily CTL/ATL/TSB metrics for all users.
 	MaintenanceOperation_MAINTENANCE_OPERATION_RECOMPUTE_TRAINING_LOAD MaintenanceOperation = 4

@@ -14,7 +14,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/accounts"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 	"github.com/opencairn-org/cairn-core/internal/usecase/webhooks"
 )
 
@@ -24,7 +24,7 @@ import (
 type ExternalAccountServer struct {
 	cairnv1connect.UnimplementedExternalAccountServiceHandler
 
-	Accounts            *view.Accounts
+	Accounts            *providerlink.Accounts
 	Repo                port.ExternalAccountRepo
 	Insight             port.SyncInsight
 	DefaultPollInterval int // seconds
@@ -36,11 +36,11 @@ type ExternalAccountServer struct {
 var _ cairnv1connect.ExternalAccountServiceHandler = (*ExternalAccountServer)(nil)
 
 // NewExternalAccountServer wires the server.
-func NewExternalAccountServer(accounts *view.Accounts, repo port.ExternalAccountRepo, insight port.SyncInsight, defaultPollSeconds int) *ExternalAccountServer {
+func NewExternalAccountServer(accounts *providerlink.Accounts, repo port.ExternalAccountRepo, insight port.SyncInsight, defaultPollSeconds int) *ExternalAccountServer {
 	return &ExternalAccountServer{Accounts: accounts, Repo: repo, Insight: insight, DefaultPollInterval: defaultPollSeconds}
 }
 
-func (s *ExternalAccountServer) accounts() (*view.Accounts, error) {
+func (s *ExternalAccountServer) accounts() (*providerlink.Accounts, error) {
 	if s.Accounts == nil {
 		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "provider accounts are not available on this instance")
 	}
@@ -48,7 +48,7 @@ func (s *ExternalAccountServer) accounts() (*view.Accounts, error) {
 }
 
 // owned resolves the caller's account from a raw id.
-func (s *ExternalAccountServer) owned(ctx context.Context, rawID string) (domain.ExternalAccount, *view.Accounts, error) {
+func (s *ExternalAccountServer) owned(ctx context.Context, rawID string) (domain.ExternalAccount, *providerlink.Accounts, error) {
 	userID, err := userIDFromHandlerCtx(ctx)
 	if err != nil {
 		return domain.ExternalAccount{}, nil, err
@@ -88,7 +88,7 @@ func (s *ExternalAccountServer) ListExternalAccounts(ctx context.Context, _ *v1.
 	return out, nil
 }
 
-func accountRowToProto(row view.AccountRow) *v1.ExternalAccount {
+func accountRowToProto(row providerlink.AccountRow) *v1.ExternalAccount {
 	a := row.Account
 	out := &v1.ExternalAccount{
 		Id:                  a.ID.String(),
@@ -253,7 +253,7 @@ func (s *ExternalAccountServer) ListQueueItems(ctx context.Context, req *v1.List
 	if err != nil {
 		return nil, err
 	}
-	statuses := view.DefaultQueueStatuses
+	statuses := providerlink.DefaultQueueStatuses
 	if len(req.GetStatuses()) > 0 {
 		statuses = statuses[:0:0]
 		for _, st := range req.GetStatuses() {
@@ -272,7 +272,7 @@ func (s *ExternalAccountServer) ListQueueItems(ctx context.Context, req *v1.List
 	return out, nil
 }
 
-func queueItemToProto(row view.QueueItemRow) *v1.QueueItem {
+func queueItemToProto(row providerlink.QueueItemRow) *v1.QueueItem {
 	it := row.Item
 	out := &v1.QueueItem{
 		Id: it.ID.String(), ItemType: string(it.ItemType), ExternalId: it.ExternalID, Status: string(it.Status),
@@ -328,7 +328,7 @@ func (s *ExternalAccountServer) UpdateExternalAccountConfig(ctx context.Context,
 }
 
 // reload renders the account row after a change; the bare row on failure.
-func (s *ExternalAccountServer) reload(ctx context.Context, accts *view.Accounts, acct domain.ExternalAccount) *v1.ExternalAccount {
+func (s *ExternalAccountServer) reload(ctx context.Context, accts *providerlink.Accounts, acct domain.ExternalAccount) *v1.ExternalAccount {
 	rows, err := accts.List(ctx, acct.UserID)
 	if err == nil {
 		for _, row := range rows {
@@ -337,7 +337,7 @@ func (s *ExternalAccountServer) reload(ctx context.Context, accts *view.Accounts
 			}
 		}
 	}
-	return accountRowToProto(view.AccountRow{Account: acct})
+	return accountRowToProto(providerlink.AccountRow{Account: acct})
 }
 
 func (s *ExternalAccountServer) SetExternalAccountEnabled(ctx context.Context, req *v1.SetExternalAccountEnabledRequest) (*v1.SetExternalAccountEnabledResponse, error) {

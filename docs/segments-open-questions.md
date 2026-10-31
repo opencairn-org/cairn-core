@@ -7,8 +7,8 @@ How segment matching works today, and the decisions still open.
 - **Geometric matching runs for every source, every provider.** The
   matcher (`internal/usecase/segment/match.go`) is a follow-up of every
   ingest (import, re-import, webhook, file upload, manual) via
-  `result_router.runFollowUps`, and of the manage-endpoint recompute
-  (`recomputeDerivedForActivity`). It works off the stored stream, so a
+  `pipeline.Pipeline` (`IngestSource`), and of the manage-endpoint recompute
+  (`Pipeline.RecomputeDerived`). It works off the stored stream, so a
   Garmin activity matches Strava-mirrored segments and vice versa.
 - **Candidates cover all segment origins** (`ListSegmentCandidatesForActivity`):
   provider-mirrored (`source='external'`, scoped to the user's own external

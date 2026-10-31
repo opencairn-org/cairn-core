@@ -17,12 +17,19 @@ import (
 // DetachReason marks sources detached by an account removal.
 const DetachReason = "account_removed"
 
+// removalActivityStore reads and detaches an account's sources and soft-deletes emptied activities.
+type removalActivityStore interface {
+	port.SourceReader
+	port.SourceWriter
+	port.ActivityWriter
+}
+
 // Remover deletes an external account. Its sources are detached first so
 // the activities keep their merged data; activities left without a live
 // source are soft-deleted only when the caller asks for it.
 type Remover struct {
 	Accounts   port.ExternalAccountRepo
-	Activities port.ActivityRepo
+	Activities removalActivityStore
 	// Recompute re-merges an activity that still has other sources; nil skips it.
 	Recompute func(ctx context.Context, id domain.ActivityID) error
 	Audit     *audit.Recorder

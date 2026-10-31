@@ -16,7 +16,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 )
 
 // AuthServer implements cairnv1connect.AuthServiceHandler.
@@ -28,7 +28,7 @@ import (
 type AuthServer struct {
 	cairnv1connect.UnimplementedAuthServiceHandler
 
-	Users port.UserRepo
+	Users port.UserProfileStore
 	// OIDCProviders are the env-configured (CAIRN_OIDC_*) providers. Immutable
 	// at runtime — there is no client database. Empty means OIDC is disabled.
 	OIDCProviders []domain.OIDCProvider
@@ -38,7 +38,7 @@ type AuthServer struct {
 	// Sessions backs Logout; nil → Unavailable.
 	Sessions port.SessionRepo
 	// Quota backs GetQuota (the rule shared with GET /api/quota).
-	Quota *view.Quota
+	Quota *quota.Policy
 	// Invites backs Register; VerifyEmail (optional) mails a verification link
 	// for a self-entered address.
 	Invites     InviteRedeemer
@@ -62,7 +62,7 @@ type AuthServer struct {
 
 var _ cairnv1connect.AuthServiceHandler = (*AuthServer)(nil)
 
-func NewAuthServer(users port.UserRepo, providers []domain.OIDCProvider) *AuthServer {
+func NewAuthServer(users port.UserProfileStore, providers []domain.OIDCProvider) *AuthServer {
 	return &AuthServer{Users: users, OIDCProviders: providers}
 }
 

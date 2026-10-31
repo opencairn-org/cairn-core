@@ -32,7 +32,7 @@ import (
 type AdminServer struct {
 	cairnv1connect.UnimplementedAdminServiceHandler
 
-	Users         port.UserRepo
+	Users         port.UserReader
 	OIDCProviders []domain.OIDCProvider
 
 	// Use cases behind the RPC groups; a nil one answers Unavailable.
@@ -59,7 +59,7 @@ type AdminServer struct {
 
 var _ cairnv1connect.AdminServiceHandler = (*AdminServer)(nil)
 
-func NewAdminServer(users port.UserRepo, providers []domain.OIDCProvider) *AdminServer {
+func NewAdminServer(users port.UserReader, providers []domain.OIDCProvider) *AdminServer {
 	return &AdminServer{Users: users, OIDCProviders: providers}
 }
 

@@ -176,7 +176,14 @@ func (s *Service) Delete(ctx context.Context, userID domain.UserID, id domain.Ge
 	if err != nil {
 		return err
 	}
-	if err := s.gear.Delete(ctx, id); err != nil {
+	// Its activities go back to merge-assigned: a sticky "user" with no gear
+	// would read as "no gear, by choice" and never be re-derived.
+	if err := s.tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.gear.SetGearSetByForGear(ctx, id, domain.GearSetByMerge); err != nil {
+			return err
+		}
+		return s.gear.Delete(ctx, id)
+	}); err != nil {
 		return err
 	}
 	return s.rederive(ctx, userID, affected)
@@ -339,6 +346,9 @@ func (s *Service) retireFromProvider(ctx context.Context, id domain.GearID) erro
 	}
 	now := s.now()
 	g.Retired, g.RetiredAt = true, &now
+	if err := g.Validate(); err != nil {
+		return err
+	}
 	return s.gear.Save(ctx, g)
 }
 

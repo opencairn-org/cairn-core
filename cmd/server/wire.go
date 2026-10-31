@@ -16,8 +16,10 @@ import (
 	emailadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/email"
 	geocodeadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/geocode"
 	natsadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/nats"
+	oidcadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/oidc"
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/postgres"
 	s3adapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/s3"
+	webhookadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/webhook"
 	"github.com/opencairn-org/cairn-core/internal/auth"
 	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -26,11 +28,13 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
@@ -44,8 +48,13 @@ import (
 	metricsuc "github.com/opencairn-org/cairn-core/internal/usecase/metrics"
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
+	"github.com/opencairn-org/cairn-core/internal/usecase/pipeline"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
+	"github.com/opencairn-org/cairn-core/internal/usecase/sharing"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
@@ -144,25 +153,29 @@ type App struct {
 
 	// Use cases
 	RecomputeActivity       *activity.RecomputeActivityFromSources
+	Pipeline                *pipeline.Pipeline // ingest → re-cluster → follow-ups; edits' follow-ups
+	Callers                 *authuc.Callers    // credential → user, shared by REST and Connect
+	Shares                  *sharing.Links
 	IngestActivity          *activity.IngestActivityFromWorker
 	ReclusterBucket         *matchuc.ReclusterBucket
 	SourceActions           *activity.SourceActions
+	ActivityEditor          *activity.Editor
 	SourceLinks             *matchuc.SourceLinks
 	Visibility2             *view.Visibility // shared visibility resolver (REST + Connect)
-	Exports                 *view.Exports
-	Overviews               *view.Overviews
-	Searches                *view.Searches
+	Exports                 *activityexport.Exports
+	Overviews               *dashboard.Overviews
+	Searches                *dashboard.Searches
 	Feeds                   *view.Feeds
 	Details                 *view.Details
-	Stats                   *view.Stats
-	SegmentViews            *view.Segments
-	HealthViews             *view.Health
+	Stats                   *dashboard.Stats
+	SegmentViews            *segmentview.Segments
+	HealthViews             *dashboard.Health
 	MetricStore             *metricsuc.Store
-	Accounts                *view.Accounts
+	Accounts                *providerlink.Accounts
 	AccountRemover          *accountsuc.Remover
 	ClubViews               *view.Clubs
 	ProfileViews            *view.Profiles
-	QuotaViews              *view.Quota
+	QuotaViews              *quota.Policy
 	NotificationPreferences *notification.Preferences
 	AttachmentVariants      *attachmentuc.Variants
 	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
@@ -224,6 +237,7 @@ type App struct {
 	CustomBestEfforts        *besteffort.Customs
 	SourcePreviews           *activity.SourcePreviews
 	SegmentAuthoring         *segment.Authoring
+	ProviderSegments         *segment.ProviderSegments
 	MatchSegments            *segment.MatchSegmentsForActivity
 	ComputeSegmentRanks      *segmentrank.ComputeSegmentRanks
 	ComputeTrainingLoad      *trainingload.ComputeTrainingLoadForUser
@@ -311,6 +325,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 		return nil, err
 	}
 	wireAppIngestUseCases(app, pool, logger)
+	wireActivityEditor(app, logger)
 	wireAppAccountUseCases(app, pool)
 	wireAccount(app)
 	if err := wireAppNATS(ctx, app, cfg, logger); err != nil {
@@ -328,6 +343,7 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 			app.Users,
 			cfg.Auth.SessionTTL,
 			cfg.HTTP.PublicBaseURL,
+			oidcadapter.New(),
 		)
 	}
 
@@ -339,8 +355,72 @@ func newApp(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, logger 
 	// After the blob store: variants need it (nil → nothing is derived).
 	app.AttachmentVariants = attachmentuc.NewVariants(app.Attachments, app.BlobStore, logger)
 	wireAppGeocoder(app, cfg, logger)
+	wirePipeline(app, logger)
+	wireRestUseCases(app, logger)
 	wireMaintenance(app, pool)
 	return app, nil
+}
+
+// wireRestUseCases builds the use cases the REST adapter needs beyond the
+// shared ones above.
+func wireRestUseCases(app *App, logger *slog.Logger) {
+	app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
+	if app.WorkerPools != nil {
+		app.Orphans.Pools = app.WorkerPools
+	}
+	app.Callers = &authuc.Callers{}
+	if app.Sessions != nil {
+		app.Callers.Sessions = app.Sessions
+	}
+	if app.PATs != nil {
+		app.Callers.PATs = app.PATs
+	}
+	if app.OAuth != nil {
+		app.Callers.OAuth = app.OAuth
+	}
+	if app.Users != nil {
+		app.Callers.Users = app.Users
+	}
+	app.Shares = &sharing.Links{Activities: app.Activities}
+	if app.ShareLinks != nil {
+		app.Shares.Repo = app.ShareLinks
+	}
+}
+
+// wirePipeline assembles the write path over the stages wired above and hands
+// it to the edit paths that owe follow-ups.
+func wirePipeline(app *App, logger *slog.Logger) {
+	p := &pipeline.Pipeline{
+		Activities: app.Activities, Ingester: app.IngestActivity, Recluster: app.ReclusterBucket, Recompute: app.RecomputeActivity,
+		BestEfforts: app.ComputeBestEfforts, Segments: app.MatchSegments, TrainingLoad: app.ComputeTrainingLoad, PRs: app.DispatchPR,
+		Federation: newFederationPublisher(app, logger), Log: logger,
+		Tx: app.Tx, Lock: app.Tx,
+	}
+	if app.FieldOverrides != nil {
+		p.FieldOverrides = app.FieldOverrides
+	}
+	if app.Streams != nil {
+		p.Streams = app.Streams
+	}
+	if app.ActivityEvents != nil {
+		p.Events = app.ActivityEvents
+	}
+	if app.NATSBus != nil {
+		p.Bus = app.NATSBus
+	}
+	app.Pipeline = p
+	if app.SourceActions != nil {
+		app.SourceActions.FollowUps = p
+	}
+	if app.ActivityEditor != nil {
+		app.ActivityEditor.FollowUps = p
+	}
+	if app.AccountRemover != nil && app.RecomputeActivity != nil {
+		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
+			_, err := p.Remerge(ctx, id)
+			return err
+		}
+	}
 }
 
 // wireAppCoreRepos builds the pool-only postgres repositories.
@@ -437,7 +517,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		app.Tx,
 		nil, // default time.Now
 		nil, // default uuid.NewV7
-	)
+	).WithUserLock(app.Tx)
 	app.ReclusterBucket = matchuc.NewReclusterBucket(
 		app.Activities,
 		app.RecomputeActivity,
@@ -446,12 +526,13 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default uuid.NewV7
 		dmatch.DefaultOptions(),
 		logger,
-	).WithEvents(app.AdminEvents)
+	).WithEvents(app.AdminEvents).WithUserLock(app.Tx)
 	wireAppViews(app, logger)
 	// The owner-facing source actions, shared by REST and Connect.
 	app.SourceActions = activity.NewSourceActions(app.Activities, app.SourceDenylist, app.RecomputeActivity, newFederationPublisher(app, logger), nil)
 	app.SourceLinks = matchuc.NewSourceLinks(app.Activities, app.ReclusterBucket)
 	app.SourceActions.Events = app.ActivityEvents
+	app.SourceActions.Tx, app.SourceActions.Lock = app.Tx, app.Tx
 	app.SourceLinks.Events = app.ActivityEvents
 	app.SourcePreviews = &activity.SourcePreviews{
 		Repo: app.SourcePreviewRepo, Actions: app.SourceActions, Recompute: app.RecomputeActivity,
@@ -470,7 +551,7 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		domain.MatchTolerances{}, // zero → DefaultMatchTolerances
 		nil,                      // default slog.Default
 	)
-	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
+	wireSegmentWriters(app)
 	app.ComputeTrainingLoad = trainingload.NewComputeTrainingLoadForUser(
 		app.Activities,
 		app.Metrics,
@@ -478,6 +559,21 @@ func wireAppIngestUseCases(app *App, pool *pgxpool.Pool, logger *slog.Logger) {
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)
+}
+
+// wireSegmentWriters builds native authoring and provider segment ingest.
+func wireSegmentWriters(app *App) {
+	app.SegmentAuthoring = &segment.Authoring{Segments: app.Segments, Activities: app.Activities, Match: app.MatchSegments}
+	app.ProviderSegments = segment.NewProviderSegments(app.Segments, app.Activities)
+}
+
+// wireActivityEditor builds the owner edit use case; wirePipeline adds its follow-ups.
+func wireActivityEditor(app *App, logger *slog.Logger) {
+	app.ActivityEditor = activity.NewEditor(app.Activities, app.RecomputeActivity)
+	app.ActivityEditor.ClassOverrides = app.ClassOverrides
+	app.ActivityEditor.Gear = app.Gear
+	app.ActivityEditor.Federation = newFederationPublisher(app, logger)
+	app.ActivityEditor.Events = app.ActivityEvents
 }
 
 // wireAppEmail builds the email sender (gated on EMAIL_ADAPTER); nil when disabled.
@@ -511,7 +607,7 @@ func wireAppNotifications(app *App, pool *pgxpool.Pool, cfg *config.Config, secr
 	app.QuietHours = postgres.NewQuietHoursRepo(pool)
 	app.NotificationDeliveries = postgres.NewNotificationDeliveryRepo(pool)
 	app.DeliverNotifications = notification.NewDeliverNotifications(
-		app.Users, app.Notifications, app.NotificationPrefs, emailSender, app.WebhookEndpoints, app.QuietHours, app.NotificationDeliveries, cfg.HTTP.PublicBaseURL, logger,
+		app.Users, app.Notifications, app.NotificationPrefs, emailSender, app.WebhookEndpoints, webhookadapter.New(), app.QuietHours, app.NotificationDeliveries, cfg.HTTP.PublicBaseURL, logger,
 	)
 
 	app.DispatchPR = notification.NewDispatchPRNotifications(
@@ -729,9 +825,9 @@ func wireAppGeocoder(app *App, cfg *config.Config, logger *slog.Logger) {
 // wireAppViews builds the read-side use cases REST and Connect both render from.
 func wireAppViews(app *App, logger *slog.Logger) {
 	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
-	app.Exports = view.NewExports(app.Streams)
-	app.Overviews = view.NewOverviews(app.Activities, nil)
-	app.Searches = view.NewSearches(app.Activities, app.Gear)
+	app.Exports = activityexport.NewExports(app.Streams)
+	app.Overviews = dashboard.NewOverviews(app.Activities, nil)
+	app.Searches = dashboard.NewSearches(app.Activities, app.Gear)
 	var fedFeed port.FederationFeedRepo
 	if app.FederationFeed != nil {
 		fedFeed = app.FederationFeed
@@ -745,9 +841,9 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	if app.BestEfforts != nil {
 		bestEfforts = app.BestEfforts
 	}
-	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
-	app.SegmentViews = view.NewSegments(nilIfNilSegments(app))
-	app.HealthViews = view.NewHealth(app.Health, nil)
+	app.Stats = dashboard.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
+	app.SegmentViews = segmentview.NewSegments(nilIfNilSegments(app), app.Visibility2)
+	app.HealthViews = dashboard.NewHealth(app.Health, nil)
 	if app.Metrics != nil {
 		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}
 		if app.AthleteProfiles != nil {
@@ -773,7 +869,7 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.ClubViews = view.NewClubs(clubs, app.Users, app.Feeds)
 	app.ProfileViews = view.NewProfiles(app.Users, app.Activities, app.Follows, app.Blocks, app.Visibility2)
 	wireUserViews(app)
-	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
+	app.Accounts = providerlink.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
 }
@@ -989,13 +1085,8 @@ func wireOperatorAdmin(app *App, logger *slog.Logger) {
 		app.WebhookTokens.Repo = app.ExternalAccounts
 	}
 	// Account removal is a user action but needs the audit recorder built above.
+	// Recompute is set by wirePipeline (re-merge + follow-ups).
 	app.AccountRemover = &accountsuc.Remover{Accounts: app.ExternalAccounts, Activities: app.Activities, Audit: app.AuditLog}
-	if app.RecomputeActivity != nil {
-		app.AccountRemover.Recompute = func(ctx context.Context, id domain.ActivityID) error {
-			_, err := app.RecomputeActivity.Execute(ctx, id)
-			return err
-		}
-	}
 	if app.Gear != nil {
 		app.Ops.Gear = app.Gear
 	}
@@ -1028,10 +1119,7 @@ func wireMaintenance(app *App, pool *pgxpool.Pool) {
 		}
 	}
 	if app.RecomputeActivity != nil {
-		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error {
-			_, err := app.RecomputeActivity.Execute(ctx, id)
-			return err
-		}
+		r.RecomputeActivity = func(ctx context.Context, id domain.ActivityID) error { return reclusterAndRecompute(ctx, app, id) }
 	}
 	if app.ComputeTrainingLoad != nil {
 		r.TrainingLoad = func(ctx context.Context, id domain.UserID) error {
@@ -1043,13 +1131,33 @@ func wireMaintenance(app *App, pool *pgxpool.Pool) {
 	app.Maintenance = r
 }
 
+// reclusterAndRecompute re-derives the grouping around one activity, then
+// re-merges it: the repair for a re-cluster that failed after its ingest. An
+// activity an earlier step dissolved is skipped.
+func reclusterAndRecompute(ctx context.Context, app *App, id domain.ActivityID) error {
+	act, err := app.Activities.GetActivity(ctx, id)
+	if err != nil || act.IsDeleted() {
+		return nil //nolint:nilerr // dissolved by an earlier re-cluster in this run
+	}
+	if app.ReclusterBucket != nil {
+		if _, err := app.ReclusterBucket.Execute(ctx, matchuc.Input{UserID: act.UserID, Around: act.StartTime}); err != nil {
+			return fmt.Errorf("recluster: %w", err)
+		}
+		if act, err = app.Activities.GetActivity(ctx, id); err != nil || act.IsDeleted() {
+			return nil //nolint:nilerr // merged away
+		}
+	}
+	_, err = app.RecomputeActivity.Execute(ctx, id)
+	return err
+}
+
 // wireUserViews builds the small self-service reads shared by REST and Connect.
 func wireUserViews(app *App) {
 	var quotas port.QuotaRepo
 	if app.Quotas != nil {
 		quotas = app.Quotas
 	}
-	app.QuotaViews = view.NewQuota(app.Activities, quotas, app.QuotaMaxActivities)
+	app.QuotaViews = quota.NewPolicy(app.Activities, quotas, app.QuotaMaxActivities)
 	app.NotificationPreferences = &notification.Preferences{}
 	if app.NotificationPrefs != nil {
 		app.NotificationPreferences.Repo = app.NotificationPrefs

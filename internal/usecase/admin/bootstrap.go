@@ -28,11 +28,11 @@ import (
 // All branches are safe to call repeatedly; multi-replica boot ordering
 // is handled by the underlying unique-constraint on email.
 type BootstrapAdmin struct {
-	users      port.UserRepo
+	users      port.UserReader
 	createUser *CreateUser
 }
 
-func NewBootstrapAdmin(users port.UserRepo, createUser *CreateUser) *BootstrapAdmin {
+func NewBootstrapAdmin(users port.UserReader, createUser *CreateUser) *BootstrapAdmin {
 	return &BootstrapAdmin{users: users, createUser: createUser}
 }
 

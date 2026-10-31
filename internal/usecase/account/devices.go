@@ -13,11 +13,17 @@ import (
 // Device authorization (RFC 8628): the approving side
 // ---------------------------------------------------------------------------
 
+// deviceCodeStore looks up clients and decides device-code requests.
+type deviceCodeStore interface {
+	port.OAuthClientStore
+	port.OAuthDeviceCodeStore
+}
+
 // DeviceAuthorizations looks pending device sign-ins up by their user code and
 // records the user's decision. Both the browser page and the Connect RPCs run
 // on it.
 type DeviceAuthorizations struct {
-	OAuth port.OAuthServerRepo
+	OAuth deviceCodeStore
 	Now   func() time.Time
 }
 

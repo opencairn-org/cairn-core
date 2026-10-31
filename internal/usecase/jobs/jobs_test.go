@@ -14,7 +14,7 @@ import (
 )
 
 type fakeQueue struct {
-	port.ImportQueueRepo
+	port.ImportQueueAdmin
 	rows map[domain.ImportQueueItemID]*domain.ImportQueueItem
 }
 
@@ -177,7 +177,7 @@ func TestJobsDeadLetters(t *testing.T) {
 }
 
 type fakeSources struct {
-	port.ActivityRepo
+	port.ActivityAdminStats
 	groups []port.SourceWorkerGroup
 }
 

@@ -12,9 +12,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-// memActivities is the slice of port.ActivityRepo recompute touches.
+// memActivities is the slice of port.ActivityAggregateStore recompute touches.
 type memActivities struct {
-	port.ActivityRepo
+	port.ActivityAggregateStore
 	activities map[domain.ActivityID]domain.Activity
 	sources    map[domain.ActivityID][]domain.ActivitySource
 }

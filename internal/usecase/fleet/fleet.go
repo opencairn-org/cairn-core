@@ -18,12 +18,22 @@ import (
 // MaxEnrollmentTTL caps how long an enrollment token stays valid.
 const MaxEnrollmentTTL = 365 * 24 * time.Hour
 
+// EnrollmentCreator mints an enrollment; enrollment.CreateWorkerEnrollment satisfies it.
+type EnrollmentCreator interface {
+	Execute(ctx context.Context, in enrollment.CreateEnrollmentInput) (enrollment.CreateEnrollmentResult, error)
+}
+
+// EnrollmentRevoker revokes one; enrollment.RevokeWorkerEnrollment satisfies it.
+type EnrollmentRevoker interface {
+	Execute(ctx context.Context, in enrollment.RevokeInput) error
+}
+
 // Fleet composes the registries; Live reads presence (main-package KV).
 type Fleet struct {
 	Pools       port.WorkerPoolRepo
 	Enrollments port.WorkerEnrollmentRepo
-	Create      *enrollment.CreateWorkerEnrollment
-	Revoke      *enrollment.RevokeWorkerEnrollment
+	Create      EnrollmentCreator
+	Revoke      EnrollmentRevoker
 	Live        func(ctx context.Context) []domain.WorkerHeartbeat
 	Providers   []string
 	Audit       *audit.Recorder

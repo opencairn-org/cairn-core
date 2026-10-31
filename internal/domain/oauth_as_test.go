@@ -103,7 +103,7 @@ func TestOAuthClientHelpers(t *testing.T) {
 
 func TestOAuthClientLoopbackRedirects(t *testing.T) {
 	c := OAuthClient{RedirectURIs: []string{"http://127.0.0.1:0/oauth/callback", "http://[::1]/cb", "http://localhost:9000/cb", "org.opencairn.cairn:/oauth/callback"}}
-	// Any port matches a registered loopback redirect; the target is the requested uri.
+	// Any port matches a registered loopback redirect; the target is the registration on that port.
 	for _, uri := range []string{"http://127.0.0.1:51234/oauth/callback", "http://127.0.0.1/oauth/callback", "http://[::1]:7777/cb"} {
 		got, ok := c.RegisteredRedirectURI(uri)
 		if !ok || got != uri {

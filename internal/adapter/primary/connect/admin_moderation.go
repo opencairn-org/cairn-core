@@ -64,7 +64,7 @@ func (s *AdminServer) SetActivityHidden(ctx context.Context, req *v1.SetActivity
 	if err != nil {
 		return nil, connectrpc.NewError(connectrpc.CodeInvalidArgument, "bad activity id")
 	}
-	if err := s.Reports.SetActivityHidden(ctx, s.actor(ctx), id, req.GetHidden()); err != nil {
+	if err := s.Reports.SetActivityHidden(ctx, s.actor(ctx), domain.ActivityID(id), req.GetHidden()); err != nil {
 		return nil, actionErr(err)
 	}
 	return &v1.SetActivityHiddenResponse{}, nil

@@ -240,6 +240,16 @@ type LeaderboardEntry struct {
 	ActivityID  ActivityID
 }
 
+// SegmentEffortCandidate is an effort with its athlete's card and the
+// visibility state of its activity (ID, UserID, Privacy, HiddenByAdmin), for
+// reads that resolve visibility per viewer.
+type SegmentEffortCandidate struct {
+	Effort      SegmentEffort
+	Activity    Activity
+	DisplayName string
+	AvatarURL   string
+}
+
 // LeaderboardQuery narrows GetSegmentLeaderboard.
 type LeaderboardQuery struct {
 	From, To      time.Time

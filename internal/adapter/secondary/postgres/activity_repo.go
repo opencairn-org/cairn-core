@@ -833,19 +833,22 @@ func (r *ActivityRepo) MarkSourcesOutOfDate(
 	}
 	db := dbtx(ctx, r.pool)
 	tag, err := db.Exec(ctx,
+		// The CASE is domain.ParserVersion.UpgradeFor in set form (an older
+		// dataset needs a re-fetch, else a re-parse); the reasons come from it.
 		`UPDATE activity_sources
 		    SET reimport_status        = 'update_available',
 		        reimport_status_reason = CASE
-		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
-		            ELSE 'newer_parser' END
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN $5
+		            ELSE $6 END
 		  WHERE provider = $1
 		    AND source_worker_package = $2
 		    AND reimport_status IN ('current', 'update_available')
 		    AND cairn_parser_version(source_worker_version) < ARRAY[$3::int, $4::int]
 		    AND reimport_status_reason IS DISTINCT FROM CASE
-		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN 'newer_dataset'
-		            ELSE 'newer_parser' END`,
+		            WHEN (cairn_parser_version(source_worker_version))[1] < $3 THEN $5
+		            ELSE $6 END`,
 		provider, pkg, live.Dataset, live.Parser,
+		domain.UpgradeNewDataset.Reason(), domain.UpgradeNewParser.Reason(),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("mark sources out-of-date for %s/%s: %w", provider, pkg, err)
@@ -1476,7 +1479,7 @@ func (r *ActivityRepo) ActivityTotalsForRange(ctx context.Context, userID domain
 }
 
 // SourceWorker is one (pool, package) an account's sources came from.
-type SourceWorker struct{ Name, Package string }
+type SourceWorker = domain.SourceWorker
 
 // ListSourceWorkersForAccount lists the distinct pools that imported the
 // account's live sources.

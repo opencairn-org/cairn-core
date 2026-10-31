@@ -12,14 +12,15 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	segmentuc "github.com/opencairn-org/cairn-core/internal/usecase/segment"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 )
 
 type fakeSegAuthorRepo struct {
-	port.SegmentRepo
-	segs    map[domain.SegmentID]domain.Segment
-	entries []domain.LeaderboardEntry
-	listed  domain.SegmentListFilter
+	port.SegmentReader
+	port.SegmentWriter
+	segs   map[domain.SegmentID]domain.Segment
+	name   string
+	listed domain.SegmentListFilter
 }
 
 func (f *fakeSegAuthorRepo) SaveSegment(_ context.Context, s domain.Segment) error {
@@ -58,17 +59,21 @@ func (f *fakeSegAuthorRepo) SearchSegmentsInBBox(context.Context, domain.UserID,
 	}
 	return out, nil
 }
-func (f *fakeSegAuthorRepo) ListSegmentEffortsFiltered(context.Context, domain.SegmentID, domain.SegmentEffortQuery) ([]domain.SegmentEffort, error) {
-	return []domain.SegmentEffort{{ID: domain.SegmentEffortID(uuid.New()), ElapsedS: 10}}, nil
-}
-func (f *fakeSegAuthorRepo) SegmentLeaderboard(context.Context, domain.SegmentID, domain.UserID, domain.LeaderboardQuery) ([]domain.LeaderboardEntry, *domain.LeaderboardEntry, error) {
-	return f.entries, nil, nil
+func (f *fakeSegAuthorRepo) ListSegmentEffortsFiltered(_ context.Context, _ domain.SegmentID, viewer domain.UserID, q domain.SegmentEffortQuery) ([]domain.SegmentEffortCandidate, error) {
+	if q.Offset > 0 {
+		return nil, nil
+	}
+	return []domain.SegmentEffortCandidate{{
+		Effort:      domain.SegmentEffort{ID: domain.SegmentEffortID(uuid.New()), UserID: viewer, ElapsedS: 10},
+		Activity:    domain.Activity{UserID: viewer},
+		DisplayName: f.name,
+	}}, nil
 }
 
 func TestSegmentAuthoringRPCs(t *testing.T) {
 	repo := &fakeSegAuthorRepo{segs: map[domain.SegmentID]domain.Segment{}}
 	var backfills []domain.SegmentID
-	s := NewSegmentServer(view.NewSegments(repo))
+	s := NewSegmentServer(segmentview.NewSegments(repo, nil))
 	s.Authoring = &segmentuc.Authoring{Segments: repo, Now: func() time.Time { return actNow }}
 	s.Backfill = func(_ domain.UserID, id domain.SegmentID, _, _ time.Time) string {
 		backfills = append(backfills, id)
@@ -116,7 +121,7 @@ func TestSegmentAuthoringRPCs(t *testing.T) {
 	if err != nil || len(efforts.GetEfforts()) != 1 {
 		t.Fatalf("efforts: %v %v", efforts, err)
 	}
-	repo.entries = []domain.LeaderboardEntry{{Rank: 1, UserID: me, DisplayName: "Me", ElapsedS: 10}}
+	repo.name = "Me"
 	board, err := s.GetSegmentLeaderboard(ctx, &v1.GetSegmentLeaderboardRequest{SegmentId: id})
 	if err != nil || len(board.GetEntries()) != 1 || board.GetEntries()[0].GetUserDisplayName() != "Me" {
 		t.Fatalf("board: %v %v", board, err)

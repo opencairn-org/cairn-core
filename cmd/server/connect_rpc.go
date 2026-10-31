@@ -16,7 +16,6 @@ import (
 	connectadapter "github.com/opencairn-org/cairn-core/internal/adapter/primary/connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/usecase/jobs"
 )
 
 // mountConnectRPC registers every cairn.v1.* Connect-RPC service the
@@ -26,16 +25,9 @@ import (
 // embeds the generated UnimplementedXxxServiceHandler so the surface
 // grows method-by-method; clients calling an unimplemented RPC get
 // CodeUnimplemented, not a 404.
-//
-// Auth is currently header-based (X-Cairn-User-ID), set by the SvelteKit
-// hooks.server.ts. The proper session-cookie / OIDC path replaces that
-// header check once OIDC adapters land.
 func mountConnectRPC(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	// Session interceptor: resolves the cairn_session cookie into a
-	// context-stashed user id. Handlers read via userIDFromHandlerCtx;
-	// the X-Cairn-User-ID header path stays as a fallback so the
-	// SvelteKit dev proxy can keep working during the OIDC roll-out.
-	sessionInterceptor := connectadapter.SessionInterceptor(app.Sessions, app.PATs, app.OAuth, sessionCookieName)
+	// Session interceptor: resolves cookie or bearer through the shared Callers use case.
+	sessionInterceptor := connectadapter.SessionInterceptor(app.Callers, sessionCookieName)
 	// ScopeInterceptor keeps read-only OAuth tokens read-only; no-op for
 	// cookie/PAT callers. Runs after the session resolver.
 	server := connectrpc.NewServer(sessionInterceptor, connectadapter.ScopeInterceptor())
@@ -198,8 +190,8 @@ func registerReadServices(server *connectrpc.Server, app *App, logger *slog.Logg
 // re-imports, previews and custom windows share their implementation with
 // the REST handlers so the two surfaces stay in parity.
 func newActivityServer(app *App, logger *slog.Logger) *connectadapter.ActivityServer {
-	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity,
-		app.ClassOverrides, newFederationPublisher(app, logger), app.Gear)
+	activitySvc := connectadapter.NewActivityServer(app.Activities, app.Streams, app.BestEfforts, app.RecomputeActivity, app.Gear)
+	activitySvc.Editor = app.ActivityEditor
 	activitySvc.SourceActions = app.SourceActions
 	activitySvc.SourceLinks = app.SourceLinks
 	activitySvc.Events = app.ActivityEvents
@@ -229,10 +221,6 @@ func newAdminServer(app *App, logger *slog.Logger) *connectadapter.AdminServer {
 	if app.Jobs != nil {
 		app.Jobs.Replay = natsReplayer{app: app}
 		adminSvc.Jobs = app.Jobs
-	}
-	app.Orphans = &jobs.Orphans{Activities: app.Activities, LiveWorkers: liveWorkerNames(app, logger)}
-	if app.WorkerPools != nil {
-		app.Orphans.Pools = app.WorkerPools
 	}
 	adminSvc.Orphans = app.Orphans
 	adminSvc.Fleet = app.Fleet

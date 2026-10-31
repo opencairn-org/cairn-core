@@ -11,7 +11,7 @@ import (
 )
 
 type fakeUserRepo struct {
-	port.UserRepo
+	port.UserReader
 	email string
 }
 
@@ -36,7 +36,7 @@ func (f *fakeEmail) Send(_ context.Context, m port.EmailMessage) error {
 }
 
 func deliverWith(email string, prefs []domain.NotificationPreference, e *fakeEmail) *DeliverNotifications {
-	return NewDeliverNotifications(&fakeUserRepo{email: email}, nil, &fakePrefRepo{rows: prefs}, e, nil, nil, nil, "http://x", nil)
+	return NewDeliverNotifications(&fakeUserRepo{email: email}, nil, &fakePrefRepo{rows: prefs}, e, nil, nil, nil, nil, "http://x", nil)
 }
 
 func notif(t domain.NotificationType, sev domain.NotificationSeverity) domain.Notification {

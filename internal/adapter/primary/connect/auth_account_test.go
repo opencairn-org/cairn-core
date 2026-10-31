@@ -44,7 +44,8 @@ func (f *listingSessions) ListForUser(context.Context, domain.UserID) ([]domain.
 }
 
 type fakeUserRepo struct {
-	port.UserRepo
+	port.UserReader
+	port.UserProfileWriter
 	user domain.User
 }
 
@@ -158,7 +159,10 @@ func (f *fakeIdentityRepo) ListForUser(context.Context, domain.UserID) ([]domain
 }
 
 // credUsers adds a password-less credentials read to fakeUserRepo.
-type credUsers struct{ *fakeUserRepo }
+type credUsers struct {
+	*fakeUserRepo
+	port.UserCredentialStore
+}
 
 func (c *credUsers) GetCredentialsByLogin(context.Context, string) (domain.User, domain.Credentials, error) {
 	return c.user, domain.Credentials{UserID: c.user.ID}, nil

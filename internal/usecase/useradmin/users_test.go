@@ -72,7 +72,7 @@ func (f *fakeUsers) ListUsers(_ context.Context, page port.UserListPage) ([]doma
 }
 
 type footprintActivities struct {
-	port.ActivityRepo
+	port.ActivityAdminStats
 	counts map[domain.UserID]int
 }
 
@@ -209,6 +209,9 @@ func TestUsersRoleStatusDelete(t *testing.T) {
 	}
 	if _, err := u.Delete(ctx, actor, bob, "BOB", false); err != nil || users.rows[bob].Status != domain.UserStatusDeleted {
 		t.Fatalf("soft delete: %v", err)
+	}
+	if _, err := u.SetStatus(ctx, actor, bob, domain.UserStatusActive, ""); kindOf(t, err) != port.ActionErrorPrecondition {
+		t.Fatalf("reactivate deleted: %v", err)
 	}
 	users.rows[bob].Status = domain.UserStatusActive
 	if _, err := u.Delete(ctx, actor, bob, "bob", true); err != nil || len(users.deleted) != 1 {

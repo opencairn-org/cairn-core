@@ -28,18 +28,24 @@ const (
 	ReasonUserSplit = "user_split"
 )
 
+// sourceLinkStore reads activities with their sources and records match constraints.
+type sourceLinkStore interface {
+	port.ActivityAggregateReader
+	port.ActivityMatchStore
+}
+
 // SourceLinks are the owner's manual corrections of the dedup: force two
 // sources together (must-link) or apart (cannot-link), then re-cluster the
 // window so the constraint takes effect. Shared by REST and Connect.
 type SourceLinks struct {
-	activities port.ActivityRepo
+	activities sourceLinkStore
 	recluster  *ReclusterBucket
 	// Events receives live events for the owner's open streams (optional).
 	Events port.ActivityEventSink
 }
 
 // NewSourceLinks wires the use case.
-func NewSourceLinks(activities port.ActivityRepo, recluster *ReclusterBucket) *SourceLinks {
+func NewSourceLinks(activities sourceLinkStore, recluster *ReclusterBucket) *SourceLinks {
 	return &SourceLinks{activities: activities, recluster: recluster}
 }
 

@@ -33,8 +33,8 @@ type FeedItem struct {
 
 // Feeds assembles the social feeds (GET /api/feed/home, SocialService.ListHomeFeed).
 type Feeds struct {
-	activities        port.ActivityRepo
-	users             port.UserRepo
+	activities        port.ActivityReader
+	users             port.UserReader
 	visibility        *Visibility
 	federated         port.FederationFeedRepo // optional
 	federationEnabled bool
@@ -43,7 +43,7 @@ type Feeds struct {
 // NewFeeds wires the feeds. federated may be nil; federationEnabled gates
 // federated rows on the instance flag, not just the wired repo, so items
 // received while federation was on stay dormant when it is switched off.
-func NewFeeds(activities port.ActivityRepo, users port.UserRepo, visibility *Visibility, federated port.FederationFeedRepo, federationEnabled bool) *Feeds {
+func NewFeeds(activities port.ActivityReader, users port.UserReader, visibility *Visibility, federated port.FederationFeedRepo, federationEnabled bool) *Feeds {
 	return &Feeds{activities: activities, users: users, visibility: visibility, federated: federated, federationEnabled: federationEnabled}
 }
 
@@ -80,7 +80,7 @@ func (f *Feeds) Following(ctx context.Context, me domain.UserID, limit, offset i
 	zones := map[domain.UserID][]domain.PrivacyZone{}
 	var items []FeedItem
 	for _, a := range acts {
-		cats := f.visibility.For(ctx, a.UserID, &me, a.ID, false)
+		cats := f.visibility.For(ctx, &a, &me, false)
 		if len(cats) == 0 {
 			continue
 		}

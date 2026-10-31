@@ -27,11 +27,11 @@ import (
 // last commit wins. For a busy instance this is fine: ranks may briefly
 // flicker but they always converge.
 type ComputeSegmentRanks struct {
-	segments port.SegmentRepo
+	segments port.SegmentRanker
 	tx       port.TxManager
 }
 
-func NewComputeSegmentRanks(segments port.SegmentRepo, tx port.TxManager) *ComputeSegmentRanks {
+func NewComputeSegmentRanks(segments port.SegmentRanker, tx port.TxManager) *ComputeSegmentRanks {
 	return &ComputeSegmentRanks{segments: segments, tx: tx}
 }
 

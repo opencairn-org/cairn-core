@@ -80,12 +80,13 @@ func (s *ActivityServer) ListAttachments(ctx context.Context, req *v1.ListAttach
 	}
 	out := &v1.ListAttachmentsResponse{Attachments: make([]*v1.Attachment, 0, len(atts))}
 	for _, a := range atts {
-		out.Attachments = append(out.Attachments, s.attachmentToProto(ctx, a))
+		out.Attachments = append(out.Attachments, s.attachmentToProto(ctx, a, vw.IsOwner))
 	}
 	return out, nil
 }
 
-func (s *ActivityServer) attachmentToProto(ctx context.Context, a domain.Attachment) *v1.Attachment {
+// attachmentToProto signs the variants; the original (with EXIF) only for the owner.
+func (s *ActivityServer) attachmentToProto(ctx context.Context, a domain.Attachment, isOwner bool) *v1.Attachment {
 	out := &v1.Attachment{
 		Id:          a.ID.String(),
 		ActivityId:  a.ActivityID.String(),
@@ -96,8 +97,10 @@ func (s *ActivityServer) attachmentToProto(ctx context.Context, a domain.Attachm
 		ContentType: a.ContentType,
 		CreatedAt:   timestamppb.New(a.CreatedAt),
 	}
-	if u, err := s.Content.Blob(ctx, a.BlobID, a.ContentType, ""); err == nil {
-		out.Original = contentURLToProto(u)
+	if isOwner {
+		if u, err := s.Content.Blob(ctx, a.BlobID, a.ContentType, ""); err == nil {
+			out.Original = contentURLToProto(u)
+		}
 	}
 	if a.MediumBlobID != "" {
 		if u, err := s.Content.Blob(ctx, a.MediumBlobID, "image/jpeg", ""); err == nil {

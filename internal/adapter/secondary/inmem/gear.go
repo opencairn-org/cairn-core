@@ -162,7 +162,19 @@ func (m *GearRepo) Delete(_ context.Context, id domain.GearID) error {
 	}
 	for aid, a := range m.activities {
 		if a.gearID != nil && *a.gearID == id {
-			a.gearID, a.setBy = nil, domain.GearSetByMerge
+			a.gearID = nil // FK SET NULL
+			m.activities[aid] = a
+		}
+	}
+	return nil
+}
+
+func (m *GearRepo) SetGearSetByForGear(_ context.Context, id domain.GearID, by domain.GearSetBy) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for aid, a := range m.activities {
+		if a.gearID != nil && *a.gearID == id {
+			a.setBy = by
 			m.activities[aid] = a
 		}
 	}

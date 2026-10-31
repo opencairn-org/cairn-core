@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
 // TxManager implements port.TxManager using pgx transactions.
@@ -76,6 +78,21 @@ func (m *TxManager) InTx(ctx context.Context, fn func(ctx context.Context) error
 
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		return fmt.Errorf("commit tx: %w", commitErr)
+	}
+	return nil
+}
+
+// userLockSpace namespaces the per-user advisory locks (two-key form).
+const userLockSpace = 0x63616972 // "cair"
+
+// LockUser implements port.UserLock with a transaction-scoped advisory lock.
+func (m *TxManager) LockUser(ctx context.Context, userID domain.UserID) error {
+	tx, ok := txFromCtx(ctx)
+	if !ok {
+		return errors.New("lock user: not inside a transaction")
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, int32(userLockSpace), userID.String()); err != nil {
+		return fmt.Errorf("lock user: %w", err)
 	}
 	return nil
 }

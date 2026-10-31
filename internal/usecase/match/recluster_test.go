@@ -16,12 +16,13 @@ import (
 
 // --- in-memory fakes -------------------------------------------------------
 
-// memRepo implements the slice of port.ActivityRepo that ReclusterBucket +
+// memRepo implements the slice of the activity port roles that ReclusterBucket +
 // RecomputeActivityFromSources actually touch. Unused methods are inherited from
 // the embedded interface and panic if called (which would surface a missing
 // fake method rather than silently passing).
 type memRepo struct {
-	port.ActivityRepo
+	port.ActivityAggregateStore
+	port.ActivityMatchStore
 	acts       map[domain.ActivityID]domain.Activity
 	srcs       map[domain.SourceID]domain.ActivitySource
 	redirects  map[domain.ActivityID]domain.ActivityID

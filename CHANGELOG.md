@@ -6,6 +6,73 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Segment efforts and leaderboards no longer show other athletes' private,
+  admin-hidden or deleted efforts. Each row is checked against the visibility
+  model, so another athlete's efforts appear only when their activity shares
+  the `segments` category with the viewer (followers by default, not the
+  public audience).
+- The `followers` activity privacy is enforced: non-followers no longer see
+  a followers-only activity's public summary (profile, club feed, projected
+  view, map image, federation).
+- Kudos and comments are refused on private, admin-hidden and deleted
+  activities; deleted activities are no longer readable through the projected
+  view or a share link.
+- Non-owners get re-encoded photo variants only; the original upload, which
+  can carry EXIF GPS, is owner-only. Small photos now get a medium variant
+  too; run `cairn attachments backfill-variants` once to cover older ones.
+- Follower and following lists respect blocks and non-public profiles.
+- A share link now also opens the activity's map image and photos
+  (`?share=<token>`).
+- Federated posts carry only what the owner shares with the public audience
+  (no map image unless `map` is public).
+- A workout whose second source merges into an existing activity no longer
+  runs its follow-ups, live events, federation and photo attachment against
+  the dissolved singleton; the ingest result names the surviving activity.
+- Ingest and re-clustering take a per-user lock, so concurrent imports on
+  several instances cannot regroup one user's sources from stale snapshots.
+- A panic in a result handler, follow-up, maintenance job or background
+  loop is logged (loops restart) instead of crashing the server.
+- Transient ingest failures retry with back-off (5 s, 15 s, 45 s, …) instead
+  of five immediate redeliveries, so a short database outage no longer
+  dead-letters imports.
+- Terminated result/event messages are recorded in the dead-letter table
+  with their reason; dead letters carry the payload when the stream still
+  holds it.
+
+### Changed
+- Follow-ups of an import or edit (best efforts, segment matches, training
+  load, PR notifications, federation) run from a durable event
+  (`cairn.events.activity.changed`, consumer `activity-follow-ups`) when NATS
+  is wired: uploads, manual entry and edits answer without waiting, derived
+  data lands a moment later, failed follow-ups are retried with back-off and
+  dead-lettered instead of only logged, and a client disconnect no longer
+  cancels them.
+- Hiding an unknown activity (`POST /api/admin/activities/{id}/hide`,
+  Connect `SetActivityHidden`) answers 404 / NotFound instead of success.
+- An upload with type/tag hints now also emits the `activity.updated` live
+  event, like any other edit.
+- Admins can no longer reactivate a soft-deleted user through the status
+  API; user status changes follow one transition table.
+- Ingest, re-merge after edits and source-from share one write path
+  (`internal/usecase/pipeline`). Detaching or deleting a source, pinning a
+  field and removing a connection now refresh training load (previously
+  only the merge was recomputed).
+- "Source data from another activity" is one transaction: a failure (e.g. a
+  donor without a route) no longer leaves an orphaned derived source, and
+  the borrowed route now gets best efforts, segment matches and training
+  load.
+- Detach and delete fail when the source can't be added to the denylist,
+  instead of letting the next sync bring the activity back.
+- The REST API moved out of the server's main package into
+  `internal/adapter/primary/rest` (plus `activitypub`, `mcp` and `workerrpc`
+  adapters); every handler goes through use cases. Paths, status codes and
+  JSON shapes are unchanged; JSON request bodies are now capped at 1 MiB
+  everywhere.
+- `POST /oauth/register` now sends `Content-Type: application/json`.
+- `recompute_activity_merges` re-clusters each activity's time bucket before
+  re-merging it, which repairs groupings a failed re-cluster left behind.
+
 ## [0.6.1] — 2026-10-30
 
 Core-only patch; the 0.6.0 workers stay compatible. Instances without object

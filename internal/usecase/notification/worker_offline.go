@@ -19,7 +19,7 @@ import (
 // Coalescing: DedupKey = "worker_offline:<workerKey>" (no date) so a flapping
 // worker folds into one notification per admin within the 24h window.
 type NotifyWorkerOffline struct {
-	users         port.UserRepo
+	users         port.UserReader
 	notifications port.NotificationRepo
 	tx            port.TxManager
 	deliver       *DeliverNotifications
@@ -29,7 +29,7 @@ type NotifyWorkerOffline struct {
 }
 
 func NewNotifyWorkerOffline(
-	users port.UserRepo,
+	users port.UserReader,
 	notifications port.NotificationRepo,
 	tx port.TxManager,
 	deliver *DeliverNotifications,

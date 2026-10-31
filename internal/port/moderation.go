@@ -3,8 +3,6 @@ package port
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/opencairn-org/cairn-core/internal/domain"
 )
 
@@ -27,5 +25,6 @@ type ReportRepo interface {
 
 // ModerationRepo is admin content actions not tied to a single aggregate.
 type ModerationRepo interface {
-	SetActivityHidden(ctx context.Context, activityID uuid.UUID, hidden bool) error
+	// SetActivityHidden returns domain.ErrNotFound for an unknown activity.
+	SetActivityHidden(ctx context.Context, activityID domain.ActivityID, hidden bool) error
 }

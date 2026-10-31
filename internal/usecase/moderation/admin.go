@@ -29,7 +29,7 @@ type ReportRow struct {
 type Reports struct {
 	Reports    port.ReportRepo
 	Moderation port.ModerationRepo
-	Users      port.UserRepo
+	Users      port.UserReader
 	Audit      *audit.Recorder
 }
 
@@ -63,6 +63,21 @@ func (r *Reports) List(ctx context.Context, status domain.ReportStatus, limit, o
 	return out, nil
 }
 
+// File records a user's report; the reason is trimmed and capped.
+func (r *Reports) File(ctx context.Context, reporter domain.UserID, kind domain.ReportTargetKind, target uuid.UUID, reason string) (domain.ContentReportID, error) {
+	if r.Reports == nil {
+		return domain.ContentReportID{}, port.NewActionError(port.ActionErrorUnavailable, "reports are not available")
+	}
+	if !kind.Valid() {
+		return domain.ContentReportID{}, port.NewActionError(port.ActionErrorInvalid, "bad target_kind")
+	}
+	reason = strings.TrimSpace(reason)
+	if len(reason) > domain.MaxReportReasonLength {
+		reason = reason[:domain.MaxReportReasonLength]
+	}
+	return r.Reports.Create(ctx, domain.ContentReport{ReporterID: reporter, TargetKind: kind, TargetID: target, Reason: reason})
+}
+
 // Resolve marks a report reviewed or dismissed.
 func (r *Reports) Resolve(ctx context.Context, actor audit.Actor, id domain.ContentReportID, status domain.ReportStatus) (domain.ReportStatus, error) {
 	if r.Reports == nil {
@@ -82,7 +97,7 @@ func (r *Reports) Resolve(ctx context.Context, actor audit.Actor, id domain.Cont
 }
 
 // SetActivityHidden hides or unhides an activity instance-wide.
-func (r *Reports) SetActivityHidden(ctx context.Context, actor audit.Actor, activityID uuid.UUID, hidden bool) error {
+func (r *Reports) SetActivityHidden(ctx context.Context, actor audit.Actor, activityID domain.ActivityID, hidden bool) error {
 	if r.Moderation == nil {
 		return port.NewActionError(port.ActionErrorUnavailable, "moderation is not available")
 	}

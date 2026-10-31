@@ -22,12 +22,23 @@ type Attachment struct {
 	CreatedAt   time.Time
 
 	// Derived display variants (JPEG keys in blob storage) and a blurhash
-	// placeholder; empty until generated. MediumBlobID stays empty when the
-	// original is already within the medium bound (serve the original).
+	// placeholder; empty until generated. The variants are re-encoded, so they
+	// carry no EXIF (GPS); the original keeps it and is owner-only.
 	ThumbBlobID  string
 	MediumBlobID string
 	Blurhash     string
 }
 
 // HasVariants reports whether the display variants were generated.
-func (a Attachment) HasVariants() bool { return a.ThumbBlobID != "" && a.Blurhash != "" }
+func (a Attachment) HasVariants() bool {
+	return a.ThumbBlobID != "" && a.MediumBlobID != "" && a.Blurhash != ""
+}
+
+// DisplayBlobID is the largest metadata-free variant, for non-owner reads;
+// empty until variants exist.
+func (a Attachment) DisplayBlobID() string {
+	if a.MediumBlobID != "" {
+		return a.MediumBlobID
+	}
+	return a.ThumbBlobID
+}

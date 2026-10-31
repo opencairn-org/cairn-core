@@ -15,20 +15,20 @@ import (
 // manage view, shared by REST and Connect. Optional repos may be nil; the
 // corresponding read then reports ErrUnavailable.
 type Details struct {
-	activities port.ActivityRepo
+	activities port.SourceReader
 	streams    port.StreamRepo
-	segments   port.SegmentRepo
+	segments   port.SegmentReader
 	athlete    port.AthleteProfileRepo
 	engagement port.EngagementRepo
-	users      port.UserRepo
+	users      port.UserReader
 	overrides  port.FieldOverrideRepo
 	presence   port.WorkerPresence
 	visibility *Visibility
 }
 
 // NewDetails wires the reads; every repo but activities may be nil.
-func NewDetails(activities port.ActivityRepo, streams port.StreamRepo, segments port.SegmentRepo, athlete port.AthleteProfileRepo,
-	engagement port.EngagementRepo, users port.UserRepo, overrides port.FieldOverrideRepo, presence port.WorkerPresence, visibility *Visibility) *Details {
+func NewDetails(activities port.SourceReader, streams port.StreamRepo, segments port.SegmentReader, athlete port.AthleteProfileRepo,
+	engagement port.EngagementRepo, users port.UserReader, overrides port.FieldOverrideRepo, presence port.WorkerPresence, visibility *Visibility) *Details {
 	return &Details{activities: activities, streams: streams, segments: segments, athlete: athlete, engagement: engagement,
 		users: users, overrides: overrides, presence: presence, visibility: visibility}
 }
@@ -157,9 +157,9 @@ func (d *Details) Similar(ctx context.Context, act domain.Activity) (domain.Simi
 		return domain.SimilarGroup{}, ErrUnavailable
 	}
 	var matches []domain.SimilarActivity
-	if act.StartLat != nil && act.StartLng != nil && act.Summary.DistanceM != nil {
+	if q, ok := domain.SimilarRouteQueryFor(act); ok {
 		var err error
-		matches, err = d.segments.FindSimilarActivities(ctx, act.ID, act.UserID, *act.StartLat, *act.StartLng, *act.Summary.DistanceM, string(act.Type))
+		matches, err = d.segments.FindSimilarActivities(ctx, q)
 		if err != nil {
 			return domain.SimilarGroup{}, fmt.Errorf("find similar: %w", err)
 		}
@@ -223,10 +223,13 @@ const kudoserCap = 50
 // SocialAllowed reports whether me may see and give reactions on act: the
 // owner always, others when the owner shares the "social" category with them.
 func (d *Details) SocialAllowed(ctx context.Context, act domain.Activity, me domain.UserID) bool {
+	if act.IsDeleted() {
+		return false
+	}
 	if d.visibility == nil {
 		return act.UserID == me
 	}
-	return d.visibility.For(ctx, act.UserID, &me, act.ID, false).Has(domain.CategorySocial)
+	return d.visibility.For(ctx, &act, &me, false).Has(domain.CategorySocial)
 }
 
 // Kudos lists kudos, local users first then federated actors.

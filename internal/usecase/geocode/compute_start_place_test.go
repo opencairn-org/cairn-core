@@ -14,7 +14,7 @@ import (
 // fakeActivityRepo embeds the port interface so unused methods are nil; only
 // the two the use case calls are implemented. Captures the last SetStartLocation.
 type fakeActivityRepo struct {
-	port.ActivityRepo
+	port.ActivityGeoStore
 	setCalled bool
 	lat, lng  *float64
 	place     string

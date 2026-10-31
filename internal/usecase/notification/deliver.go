@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -9,16 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
-	"github.com/opencairn-org/cairn-core/internal/safehttp"
 )
 
 // DeliverNotifications fans freshly-created notifications out to a user's
@@ -35,25 +30,26 @@ import (
 // works in single-process mode (no email) or before webhooks are wired.
 // (quiet hours + per-event delivery audit are the remaining follow-ups.)
 type DeliverNotifications struct {
-	users         port.UserRepo
+	users         port.UserReader
 	notifications port.NotificationRepo // reload an event when retrying a failed delivery
 	prefs         port.NotificationPreferenceRepo
 	email         port.EmailSender
 	webhooks      port.WebhookEndpointRepo
 	quietHours    port.QuietHoursRepo
 	deliveries    port.NotificationDeliveryRepo
-	httpClient    *http.Client
+	sender        port.WebhookSender
 	now           func() time.Time
 	publicURL     string
 	logger        *slog.Logger
 }
 
 func NewDeliverNotifications(
-	users port.UserRepo,
+	users port.UserReader,
 	notifications port.NotificationRepo,
 	prefs port.NotificationPreferenceRepo,
 	email port.EmailSender,
 	webhooks port.WebhookEndpointRepo,
+	sender port.WebhookSender,
 	quietHours port.QuietHoursRepo,
 	deliveries port.NotificationDeliveryRepo,
 	publicURL string,
@@ -70,42 +66,10 @@ func NewDeliverNotifications(
 		webhooks:      webhooks,
 		quietHours:    quietHours,
 		deliveries:    deliveries,
-		httpClient:    newWebhookHTTPClient(),
+		sender:        sender,
 		now:           time.Now,
 		publicURL:     strings.TrimRight(publicURL, "/"),
 		logger:        logger.With("component", "deliver_notifications"),
-	}
-}
-
-// newWebhookHTTPClient builds the client used to POST to user-configured
-// webhook URLs. It defends against SSRF: a dial-time Control hook inspects the
-// ACTUAL resolved IP of every connection (so DNS-rebinding and redirect hops
-// can't reach internal addresses) and rejects every safehttp.IsBlocked target. Redirects are capped at 3 and re-dialed
-// through the same guard.
-func newWebhookHTTPClient() *http.Client {
-	dialer := &net.Dialer{
-		Timeout: 10 * time.Second,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			ip := net.ParseIP(host)
-			if ip == nil || safehttp.IsBlocked(ip) {
-				return fmt.Errorf("webhook target %s resolves to a disallowed address", host)
-			}
-			return nil
-		},
-	}
-	return &http.Client{
-		Timeout:   15 * time.Second,
-		Transport: &http.Transport{DialContext: dialer.DialContext},
-		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
-			if len(via) >= 3 {
-				return fmt.Errorf("stopped after 3 redirects")
-			}
-			return nil
-		},
 	}
 }
 
@@ -289,28 +253,24 @@ func (uc *DeliverNotifications) sendWebhookOnce(ctx context.Context, ep domain.W
 	mac.Write(body)
 	sig := hex.EncodeToString(mac.Sum(nil))
 
-	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, ep.URL, bytes.NewReader(body))
+	if uc.sender == nil {
+		return 0, "webhook sender unavailable"
+	}
+	code, err := uc.sender.Send(ctx, ep.URL, body, map[string]string{
+		"Content-Type":      "application/json",
+		"User-Agent":        "Cairn-Webhook/1",
+		"X-Cairn-Event":     n.Type.String(),
+		"X-Cairn-Delivery":  n.ID.String(),
+		"X-Cairn-Timestamp": strconv.FormatInt(uc.now().UTC().Unix(), 10),
+		"X-Cairn-Signature": "sha256=" + sig,
+	})
 	if err != nil {
 		return 0, err.Error()
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Cairn-Webhook/1")
-	req.Header.Set("X-Cairn-Event", n.Type.String())
-	req.Header.Set("X-Cairn-Delivery", n.ID.String())
-	req.Header.Set("X-Cairn-Timestamp", strconv.FormatInt(uc.now().UTC().Unix(), 10))
-	req.Header.Set("X-Cairn-Signature", "sha256="+sig)
-
-	resp, err := uc.httpClient.Do(req)
-	if err != nil {
-		return 0, err.Error()
+	if code < 200 || code >= 300 {
+		return code, "non-2xx response"
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return resp.StatusCode, "non-2xx response"
-	}
-	return resp.StatusCode, ""
+	return code, ""
 }
 
 // retryBatchLimit caps how many due deliveries one RetryDue pass handles. Kept

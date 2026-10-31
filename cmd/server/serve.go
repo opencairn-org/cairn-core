@@ -236,7 +236,7 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// backfill). The legacy token-gated /admin/* smoketest surface was removed —
 	// listings/recompute/detach now live on the Connect-RPC AdminService + the
 	// per-activity /api/* surface.
-	mountAdminOps(mux, app, logger)
+	mountRestAdminOps(mux, app, logger)
 
 	// Provider-agnostic webhook forwarder. POST /webhooks/{provider}
 	// forwards raw bodies to cairn.webhooks.<provider>.event;
@@ -244,138 +244,88 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// All envelope decoding + signature validation + handshake protocol
 	// lives in the provider's worker (see workersdk.WebhookEvent /
 	// WebhookVerify). Core knows nothing about Strava, Garmin, etc.
-	mountWebhookForwarder(mux, app, logger)
+	mountRestWebhooks(mux, app, logger)
 	logger.Info("generic webhook forwarder mounted", "path", "/webhooks/{provider}")
 
 	// (DLQ /admin endpoints are mounted with the dev /admin/* surface above.)
 
 	// OIDC sign-in endpoints. Providers come from CAIRN_OIDC_* env vars
 	// (parsed in newApp); gated on app.OIDCLogin being non-nil.
-	mountOIDCEndpoints(mux, app, logger)
+	mountAcctOIDC(mux, app, cfg.Auth.SessionTTL, logger)
 
 	// ActivityPub federation (phase 1: read-only actor + discovery). Off unless
 	// CAIRN_FEDERATION_ENABLED; per-user opt-in gates each actor.
 	if cfg.Federation.Enabled {
-		mountFederation(mux, app, cfg, logger)
+		mountRestFederation(mux, app, cfg, logger)
 		// Drain the durable outbound delivery queue (Phase 3 push fan-out).
 		if app.FederationDeliveries != nil {
-			go runFederationDeliveryScheduler(ctx, logger, app)
+			goSupervised(ctx, logger, "runFederationDeliveryScheduler", func(ctx context.Context) { runFederationDeliveryScheduler(ctx, logger, app) })
 		}
 	} else {
 		logger.Info("federation disabled (CAIRN_FEDERATION_ENABLED=false)")
 	}
 
-	// Username/email + password sign-in. The /login page posts here and
+	// Username/email + password sign-in plus password reset and email
+	// verification. The /login page posts here and
 	// GetLoginMethods advertises password as available, so this is the
 	// default sign-in path for instances without an external IdP.
-	mountPasswordAuth(mux, app, logger, cfg.Auth.SessionTTL)
+	mountAcctPasswordAuth(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
 	// WebAuthn / passkey ceremonies + management (REST).
-	mountWebAuthn(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
+	mountAcctWebAuthn(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
 	// Invite create (admin) + redeem (public self-service signup).
-	mountInvites(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
-	mountAuthRecovery(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
+	mountAcctInvites(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth.SessionTTL)
 
-	// Personal access tokens (CLI/API auth).
-	mountPATs(mux, app, logger)
-	// Password change, sessions, linked identities, profile (AuthService twins).
-	mountAccount(mux, app, logger)
-	mountAuthorizedApps(mux, app)
+	// Password change, sessions, identities, profile, authorized apps, PATs (AuthService twins).
+	mountAcctAccount(mux, app, logger, cfg.Auth.SessionTTL)
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {
-		mountOAuthServer(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
+		mountRestOAuthServer(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
 		// MCP server (read-only, OAuth-protected) — depends on the AS.
-		mountMCP(mux, app, logger, cfg.HTTP.PublicBaseURL)
+		mountRestMCP(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
 	}
 }
 
 // serveMountFeatures mounts the user-facing REST feature endpoints.
 func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger *slog.Logger) {
-	// Drag-and-drop file import (GPX/TCX) — POST /api/activities/upload.
-	mountUploadEndpoint(mux, app, logger)
-	// Manual activity entry — POST /api/activities/manual.
-	mountManualActivityEndpoint(mux, app, logger)
-	// Source fields/route from another activity — POST /api/activities/{id}/source-from.
-	mountSourceFromEndpoint(mux, app, logger)
-	// Activity attachments (photos) — /api/activities/{id}/attachments.
-	mountAttachmentEndpoints(mux, app, logger)
+	// Activity writes: upload, manual entry, source-from, source actions and
+	// previews, manage, merge overrides/policies, athlete profile, metric store.
+	mountAct(mux, app, logger)
+	// Activity detail reads, exports, course image and photos.
+	mountDetail(mux, app, cfg, logger)
 
 	// Per-user provider config + OAuth account-connect. Credentials are
 	// per-user (each user brings their own OAuth app via the Connections UI);
 	// there is no instance-global OAuth credential.
-	mountOAuthConnect(mux, app, logger, cfg.HTTP.PublicBaseURL)
+	mountRestConnections(mux, app, logger, cfg.HTTP.PublicBaseURL)
 
-	// Landing dashboard: totals + by-sport + latest activities.
-	mountOverview(mux, app, logger)
+	// Owner dashboards: overview, stats, analysis, feed, heatmap, records, review queue.
+	mountRestDash(mux, app, logger)
 
-	// Analysis (training load) + Stats (insights) dashboards.
-	mountAnalysis(mux, app, logger)
-	mountStats(mux, app, logger)
-
-	// Athlete physiology profile (FTP/weight/HR time series → TSS).
-	mountAthlete(mux, app, logger)
-	mountMetricsAPI(mux, app, logger)
-
-	// Faceted/filterable/sortable activity feed (JSON REST for the SPA).
-	mountActivitiesFeed(mux, app, logger)
-
-	// An activity's segment efforts (joined to their segment).
-	mountSegmentEfforts(mux, app, logger)
-	mountSegmentDetail(mux, app, logger)
-	mountSegmentAuthoring(mux, app, logger)
-	mountZones(mux, app, logger)
-	mountLaps(mux, app, logger)
-	mountActivitySources(mux, app, logger)
-	mountSourcePreviews(mux, app, logger)
-	mountGarminConnect(mux, app)
-	mountGearSync(mux, app, logger)
-	mountMergeOverrides(mux, app, logger)
-	mountMergePolicy(mux, app, logger)
-	mountMergedStream(mux, app)
-	mountRecords(mux, app, logger)
-	mountCustomRecords(mux, app, logger)
-	mountHealth(mux, app, logger)
-	mountReviewQueue(mux, app, logger)
-	mountActivityManage(mux, app, logger)
-	mountActivityExport(mux, app, logger)
-	mountActivityMapImage(mux, app, cfg.Map, logger)
-	mountActivitiesHeatmap(mux, app, logger)
-	mountInstanceFeatures(mux, cfg, logger)
-	mountActivitySimilar(mux, app, logger)
-	mountBestEffortHistory(mux, app, logger)
-	mountSegmentsList(mux, app, logger)
+	// Segment library, authoring, leaderboards and an activity's efforts.
+	mountRestSegments(mux, app, logger)
+	mountRestAccountJobs(mux, app, logger)
+	mountRestHealthMetrics(mux, app, logger)
+	mountRestInstanceFeatures(mux, cfg, logger)
 	serveMountSocial(mux, app, logger)
 }
 
 // serveMountSocial mounts social, moderation, club and notification endpoints.
 func serveMountSocial(mux *http.ServeMux, app *App, logger *slog.Logger) {
-	mountSocial(mux, app, logger)
-	mountHomeFeed(mux, app, logger)
-	mountProfiles(mux, app, logger)
-	mountShareLinks(mux, app, logger)
-	mountEngagement(mux, app, logger)
-	mountModeration(mux, app, logger)
-	mountQuota(mux, app, logger)
-	mountClubs(mux, app, logger)
-	mountNotificationEmailTest(mux, app, logger)
-	mountNotificationPrefs(mux, app, logger)
-	mountNotificationWebhooks(mux, app, logger)
-	mountNotificationQuietHours(mux, app, logger)
-	mountNotificationDeliveries(mux, app, logger)
+	mountRestSocial(mux, app, logger)
+	mountAcctNotifications(mux, app, logger)
 }
 
 // serveMountPlatform mounts admin API, sync, version, metrics, Connect-RPC and the web UI.
 func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// Session+admin-gated admin API (worker onboarding) for the admin UI.
-	mountAdminAPI(mux, app, logger)
-	mountAdminUsers(mux, app, logger)
-	mountAdminInstance(mux, app, logger)
+	mountRestAdmin(mux, app, logger)
 
 	// Full-sync + import-queue endpoints (gated on NATS internally).
-	mountSyncEndpoints(mux, app, logger)
-	mountAccountLifecycle(mux, app, logger)
+	mountRestSync(mux, app, logger)
+	mountAcctLifecycle(mux, app, logger)
 
 	// Build/version info (public) — shown in the UI footer.
 	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, _ *http.Request) {
@@ -512,6 +462,11 @@ func serveStartBusHandlers(ctx context.Context, app *App, logger *slog.Logger, c
 		"start reauth notifier: %w", "reauth notifier: close error"); err != nil {
 		return err
 	}
+	// Follow-up consumer: runs the pipeline's follow-ups off activity-changed events.
+	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startFollowUpConsumer,
+		"start follow-up consumer: %w", "follow-up consumer: close error"); err != nil {
+		return err
+	}
 	// Account-lookup responder (workers resolve webhook owner_id → account).
 	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startAccountLookupHandler,
 		"start account lookup handler: %w", "account lookup handler: close error"); err != nil {
@@ -635,14 +590,14 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 	// Import-queue processor: drains the persisted queue paced + rate-limit-
 	// aware. Gated on NATS (it dispatches fetch jobs to workers).
 	if app.NATSBus != nil {
-		go runImportQueueProcessor(ctx, logger, app)
+		goSupervised(ctx, logger, "runImportQueueProcessor", func(ctx context.Context) { runImportQueueProcessor(ctx, logger, app) })
 	}
 
 	// Worker-presence watcher: notifies admins when a previously-seen worker
 	// stops heartbeating (its presence KV key expires). Gated on NATS + the
 	// notifier.
 	if app.NATSBus != nil && app.NotifyWorkerOffline != nil {
-		go runWorkerPresenceWatcher(ctx, logger, app)
+		goSupervised(ctx, logger, "runWorkerPresenceWatcher", func(ctx context.Context) { runWorkerPresenceWatcher(ctx, logger, app) })
 	}
 
 	// Admin-triggered maintenance jobs run one at a time for the server's lifetime.
@@ -652,14 +607,14 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 
 	// Health watcher: raises an admin event when the instance leaves "healthy".
 	if app.SystemHealth != nil && app.AdminEvents != nil {
-		go runHealthWatcher(ctx, logger, app)
+		goSupervised(ctx, logger, "runHealthWatcher", func(ctx context.Context) { runHealthWatcher(ctx, logger, app) })
 	}
 
 	// Start-location backfiller: reverse-geocodes activities missing a
 	// start_place. Self-paced by the geocoder's policy limiter (1 req/s for
 	// OSM). Gated on the geocoder being wired (CAIRN_GEOCODER_ENABLED).
 	if app.ComputeStartPlace != nil {
-		go runStartPlaceBackfiller(ctx, logger, app, cfg.Geocoder)
+		goSupervised(ctx, logger, "runStartPlaceBackfiller", func(ctx context.Context) { runStartPlaceBackfiller(ctx, logger, app, cfg.Geocoder) })
 	}
 
 	// Notification-delivery retry processor: re-sends email/webhook deliveries
@@ -667,11 +622,11 @@ func serveStartBackgroundLoops(ctx context.Context, app *App, cfg *config.Config
 	// elapsed), with capped exponential backoff. RetryDue is itself gated on
 	// the deliveries + notifications repos being wired.
 	if app.DeliverNotifications != nil {
-		go runNotificationRetryScheduler(ctx, logger, app)
+		goSupervised(ctx, logger, "runNotificationRetryScheduler", func(ctx context.Context) { runNotificationRetryScheduler(ctx, logger, app) })
 	}
 
 	if cfg.Scheduler.Enabled && app.ReconcileAccount != nil {
-		go runReconcileScheduler(ctx, logger, app, cfg.Scheduler)
+		goSupervised(ctx, logger, "runReconcileScheduler", func(ctx context.Context) { runReconcileScheduler(ctx, logger, app, cfg.Scheduler) })
 	} else {
 		switch {
 		case !cfg.Scheduler.Enabled:

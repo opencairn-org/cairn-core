@@ -80,7 +80,7 @@ cairn.jobs.refresh_token.garmin
 cairn.results.fetch_source.strava          ← Workers publish, server consumes
 cairn.results.parse_blob.fit
 cairn.results.backfill.strava
-cairn.events.activity.ingested             ← Domain events, fan-out
+cairn.events.activity.changed              ← Domain events; pipeline follow-ups (§8)
 cairn.events.activity.soft_deleted
 cairn.events.segment.matched
 cairn.events.training_load.recomputed
@@ -896,9 +896,9 @@ Server (durable push consumer "ingest-router" on cairn.results.fetch_source.>):
     activity start: fuzzy scoring + union-find across every source record
     in the bucket, stable-id reconciliation (split/merge), re-merge of each
     affected activity
-  - publish cairn.events.activity.ingested
-      headers: Nats-Msg-Id = "ingest:<source_id>:<imported_at>"
-      body:    { activity_id, source_id, user_id, action }
+  - publish cairn.events.activity.changed (kind=ingested)
+      headers: Nats-Msg-Id = "activity-changed:ingested:<activity_id>:<uuid>"
+      body:    { kind, user_id, activity_id, source_id, action, msg_id }
   - ack(result-message)
 ```
 
@@ -916,8 +916,9 @@ re-cluster a denied identity is forced into a standalone singleton, so a
 source the user detached does not re-attach when the provider pushes it
 again under a new source id.
 
-The four follow-up consumers (best-effort, segment-match, training-load,
-PR-dispatch) listen on `cairn.events.activity.ingested`. See section 8.
+The follow-up consumer `activity-follow-ups` (stream aggregates, best
+efforts, segments, training load, PR dispatch, federation) listens on
+`cairn.events.activity.changed`. See section 8.
 
 ### Phase 3: Ongoing updates via webhook
 
@@ -1336,61 +1337,59 @@ Crash exit: the TTL does the cleanup work after 60 s.
 
 ## 8. Async follow-ups via domain events
 
-Today best-effort compute, segment match, training load and
-PR dispatch run **synchronously** in the ingest goroutine (see `runFollowUps` in
-`cmd/server/result_router.go`). That is fine for single-server setups up to
-~100 activities/min.
+`internal/usecase/pipeline` is the write path: `IngestSource` (persist →
+re-cluster → follow the source into its surviving activity), `Remerge`
+(after detach, delete, field pins, account removal, Connect edits),
+`BorrowFrom` (source-from, one transaction) and `RecomputeDerived`.
+`cmd/server/result_router.go` only decodes the wire format and does the
+import bookkeeping around `IngestSource`.
 
-For multi-server or higher throughput: decouple via events. The
-transition is mechanical, because all follow-ups are already idempotent
-(see section 3).
+After the durable write, the pipeline does not run the follow-ups itself;
+it dispatches a `pipeline.ActivityChanged` event:
 
-**Before:**
+| Field | Meaning |
+|---|---|
+| `kind` | `ingested` / `remerged` / `borrowed` |
+| `user_id`, `activity_id` | owner and the activity the follow-ups address (for `ingested`: the surviving activity after re-clustering) |
+| `source_id` | the written source (`ingested`, `borrowed`) |
+| `action` | `ingested` only; `merged_into_existing` → no created event, no federation |
+| `soft_deleted` | `remerged` only; the merge left no source → federation delete |
+| `msg_id` | `activity-changed:<kind>:<activity>:<uuid>`, also the `Nats-Msg-Id` |
 
-```go
-func (s *Service) IngestActivity(ctx, in) (Result, error) {
-    result, err := s.ingest.Execute(ctx, in)
-    if err != nil { return Result{}, err }
+**With NATS wired**, the event is published to
+`cairn.events.activity.changed` (stream `CAIRN_EVENTS`) and the durable
+push consumer `activity-follow-ups` (`cmd/server/followup_consumer.go`,
+`DeliverAll`) calls `Pipeline.RunFollowUps`:
 
-    if s.bestEfforts != nil { s.bestEfforts.Execute(ctx, ...) }
-    if s.matchSegments != nil { s.matchSegments.Execute(ctx, ...) }
-    if s.trainingLoad != nil { s.trainingLoad.Execute(ctx, ...) }
-    if s.prNotifications != nil { s.prNotifications.Execute(ctx, ...) }
-
-    return result, nil
-}
+```
+ingested   stream aggregates, best efforts (+ live new-PR events), segment match
+           → training load → PR dispatch → federation Create
+borrowed   stream aggregates, best efforts, segment match → training load
+remerged   federation Delete (if soft-deleted) → training load
 ```
 
-**After:**
+Every stage logs and recovers (panics included); the joined stage errors
+NAK the event and the bus redelivers with back-off (`retryDelay`), until
+`MaxDeliver` sends it to `CAIRN_DLQ`. A malformed payload is terminated.
+The stages are idempotent (section 3), so a redelivery re-runs all of them;
+the federation announcements are not, so they run on the first delivery
+only (`Redelivery` from `DeliveryAttempt > 1`). The 48 h federation
+recency gate (`FederationMaxAge`) is evaluated when the event is handled.
+An activity deleted meanwhile acks the event without work.
 
-```go
-func (s *Service) IngestActivity(ctx, in) (Result, error) {
-    result, err := s.ingest.Execute(ctx, in)
-    if err != nil { return Result{}, err }
+**Without NATS** (tests, API-only instances) or when the publish fails,
+`RunFollowUps` runs inline before the call returns, so callers and the
+integration tests stay deterministic.
 
-    s.bus.Publish(ctx, "cairn.events.activity.ingested",
-        fmt.Sprintf("ingest:%s:%s", result.SourceID, result.ImportedAt.Format(time.RFC3339)),
-        encodeActivityIngestedEvent(result))
+Neither path is bound to the caller: dispatch uses
+`context.WithoutCancel`, and `RunFollowUps` is bounded by
+`Pipeline.FollowUpTimeout` (default 10 min). A client disconnect can no
+longer cancel the follow-ups of a committed write, and with NATS the HTTP
+response (upload, manual entry, source-from, edits) and the worker-result
+ack no longer wait for them.
 
-    return result, nil
-}
-```
-
-Plus four durable push consumers on `cairn.events.activity.ingested`:
-
-| Consumer Durable | Subject Filter | Handler |
-|---|---|---|
-| `compute-best-efforts` | `cairn.events.activity.ingested` | `ComputeBestEffortsForSource` |
-| `match-segments` | `cairn.events.activity.ingested` | `MatchSegmentsForActivity` (→ ranks) |
-| `compute-training-load` | `cairn.events.activity.ingested` | `ComputeTrainingLoadForUser` |
-| `dispatch-pr` | `cairn.events.segment.matched` | `DispatchPRNotifications` |
-
-If compute logic fails: Nak, JetStream retries.
-`MaxDeliver = 5`, after that the message lands in `CAIRN_DLQ` with an advisory.
-
-Refinement: `dispatch-pr` hooks onto `cairn.events.segment.matched`
-instead of `activity.ingested` — sees only events in which matches happened.
-Clean.
+`RecomputeDerived` (admin "recompute derived data") stays synchronous: it
+reports per-stage warnings to its caller.
 
 ---
 
@@ -1760,11 +1759,17 @@ or `account_gone` → `Term()`, further retries pointless.
 
 | Scenario | Reaction |
 |---|---|
-| `IngestActivityFromWorker.Execute()` success | publish `activity.ingested`, `Ack()` |
+| `IngestActivityFromWorker.Execute()` success | re-cluster, follow-ups, `Ack()` |
 | Worker reported `ok: false` | log with worker error detail, `Ack()` (worker already retried/term'd) |
-| DB constraint violation | `Nak()` once, then `Term()` with alert |
-| Validation error (malformed payload) | `Term()`, publish `cairn.events.fetch_source.parse_failed`, alert |
-| DB connection error | `Nak()`, JS retries |
+| Deterministic DB error (constraint, invalid data) | fail the import-queue item with the reason, `Ack()` |
+| Validation error (malformed payload) | `TermWithReason()`; the DLQ listener records it |
+| DB connection error / other transient | `NakWithDelay(5s·3^(n-1), max 5 min)`; after `MaxDeliver` → DLQ |
+| Handler panic | recovered, treated as transient |
+| Re-cluster or follow-up fails or panics | logged, the ingest still `Ack()`s; `recompute_activity_merges` re-clusters as the repair |
+
+Ingest and re-cluster hold a per-user advisory lock (`port.UserLock`,
+`pg_advisory_xact_lock`), so two instances never re-cluster one user's
+bucket from stale snapshots.
 
 ### Blob operations
 
@@ -1780,10 +1785,13 @@ or `account_gone` → `Term()`, further retries pointless.
 ### Dead-letter path
 
 ```
-NATS publishes $JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.> on reaching MaxDeliver.
+NATS publishes $JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.> on reaching MaxDeliver,
+and ...MSG_TERMINATED.> on Term (recorded for CAIRN_RESULTS / CAIRN_EVENTS only:
+workers term jobs on purpose).
 
-Server (advisory consumer):
-  - receive: stream, subject, consumer, deliveries
+Server (advisory consumer, cmd/server/dlq_listener.go):
+  - receive: stream, consumer, stream_seq, deliveries, reason
+  - fetch subject/payload/headers by stream_seq while the stream still holds it
   - INSERT INTO dead_lettered_jobs (
         stream, subject, msg_id, payload, last_error, delivered_count,
         first_seen_at, last_seen_at

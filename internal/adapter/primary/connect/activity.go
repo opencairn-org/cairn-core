@@ -18,6 +18,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -29,7 +30,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
@@ -41,7 +44,7 @@ import (
 type ActivityServer struct {
 	cairnv1connect.UnimplementedActivityServiceHandler
 
-	Activities  port.ActivityRepo
+	Activities  port.ActivityAggregateStore
 	Streams     port.StreamRepo
 	BestEfforts port.BestEffortRepo
 
@@ -50,17 +53,10 @@ type ActivityServer struct {
 	// keeps the edit across future source imports.
 	Recompute *activity.RecomputeActivityFromSources
 
-	// ClassOverrides persists the user's classification overlay (type/flags),
-	// applied after the merge by Recompute so the edit survives re-derivation.
-	ClassOverrides port.ClassificationOverrideRepo
+	// Editor applies UpdateActivity and the upload hints (nil → Unavailable).
+	Editor *activity.Editor
 
-	// Federation announces visibility changes to remote followers (nil when
-	// federation is off). Lets making an activity public after import federate
-	// it, since the ingest-time publish only fires for public-at-import.
-	Federation port.FederationPublisher
-
-	// Gear backs the gear_id edit (ownership check, type default on reset)
-	// and the gear names on the wire. Nil → gear edits rejected.
+	// Gear resolves the gear names on the wire.
 	Gear *gearuc.Service
 
 	// SourceActions and SourceLinks back DeleteActivity, DetachSource and
@@ -75,8 +71,8 @@ type ActivityServer struct {
 	Uploads    port.UploadIngester
 	Blobs      port.BlobStore
 
-	// Events is the live feed behind StreamActivityEvents; UpdateActivity
-	// publishes to it. Nil → the stream answers Unavailable.
+	// Events is the live feed behind StreamActivityEvents. Nil → the stream
+	// answers Unavailable.
 	Events *ActivityEventHub
 
 	// Customs backs the custom best-effort RPCs; Backfill (optional) is told
@@ -95,8 +91,8 @@ type ActivityServer struct {
 	Content     port.ContentSigner
 	Attachments port.AttachmentRepo
 	Visibility  *view.Visibility
-	Exports     *view.Exports
-	Searches    *view.Searches
+	Exports     *activityexport.Exports
+	Searches    *dashboard.Searches
 	Details     *view.Details
 	MapETag     func(domain.Activity) string
 }
@@ -107,22 +103,18 @@ var _ cairnv1connect.ActivityServiceHandler = (*ActivityServer)(nil)
 // NewActivityServer wires the server with its dependencies. Callers pass
 // the concrete repos coming out of wire.go.
 func NewActivityServer(
-	activities port.ActivityRepo,
+	activities port.ActivityAggregateStore,
 	streams port.StreamRepo,
 	bestEfforts port.BestEffortRepo,
 	recompute *activity.RecomputeActivityFromSources,
-	classOverrides port.ClassificationOverrideRepo,
-	federation port.FederationPublisher,
 	gear *gearuc.Service,
 ) *ActivityServer {
 	return &ActivityServer{
-		Activities:     activities,
-		Streams:        streams,
-		BestEfforts:    bestEfforts,
-		Recompute:      recompute,
-		ClassOverrides: classOverrides,
-		Federation:     federation,
-		Gear:           gear,
+		Activities:  activities,
+		Streams:     streams,
+		BestEfforts: bestEfforts,
+		Recompute:   recompute,
+		Gear:        gear,
 	}
 }
 
@@ -260,68 +252,38 @@ func (s *ActivityServer) GetActivity(
 // ---------------------------------------------------------------------------
 // UpdateActivity
 //
-// Applies user edits to an activity and re-runs the merge so the edit
-// survives future source imports (the merge engine's preserveUserEdits
-// owns Title/Description/Tags/Privacy once an activity exists).
-//
-// Only field_mask entries are touched. v1 accepts the merge-preserved
-// user-editable fields; the source-driven classification fields (type,
-// discipline, the is_* flags, custom_subtype, primary_stream_source_id)
-// are exposed on the proto for forward-compatibility but rejected here —
-// the merge engine would overwrite them on the next import. Making those
-// user-overridable needs per-field user-edit tracking in the merge engine
-// (a future change), so we fail loudly rather than silently revert.
+// Translates the field_mask into a domain.ActivityPatch for activity.Editor,
+// which owns the edit rules, the re-merge, federation and the live event.
 // ---------------------------------------------------------------------------
 
 func (s *ActivityServer) UpdateActivity(
 	ctx context.Context,
 	req *v1.UpdateActivityRequest,
 ) (*v1.UpdateActivityResponse, error) {
-	activity, err := s.activityUpdateLoad(ctx, req.GetId())
+	userID, err := userIDFromHandlerCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
-	activityID := activity.ID
-
-	mask := req.GetFieldMask()
-	if len(mask) == 0 {
-		return nil, connectrpc.NewError(connectrpc.CodeInvalidArgument,
-			"field_mask must list at least one field to update")
+	id, err := uuid.Parse(req.GetId())
+	if err != nil {
+		return nil, connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid activity id")
 	}
-
-	// Capture the pre-edit privacy so a public⇄non-public transition can be
-	// federated after the save.
-	prevPrivacy := activity.Privacy
-	e := &activityUpdateEdit{s: s, ctx: ctx, msg: req, activity: &activity}
-	for _, f := range mask {
-		if err := e.applyField(f); err != nil {
-			return nil, err
-		}
+	if s.Editor == nil {
+		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "activity editing is not available")
 	}
-
-	if err := e.persist(); err != nil {
+	patch, err := activityPatchFromProto(req)
+	if err != nil {
 		return nil, err
 	}
-
-	updated, err := s.Activities.GetActivity(ctx, activityID)
+	updated, err := s.Editor.Update(ctx, userID, domain.ActivityID(id), patch)
 	if err != nil {
-		return nil, connectError(connectrpc.CodeInternal,
-			fmt.Errorf("reload activity: %w", err))
+		return nil, activityEditError(err)
 	}
-
-	if e.privacyTouched {
-		s.activityUpdateFederate(ctx, prevPrivacy, updated)
-	}
-	if s.Events != nil {
-		s.Events.Publish(domain.NewActivityEvent(domain.ActivityEventActivityUpdated, updated.UserID, "activity.updated").For(updated.ID, domain.SourceID{}))
-	}
-
-	sources, err := s.Activities.ListSourcesForActivity(ctx, activityID)
+	sources, err := s.Activities.ListSourcesForActivity(ctx, updated.ID)
 	if err != nil {
 		return nil, connectError(connectrpc.CodeInternal,
 			fmt.Errorf("list sources: %w", err))
 	}
-
 	return &v1.UpdateActivityResponse{
 		Activity: s.withMapImage(ctx, withGear(activityToProto(updated, sources), updated, s.gearNames(ctx, updated)), updated),
 	}, nil
@@ -351,234 +313,120 @@ func (s *ActivityServer) activityUpdateLoad(ctx context.Context, rawID string) (
 	return activity, nil
 }
 
-// activityUpdateFederate federates a visibility transition: making an activity
-// public announces it to remote followers (the ingest-time publish only covers
-// public-at-import); taking it back out of public retracts it. Best-effort,
-// never fails the edit.
-func (s *ActivityServer) activityUpdateFederate(ctx context.Context, prevPrivacy domain.ActivityPrivacy, updated domain.Activity) {
-	if s.Federation == nil || prevPrivacy == updated.Privacy {
-		return
-	}
+// activityEditError maps activity.Editor errors to Connect codes.
+func activityEditError(err error) error {
+	var notEditable *activity.FieldNotEditableError
 	switch {
-	case updated.Privacy == domain.PrivacyPublic:
-		s.Federation.PublishCreate(ctx, updated)
-	case prevPrivacy == domain.PrivacyPublic:
-		s.Federation.PublishDelete(ctx, updated.UserID, updated.ID)
+	case errors.Is(err, domain.ErrNotFound):
+		return connectrpc.NewError(connectrpc.CodeNotFound, "not found")
+	case errors.Is(err, activity.ErrEmptyPatch):
+		return connectrpc.NewError(connectrpc.CodeInvalidArgument, "field_mask must list at least one field to update")
+	case errors.As(err, &notEditable):
+		return connectError(connectrpc.CodeInvalidArgument, notEditable)
+	case errors.Is(err, activity.ErrGearUnavailable):
+		return connectrpc.NewError(connectrpc.CodeUnavailable, "gear is not available on this instance")
+	case errors.Is(err, activity.ErrGearNotFound):
+		return connectrpc.NewError(connectrpc.CodeNotFound, "gear not found")
 	}
+	return connectError(connectrpc.CodeInternal, err)
 }
 
-// activityUpdateEdit accumulates the field_mask edits of one UpdateActivity call.
-type activityUpdateEdit struct {
-	s              *ActivityServer
-	ctx            context.Context
-	msg            *v1.UpdateActivityRequest
-	activity       *domain.Activity
-	privacyTouched bool
-
-	// Classification edits (type/discipline/flags) are stored as a user overlay
-	// applied AFTER the merge by Recompute, so they survive future source
-	// imports. We start from the existing overlay and mutate only masked fields.
-	classOverride *domain.ClassificationOverride
-	classTouched  bool
+// activityPatchFromProto decodes the field_mask entries; later entries win.
+func activityPatchFromProto(m *v1.UpdateActivityRequest) (domain.ActivityPatch, error) {
+	var p domain.ActivityPatch
+	for _, f := range m.GetFieldMask() {
+		if err := applyPatchField(&p, m, f); err != nil {
+			return domain.ActivityPatch{}, err
+		}
+	}
+	return p, nil
 }
 
-// applyField applies one field_mask entry.
-func (e *activityUpdateEdit) applyField(f string) error {
+func applyPatchField(p *domain.ActivityPatch, m *v1.UpdateActivityRequest, f string) error {
 	switch f {
 	case "title":
-		e.activity.Title = e.msg.GetTitle()
+		p.Title = new(m.GetTitle())
 	case "description":
-		e.activity.Description = e.msg.GetDescription()
+		p.Description = new(m.GetDescription())
 	case "tags":
-		// Present-in-mask replaces the whole set (empty clears it).
-		e.activity.Tags = e.msg.GetTags()
+		p.Tags = new(m.GetTags())
 	case "privacy":
-		p, ok := privacyFromProto(e.msg.GetPrivacy())
+		pr, ok := privacyFromProto(m.GetPrivacy())
 		if !ok {
 			return connectrpc.NewError(connectrpc.CodeInvalidArgument,
 				"privacy must be one of private|followers|public")
 		}
-		e.activity.Privacy = p
-		e.privacyTouched = true
+		p.Privacy = &pr
 	case "primary_stream_source_id":
-		// Merge-managed (FieldGroupGPSTrack); changed via a gps_track field
-		// pin, not a direct edit.
-		return activityUpdateRejectClass(f)
+		// Rejected by the editor whatever the value.
+		p.PrimaryStreamSourceID = &domain.SourceID{}
 	case "gear_id":
-		return e.applyGearID()
+		g := domain.GearEdit{}
+		if raw := m.GetGearId(); raw != "" {
+			gid, err := uuid.Parse(raw)
+			if err != nil {
+				return connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid gear_id")
+			}
+			g.GearID = new(domain.GearID(gid))
+		}
+		p.Gear = &g
 	case "reset_gear":
-		return e.applyGearReset()
+		p.Gear = &domain.GearEdit{Reset: true}
 	default:
-		set, ok := activityUpdateClassSetters[f]
+		set, ok := overlayPatchSetters[f]
 		if !ok {
 			return connectError(connectrpc.CodeInvalidArgument,
 				fmt.Errorf("unknown field %q in field_mask", f))
 		}
-		return e.applyClassField(f, set)
+		set(&p.Overlay, m)
 	}
 	return nil
 }
 
-// applyGearID attaches the caller's gear ("" = no gear) and marks the choice
-// as the user's so recompute leaves it alone.
-func (e *activityUpdateEdit) applyGearID() error {
-	if e.s.Gear == nil {
-		return connectrpc.NewError(connectrpc.CodeUnavailable, "gear is not available on this instance")
-	}
-	raw := e.msg.GetGearId()
-	if raw == "" {
-		e.activity.GearID = nil
-	} else {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			return connectrpc.NewError(connectrpc.CodeInvalidArgument, "invalid gear_id")
-		}
-		g, err := e.s.Gear.Get(e.ctx, e.activity.UserID, domain.GearID(id))
-		if err != nil {
-			return connectrpc.NewError(connectrpc.CodeNotFound, "gear not found")
-		}
-		e.activity.GearID = &g.ID
-	}
-	e.activity.GearSetBy = domain.GearSetByUser
-	return nil
-}
-
-// applyGearReset hands the choice back to the merge. Recompute re-derives it
-// from the sources; a provider-less activity (manual, upload) gets the type
-// default again here, since recompute applies that only on the first merge
-// and otherwise keeps a default-applied gear.
-func (e *activityUpdateEdit) applyGearReset() error {
-	if e.s.Gear == nil {
-		return connectrpc.NewError(connectrpc.CodeUnavailable, "gear is not available on this instance")
-	}
-	e.activity.GearID = nil
-	e.activity.GearSetBy = domain.GearSetByMerge
-	sources, err := e.s.Activities.ListSourcesForActivity(e.ctx, e.activity.ID)
-	if err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("list sources: %w", err))
-	}
-	for _, src := range sources {
-		if src.ExternalAccountID != nil {
-			return nil
-		}
-	}
-	gid, ok, err := e.s.Gear.DefaultFor(e.ctx, e.activity.UserID, e.activity.Type)
-	if err != nil {
-		return connectError(connectrpc.CodeInternal, fmt.Errorf("gear default: %w", err))
-	}
-	if ok {
-		e.activity.GearID = &gid
-	}
-	return nil
-}
-
-// applyClassField loads the overlay on first use and applies set to it.
-func (e *activityUpdateEdit) applyClassField(f string, set func(*domain.ClassificationOverride, *v1.UpdateActivityRequest)) error {
-	if e.s.ClassOverrides == nil {
-		return activityUpdateRejectClass(f)
-	}
-	if e.classOverride == nil {
-		existing, err := e.s.ClassOverrides.Get(e.ctx, e.activity.ID)
-		if err != nil {
-			return connectError(connectrpc.CodeInternal, err)
-		}
-		e.classOverride = &existing
-	}
-	e.classTouched = true
-	set(e.classOverride, e.msg)
-	return nil
-}
-
-// persist saves the overlay and activity, then re-merges from all sources.
-func (e *activityUpdateEdit) persist() error {
-	if e.classTouched {
-		if err := e.s.ClassOverrides.Set(e.ctx, *e.classOverride); err != nil {
-			return connectError(connectrpc.CodeInternal,
-				fmt.Errorf("save classification override: %w", err))
-		}
-	}
-
-	if err := e.s.Activities.SaveActivity(e.ctx, *e.activity); err != nil {
-		return connectError(connectrpc.CodeInternal,
-			fmt.Errorf("save activity: %w", err))
-	}
-
-	// Re-merge from all sources. preserveUserEdits copies the just-saved
-	// user fields onto the merged result, so the edit sticks.
-	if _, err := e.s.Recompute.Execute(e.ctx, e.activity.ID); err != nil {
-		return connectError(connectrpc.CodeInternal,
-			fmt.Errorf("recompute activity: %w", err))
-	}
-	return nil
-}
-
-func activityUpdateRejectClass(f string) error {
-	return connectError(connectrpc.CodeInvalidArgument,
-		fmt.Errorf("field %q is not editable on this instance", f))
-}
-
-// activityUpdateClassSetters maps overlay-backed field_mask entries to their setters.
-var activityUpdateClassSetters = map[string]func(*domain.ClassificationOverride, *v1.UpdateActivityRequest){
-	"type": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
+// overlayPatchSetters maps overlay-backed field_mask entries to their patch setters.
+var overlayPatchSetters = map[string]func(*domain.OverlayPatch, *v1.UpdateActivityRequest){
+	"type": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.Type = &domain.Clearable[domain.ActivityType]{}
 		if t, ok := activityTypeFromProto(m.GetType()); ok {
-			co.Type = &t
-		} else {
-			co.Type = nil // UNSPECIFIED clears the override → revert to merged
+			o.Type.Value = &t // UNSPECIFIED clears → revert to merged
 		}
 	},
-	"discipline": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
+	"discipline": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.Discipline = &domain.Clearable[domain.Discipline]{}
 		if d, ok := disciplineFromProto(m.GetDiscipline()); ok {
-			co.Discipline = &d
-		} else {
-			co.Discipline = nil
+			o.Discipline.Value = &d
 		}
 	},
-	"is_virtual": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		v := m.GetIsVirtual()
-		co.IsVirtual = &v
-	},
-	"is_commute": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		v := m.GetIsCommute()
-		co.IsCommute = &v
-	},
-	"is_race": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		v := m.GetIsRace()
-		co.IsRace = &v
-	},
-	"is_ebike": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		v := m.GetIsEbike()
-		co.IsEbike = &v
-	},
-	"custom_subtype": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		cs := m.GetCustomSubtype()
-		if cs == "" {
-			co.CustomSubtype = nil
-		} else {
-			co.CustomSubtype = &cs
+	"is_virtual": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) { o.IsVirtual = new(m.GetIsVirtual()) },
+	"is_commute": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) { o.IsCommute = new(m.GetIsCommute()) },
+	"is_race":    func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) { o.IsRace = new(m.GetIsRace()) },
+	"is_ebike":   func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) { o.IsEbike = new(m.GetIsEbike()) },
+	"custom_subtype": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.CustomSubtype = &domain.Clearable[string]{}
+		if cs := m.GetCustomSubtype(); cs != "" {
+			o.CustomSubtype.Value = &cs
 		}
 	},
-	"distance_m": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		if v := m.GetDistanceM(); v < 0 {
-			co.DistanceM = nil // negative clears → revert to merged
-		} else {
-			co.DistanceM = &v
+	"distance_m": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.DistanceM = clearableMetric(m.GetDistanceM())
+	},
+	"elevation_gain_m": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.ElevationGainM = clearableMetric(m.GetElevationGainM())
+	},
+	"moving_duration_s": func(o *domain.OverlayPatch, m *v1.UpdateActivityRequest) {
+		o.MovingDuration = &domain.Clearable[time.Duration]{}
+		if v := m.GetMovingDurationS(); v >= 0 {
+			o.MovingDuration.Value = new(time.Duration(v) * time.Second)
 		}
 	},
-	"elevation_gain_m": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		if v := m.GetElevationGainM(); v < 0 {
-			co.ElevationGainM = nil
-		} else {
-			co.ElevationGainM = &v
-		}
-	},
-	"moving_duration_s": func(co *domain.ClassificationOverride, m *v1.UpdateActivityRequest) {
-		if v := m.GetMovingDurationS(); v < 0 {
-			co.MovingDuration = nil
-		} else {
-			d := time.Duration(v) * time.Second
-			co.MovingDuration = &d
-		}
-	},
+}
+
+// clearableMetric is a summary-metric edit; negative clears → revert to merged.
+func clearableMetric(v float64) *domain.Clearable[float64] {
+	if v < 0 {
+		return &domain.Clearable[float64]{}
+	}
+	return &domain.Clearable[float64]{Value: &v}
 }
 
 // ---------------------------------------------------------------------------

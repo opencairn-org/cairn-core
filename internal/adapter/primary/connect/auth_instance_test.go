@@ -14,7 +14,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 )
 
 type fakeSessions struct {
@@ -81,19 +81,19 @@ func TestGetQuota(t *testing.T) {
 		repo.Activities[id] = domain.Activity{ID: id, UserID: user}
 	}
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
-	s := &AuthServer{Quota: view.NewQuota(repo, nil, 3)}
+	s := &AuthServer{Quota: quota.NewPolicy(repo, nil, 3)}
 
 	res, err := s.GetQuota(ctx, &v1.GetQuotaRequest{})
 	if err != nil || res.GetActivitiesUsed() != 3 || res.GetActivitiesLimit() != 3 || res.GetUnlimited() || !res.GetOverLimit() {
 		t.Fatalf("default limit: %v %v", res, err)
 	}
 	ten := 10
-	s.Quota = view.NewQuota(repo, &fakeQuotas{override: map[domain.UserID]*int{user: &ten}}, 3)
+	s.Quota = quota.NewPolicy(repo, &fakeQuotas{override: map[domain.UserID]*int{user: &ten}}, 3)
 	if res, _ := s.GetQuota(ctx, &v1.GetQuotaRequest{}); res.GetActivitiesLimit() != 10 || res.GetOverLimit() {
 		t.Fatalf("override: %v", res)
 	}
 	zero := 0
-	s.Quota = view.NewQuota(repo, &fakeQuotas{override: map[domain.UserID]*int{user: &zero}}, 3)
+	s.Quota = quota.NewPolicy(repo, &fakeQuotas{override: map[domain.UserID]*int{user: &zero}}, 3)
 	if res, _ := s.GetQuota(ctx, &v1.GetQuotaRequest{}); !res.GetUnlimited() || res.GetOverLimit() {
 		t.Fatalf("unlimited: %v", res)
 	}
