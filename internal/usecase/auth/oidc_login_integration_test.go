@@ -14,6 +14,7 @@ import (
 	jwtv5 "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	oidcadapter "github.com/opencairn-org/cairn-core/internal/adapter/secondary/oidc"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
@@ -149,7 +150,7 @@ func TestOIDCLogin_FullRoundTripProvisionsAndLinks(t *testing.T) {
 	users := newFakeUsers()
 	ids := newFakeIdentities()
 	sess := &fakeSessions{}
-	uc := NewOIDCLogin([]domain.OIDCProvider{p}, ids, sess, users, time.Hour, "http://app.example")
+	uc := NewOIDCLogin([]domain.OIDCProvider{p}, ids, sess, users, time.Hour, "http://app.example", oidcadapter.New())
 
 	ctx := context.Background()
 

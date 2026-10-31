@@ -45,7 +45,7 @@ func TestNotifyAccountNeedsReauth_CreatesAndDelivers(t *testing.T) {
 	email := &fakeEmail{}
 	// deliver with email so we can assert fan-out happened (error severity
 	// defaults email-on for this type).
-	deliver := NewDeliverNotifications(&fakeUserRepo{email: "a@b.c"}, nil, &fakePrefRepo{}, email, nil, nil, nil, "http://x", nil)
+	deliver := NewDeliverNotifications(&fakeUserRepo{email: "a@b.c"}, nil, &fakePrefRepo{}, email, nil, nil, nil, nil, "http://x", nil)
 
 	uc := NewNotifyAccountNeedsReauth(accounts, notifs, fakeTx{}, deliver, nil, nil)
 	if err := uc.Execute(context.Background(), aid, "invalid_grant"); err != nil {

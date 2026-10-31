@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,6 +20,9 @@ const module = "github.com/opencairn-org/cairn-core/"
 // root) may use.
 var infra = []string{"github.com/jackc/pgx", "github.com/nats-io/", "github.com/aws/"}
 
+// protocol are transport/IdP libraries use cases reach only through ports.
+var protocol = []string{"net/http", "github.com/coreos/go-oidc", "golang.org/x/oauth2", module + "internal/safehttp"}
+
 // rules: a file under the prefix must not import anything listed.
 var rules = []struct {
 	layer     string
@@ -26,7 +30,7 @@ var rules = []struct {
 }{
 	{"internal/domain/", []string{module + "internal/port", module + "internal/usecase", module + "internal/adapter", module + "cmd/"}},
 	{"internal/port/", []string{module + "internal/usecase", module + "internal/adapter", module + "cmd/"}},
-	{"internal/usecase/", append([]string{module + "internal/adapter", module + "internal/db", module + "cmd/"}, infra...)},
+	{"internal/usecase/", slices.Concat([]string{module + "internal/adapter", module + "internal/db", module + "cmd/"}, infra, protocol)},
 	{"internal/adapter/primary/", append([]string{module + "internal/adapter/secondary", module + "internal/db", module + "cmd/"}, infra...)},
 }
 

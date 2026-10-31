@@ -14,13 +14,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -32,8 +29,8 @@ var (
 	ErrAutoProvisionDenied = errors.New("first-time login but provider has auto_provision=false")
 	ErrSubjectMissing      = errors.New("id_token missing subject claim")
 	ErrEmailMissing        = errors.New("id_token missing email claim required for auto-provision")
-	ErrCodeExchangeFailed  = errors.New("oauth code exchange failed")
-	ErrIDTokenVerifyFailed = errors.New("id_token verification failed")
+	ErrCodeExchangeFailed  = port.ErrOIDCCodeExchange
+	ErrIDTokenVerifyFailed = port.ErrOIDCIDTokenInvalid
 )
 
 // ErrClientDisabled is kept as an alias of ErrProviderNotFound so existing
@@ -62,23 +59,9 @@ type OIDCLogin struct {
 	SessionTTL      time.Duration
 	RedirectBaseURL string // e.g. "https://cairn.example.com"; callback path appended
 
-	now      func() time.Time
-	newUUID  func() uuid.UUID
-	verifier OIDCVerifierFactory
-}
-
-// OIDCVerifierFactory is the seam tests inject to bypass real IdP discovery.
-type OIDCVerifierFactory func(ctx context.Context, issuerURL string) (OIDCVerifier, error)
-
-// OIDCVerifier abstracts the subset of *oidc.Provider we use.
-type OIDCVerifier interface {
-	Endpoint() oauth2.Endpoint
-	Verifier(cfg *oidc.Config) IDTokenVerifier
-}
-
-// IDTokenVerifier matches *oidc.IDTokenVerifier.
-type IDTokenVerifier interface {
-	Verify(ctx context.Context, rawIDToken string) (*oidc.IDToken, error)
+	client  port.OIDCClient
+	now     func() time.Time
+	newUUID func() uuid.UUID
 }
 
 // NewOIDCLogin wires the use case from the env-configured providers.
@@ -89,6 +72,7 @@ func NewOIDCLogin(
 	users oidcUserStore,
 	sessionTTL time.Duration,
 	redirectBaseURL string,
+	client port.OIDCClient,
 ) *OIDCLogin {
 	m := make(map[string]domain.OIDCProvider, len(providers))
 	order := make([]string, 0, len(providers))
@@ -104,15 +88,14 @@ func NewOIDCLogin(
 		Users:           users,
 		SessionTTL:      sessionTTL,
 		RedirectBaseURL: redirectBaseURL,
+		client:          client,
 		now:             func() time.Time { return time.Now().UTC() },
 		newUUID:         uuid.New,
-		verifier:        defaultVerifierFactory,
 	}
 }
 
-func (uc *OIDCLogin) SetClock(now func() time.Time)             { uc.now = now }
-func (uc *OIDCLogin) SetUUID(fn func() uuid.UUID)               { uc.newUUID = fn }
-func (uc *OIDCLogin) SetVerifierFactory(fn OIDCVerifierFactory) { uc.verifier = fn }
+func (uc *OIDCLogin) SetClock(now func() time.Time) { uc.now = now }
+func (uc *OIDCLogin) SetUUID(fn func() uuid.UUID)   { uc.newUUID = fn }
 
 // Providers returns the configured providers in config order (for the login
 // page buttons + the read-only admin view). Secrets are NOT included by the
@@ -147,11 +130,6 @@ func (uc *OIDCLogin) StartLogin(ctx context.Context, providerID string) (StartLo
 		return StartLoginOutput{}, ErrProviderNotFound
 	}
 
-	prov, err := uc.verifier(ctx, p.IssuerURL)
-	if err != nil {
-		return StartLoginOutput{}, fmt.Errorf("oidc provider discovery: %w", err)
-	}
-
 	state, err := randomURLSafe(24)
 	if err != nil {
 		return StartLoginOutput{}, err
@@ -160,23 +138,22 @@ func (uc *OIDCLogin) StartLogin(ctx context.Context, providerID string) (StartLo
 	if err != nil {
 		return StartLoginOutput{}, err
 	}
-
-	cfg := uc.oauth2Config(p, prov.Endpoint())
-	opts := []oauth2.AuthCodeOption{oidc.Nonce(nonce)}
+	req := port.OIDCAuthRequest{RedirectURL: uc.redirectURL(), State: state, Nonce: nonce}
 	codeVerifier := ""
 	if p.UsePKCE {
 		codeVerifier, err = randomURLSafe(48)
 		if err != nil {
 			return StartLoginOutput{}, err
 		}
-		opts = append(opts,
-			oauth2.SetAuthURLParam("code_challenge", s256(codeVerifier)),
-			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-		)
+		req.CodeChallenge = s256(codeVerifier)
 	}
 
+	authURL, err := uc.client.AuthCodeURL(ctx, p, req)
+	if err != nil {
+		return StartLoginOutput{}, err
+	}
 	return StartLoginOutput{
-		AuthURL:      cfg.AuthCodeURL(state, opts...),
+		AuthURL:      authURL,
 		State:        state,
 		Nonce:        nonce,
 		CodeVerifier: codeVerifier,
@@ -215,11 +192,7 @@ func (uc *OIDCLogin) CompleteLogin(ctx context.Context, in CompleteLoginInput) (
 		return CompleteLoginOutput{}, err
 	}
 
-	var claims map[string]any
-	if err := idToken.Claims(&claims); err != nil {
-		return CompleteLoginOutput{}, fmt.Errorf("decode claims: %w", err)
-	}
-
+	claims := idToken.Claims
 	subject := idToken.Subject
 	if subject == "" {
 		subject = stringClaim(claims, "sub")
@@ -243,41 +216,20 @@ func (uc *OIDCLogin) CompleteLogin(ctx context.Context, in CompleteLoginInput) (
 }
 
 // oidcExchangeAndVerify redeems the auth code and verifies the id_token incl. nonce.
-func (uc *OIDCLogin) oidcExchangeAndVerify(ctx context.Context, p domain.OIDCProvider, in CompleteLoginInput) (*oidc.IDToken, error) {
-	prov, err := uc.verifier(ctx, p.IssuerURL)
+func (uc *OIDCLogin) oidcExchangeAndVerify(ctx context.Context, p domain.OIDCProvider, in CompleteLoginInput) (domain.OIDCIDToken, error) {
+	verifier := ""
+	if p.UsePKCE {
+		verifier = in.CodeVerifier
+	}
+	idToken, err := uc.client.Exchange(ctx, p, uc.redirectURL(), in.Code, verifier)
 	if err != nil {
-		return nil, fmt.Errorf("oidc provider discovery: %w", err)
-	}
-
-	cfg := uc.oauth2Config(p, prov.Endpoint())
-	exchangeOpts := []oauth2.AuthCodeOption{}
-	if p.UsePKCE && in.CodeVerifier != "" {
-		exchangeOpts = append(exchangeOpts, oauth2.SetAuthURLParam("code_verifier", in.CodeVerifier))
-	}
-
-	token, err := cfg.Exchange(ctx, in.Code, exchangeOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrCodeExchangeFailed, err)
-	}
-
-	rawIDToken, _ := token.Extra("id_token").(string)
-	if rawIDToken == "" {
-		return nil, fmt.Errorf("%w: no id_token in response", ErrIDTokenVerifyFailed)
-	}
-
-	idTokenVerifier := prov.Verifier(&oidc.Config{
-		ClientID:          p.EffectiveAudience(),
-		SkipClientIDCheck: p.SkipAudienceCheck,
-	})
-	idToken, err := idTokenVerifier.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrIDTokenVerifyFailed, err)
+		return domain.OIDCIDToken{}, err
 	}
 	// The nonce is mandatory: StartLogin always sets one, so an empty expected
 	// nonce here means a forged/replayed flow — fail closed rather than skip the
 	// id-token replay check.
 	if in.ExpectedNonce == "" || idToken.Nonce != in.ExpectedNonce {
-		return nil, fmt.Errorf("%w: nonce mismatch", ErrIDTokenVerifyFailed)
+		return domain.OIDCIDToken{}, fmt.Errorf("%w: nonce mismatch", ErrIDTokenVerifyFailed)
 	}
 	return idToken, nil
 }
@@ -307,18 +259,8 @@ func (uc *OIDCLogin) oidcProvisionAndLink(ctx context.Context, p domain.OIDCProv
 // Internals
 // ---------------------------------------------------------------------------
 
-func (uc *OIDCLogin) oauth2Config(p domain.OIDCProvider, endpoint oauth2.Endpoint) *oauth2.Config {
-	cfg := &oauth2.Config{
-		ClientID:     p.ClientID,
-		ClientSecret: p.ClientSecret,
-		Scopes:       slices.Clone(p.Scopes),
-		Endpoint:     endpoint,
-		RedirectURL:  strings.TrimRight(uc.RedirectBaseURL, "/") + "/auth/oidc/callback",
-	}
-	if !slices.Contains(cfg.Scopes, "openid") {
-		cfg.Scopes = append([]string{"openid"}, cfg.Scopes...)
-	}
-	return cfg
+func (uc *OIDCLogin) redirectURL() string {
+	return strings.TrimRight(uc.RedirectBaseURL, "/") + "/auth/oidc/callback"
 }
 
 // resolveUserForNewIdentity attaches a brand-new identity to an existing user
@@ -476,17 +418,3 @@ func truncate(s string, n int) string {
 	}
 	return s[:n]
 }
-
-// defaultVerifierFactory wraps coreos/go-oidc's real Provider.
-func defaultVerifierFactory(ctx context.Context, issuerURL string) (OIDCVerifier, error) {
-	p, err := oidc.NewProvider(ctx, issuerURL)
-	if err != nil {
-		return nil, err
-	}
-	return &realVerifier{p}, nil
-}
-
-type realVerifier struct{ p *oidc.Provider }
-
-func (r *realVerifier) Endpoint() oauth2.Endpoint                 { return r.p.Endpoint() }
-func (r *realVerifier) Verifier(cfg *oidc.Config) IDTokenVerifier { return r.p.Verifier(cfg) }
