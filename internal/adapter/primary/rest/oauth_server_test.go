@@ -1,4 +1,4 @@
-package main
+package rest
 
 import (
 	"context"
@@ -14,14 +14,14 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/opencairn-org/cairn-core/internal/config"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
+	"github.com/opencairn-org/cairn-core/internal/usecase/oauthserver"
 )
 
-// fakeDeviceStore is the OAuth repository slice the device grant touches.
-type fakeDeviceStore struct {
+// oauthFakeDeviceStore is the OAuth repository slice the device grant touches.
+type oauthFakeDeviceStore struct {
 	port.OAuthServerRepo
 	client domain.OAuthClient
 	codes  map[string]*domain.OAuthDeviceCode // by device-code hash
@@ -29,8 +29,8 @@ type fakeDeviceStore struct {
 	tokens int
 }
 
-func newFakeDeviceStore() *fakeDeviceStore {
-	return &fakeDeviceStore{
+func newOAuthFakeDeviceStore() *oauthFakeDeviceStore {
+	return &oauthFakeDeviceStore{
 		client: domain.OAuthClient{
 			ClientID: "cairn_dcr_tv", Name: "TV", Scopes: domain.ReadOnlyScopes,
 			GrantTypes: []string{"authorization_code", "refresh_token", domain.GrantTypeDeviceCode},
@@ -39,13 +39,13 @@ func newFakeDeviceStore() *fakeDeviceStore {
 	}
 }
 
-func (f *fakeDeviceStore) GetClient(_ context.Context, id string) (domain.OAuthClient, error) {
+func (f *oauthFakeDeviceStore) GetClient(_ context.Context, id string) (domain.OAuthClient, error) {
 	if id != f.client.ClientID {
 		return domain.OAuthClient{}, domain.ErrNotFound
 	}
 	return f.client, nil
 }
-func (f *fakeDeviceStore) CreateDeviceCode(_ context.Context, d domain.OAuthDeviceCode, hash []byte) error {
+func (f *oauthFakeDeviceStore) CreateDeviceCode(_ context.Context, d domain.OAuthDeviceCode, hash []byte) error {
 	if _, dup := f.byUser[d.UserCode]; dup {
 		return domain.ErrUnique
 	}
@@ -54,7 +54,7 @@ func (f *fakeDeviceStore) CreateDeviceCode(_ context.Context, d domain.OAuthDevi
 	f.byUser[d.UserCode] = string(hash)
 	return nil
 }
-func (f *fakeDeviceStore) PollDeviceCode(_ context.Context, hash []byte, now time.Time) (domain.OAuthDeviceCode, error) {
+func (f *oauthFakeDeviceStore) PollDeviceCode(_ context.Context, hash []byte, now time.Time) (domain.OAuthDeviceCode, error) {
 	d, ok := f.codes[string(hash)]
 	if !ok || d.ConsumedAt != nil {
 		return domain.OAuthDeviceCode{}, domain.ErrNotFound
@@ -63,7 +63,7 @@ func (f *fakeDeviceStore) PollDeviceCode(_ context.Context, hash []byte, now tim
 	d.LastPolledAt = &now
 	return out, nil
 }
-func (f *fakeDeviceStore) ConsumeDeviceCode(_ context.Context, hash []byte, now time.Time) (domain.OAuthDeviceCode, error) {
+func (f *oauthFakeDeviceStore) ConsumeDeviceCode(_ context.Context, hash []byte, now time.Time) (domain.OAuthDeviceCode, error) {
 	d, ok := f.codes[string(hash)]
 	if !ok || d.Status != domain.DeviceCodeApproved || d.ConsumedAt != nil || !now.Before(d.ExpiresAt) {
 		return domain.OAuthDeviceCode{}, domain.ErrNotFound
@@ -71,15 +71,15 @@ func (f *fakeDeviceStore) ConsumeDeviceCode(_ context.Context, hash []byte, now 
 	d.ConsumedAt = &now
 	return *d, nil
 }
-func (f *fakeDeviceStore) CreateAccessToken(context.Context, domain.OAuthAccessToken, []byte) error {
+func (f *oauthFakeDeviceStore) CreateAccessToken(context.Context, domain.OAuthAccessToken, []byte) error {
 	f.tokens++
 	return nil
 }
-func (f *fakeDeviceStore) CreateRefreshToken(context.Context, domain.OAuthRefreshToken, []byte) error {
+func (f *oauthFakeDeviceStore) CreateRefreshToken(context.Context, domain.OAuthRefreshToken, []byte) error {
 	return nil
 }
 
-func (f *fakeDeviceStore) decide(userCode string, approve bool, scope string) {
+func (f *oauthFakeDeviceStore) decide(userCode string, approve bool, scope string) {
 	d := f.codes[f.byUser[userCode]]
 	uid := domain.UserID(uuid.New())
 	d.UserID, d.GrantedScope = &uid, scope
@@ -90,18 +90,19 @@ func (f *fakeDeviceStore) decide(userCode string, approve bool, scope string) {
 	}
 }
 
-func newDeviceTestServer(store *fakeDeviceStore) *oauthServer {
-	return &oauthServer{
-		oauth: store, devices: &account.DeviceAuthorizations{OAuth: store},
-		log: slog.New(slog.NewTextHandler(io.Discard, nil)), baseURL: "https://cairn.test",
-		auth: config.AuthConfig{
-			OAuthAccessTokenTTL: time.Hour, OAuthRefreshTokenTTL: time.Hour,
-			OAuthDeviceCodeTTL: 10 * time.Minute, OAuthDevicePollInterval: 5 * time.Second,
-		},
+func newOAuthDeviceTestHandlers(store *oauthFakeDeviceStore) *OAuthServerHandlers {
+	return &OAuthServerHandlers{
+		Auth: &Auth{},
+		Server: &oauthserver.Server{Repo: store, Config: oauthserver.Config{
+			AccessTokenTTL: time.Hour, RefreshTokenTTL: time.Hour,
+			DeviceCodeTTL: 10 * time.Minute, DevicePollInterval: 5 * time.Second,
+		}},
+		Devices: &account.DeviceAuthorizations{OAuth: store},
+		Log:     slog.New(slog.NewTextHandler(io.Discard, nil)), BaseURL: "https://cairn.test",
 	}
 }
 
-func postForm(t *testing.T, h http.HandlerFunc, path string, form url.Values) (int, map[string]any) {
+func oauthPostForm(t *testing.T, h http.HandlerFunc, path string, form url.Values) (int, map[string]any) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -112,18 +113,18 @@ func postForm(t *testing.T, h http.HandlerFunc, path string, form url.Values) (i
 	return rec.Code, body
 }
 
-func TestDeviceAuthorizationGrant(t *testing.T) {
-	store := newFakeDeviceStore()
-	s := newDeviceTestServer(store)
+func TestOAuthDeviceAuthorizationGrant(t *testing.T) {
+	store := newOAuthFakeDeviceStore()
+	s := newOAuthDeviceTestHandlers(store)
 	form := url.Values{"client_id": {"cairn_dcr_tv"}, "scope": {"activities:read profile:write"}}
 
-	code, body := postForm(t, s.deviceAuthorization, "/oauth/device_authorization", form)
+	code, body := oauthPostForm(t, s.deviceAuthorization, "/oauth/device_authorization", form)
 	if code != http.StatusOK {
 		t.Fatalf("device_authorization: %d %v", code, body)
 	}
 	userCode, _ := body["user_code"].(string)
 	deviceCode, _ := body["device_code"].(string)
-	if len(userCode) != 9 || userCode[4] != '-' || !strings.HasPrefix(deviceCode, oauthDeviceCodePrefix) {
+	if len(userCode) != 9 || userCode[4] != '-' || !strings.HasPrefix(deviceCode, domain.OAuthDeviceCodePrefix) {
 		t.Fatalf("codes: %q %q", userCode, deviceCode)
 	}
 	if body["verification_uri"] != "https://cairn.test/oauth/device" || body["interval"].(float64) != 5 || body["expires_in"].(float64) != 600 {
@@ -139,62 +140,74 @@ func TestDeviceAuthorizationGrant(t *testing.T) {
 	}
 
 	poll := url.Values{"grant_type": {domain.GrantTypeDeviceCode}, "client_id": {"cairn_dcr_tv"}, "device_code": {deviceCode}}
-	if code, body := postForm(t, s.token, "/oauth/token", poll); code != http.StatusBadRequest || body["error"] != "authorization_pending" {
+	if code, body := oauthPostForm(t, s.token, "/oauth/token", poll); code != http.StatusBadRequest || body["error"] != "authorization_pending" {
 		t.Fatalf("pending: %d %v", code, body)
 	}
 	// Polling again within the interval is slowed down.
-	if _, body := postForm(t, s.token, "/oauth/token", poll); body["error"] != "slow_down" {
+	if _, body := oauthPostForm(t, s.token, "/oauth/token", poll); body["error"] != "slow_down" {
 		t.Fatalf("slow_down: %v", body)
 	}
 	stored.LastPolledAt = nil
 	store.decide(strings.ReplaceAll(userCode, "-", ""), true, "activities:read")
-	code, body = postForm(t, s.token, "/oauth/token", poll)
-	if code != http.StatusOK || !strings.HasPrefix(body["access_token"].(string), oauthAccessTokenPrefix) || body["scope"] != "activities:read" || store.tokens != 1 {
+	code, body = oauthPostForm(t, s.token, "/oauth/token", poll)
+	if code != http.StatusOK || !strings.HasPrefix(body["access_token"].(string), domain.OAuthAccessTokenPrefix) || body["scope"] != "activities:read" || store.tokens != 1 {
 		t.Fatalf("approved: %d %v", code, body)
 	}
 	// An approval issues tokens once.
-	if _, body := postForm(t, s.token, "/oauth/token", poll); body["error"] != "invalid_grant" {
+	if _, body := oauthPostForm(t, s.token, "/oauth/token", poll); body["error"] != "invalid_grant" {
 		t.Fatalf("replay: %v", body)
 	}
 }
 
-func TestDeviceAuthorizationRefusals(t *testing.T) {
-	store := newFakeDeviceStore()
-	s := newDeviceTestServer(store)
-	if _, body := postForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"nope"}}); body["error"] != "invalid_client" {
-		t.Fatalf("unknown client: %v", body)
+func TestOAuthDeviceAuthorizationRefusals(t *testing.T) {
+	store := newOAuthFakeDeviceStore()
+	s := newOAuthDeviceTestHandlers(store)
+	if code, body := oauthPostForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"nope"}}); code != http.StatusUnauthorized || body["error"] != "invalid_client" {
+		t.Fatalf("unknown client: %d %v", code, body)
 	}
 	store.client.GrantTypes = []string{"authorization_code"}
-	if _, body := postForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"cairn_dcr_tv"}}); body["error"] != "unauthorized_client" {
+	if _, body := oauthPostForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"cairn_dcr_tv"}}); body["error"] != "unauthorized_client" {
 		t.Fatalf("grant not allowed: %v", body)
 	}
 	store.client.GrantTypes = []string{domain.GrantTypeDeviceCode}
-	_, body := postForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"cairn_dcr_tv"}})
+	_, body := oauthPostForm(t, s.deviceAuthorization, "/oauth/device_authorization", url.Values{"client_id": {"cairn_dcr_tv"}})
 	deviceCode := body["device_code"].(string)
 	userCode := strings.ReplaceAll(body["user_code"].(string), "-", "")
 	poll := url.Values{"grant_type": {domain.GrantTypeDeviceCode}, "client_id": {"cairn_dcr_tv"}, "device_code": {deviceCode}}
 
 	store.decide(userCode, false, "")
-	if _, body := postForm(t, s.token, "/oauth/token", poll); body["error"] != "access_denied" {
+	if _, body := oauthPostForm(t, s.token, "/oauth/token", poll); body["error"] != "access_denied" {
 		t.Fatalf("denied: %v", body)
 	}
 	store.codes[store.byUser[userCode]].LastPolledAt = nil
 	store.codes[store.byUser[userCode]].ExpiresAt = time.Now().Add(-time.Second)
-	if _, body := postForm(t, s.token, "/oauth/token", poll); body["error"] != "expired_token" {
+	if _, body := oauthPostForm(t, s.token, "/oauth/token", poll); body["error"] != "expired_token" {
 		t.Fatalf("expired: %v", body)
 	}
-	if _, body := postForm(t, s.token, "/oauth/token", url.Values{"grant_type": {domain.GrantTypeDeviceCode}, "client_id": {"cairn_dcr_tv"}, "device_code": {"cairn_dc_unknown"}}); body["error"] != "invalid_grant" {
+	if _, body := oauthPostForm(t, s.token, "/oauth/token", url.Values{"grant_type": {domain.GrantTypeDeviceCode}, "client_id": {"cairn_dcr_tv"}, "device_code": {"cairn_dc_unknown"}}); body["error"] != "invalid_grant" {
 		t.Fatalf("unknown code: %v", body)
 	}
 }
 
-func TestDeviceVerificationRefusesOAuthTokens(t *testing.T) {
-	s := newDeviceTestServer(newFakeDeviceStore())
+func TestOAuthDeviceVerificationRefusesOAuthTokens(t *testing.T) {
+	s := newOAuthDeviceTestHandlers(newOAuthFakeDeviceStore())
 	req := httptest.NewRequest(http.MethodGet, "/oauth/device/info?user_code=1234-5678", nil)
 	req.Header.Set("Authorization", "Bearer cairn_at_x")
 	rec := httptest.NewRecorder()
 	s.deviceInfo(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("oauth token on the browser endpoint: %d", rec.Code)
+	}
+}
+
+func TestOAuthDeviceEndpointsRateLimited(t *testing.T) {
+	s := newOAuthDeviceTestHandlers(newOAuthFakeDeviceStore())
+	s.DeviceLimit = func(string) bool { return false }
+	mux := http.NewServeMux()
+	s.Mount(mux)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/oauth/device_authorization", nil))
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "10" {
+		t.Fatalf("limited: %d", rec.Code)
 	}
 }

@@ -282,9 +282,9 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 
 	// OAuth 2.1 authorization server (native apps, third-party clients, MCP).
 	if cfg.Auth.OAuthEnabled {
-		mountOAuthServer(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
+		mountRestOAuthServer(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
 		// MCP server (read-only, OAuth-protected) — depends on the AS.
-		mountMCP(mux, app, logger, cfg.HTTP.PublicBaseURL)
+		mountRestMCP(mux, app, logger, cfg.HTTP.PublicBaseURL, cfg.Auth)
 	}
 }
 
@@ -299,15 +299,14 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	// Per-user provider config + OAuth account-connect. Credentials are
 	// per-user (each user brings their own OAuth app via the Connections UI);
 	// there is no instance-global OAuth credential.
-	mountOAuthConnect(mux, app, logger, cfg.HTTP.PublicBaseURL)
+	mountRestConnections(mux, app, logger, cfg.HTTP.PublicBaseURL)
 
 	// Owner dashboards: overview, stats, analysis, feed, heatmap, records, review queue.
 	mountRestDash(mux, app, logger)
 
 	// Segment library, authoring, leaderboards and an activity's efforts.
 	mountRestSegments(mux, app, logger)
-	mountGarminConnect(mux, app)
-	mountGearSync(mux, app, logger)
+	mountRestAccountJobs(mux, app, logger)
 	mountRestHealthMetrics(mux, app, logger)
 	mountRestInstanceFeatures(mux, cfg, logger)
 	serveMountSocial(mux, app, logger)
