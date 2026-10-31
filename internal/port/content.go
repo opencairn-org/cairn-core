@@ -16,7 +16,7 @@ type ContentURL struct {
 }
 
 // ContentSigner mints the URLs under which binary content (photos, static
-// maps, exports) is delivered. Implemented in package main: a stored object
+// maps, exports) is delivered. Implemented by usecase/content: a stored object
 // is presigned on the public object-store endpoint when one is configured,
 // otherwise (and always for content rendered on demand) the URL points at the
 // server's own signed /content/{token} route.

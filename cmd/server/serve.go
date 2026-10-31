@@ -299,8 +299,8 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 	mountManualActivityEndpoint(mux, app, logger)
 	// Source fields/route from another activity — POST /api/activities/{id}/source-from.
 	mountSourceFromEndpoint(mux, app, logger)
-	// Activity attachments (photos) — /api/activities/{id}/attachments.
-	mountAttachmentEndpoints(mux, app, logger)
+	// Activity detail reads, exports, course image and photos.
+	mountDetail(mux, app, cfg, logger)
 
 	// Per-user provider config + OAuth account-connect. Credentials are
 	// per-user (each user brings their own OAuth app via the Connections UI);
@@ -316,21 +316,15 @@ func serveMountFeatures(mux *http.ServeMux, app *App, cfg *config.Config, logger
 
 	// Segment library, authoring, leaderboards and an activity's efforts.
 	mountRestSegments(mux, app, logger)
-	mountZones(mux, app, logger)
-	mountLaps(mux, app, logger)
 	mountActivitySources(mux, app, logger)
 	mountSourcePreviews(mux, app, logger)
 	mountGarminConnect(mux, app)
 	mountGearSync(mux, app, logger)
 	mountMergeOverrides(mux, app, logger)
 	mountMergePolicy(mux, app, logger)
-	mountMergedStream(mux, app)
 	mountHealth(mux, app, logger)
 	mountActivityManage(mux, app, logger)
-	mountActivityExport(mux, app, logger)
-	mountActivityMapImage(mux, app, cfg.Map, logger)
 	mountInstanceFeatures(mux, cfg, logger)
-	mountActivitySimilar(mux, app, logger)
 	serveMountSocial(mux, app, logger)
 }
 
