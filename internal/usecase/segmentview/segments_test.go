@@ -1,4 +1,4 @@
-package view
+package segmentview
 
 import (
 	"context"
@@ -10,7 +10,19 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
+
+var vNow = time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC)
+
+type fakeFollows struct {
+	port.FollowRepo
+	following map[domain.UserID]map[domain.UserID]bool
+}
+
+func (f *fakeFollows) IsFollowing(_ context.Context, a, b domain.UserID) (bool, error) {
+	return f.following[a][b], nil
+}
 
 type fakeSegBrowse struct {
 	port.SegmentReader
@@ -80,7 +92,7 @@ func TestSegmentsEffortsAndLeaderboardScope(t *testing.T) {
 		},
 	}
 	follows := &fakeFollows{following: map[domain.UserID]map[domain.UserID]bool{viewer: {friend: true}}}
-	s := NewSegments(f, NewVisibility(nil, follows, &openPolicies{open: map[domain.UserID]bool{other: true}}))
+	s := NewSegments(f, view.NewVisibility(nil, follows, &openPolicies{open: map[domain.UserID]bool{other: true}}))
 
 	// Private: efforts are pinned to the viewer and the board is just them.
 	if got, err := s.Efforts(t.Context(), viewer, segID, domain.SegmentEffortQuery{}); err != nil || f.gotQ.UserID == nil || *f.gotQ.UserID != viewer || len(got) != 1 {

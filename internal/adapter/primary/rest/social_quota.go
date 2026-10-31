@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 	"github.com/opencairn-org/cairn-core/internal/usecase/useradmin"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // QuotaHandlers serve the caller's quota usage and the admin per-user override.
@@ -14,7 +14,7 @@ import (
 //	PUT /api/admin/users/{id}/quota  admin: set/clear per-user override
 type QuotaHandlers struct {
 	Auth      *Auth
-	Quota     *view.Quota
+	Quota     *quota.Policy
 	UserAdmin *useradmin.Users
 }
 

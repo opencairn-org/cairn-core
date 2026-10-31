@@ -28,11 +28,13 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/account"
 	accountsuc "github.com/opencairn-org/cairn-core/internal/usecase/accounts"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/admin"
 	attachmentuc "github.com/opencairn-org/cairn-core/internal/usecase/attachment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/audit"
 	authuc "github.com/opencairn-org/cairn-core/internal/usecase/auth"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	"github.com/opencairn-org/cairn-core/internal/usecase/enrollment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/fleet"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
@@ -47,8 +49,11 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/moderation"
 	"github.com/opencairn-org/cairn-core/internal/usecase/notification"
 	"github.com/opencairn-org/cairn-core/internal/usecase/pipeline"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segmentrank"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 	"github.com/opencairn-org/cairn-core/internal/usecase/sharing"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
 	"github.com/opencairn-org/cairn-core/internal/usecase/trainingload"
@@ -157,20 +162,20 @@ type App struct {
 	ActivityEditor          *activity.Editor
 	SourceLinks             *matchuc.SourceLinks
 	Visibility2             *view.Visibility // shared visibility resolver (REST + Connect)
-	Exports                 *view.Exports
-	Overviews               *view.Overviews
-	Searches                *view.Searches
+	Exports                 *activityexport.Exports
+	Overviews               *dashboard.Overviews
+	Searches                *dashboard.Searches
 	Feeds                   *view.Feeds
 	Details                 *view.Details
-	Stats                   *view.Stats
-	SegmentViews            *view.Segments
-	HealthViews             *view.Health
+	Stats                   *dashboard.Stats
+	SegmentViews            *segmentview.Segments
+	HealthViews             *dashboard.Health
 	MetricStore             *metricsuc.Store
-	Accounts                *view.Accounts
+	Accounts                *providerlink.Accounts
 	AccountRemover          *accountsuc.Remover
 	ClubViews               *view.Clubs
 	ProfileViews            *view.Profiles
-	QuotaViews              *view.Quota
+	QuotaViews              *quota.Policy
 	NotificationPreferences *notification.Preferences
 	AttachmentVariants      *attachmentuc.Variants
 	// ActivityEvents is the per-user live feed behind StreamActivityEvents.
@@ -813,9 +818,9 @@ func wireAppGeocoder(app *App, cfg *config.Config, logger *slog.Logger) {
 // wireAppViews builds the read-side use cases REST and Connect both render from.
 func wireAppViews(app *App, logger *slog.Logger) {
 	app.Visibility2 = view.NewVisibility(app.Blocks, app.Follows, app.Visibility)
-	app.Exports = view.NewExports(app.Streams)
-	app.Overviews = view.NewOverviews(app.Activities, nil)
-	app.Searches = view.NewSearches(app.Activities, app.Gear)
+	app.Exports = activityexport.NewExports(app.Streams)
+	app.Overviews = dashboard.NewOverviews(app.Activities, nil)
+	app.Searches = dashboard.NewSearches(app.Activities, app.Gear)
 	var fedFeed port.FederationFeedRepo
 	if app.FederationFeed != nil {
 		fedFeed = app.FederationFeed
@@ -829,9 +834,9 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	if app.BestEfforts != nil {
 		bestEfforts = app.BestEfforts
 	}
-	app.Stats = view.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
-	app.SegmentViews = view.NewSegments(nilIfNilSegments(app), app.Visibility2)
-	app.HealthViews = view.NewHealth(app.Health, nil)
+	app.Stats = dashboard.NewStats(app.Activities, metrics, bestEfforts, app.Streams, nil)
+	app.SegmentViews = segmentview.NewSegments(nilIfNilSegments(app), app.Visibility2)
+	app.HealthViews = dashboard.NewHealth(app.Health, nil)
 	if app.Metrics != nil {
 		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}
 		if app.AthleteProfiles != nil {
@@ -857,7 +862,7 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.ClubViews = view.NewClubs(clubs, app.Users, app.Feeds)
 	app.ProfileViews = view.NewProfiles(app.Users, app.Activities, app.Follows, app.Blocks, app.Visibility2)
 	wireUserViews(app)
-	app.Accounts = view.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
+	app.Accounts = providerlink.NewAccounts(app.ExternalAccounts, app.Activities, queue, events, conns, syncInsight{app: app, logger: logger}, nil)
 	app.Details = view.NewDetails(app.Activities, app.Streams, nilIfNilSegments(app), app.AthleteProfiles, nilIfNilEngagement(app),
 		app.Users, app.FieldOverrides, workerPresence{app: app, logger: logger}, app.Visibility2)
 }
@@ -1145,7 +1150,7 @@ func wireUserViews(app *App) {
 	if app.Quotas != nil {
 		quotas = app.Quotas
 	}
-	app.QuotaViews = view.NewQuota(app.Activities, quotas, app.QuotaMaxActivities)
+	app.QuotaViews = quota.NewPolicy(app.Activities, quotas, app.QuotaMaxActivities)
 	app.NotificationPreferences = &notification.Preferences{}
 	if app.NotificationPrefs != nil {
 		app.NotificationPreferences.Repo = app.NotificationPrefs

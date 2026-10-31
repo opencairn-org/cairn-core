@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 )
 
 // HealthMetricsHandlers serve merged daily health metrics (per-provider
@@ -14,7 +14,7 @@ import (
 //	GET /api/health?type=HRV&days=90
 type HealthMetricsHandlers struct {
 	Auth   *Auth
-	Health *view.Health
+	Health *dashboard.Health
 	Log    *slog.Logger
 }
 

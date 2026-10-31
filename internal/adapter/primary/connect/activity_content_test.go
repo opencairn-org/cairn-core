@@ -11,6 +11,7 @@ import (
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
@@ -49,7 +50,7 @@ func contentFixture(t *testing.T) (*actFixture, domain.ActivityID) {
 		{ID: domain.AttachmentID(uuid.New()), ActivityID: aid, BlobID: "attachments/a/2", ContentType: "image/jpeg", CreatedAt: actNow}, // no variants yet
 	}}}
 	f.srv.Visibility = view.NewVisibility(nil, nil, nil)
-	f.srv.Exports = view.NewExports(&fakeStreams{samples: []domain.StreamSample{
+	f.srv.Exports = activityexport.NewExports(&fakeStreams{samples: []domain.StreamSample{
 		{Timestamp: actNow, Latitude: f64(49.0), Longitude: f64(8.0), HeartRateBpm: new(int16)},
 		{Timestamp: actNow.Add(time.Second), Latitude: f64(49.001), Longitude: f64(8.001)},
 	}})

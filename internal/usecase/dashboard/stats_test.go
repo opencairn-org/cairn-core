@@ -1,4 +1,4 @@
-package view
+package dashboard
 
 import (
 	"context"
@@ -74,8 +74,8 @@ func (f *fakeHealthRepo) ListSamples(context.Context, domain.UserID, capability.
 func TestStatsGetAndTrainingLoad(t *testing.T) {
 	repo := inmem.NewActivityRepo()
 	user := domain.UserID(uuid.New())
-	addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-time.Hour), 50000, domain.PrivacyPrivate)
-	addActivity(repo, user, domain.ActivityTypeRun, vNow.Add(-400*24*time.Hour), 10000, domain.PrivacyPrivate)
+	addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-time.Hour), 50000)
+	addActivity(repo, user, domain.ActivityTypeRun, vNow.Add(-400*24*time.Hour), 10000)
 	v := 42.0
 	metrics := &fakeMetrics{rows: []domain.Metric{
 		{Key: domain.MetricKeyTrainingLoadCTL, Timestamp: vNow.Add(-24 * time.Hour), ValueNumeric: &v},
@@ -118,12 +118,12 @@ func TestStatsBestEffortHistory(t *testing.T) {
 func TestStatsHeatmap(t *testing.T) {
 	repo := inmem.NewActivityRepo()
 	user := domain.UserID(uuid.New())
-	withTrack := addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-time.Hour), 1000, domain.PrivacyPrivate)
+	withTrack := addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-time.Hour), 1000)
 	sid := domain.SourceID(uuid.New())
 	a := repo.Activities[withTrack]
 	a.PrimaryStreamSourceID = &sid
 	repo.Activities[withTrack] = a
-	addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-2*time.Hour), 1000, domain.PrivacyPrivate) // no stream
+	addActivity(repo, user, domain.ActivityTypeRide, vNow.Add(-2*time.Hour), 1000) // no stream
 	geo := &fakeGeo{tracks: map[domain.SourceID][]domain.GeoPoint{sid: {{Lat: 49, Lon: 8}, {Lat: 49.1, Lon: 8.1}}}}
 	hm, err := NewStats(repo, nil, nil, geo, nil).Heatmap(context.Background(), user, port.ActivityListFilter{}, domain.StreamResolution30s)
 	if err != nil || hm.Matched != 2 || len(hm.Tracks) != 1 || hm.Tracks[0].Activity.ID != withTrack || hm.Truncated {

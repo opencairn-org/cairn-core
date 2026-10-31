@@ -11,6 +11,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
@@ -36,7 +37,7 @@ import (
 //	POST   /api/activities/{id}/rematch-segments
 type SegmentHandlers struct {
 	Auth  *Auth
-	Views *view.Segments
+	Views *segmentview.Segments
 	// Authoring enables the write routes; nil leaves them unmounted.
 	Authoring  *segment.Authoring
 	Details    *view.Details
@@ -177,7 +178,7 @@ func (h *SegmentHandlers) browse(w http.ResponseWriter, r *http.Request) {
 		Sources: segCSV[domain.SegmentSource](q.Get("sources")), Scopes: segCSV[domain.SegmentScope](q.Get("scopes")),
 		ActivityTypes: segCSV[domain.ActivityType](q.Get("types")), OnlyWithEfforts: q.Get("with_efforts") == "true",
 		OnlyStarred: q.Get("starred") == "true", Query: q.Get("q"), Sort: domain.SegmentSort(q.Get("sort")),
-		Limit: parseIntQuery(r, "limit", view.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0),
+		Limit: parseIntQuery(r, "limit", segmentview.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0),
 	}
 	segs, total, err := h.Views.List(r.Context(), userID, f)
 	if err != nil {
@@ -224,7 +225,7 @@ func (h *SegmentHandlers) efforts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	eq := domain.SegmentEffortQuery{FastestFirst: q.Get("sort") == "fastest", Limit: parseIntQuery(r, "limit", view.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0)}
+	eq := domain.SegmentEffortQuery{FastestFirst: q.Get("sort") == "fastest", Limit: parseIntQuery(r, "limit", segmentview.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0)}
 	eq.From, eq.To = segTime(q.Get("from")), segTime(q.Get("to"))
 	if raw := q.Get("user_id"); raw != "" {
 		u, err := domain.ParseUUID[domain.UserID](raw)
@@ -252,7 +253,7 @@ func (h *SegmentHandlers) leaderboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	lq := domain.LeaderboardQuery{Limit: parseIntQuery(r, "limit", view.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0)}
+	lq := domain.LeaderboardQuery{Limit: parseIntQuery(r, "limit", segmentview.SegmentsDefaultLimit), Offset: parseIntQuery(r, "offset", 0)}
 	lq.From, lq.To = segTime(q.Get("from")), segTime(q.Get("to"))
 	entries, mine, err := h.Views.Leaderboard(r.Context(), userID, id, lq)
 	if err != nil {

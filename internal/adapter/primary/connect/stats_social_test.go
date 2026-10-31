@@ -12,6 +12,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/inmem"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
@@ -38,7 +39,7 @@ func seedPlain(r *inmem.ActivityRepo, user domain.UserID, t domain.ActivityType,
 
 func TestSearchActivities(t *testing.T) {
 	f := newActFixture(t)
-	f.srv.Searches = view.NewSearches(f.repo, nil)
+	f.srv.Searches = dashboard.NewSearches(f.repo, nil)
 	for i := range 3 {
 		seedPlain(f.repo, f.user, domain.ActivityTypeRide, actNow.Add(-time.Duration(i)*time.Hour), domain.PrivacyPrivate)
 	}
@@ -97,7 +98,7 @@ func TestGetOverview(t *testing.T) {
 	a := repo.Activities[id]
 	a.PrimaryStreamSourceID = &sid
 	repo.Activities[id] = a
-	s := NewStatsServer(view.NewOverviews(repo, func() time.Time { return actNow }), &fakeContent{}, nil, func(domain.Activity) string { return "e" })
+	s := NewStatsServer(dashboard.NewOverviews(repo, func() time.Time { return actNow }), &fakeContent{}, nil, func(domain.Activity) string { return "e" })
 	ctx := context.WithValue(t.Context(), ctxKeyUserID, user)
 	res, err := s.GetOverview(ctx, &v1.GetOverviewRequest{})
 	if err != nil {

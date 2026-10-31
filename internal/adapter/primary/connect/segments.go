@@ -13,7 +13,7 @@ import (
 	"github.com/opencairn-org/cairn-core/gen/proto/cairn/v1/cairnv1connect"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	segmentuc "github.com/opencairn-org/cairn-core/internal/usecase/segment"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/segmentview"
 )
 
 // SegmentServer implements cairnv1connect.SegmentServiceHandler: the
@@ -21,7 +21,7 @@ import (
 type SegmentServer struct {
 	cairnv1connect.UnimplementedSegmentServiceHandler
 
-	Segments *view.Segments
+	Segments *segmentview.Segments
 	// Authoring backs Create/Update/Delete/RematchActivity; Backfill
 	// (optional) starts the background rematch and returns its job id.
 	Authoring *segmentuc.Authoring
@@ -31,11 +31,11 @@ type SegmentServer struct {
 var _ cairnv1connect.SegmentServiceHandler = (*SegmentServer)(nil)
 
 // NewSegmentServer wires the server.
-func NewSegmentServer(segments *view.Segments) *SegmentServer {
+func NewSegmentServer(segments *segmentview.Segments) *SegmentServer {
 	return &SegmentServer{Segments: segments}
 }
 
-func (s *SegmentServer) segments() (*view.Segments, error) {
+func (s *SegmentServer) segments() (*segmentview.Segments, error) {
 	if s.Segments == nil {
 		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "segments are not available on this instance")
 	}

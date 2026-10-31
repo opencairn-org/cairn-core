@@ -18,6 +18,16 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/usecase/invite"
 )
 
+// UserCreator provisions an account; admin.CreateUser satisfies it.
+type UserCreator interface {
+	Execute(ctx context.Context, in admin.CreateUserInput) (admin.CreateUserResult, error)
+}
+
+// InviteCreator mints an invite; invite.CreateInvite satisfies it.
+type InviteCreator interface {
+	Execute(ctx context.Context, in invite.CreateInviteInput) (invite.CreateInviteResult, error)
+}
+
 // Users is the admin user management behind AdminService and
 // /api/admin/users: every action is audited and refuses to leave the
 // instance without an active admin.
@@ -29,8 +39,8 @@ type Users struct {
 	Identities       port.LinkedIdentityRepo
 	Activities       port.ActivityAdminStats
 	ExternalAccounts port.ExternalAccountRepo
-	Create           *admin.CreateUser
-	Invites          *invite.CreateInvite
+	Create           UserCreator
+	Invites          InviteCreator
 	Hasher           interface {
 		Hash(password string) (string, error)
 	}

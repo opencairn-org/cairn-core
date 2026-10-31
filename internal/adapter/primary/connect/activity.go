@@ -30,7 +30,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/besteffort"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
 	matchuc "github.com/opencairn-org/cairn-core/internal/usecase/match"
 	"github.com/opencairn-org/cairn-core/internal/usecase/view"
@@ -97,8 +99,8 @@ type ActivityServer struct {
 	Content     port.ContentSigner
 	Attachments port.AttachmentRepo
 	Visibility  *view.Visibility
-	Exports     *view.Exports
-	Searches    *view.Searches
+	Exports     *activityexport.Exports
+	Searches    *dashboard.Searches
 	Details     *view.Details
 	MapETag     func(domain.Activity) string
 }

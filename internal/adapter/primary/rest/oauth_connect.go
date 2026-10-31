@@ -11,7 +11,6 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // Cookies carrying the connect round-trip's state across the provider.
@@ -34,7 +33,7 @@ const (
 type ConnectionHandlers struct {
 	Auth        *Auth
 	Connections *providerlink.Connections
-	Accounts    *view.Accounts
+	Accounts    *providerlink.Accounts
 	Log         *slog.Logger
 	// PublicURL is the instance's external base URL.
 	PublicURL string

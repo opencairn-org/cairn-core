@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 	syncuc "github.com/opencairn-org/cairn-core/internal/usecase/sync"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
 )
 
 // SyncHandlers serve a user's provider connections: status, full sync,
@@ -32,7 +32,7 @@ import (
 //	POST /api/accounts/{id}/queue/items/{itemID}/move-to-top    claim next
 type SyncHandlers struct {
 	Auth     *Auth
-	Accounts *view.Accounts
+	Accounts *providerlink.Accounts
 	Imports  *syncuc.Imports
 	// DefaultPollSeconds is the instance reconcile cadence, shown next to the override.
 	DefaultPollSeconds int
@@ -113,7 +113,7 @@ func syncQueueJSON(c map[domain.ImportItemStatus]int) map[string]int {
 }
 
 // syncAccountRowJSON renders one account with its sync status.
-func syncAccountRowJSON(row view.AccountRow) map[string]any {
+func syncAccountRowJSON(row providerlink.AccountRow) map[string]any {
 	a := row.Account
 	var connectionID any
 	if a.ConnectionID != nil {
@@ -325,7 +325,7 @@ func (h *SyncHandlers) history(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }
 
-func syncHistoryEventJSON(row view.SyncEventRow) map[string]any {
+func syncHistoryEventJSON(row providerlink.SyncEventRow) map[string]any {
 	e := row.Event
 	ev := map[string]any{
 		"kind":        e.Kind,
@@ -394,7 +394,7 @@ func (h *SyncHandlers) queueItems(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-func syncQueueItemJSON(r view.QueueItemRow) map[string]any {
+func syncQueueItemJSON(r providerlink.QueueItemRow) map[string]any {
 	it := r.Item
 	row := map[string]any{
 		"id":          it.ID.String(),

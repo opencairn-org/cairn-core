@@ -1,4 +1,4 @@
-package view
+package providerlink
 
 import (
 	"context"
@@ -13,12 +13,12 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-type fakeAccounts struct {
+type fakeAccountReads struct {
 	port.ExternalAccountRepo
 	accts []domain.ExternalAccount
 }
 
-func (f *fakeAccounts) ListAccountsForUser(_ context.Context, uid domain.UserID) ([]domain.ExternalAccount, error) {
+func (f *fakeAccountReads) ListAccountsForUser(_ context.Context, uid domain.UserID) ([]domain.ExternalAccount, error) {
 	var out []domain.ExternalAccount
 	for _, a := range f.accts {
 		if a.UserID == uid {
@@ -27,7 +27,7 @@ func (f *fakeAccounts) ListAccountsForUser(_ context.Context, uid domain.UserID)
 	}
 	return out, nil
 }
-func (f *fakeAccounts) GetExternalAccount(_ context.Context, id domain.ExternalAccountID) (domain.ExternalAccount, error) {
+func (f *fakeAccountReads) GetExternalAccount(_ context.Context, id domain.ExternalAccountID) (domain.ExternalAccount, error) {
 	for _, a := range f.accts {
 		if a.ID == id {
 			return a, nil
@@ -106,6 +106,8 @@ func (f *fakeConns) ListForUser(context.Context, domain.UserID) ([]domain.UserPr
 	return f.conns, nil
 }
 
+var vNow = time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC)
+
 // outOfDateRepo adds the account-scoped counts the inmem repo lacks.
 type outOfDateRepo struct {
 	*inmem.ActivityRepo
@@ -134,7 +136,7 @@ func TestAccountsListAndOwned(t *testing.T) {
 	repo := &outOfDateRepo{ActivityRepo: inmem.NewActivityRepo()}
 	queue := &fakeQueue{items: []domain.ImportQueueItem{{Status: domain.ImportStatusPending}, {Status: domain.ImportStatusDone}, {Status: domain.ImportStatusDone}}}
 	insight := &fakeInsight{budget: domain.RateBudget{Short: &domain.BudgetWindow{Used: 10, Limit: 100, ResetsAt: vNow.Add(time.Hour)}}}
-	a := NewAccounts(&fakeAccounts{accts: []domain.ExternalAccount{acct, other}}, repo, queue, nil, nil, insight, func() time.Time { return vNow })
+	a := NewAccounts(&fakeAccountReads{accts: []domain.ExternalAccount{acct, other}}, repo, queue, nil, nil, insight, func() time.Time { return vNow })
 
 	rows, err := a.List(context.Background(), user)
 	if err != nil || len(rows) != 1 {
@@ -167,7 +169,7 @@ func TestAccountsHistoryQueueConnections(t *testing.T) {
 	}}
 	queue := &fakeQueue{items: []domain.ImportQueueItem{{ExternalID: "1", Status: domain.ImportStatusPending}, {ExternalID: "2", Status: domain.ImportStatusDone}}}
 	conns := &fakeConns{conns: []domain.UserProviderConfig{{Provider: "strava", Label: "main"}, {Provider: "unknown"}}}
-	a := NewAccounts(&fakeAccounts{accts: []domain.ExternalAccount{acct}}, repo, queue, events, conns, &fakeInsight{}, nil)
+	a := NewAccounts(&fakeAccountReads{accts: []domain.ExternalAccount{acct}}, repo, queue, events, conns, &fakeInsight{}, nil)
 
 	hist, err := a.History(context.Background(), acct, 0)
 	if err != nil || len(hist) != 3 {

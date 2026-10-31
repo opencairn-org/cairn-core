@@ -14,6 +14,7 @@ import (
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
+	"github.com/opencairn-org/cairn-core/internal/usecase/activityexport"
 	"github.com/opencairn-org/cairn-core/internal/usecase/attachment"
 	"github.com/opencairn-org/cairn-core/internal/usecase/content"
 	"github.com/opencairn-org/cairn-core/internal/usecase/mapimage"
@@ -306,7 +307,7 @@ type ContentHandlers struct {
 	Signer  *content.Signer
 	Access  *view.ActivityAccess
 	Images  *mapimage.Images
-	Exports *view.Exports
+	Exports *activityexport.Exports
 	Log     *slog.Logger
 }
 

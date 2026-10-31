@@ -12,7 +12,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	gearuc "github.com/opencairn-org/cairn-core/internal/usecase/gear"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/quota"
 )
 
 // fakeIngester records calls; IngestManual seeds a one-source activity.
@@ -54,7 +54,7 @@ func newImportsFixture(maxActivities int) *importsFixture {
 	repo := inmem.NewActivityRepo()
 	f := &importsFixture{repo: repo, ing: &fakeIngester{repo: repo}, gear: inmem.NewGearRepo(), user: domain.UserID(uuid.New())}
 	f.uc = &Imports{
-		Quota: view.NewQuota(repo, nil, maxActivities), Ingest: f.ing,
+		Quota: quota.NewPolicy(repo, nil, maxActivities), Ingest: f.ing,
 		Gear: gearuc.NewService(f.gear, nil, nil, nil, nil, nil, nil), Activities: repo,
 		Recompute: NewRecomputeActivityFromSources(repo, inmem.DefaultSettings{}, nil, nil, nil, nil, inmem.PassTx{}, func() time.Time { return saNow }),
 	}

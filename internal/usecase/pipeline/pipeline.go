@@ -41,18 +41,43 @@ type pipelineActivityStore interface {
 	port.SourceWriter
 }
 
+// The stages, each satisfied by its use case (activity, match, besteffort, segment, trainingload, notification).
+type (
+	Ingester interface {
+		Execute(ctx context.Context, in activity.IngestInput) (activity.IngestResult, error)
+	}
+	Reclusterer interface {
+		Execute(ctx context.Context, in match.Input) (match.Result, error)
+	}
+	Recomputer interface {
+		Execute(ctx context.Context, id domain.ActivityID) (activity.RecomputeResult, error)
+	}
+	BestEffortComputer interface {
+		Execute(ctx context.Context, in besteffort.Input) (besteffort.Result, error)
+	}
+	SegmentMatcher interface {
+		Execute(ctx context.Context, in segment.Input) (segment.Result, error)
+	}
+	TrainingLoadComputer interface {
+		Execute(ctx context.Context, in trainingload.Input) (trainingload.Result, error)
+	}
+	PRNotifier interface {
+		Execute(ctx context.Context, in notification.Input) (notification.Result, error)
+	}
+)
+
 // Pipeline wires the stages. Every follow-up stage is optional (nil → skipped).
 type Pipeline struct {
 	Activities pipelineActivityStore
-	Ingester   *activity.IngestActivityFromWorker
-	Recluster  *match.ReclusterBucket // nil → no re-clustering
-	Recompute  *activity.RecomputeActivityFromSources
+	Ingester   Ingester
+	Recluster  Reclusterer // nil → no re-clustering
+	Recompute  Recomputer
 
 	Streams      port.StreamRepo
-	BestEfforts  *besteffort.ComputeBestEffortsForSource
-	Segments     *segment.MatchSegmentsForActivity
-	TrainingLoad *trainingload.ComputeTrainingLoadForUser
-	PRs          *notification.DispatchPRNotifications
+	BestEfforts  BestEffortComputer
+	Segments     SegmentMatcher
+	TrainingLoad TrainingLoadComputer
+	PRs          PRNotifier
 	Federation   port.FederationPublisher
 	Events       port.ActivityEventSink
 

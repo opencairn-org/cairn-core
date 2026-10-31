@@ -21,12 +21,22 @@ var ErrRecomputeUnavailable = errors.New("athlete: recompute unavailable")
 // recalcWarmUpDays seeds CTL/ATL before the earliest re-derived activity.
 const recalcWarmUpDays = 42
 
+// Recomputer re-merges one activity; activity.RecomputeActivityFromSources satisfies it.
+type Recomputer interface {
+	Execute(ctx context.Context, id domain.ActivityID) (activity.RecomputeResult, error)
+}
+
+// TrainingLoadComputer rebuilds the load curves; trainingload.ComputeTrainingLoadForUser satisfies it.
+type TrainingLoadComputer interface {
+	Execute(ctx context.Context, in trainingload.Input) (trainingload.Result, error)
+}
+
 // Profile is the user's athlete profile plus its retroactive recalculation.
 type Profile struct {
 	Repo         port.AthleteProfileRepo
 	Activities   port.ActivityReader
-	Recompute    *activity.RecomputeActivityFromSources   // nil → Recalculate unavailable
-	TrainingLoad *trainingload.ComputeTrainingLoadForUser // nil → curves left as they are
+	Recompute    Recomputer           // nil → Recalculate unavailable
+	TrainingLoad TrainingLoadComputer // nil → curves left as they are
 	Log          *slog.Logger
 	Now          func() time.Time
 }

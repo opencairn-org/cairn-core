@@ -10,10 +10,10 @@ import (
 
 	v1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/usecase/view"
+	"github.com/opencairn-org/cairn-core/internal/usecase/dashboard"
 )
 
-func (s *StatsServer) stats() (*view.Stats, error) {
+func (s *StatsServer) stats() (*dashboard.Stats, error) {
 	if s.Stats == nil {
 		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "stats are not available on this instance")
 	}

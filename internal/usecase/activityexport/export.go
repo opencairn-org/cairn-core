@@ -1,4 +1,5 @@
-package view
+// Package activityexport renders an activity as a GPX/TCX/FIT download.
+package activityexport
 
 import (
 	"context"

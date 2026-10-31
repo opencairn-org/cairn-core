@@ -1,4 +1,6 @@
-package view
+// Package dashboard holds the owner's own dashboard reads: overview, stats,
+// heatmap, search and health series.
+package dashboard
 
 import (
 	"context"
@@ -8,6 +10,9 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
+
+// ErrUnavailable: the read needs a subsystem this instance has not wired.
+var ErrUnavailable = port.NewActionError(port.ActionErrorUnavailable, "not available on this instance")
 
 // Stats are the aggregate reads of the stats, analysis, best-effort and
 // heatmap pages (StatsService / GET /api/stats, /api/analysis, /api/records,
