@@ -5,7 +5,7 @@
 	import { Map as MapLibreMap, LngLatBounds, type GeoJSONSource } from 'maplibre-gl';
 	import type { FeatureCollection } from 'geojson';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { basemapStyle } from '#lib/basemap.js';
+	import { basemapStyle, basemapVariants, type BasemapVariant } from '#lib/basemap.js';
 	import ActivityFilterBar from '#lib/components/ActivityFilterBar.svelte';
 	import { ActivityFilter, type ActivityFacets } from '#lib/activity-filter.svelte.js';
 
@@ -24,6 +24,39 @@
 	let data = $state<Heatmap | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	// Basemap: a dark, low-detail map by default so the orange tracks stand out;
+	// the choice is a per-browser convenience, remembered in localStorage.
+	const BASEMAP_KEY = 'cairn.heatmap.basemap';
+	const BASEMAP_LABELS: Record<BasemapVariant, string> = {
+		dark: 'Dark',
+		light: 'Light',
+		standard: 'Standard'
+	};
+	const variants = basemapVariants();
+	let basemap = $state<BasemapVariant>(savedBasemap());
+
+	function savedBasemap(): BasemapVariant {
+		let saved: string | null = null;
+		try {
+			saved = localStorage.getItem(BASEMAP_KEY);
+		} catch {
+			/* storage blocked */
+		}
+		return variants.find((v) => v === saved) ?? variants[0] ?? 'standard';
+	}
+
+	function setBasemap(v: BasemapVariant) {
+		if (v === basemap) return;
+		basemap = v;
+		try {
+			localStorage.setItem(BASEMAP_KEY, v);
+		} catch {
+			/* storage blocked */
+		}
+		// A full reload (no diff) so style.load fires and re-adds the tracks.
+		map?.setStyle(basemapStyle(v), { diff: false });
+	}
 
 	let container = $state<HTMLDivElement | null>(null);
 	let map: MapLibreMap | null = null;
@@ -104,42 +137,48 @@
 		load();
 	});
 
+	// Tracks source + layers. Runs on every style load: setStyle() drops
+	// everything the new style doesn't define.
+	function addTracks() {
+		if (!map) return;
+		map.addSource('tracks', { type: 'geojson', data: EMPTY });
+		// Two passes: a wide, faint glow that accumulates where tracks overlap,
+		// and a thin core so single passes still read as a line.
+		map.addLayer({
+			id: 'tracks-glow',
+			type: 'line',
+			source: 'tracks',
+			layout: { 'line-cap': 'round', 'line-join': 'round' },
+			paint: { 'line-color': '#ec7a45', 'line-width': 7, 'line-opacity': 0.07, 'line-blur': 3 }
+		});
+		map.addLayer({
+			id: 'tracks-line',
+			type: 'line',
+			source: 'tracks',
+			layout: { 'line-cap': 'round', 'line-join': 'round' },
+			paint: { 'line-color': '#ec7a45', 'line-width': 1.6, 'line-opacity': 0.35 }
+		});
+		mapLoaded = true;
+		applyData();
+	}
+
 	onMount(() => {
 		if (!container) return;
 		map = new MapLibreMap({
 			container,
-			style: basemapStyle(),
+			style: basemapStyle(basemap),
 			center: [10, 50],
 			zoom: 4,
 			attributionControl: { compact: true }
 		});
-		map.on('load', () => {
-			if (!map) return;
-			map.addSource('tracks', { type: 'geojson', data: EMPTY });
-			// Two passes: a wide, faint glow that accumulates where tracks overlap,
-			// and a thin core so single passes still read as a line.
-			map.addLayer({
-				id: 'tracks-glow',
-				type: 'line',
-				source: 'tracks',
-				layout: { 'line-cap': 'round', 'line-join': 'round' },
-				paint: { 'line-color': '#ec7a45', 'line-width': 7, 'line-opacity': 0.07, 'line-blur': 3 }
-			});
-			map.addLayer({
-				id: 'tracks-line',
-				type: 'line',
-				source: 'tracks',
-				layout: { 'line-cap': 'round', 'line-join': 'round' },
-				paint: { 'line-color': '#ec7a45', 'line-width': 1.6, 'line-opacity': 0.35 }
-			});
-			map.on('mouseenter', 'tracks-line', () => map && (map.getCanvas().style.cursor = 'pointer'));
-			map.on('mouseleave', 'tracks-line', () => map && (map.getCanvas().style.cursor = ''));
-			map.on('click', 'tracks-line', (e) => {
-				const id = e.features?.[0]?.properties?.id;
-				if (id) goto(`/activities/${id}`);
-			});
-			mapLoaded = true;
-			applyData();
+		map.on('style.load', addTracks);
+		// Layer-bound listeners resolve the layer per event, so they survive
+		// style swaps.
+		map.on('mouseenter', 'tracks-line', () => map && (map.getCanvas().style.cursor = 'pointer'));
+		map.on('mouseleave', 'tracks-line', () => map && (map.getCanvas().style.cursor = ''));
+		map.on('click', 'tracks-line', (e) => {
+			const id = e.features?.[0]?.properties?.id;
+			if (id) goto(`/activities/${id}`);
 		});
 	});
 	onDestroy(() => {
@@ -161,14 +200,38 @@
 				</p>
 			{/if}
 		</div>
-		<button
-			type="button"
-			onclick={fitTracks}
-			disabled={!data || data.with_track === 0}
-			class="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50"
-		>
-			Fit to tracks
-		</button>
+		<div class="flex items-center gap-2">
+			{#if variants.length > 1}
+				<div
+					role="group"
+					aria-label="Basemap"
+					class="flex overflow-hidden rounded border border-zinc-700 text-xs"
+				>
+					{#each variants as v (v)}
+						<button
+							type="button"
+							aria-pressed={basemap === v}
+							onclick={() => setBasemap(v)}
+							class="px-2.5 py-1.5 transition-colors"
+							class:bg-zinc-800={basemap === v}
+							class:text-accent-300={basemap === v}
+							class:text-zinc-400={basemap !== v}
+							class:hover:text-zinc-100={basemap !== v}
+						>
+							{BASEMAP_LABELS[v]}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			<button
+				type="button"
+				onclick={fitTracks}
+				disabled={!data || data.with_track === 0}
+				class="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50"
+			>
+				Fit to tracks
+			</button>
+		</div>
 	</header>
 
 	<ActivityFilterBar {filter} facets={data?.facets ?? null} showSort={false} />
