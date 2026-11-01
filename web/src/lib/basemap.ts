@@ -15,7 +15,34 @@ setWorkerUrl(workerUrl);
 // VITE_MAP_STYLE_URL at any MapLibre style (MapTiler, keyed CARTO, self-hosted).
 // Attribution comes from the style's own sources (OpenFreeMap's TileJSON
 // carries it), so none is added here.
-const DEFAULT_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
-export function basemapStyle(): string | StyleSpecification {
-	return (import.meta.env.VITE_MAP_STYLE_URL as string | undefined) || DEFAULT_STYLE_URL;
+const OPENFREEMAP = 'https://tiles.openfreemap.org/styles/';
+
+// Low-detail monochrome variants for data overlays (the heatmap), where the
+// standard basemap's colours compete with the tracks. Each is overridable at
+// build time like the default (VITE_MAP_STYLE_DARK_URL / _LIGHT_URL).
+export type BasemapVariant = 'dark' | 'light' | 'standard';
+
+function env(name: string): string {
+	return (import.meta.env[name] as string | undefined) ?? '';
+}
+
+export function basemapStyle(variant: BasemapVariant = 'standard'): string | StyleSpecification {
+	const own = env('VITE_MAP_STYLE_URL');
+	if (variant === 'standard') return own || `${OPENFREEMAP}liberty`;
+	const override = env(variant === 'dark' ? 'VITE_MAP_STYLE_DARK_URL' : 'VITE_MAP_STYLE_LIGHT_URL');
+	// An operator who moved the default off OpenFreeMap gets no OpenFreeMap
+	// requests they didn't opt into: unset variants fall back to their style.
+	return override || own || `${OPENFREEMAP}${variant === 'dark' ? 'dark' : 'positron'}`;
+}
+
+// The variants worth offering, best overlay contrast first; ones that resolve
+// to the same style collapse, so a single-style setup offers no choice.
+export function basemapVariants(): BasemapVariant[] {
+	const seen = new Set<string | StyleSpecification>();
+	return (['dark', 'light', 'standard'] as const).filter((v) => {
+		const s = basemapStyle(v);
+		if (seen.has(s)) return false;
+		seen.add(s);
+		return true;
+	});
 }

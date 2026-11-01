@@ -6,6 +6,24 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-11-01
+
+Web-UI-only patch; the 0.6.x workers stay compatible.
+
+### Added
+- A thin loading bar at the top of the page while a request or page change
+  takes longer than 300 ms (the heatmap, long lists, uploads). Faster
+  responses show nothing.
+- The heatmap has a basemap switch (Dark / Light / Standard), remembered per
+  browser. The build-time `VITE_MAP_STYLE_DARK_URL` and
+  `VITE_MAP_STYLE_LIGHT_URL` override the variants; with only
+  `VITE_MAP_STYLE_URL` set, they use that style instead of OpenFreeMap.
+- The heatmap's track color is adjustable with a hue slider, starting at the
+  default orange and remembered per browser.
+
+### Changed
+- The heatmap opens on a dark, low-detail basemap so the tracks stand out.
+
 ## [0.6.2] — 2026-10-31
 
 Core-only patch; the 0.6.x workers stay compatible. Run

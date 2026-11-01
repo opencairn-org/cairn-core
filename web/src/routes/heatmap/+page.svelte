@@ -5,7 +5,7 @@
 	import { Map as MapLibreMap, LngLatBounds, type GeoJSONSource } from 'maplibre-gl';
 	import type { FeatureCollection } from 'geojson';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { basemapStyle } from '#lib/basemap.js';
+	import { basemapStyle, basemapVariants, type BasemapVariant } from '#lib/basemap.js';
 	import ActivityFilterBar from '#lib/components/ActivityFilterBar.svelte';
 	import { ActivityFilter, type ActivityFacets } from '#lib/activity-filter.svelte.js';
 
@@ -24,6 +24,66 @@
 	let data = $state<Heatmap | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	// View settings (basemap, track color) are per-browser conveniences kept in
+	// localStorage; blocked storage just means the defaults.
+	function loadSetting(key: string): string | null {
+		try {
+			return localStorage.getItem(key);
+		} catch {
+			return null;
+		}
+	}
+	function saveSetting(key: string, value: string) {
+		try {
+			localStorage.setItem(key, value);
+		} catch {
+			/* storage blocked */
+		}
+	}
+
+	// Basemap: a dark, low-detail map by default so the tracks stand out.
+	const BASEMAP_KEY = 'cairn.heatmap.basemap';
+	const BASEMAP_LABELS: Record<BasemapVariant, string> = {
+		dark: 'Dark',
+		light: 'Light',
+		standard: 'Standard'
+	};
+	const variants = basemapVariants();
+	const savedBasemap = loadSetting(BASEMAP_KEY);
+	let basemap = $state<BasemapVariant>(
+		variants.find((v) => v === savedBasemap) ?? variants[0] ?? 'standard'
+	);
+
+	function setBasemap(v: BasemapVariant) {
+		if (v === basemap) return;
+		basemap = v;
+		saveSetting(BASEMAP_KEY, v);
+		// A full reload (no diff) so style.load fires and re-adds the tracks.
+		map?.setStyle(basemapStyle(v), { diff: false });
+	}
+
+	// Track color: a hue slider at the default's saturation and lightness, so
+	// every choice stays as vivid as the original orange, which the default hue
+	// maps to exactly.
+	const HUE_KEY = 'cairn.heatmap.trackHue';
+	const DEFAULT_HUE = 19;
+	const DEFAULT_COLOR = '#ec7a45'; // ≈ hsl(19, 81%, 60%)
+	const TRACK_LAYERS = ['tracks-glow', 'tracks-line'];
+	const savedHue = Number(loadSetting(HUE_KEY) ?? DEFAULT_HUE);
+	let trackHue = $state(
+		Number.isInteger(savedHue) && savedHue >= 0 && savedHue < 360 ? savedHue : DEFAULT_HUE
+	);
+	const trackColor = $derived(
+		trackHue === DEFAULT_HUE ? DEFAULT_COLOR : `hsl(${trackHue}, 81%, 60%)`
+	);
+
+	function setTrackHue(h: number) {
+		trackHue = h;
+		for (const id of TRACK_LAYERS) {
+			if (map?.getLayer(id)) map.setPaintProperty(id, 'line-color', trackColor);
+		}
+	}
 
 	let container = $state<HTMLDivElement | null>(null);
 	let map: MapLibreMap | null = null;
@@ -104,42 +164,48 @@
 		load();
 	});
 
+	// Tracks source + layers. Runs on every style load: setStyle() drops
+	// everything the new style doesn't define.
+	function addTracks() {
+		if (!map) return;
+		map.addSource('tracks', { type: 'geojson', data: EMPTY });
+		// Two passes: a wide, faint glow that accumulates where tracks overlap,
+		// and a thin core so single passes still read as a line.
+		map.addLayer({
+			id: 'tracks-glow',
+			type: 'line',
+			source: 'tracks',
+			layout: { 'line-cap': 'round', 'line-join': 'round' },
+			paint: { 'line-color': trackColor, 'line-width': 7, 'line-opacity': 0.07, 'line-blur': 3 }
+		});
+		map.addLayer({
+			id: 'tracks-line',
+			type: 'line',
+			source: 'tracks',
+			layout: { 'line-cap': 'round', 'line-join': 'round' },
+			paint: { 'line-color': trackColor, 'line-width': 1.6, 'line-opacity': 0.35 }
+		});
+		mapLoaded = true;
+		applyData();
+	}
+
 	onMount(() => {
 		if (!container) return;
 		map = new MapLibreMap({
 			container,
-			style: basemapStyle(),
+			style: basemapStyle(basemap),
 			center: [10, 50],
 			zoom: 4,
 			attributionControl: { compact: true }
 		});
-		map.on('load', () => {
-			if (!map) return;
-			map.addSource('tracks', { type: 'geojson', data: EMPTY });
-			// Two passes: a wide, faint glow that accumulates where tracks overlap,
-			// and a thin core so single passes still read as a line.
-			map.addLayer({
-				id: 'tracks-glow',
-				type: 'line',
-				source: 'tracks',
-				layout: { 'line-cap': 'round', 'line-join': 'round' },
-				paint: { 'line-color': '#ec7a45', 'line-width': 7, 'line-opacity': 0.07, 'line-blur': 3 }
-			});
-			map.addLayer({
-				id: 'tracks-line',
-				type: 'line',
-				source: 'tracks',
-				layout: { 'line-cap': 'round', 'line-join': 'round' },
-				paint: { 'line-color': '#ec7a45', 'line-width': 1.6, 'line-opacity': 0.35 }
-			});
-			map.on('mouseenter', 'tracks-line', () => map && (map.getCanvas().style.cursor = 'pointer'));
-			map.on('mouseleave', 'tracks-line', () => map && (map.getCanvas().style.cursor = ''));
-			map.on('click', 'tracks-line', (e) => {
-				const id = e.features?.[0]?.properties?.id;
-				if (id) goto(`/activities/${id}`);
-			});
-			mapLoaded = true;
-			applyData();
+		map.on('style.load', addTracks);
+		// Layer-bound listeners resolve the layer per event, so they survive
+		// style swaps.
+		map.on('mouseenter', 'tracks-line', () => map && (map.getCanvas().style.cursor = 'pointer'));
+		map.on('mouseleave', 'tracks-line', () => map && (map.getCanvas().style.cursor = ''));
+		map.on('click', 'tracks-line', (e) => {
+			const id = e.features?.[0]?.properties?.id;
+			if (id) goto(`/activities/${id}`);
 		});
 	});
 	onDestroy(() => {
@@ -161,14 +227,77 @@
 				</p>
 			{/if}
 		</div>
-		<button
-			type="button"
-			onclick={fitTracks}
-			disabled={!data || data.with_track === 0}
-			class="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50"
-		>
-			Fit to tracks
-		</button>
+		<div class="flex flex-wrap items-center gap-2">
+			{#if variants.length > 1}
+				<div
+					role="group"
+					aria-label="Basemap"
+					class="flex overflow-hidden rounded border border-zinc-700 text-xs"
+				>
+					{#each variants as v (v)}
+						<button
+							type="button"
+							aria-pressed={basemap === v}
+							onclick={() => setBasemap(v)}
+							class="px-2.5 py-1.5 transition-colors"
+							class:bg-zinc-800={basemap === v}
+							class:text-accent-300={basemap === v}
+							class:text-zinc-400={basemap !== v}
+							class:hover:text-zinc-100={basemap !== v}
+						>
+							{BASEMAP_LABELS[v]}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			<div class="flex items-center gap-1">
+				<input
+					type="range"
+					min="0"
+					max="359"
+					step="1"
+					class="hue w-28"
+					aria-label="Track color"
+					title="Track color"
+					style:--thumb={trackColor}
+					value={trackHue}
+					oninput={(e) => setTrackHue(e.currentTarget.valueAsNumber)}
+					onchange={() => saveSetting(HUE_KEY, String(trackHue))}
+				/>
+				<button
+					type="button"
+					class="rounded p-1 text-zinc-500 hover:text-zinc-200"
+					class:invisible={trackHue === DEFAULT_HUE}
+					disabled={trackHue === DEFAULT_HUE}
+					aria-label="Reset track color"
+					title="Reset track color"
+					onclick={() => {
+						setTrackHue(DEFAULT_HUE);
+						saveSetting(HUE_KEY, String(DEFAULT_HUE));
+					}}
+				>
+					<svg
+						class="h-3.5 w-3.5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5" />
+					</svg>
+				</button>
+			</div>
+			<button
+				type="button"
+				onclick={fitTracks}
+				disabled={!data || data.with_track === 0}
+				class="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50"
+			>
+				Fit to tracks
+			</button>
+		</div>
 	</header>
 
 	<ActivityFilterBar {filter} facets={data?.facets ?? null} showSort={false} />
@@ -200,3 +329,47 @@
 	</div>
 	<p class="text-xs text-zinc-500">Click a track to open the activity.</p>
 </section>
+
+<style>
+	/* Hue slider: the track shows the spectrum, the thumb the chosen color. */
+	.hue {
+		appearance: none;
+		height: 6px;
+		border-radius: 9999px;
+		cursor: pointer;
+		background: linear-gradient(
+			to right,
+			hsl(0, 81%, 60%),
+			hsl(60, 81%, 60%),
+			hsl(120, 81%, 60%),
+			hsl(180, 81%, 60%),
+			hsl(240, 81%, 60%),
+			hsl(300, 81%, 60%),
+			hsl(359, 81%, 60%)
+		);
+	}
+	.hue::-webkit-slider-thumb {
+		appearance: none;
+		width: 14px;
+		height: 14px;
+		border-radius: 9999px;
+		background: var(--thumb);
+		border: 2px solid #f4f4f5;
+		box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+	}
+	.hue::-moz-range-track {
+		background: transparent;
+	}
+	.hue::-moz-range-thumb {
+		width: 10px;
+		height: 10px;
+		border-radius: 9999px;
+		background: var(--thumb);
+		border: 2px solid #f4f4f5;
+		box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+	}
+	.hue:focus-visible {
+		outline: 2px solid var(--color-accent-400);
+		outline-offset: 4px;
+	}
+</style>
