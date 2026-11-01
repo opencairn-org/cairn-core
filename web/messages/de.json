@@ -59,6 +59,7 @@
 	"menu_logout": "Abmelden",
 	"menu_signin": "Anmelden",
 	"notifications_aria": "Benachrichtigungen",
+	"loading_aria": "Wird geladen",
 	"settings_title": "Einstellungen",
 	"settings_intro": "Dein Account und deine Einstellungen.",
 	"settings_account_section": "Account",

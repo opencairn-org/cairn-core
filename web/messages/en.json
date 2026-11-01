@@ -59,6 +59,7 @@
 	"menu_logout": "Logout",
 	"menu_signin": "Sign in",
 	"notifications_aria": "Notifications",
+	"loading_aria": "Loading",
 	"settings_title": "Settings",
 	"settings_intro": "Your account and preferences.",
 	"settings_account_section": "Account",

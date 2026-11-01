@@ -24,11 +24,13 @@ function originFallback(): string {
 // connectClients builds a client bundle bound to a specific fetch + origin.
 // Universal loads pass the load event's `fetch` (so SvelteKit can track the
 // request) and `url.origin`. Elsewhere the defaults — the global fetch and
-// the current window origin — are fine.
-export function connectClients(fetchFn: typeof fetch = fetch, baseUrl?: string) {
+// the current window origin — are fine. Without a fetchFn the transport
+// resolves globalThis.fetch per call, so the singleton below picks up the
+// loading-indicator wrapper however early this module is evaluated.
+export function connectClients(fetchFn?: typeof fetch, baseUrl?: string) {
 	const transport = createConnectTransport({
 		baseUrl: baseUrl ?? originFallback(),
-		fetch: fetchFn
+		...(fetchFn && { fetch: fetchFn })
 	});
 	return {
 		activity: createClient(ActivityService, transport),

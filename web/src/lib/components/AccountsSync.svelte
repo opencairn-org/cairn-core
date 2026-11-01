@@ -3,6 +3,7 @@
 	import { refreshAll } from '$app/navigation';
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatDate } from '#lib/format.js';
+	import { quietly } from '#lib/loading.svelte.js';
 
 	// When `connectionId` is set, only the account belonging to that connection
 	// is shown (no outer "Connected accounts" header) — used to embed an
@@ -427,10 +428,15 @@
 	onMount(() => {
 		loadAccounts();
 		// Poll while there's queued work so the activities list + counts update.
-		poll = setInterval(async () => {
-			await loadAccounts();
-			if (hasPending) await refreshAll();
-		}, 5000);
+		// Background refresh: keep it off the global loading indicator.
+		poll = setInterval(
+			() =>
+				quietly(async () => {
+					await loadAccounts();
+					if (hasPending) await refreshAll();
+				}),
+			5000
+		);
 	});
 	onDestroy(() => poll && clearInterval(poll));
 </script>

@@ -5,6 +5,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { setPrefs } from '#lib/prefs.svelte.js';
 	import { formatDate } from '#lib/format.js';
+	import LoadingBar from '#lib/components/LoadingBar.svelte';
 
 	let { children, data } = $props();
 
@@ -252,6 +253,8 @@
 		</div>
 	</div>
 {/snippet}
+
+<LoadingBar />
 
 <div class="flex min-h-screen">
 	{#if data.user}
