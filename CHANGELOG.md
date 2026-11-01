@@ -18,6 +18,8 @@ Web-UI-only patch; the 0.6.x workers stay compatible.
   browser. The build-time `VITE_MAP_STYLE_DARK_URL` and
   `VITE_MAP_STYLE_LIGHT_URL` override the variants; with only
   `VITE_MAP_STYLE_URL` set, they use that style instead of OpenFreeMap.
+- The heatmap's track color is adjustable with a hue slider, starting at the
+  default orange and remembered per browser.
 
 ### Changed
 - The heatmap opens on a dark, low-detail basemap so the tracks stand out.
