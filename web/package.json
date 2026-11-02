@@ -37,7 +37,7 @@
     "@types/geojson": "7946.0.16",
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.0.5",
-    "eslint": "10.13.0",
+    "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-svelte": "3.23.1",
     "globals": "17.13.0",
