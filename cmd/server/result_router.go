@@ -99,6 +99,13 @@ func routeClaimCheckedResult(ctx context.Context, app *App, log *slog.Logger, su
 		log.Error("claim-checked result but no blob store configured", "subject", subject, "blob_id", ref.GetBlobId())
 		return &port.TerminalError{Reason: "no_blob_store", Cause: errors.New("payload_ref without blob store")}
 	}
+	// Core reads and deletes the object: only a transfer key of the
+	// subject's provider is acceptable.
+	_, provider, _, _ := domain.ResultSubjectPool(subject)
+	if err := checkTransferBlob(ref.GetBlobId(), provider); err != nil {
+		log.Error("claim-checked payload_ref rejected", "subject", subject, "blob_id", ref.GetBlobId(), "error", err)
+		return &port.TerminalError{Reason: "bad_payload_ref", Cause: err}
+	}
 	data, _, err := app.BlobStore.Get(ctx, ref.GetBlobId())
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
@@ -513,6 +520,12 @@ func ingestActivityEvent(
 	if err != nil {
 		return activity.IngestResult{}, err
 	}
+	// The archive key is served back to users and workers later; it must be
+	// one core minted for this user under this provider.
+	if err := checkOwnedBlob(ia.GetRawBlobId(), ref.GetProvider(), uid.String()); err != nil {
+		log.Error("raw_blob_id rejected", "provider", ref.GetProvider(), "external_id", ref.GetExternalId(), "error", err)
+		return activity.IngestResult{}, &port.TerminalError{Reason: "bad_raw_blob_id", Cause: err}
+	}
 
 	payload := protoconv.ActivitySourcePayloadFromProto(ia.GetPayload())
 	stream := protoconv.ActivityStreamSamplesFromProto(ia.GetStream(), payload.StartTime)
@@ -594,6 +607,10 @@ func ingestActivityAttachments(ctx context.Context, app *App, log *slog.Logger, 
 	atts := make([]domain.Attachment, 0, len(ia.GetAttachments()))
 	for _, a := range ia.GetAttachments() {
 		if a.GetBlobId() == "" {
+			continue
+		}
+		if err := checkOwnedBlob(a.GetBlobId(), ia.GetRef().GetProvider(), userID.String()); err != nil {
+			log.Warn("attachment blob rejected", "source_id", out.SourceID, "error", err)
 			continue
 		}
 		atts = append(atts, domain.Attachment{
