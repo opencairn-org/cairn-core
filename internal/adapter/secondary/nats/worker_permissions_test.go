@@ -214,8 +214,8 @@ func assertWorkerDenied(t *testing.T, worker *Bus) {
 	}); err == nil {
 		t.Error("consumer on the results stream must be denied")
 	}
-	if _, err := worker.JS().KeyValue(short(), KVBlobHandles); err == nil {
-		t.Error("blob handle bucket must be denied")
+	if _, err := worker.JS().ObjectStore(short(), OSTransient); err == nil {
+		t.Error("the transient object store must be denied")
 	}
 	if err := worker.JS().DeleteStream(short(), StreamJobs); err == nil {
 		t.Error("stream delete must be denied")

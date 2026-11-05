@@ -28,7 +28,6 @@ const (
 	KVWorkerPresence  = "cairn_worker_presence"
 	KVWorkerManifests = "cairn_worker_manifests"
 	KVRateLimits      = "cairn_rate_limits"
-	KVBlobHandles     = "cairn_blob_handles"
 	KVCoreInfo        = "cairn_core"
 
 	OSTransient = "cairn_transient"
@@ -174,13 +173,6 @@ func natsBootstrapKVConfigs(replicas int) []jetstream.KeyValueConfig {
 		{
 			Bucket:      KVCoreInfo,
 			Description: "Core's release under key info; workers refuse to run against another major.minor.",
-			History:     1,
-			Replicas:    replicas,
-		},
-		{
-			Bucket:      KVBlobHandles,
-			Description: "Server-signed opaque handles workers exchange for fresh presigned URLs.",
-			TTL:         7 * 24 * time.Hour,
 			History:     1,
 			Replicas:    replicas,
 		},

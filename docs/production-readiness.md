@@ -83,7 +83,7 @@ Three stateful stores; back up all three consistently.
    the bucket. Losing it disables per-source download + quota-free re-parse,
    but activities + streams survive (re-fetch from the provider restores blobs).
 3. **NATS JetStream** — job/result/event streams + KV (presence, rate limits,
-   manifests, blob handles). These are **transient/operational**, not source of
+   manifests). These are **transient/operational**, not source of
    truth — a fresh NATS loses in-flight jobs (re-driven on the next reconcile)
    but no durable data. The one thing to preserve is the **NATS account signing
    key**, which lives encrypted in Postgres (`instance_signing_keys`), so a
