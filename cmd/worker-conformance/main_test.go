@@ -43,3 +43,10 @@ func TestValidateDiscoverReply(t *testing.T) {
 		}
 	}
 }
+
+func TestReconcileResultSubject_PerPool(t *testing.T) {
+	got := reconcileResultSubject("strava", "strava-fetcher", "acct-1")
+	if want := "cairn.results.reconcile.strava.strava-fetcher.acct-1"; got != want {
+		t.Fatalf("subject = %q, want %q", got, want)
+	}
+}

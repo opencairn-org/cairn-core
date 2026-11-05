@@ -7,8 +7,8 @@
 //     an unconsumed subject accumulates forever in the work-queue stream
 //     (the exact failure that silently disabled garmin auto-import)
 //  3. discover request/reply answers with a valid shape
-//  4. (--active) a synthetic reconcile job round-trips to an
-//     account-suffixed reconcile result
+//  4. (--active) a synthetic reconcile job round-trips to the pool's
+//     account-suffixed reconcile result (docs/adr/0006)
 //
 // Run it against a dev/staging NATS while the worker is up:
 //
@@ -190,13 +190,13 @@ func checkDiscover(nc *nats.Conn, provider, workerName string, timeout time.Dura
 }
 
 // checkReconcile publishes a synthetic reconcile job for accountID and waits
-// for the account-suffixed result. Requires a dev stack where the worker can
-// resolve that account's credentials.
+// for the pool's account-suffixed result. Requires a dev stack where the
+// worker can resolve that account's credentials.
 func checkReconcile(js nats.JetStreamContext, provider, workerName, accountID string, timeout time.Duration) error {
 	if accountID == "" {
 		return fmt.Errorf("--active requires --account-id of an existing account")
 	}
-	resultSubj := fmt.Sprintf("cairn.results.reconcile.%s.%s", provider, accountID)
+	resultSubj := reconcileResultSubject(provider, workerName, accountID)
 	sub, err := js.SubscribeSync(resultSubj, nats.DeliverNew(), nats.OrderedConsumer())
 	if err != nil {
 		return fmt.Errorf("subscribe %s: %w", resultSubj, err)
@@ -226,6 +226,12 @@ func checkReconcile(js nats.JetStreamContext, provider, workerName, accountID st
 		return fmt.Errorf("reconcile result missing worker stamp")
 	}
 	return nil
+}
+
+// reconcileResultSubject is where the pool publishes a reconcile result:
+// cairn.results.reconcile.<provider>.<worker_name>.<account> (docs/adr/0006).
+func reconcileResultSubject(provider, workerName, accountID string) string {
+	return domain.ResultSubject("reconcile", provider, workerName) + "." + accountID
 }
 
 // subjectMatches reports whether a consumer filter covers subject,
