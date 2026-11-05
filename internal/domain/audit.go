@@ -75,6 +75,7 @@ const (
 	AuditJobRequeued            = "job.requeued"
 	AuditMaintenance            = "maintenance.triggered"
 	AuditWorkerPoolRetired      = "worker_pool.retired"
+	AuditProviderUnbound        = "provider.unbound"
 	AuditEnrollmentCreated      = "worker_enrollment.created"
 	AuditEnrollmentRevoked      = "worker_enrollment.revoked"
 	AuditFederationBlocked      = "federation.domain_blocked"

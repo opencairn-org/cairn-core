@@ -35,8 +35,9 @@ type Fleet struct {
 	Create      EnrollmentCreator
 	Revoke      EnrollmentRevoker
 	Live        func(ctx context.Context) []domain.WorkerHeartbeat
-	Providers   []string
-	Audit       *audit.Recorder
+	// Registry holds the provider meta workers declared; nil without one.
+	Registry port.ProviderRegistry
+	Audit    *audit.Recorder
 	// Events receives the deregistration event; nil drops it.
 	Events port.AdminEventSink
 	Now    func() time.Time

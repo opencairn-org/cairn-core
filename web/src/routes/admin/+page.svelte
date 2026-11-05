@@ -3,6 +3,7 @@
 	import { formatDate } from '#lib/format.js';
 	import WorkerOnboarding from '#lib/components/WorkerOnboarding.svelte';
 	import WorkerPools from '#lib/components/WorkerPools.svelte';
+	import ProviderRegistry from '#lib/components/ProviderRegistry.svelte';
 	import InviteManager from '#lib/components/InviteManager.svelte';
 	import type { PageData } from './$types';
 
@@ -94,4 +95,5 @@
 
 	<WorkerOnboarding />
 	<WorkerPools />
+	<ProviderRegistry />
 </section>

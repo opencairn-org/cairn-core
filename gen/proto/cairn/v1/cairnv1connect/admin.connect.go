@@ -141,6 +141,11 @@ const (
 	// AdminServiceRetireWorkerPoolProcedure is the procedure name of the AdminService's
 	// RetireWorkerPool RPC.
 	AdminServiceRetireWorkerPoolProcedure = "/cairn.v1.AdminService/RetireWorkerPool"
+	// AdminServiceListProvidersProcedure is the procedure name of the AdminService's ListProviders RPC.
+	AdminServiceListProvidersProcedure = "/cairn.v1.AdminService/ListProviders"
+	// AdminServiceUnbindProviderProcedure is the procedure name of the AdminService's UnbindProvider
+	// RPC.
+	AdminServiceUnbindProviderProcedure = "/cairn.v1.AdminService/UnbindProvider"
 	// AdminServiceListWorkerEnrollmentsProcedure is the procedure name of the AdminService's
 	// ListWorkerEnrollments RPC.
 	AdminServiceListWorkerEnrollmentsProcedure = "/cairn.v1.AdminService/ListWorkerEnrollments"
@@ -435,6 +440,20 @@ var (
 			Procedure:  AdminServiceRetireWorkerPoolProcedure,
 		}
 	})
+	adminServiceListProvidersSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("ListProviders"),
+			Procedure:  AdminServiceListProvidersProcedure,
+		}
+	})
+	adminServiceUnbindProviderSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_cairn_v1_admin_proto.Services().ByName("AdminService").Methods().ByName("UnbindProvider"),
+			Procedure:  AdminServiceUnbindProviderProcedure,
+		}
+	})
 	adminServiceListWorkerEnrollmentsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -670,6 +689,15 @@ type AdminServiceClient interface {
 	ListWorkerPools(context.Context, *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error)
+	// The providers workers declared, each with the package bound to it
+	// (GET /api/admin/providers).
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListProviders(context.Context, *v1.ListProvidersRequest) (*v1.ListProvidersResponse, error)
+	// Drop a provider's declared meta so the next manifest, from any package,
+	// binds it again (DELETE /api/admin/providers/{provider}); the live
+	// manifests are re-applied at once.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UnbindProvider(context.Context, *v1.UnbindProviderRequest) (*v1.UnbindProviderResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error)
 	// The enrollment token is returned once.
@@ -856,6 +884,15 @@ type AdminServiceHandler interface {
 	ListWorkerPools(context.Context, *v1.ListWorkerPoolsRequest) (*v1.ListWorkerPoolsResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error)
+	// The providers workers declared, each with the package bound to it
+	// (GET /api/admin/providers).
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	ListProviders(context.Context, *v1.ListProvidersRequest) (*v1.ListProvidersResponse, error)
+	// Drop a provider's declared meta so the next manifest, from any package,
+	// binds it again (DELETE /api/admin/providers/{provider}); the live
+	// manifests are re-applied at once.
+	// Scope: admin cookie session only (OAuth tokens are refused).
+	UnbindProvider(context.Context, *v1.UnbindProviderRequest) (*v1.UnbindProviderResponse, error)
 	// Scope: admin cookie session only (OAuth tokens are refused).
 	ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error)
 	// The enrollment token is returned once.
@@ -940,6 +977,8 @@ func RegisterAdminServiceHandler(server *connect.Server, svc AdminServiceHandler
 		connect.Method{Spec: adminServiceListWorkersSpec(), Handler: adapter.listWorkers},
 		connect.Method{Spec: adminServiceListWorkerPoolsSpec(), Handler: adapter.listWorkerPools},
 		connect.Method{Spec: adminServiceRetireWorkerPoolSpec(), Handler: adapter.retireWorkerPool},
+		connect.Method{Spec: adminServiceListProvidersSpec(), Handler: adapter.listProviders},
+		connect.Method{Spec: adminServiceUnbindProviderSpec(), Handler: adapter.unbindProvider},
 		connect.Method{Spec: adminServiceListWorkerEnrollmentsSpec(), Handler: adapter.listWorkerEnrollments},
 		connect.Method{Spec: adminServiceCreateWorkerEnrollmentSpec(), Handler: adapter.createWorkerEnrollment},
 		connect.Method{Spec: adminServiceRevokeWorkerEnrollmentSpec(), Handler: adapter.revokeWorkerEnrollment},
@@ -1117,6 +1156,14 @@ func (UnimplementedAdminServiceHandler) ListWorkerPools(context.Context, *v1.Lis
 
 func (UnimplementedAdminServiceHandler) RetireWorkerPool(context.Context, *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.RetireWorkerPool is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) ListProviders(context.Context, *v1.ListProvidersRequest) (*v1.ListProvidersResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.ListProviders is not implemented")
+}
+
+func (UnimplementedAdminServiceHandler) UnbindProvider(context.Context, *v1.UnbindProviderRequest) (*v1.UnbindProviderResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "cairn.v1.AdminService.UnbindProvider is not implemented")
 }
 
 func (UnimplementedAdminServiceHandler) ListWorkerEnrollments(context.Context, *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error) {
@@ -1466,6 +1513,22 @@ func (c *adminServiceClient) ListWorkerPools(ctx context.Context, req *v1.ListWo
 func (c *adminServiceClient) RetireWorkerPool(ctx context.Context, req *v1.RetireWorkerPoolRequest) (*v1.RetireWorkerPoolResponse, error) {
 	var res v1.RetireWorkerPoolResponse
 	if err := c.client.CallUnary(ctx, adminServiceRetireWorkerPoolSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) ListProviders(ctx context.Context, req *v1.ListProvidersRequest) (*v1.ListProvidersResponse, error) {
+	var res v1.ListProvidersResponse
+	if err := c.client.CallUnary(ctx, adminServiceListProvidersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *adminServiceClient) UnbindProvider(ctx context.Context, req *v1.UnbindProviderRequest) (*v1.UnbindProviderResponse, error) {
+	var res v1.UnbindProviderResponse
+	if err := c.client.CallUnary(ctx, adminServiceUnbindProviderSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -2019,6 +2082,30 @@ func (h adminServiceHandler) retireWorkerPool(ctx context.Context, _ connect.Spe
 		return err
 	}
 	res, err := h.svc.RetireWorkerPool(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) listProviders(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListProvidersRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListProviders(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h adminServiceHandler) unbindProvider(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UnbindProviderRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UnbindProvider(ctx, &req)
 	if err != nil {
 		return err
 	}

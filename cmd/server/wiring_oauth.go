@@ -92,3 +92,36 @@ func reconcileHooks(app *App, logger *slog.Logger) func(ctx context.Context, a d
 		return errors.Join(jobs.ScheduledGearSync(ctx, a), jobs.ScheduledMetricsSync(ctx, a))
 	}
 }
+
+// adminProviderRegistry is the registry as the admin surface sees it: lists
+// from the cache, and after an unbind re-applies the live manifests so the
+// package now serving the provider binds without waiting for its next publish.
+type adminProviderRegistry struct {
+	app    *App
+	logger *slog.Logger
+}
+
+func (r adminProviderRegistry) Get(ctx context.Context, id string) (domain.ProviderMeta, error) {
+	return r.app.Providers.Get(ctx, id)
+}
+
+func (r adminProviderRegistry) List(ctx context.Context) ([]domain.ProviderMeta, error) {
+	return r.app.providerMetas(ctx, r.logger), nil
+}
+
+func (r adminProviderRegistry) Upsert(ctx context.Context, meta domain.ProviderMeta, pkg string) error {
+	if err := r.app.Providers.Upsert(ctx, meta, pkg); err != nil {
+		return err
+	}
+	r.app.invalidateProviders()
+	return nil
+}
+
+func (r adminProviderRegistry) Delete(ctx context.Context, id string) error {
+	if err := r.app.Providers.Delete(ctx, id); err != nil {
+		return err
+	}
+	r.app.invalidateProviders()
+	reapplyProviderMeta(ctx, r.app, r.logger, id)
+	return nil
+}
