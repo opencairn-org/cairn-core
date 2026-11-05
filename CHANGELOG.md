@@ -6,7 +6,10 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
-Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
+## [0.7.0] — 2026-11-05
+
+Contract change: core 0.7 needs 0.7 workers (docs/adr/0005); release the
+workers with it.
 
 ### Added
 - Provider knowledge comes from the workers: a manifest's `provider_meta`
