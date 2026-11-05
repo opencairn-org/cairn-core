@@ -10,13 +10,13 @@ func TestStandardPermissionTemplateJetStream(t *testing.T) {
 	tpl := StandardPermissionTemplate("strava", "w1")
 	for _, want := range []string{
 		"$JS.API.STREAM.NAMES",
-		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.fetch_source.strava",
-		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.import_metrics.strava",
+		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.fetch_source.strava.w1",
+		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.import_metrics.strava.w1",
 		"$JS.API.CONSUMER.DURABLE.CREATE.CAIRN_JOBS.*",
 		"cairn.results.reconcile.strava.w1.*",
 		"cairn.results.import_metrics.strava.w1",
 		"cairn.accounts.lookup.strava.w1",
-		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.import_gear.strava",
+		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.import_gear.strava.w1",
 		"cairn.results.import_gear.strava.w1",
 		"cairn.jobs.fetch_source.strava.w1",
 		"$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.parse_blob.strava.w1",
@@ -38,13 +38,13 @@ func TestStandardPermissionTemplateJetStream(t *testing.T) {
 			t.Errorf("over-broad publish grant %q", s)
 		}
 	}
-	for _, s := range []string{"cairn.jobs.fetch_source.strava", "$KV.cairn_core.>", "cairn.results.fetch_source.strava", "cairn.results.reconcile.strava.*", "cairn.accounts.lookup_by_provider_ext"} {
+	for _, s := range []string{"cairn.jobs.fetch_source.strava", "$KV.cairn_core.>", "cairn.results.fetch_source.strava", "cairn.results.reconcile.strava.*", "cairn.accounts.lookup_by_provider_ext", "$JS.API.CONSUMER.CREATE.CAIRN_JOBS.*.cairn.jobs.fetch_source.strava"} {
 		if slices.Contains(tpl.AllowPublish, s) {
 			t.Errorf("over-broad publish grant %q (another pool's or the pre-0.5 scope)", s)
 		}
 	}
 	if !slices.Contains(tpl.AllowSubscribe, "cairn.jobs.fetch_source.strava.w1") ||
-		!slices.Contains(tpl.AllowSubscribe, "cairn.jobs.fetch_source.strava") ||
+		slices.Contains(tpl.AllowSubscribe, "cairn.jobs.fetch_source.strava") ||
 		!slices.Contains(tpl.AllowSubscribe, "cairn.discover.strava.w1") ||
 		slices.ContainsFunc(tpl.AllowSubscribe, func(s string) bool { return strings.HasPrefix(s, "$JS") }) {
 		t.Errorf("subscribe allow-list = %v", tpl.AllowSubscribe)

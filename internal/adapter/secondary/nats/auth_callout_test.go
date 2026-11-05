@@ -315,10 +315,10 @@ func TestAuthCalloutAdmitsEnrolledWorkerWithinTemplate(t *testing.T) {
 
 	assertWorkerAllowed(t, env.core, worker)
 	assertWorkerDenied(t, worker)
-	if !canSubscribe(t, nc, "cairn.jobs.fetch_source.strava") {
+	if !canSubscribe(t, nc, "cairn.jobs.fetch_source.strava.w1") {
 		t.Error("own job subject must be allowed")
 	}
-	for _, subj := range []string{"cairn.tokens.>", "cairn.creds.>", "cairn.jobs.fetch_source.garmin", "cairn.results.>", ">"} {
+	for _, subj := range []string{"cairn.tokens.>", "cairn.creds.>", "cairn.jobs.fetch_source.garmin", "cairn.jobs.fetch_source.strava", "cairn.results.>", ">"} {
 		if canSubscribe(t, nc, subj) {
 			t.Errorf("subscribe %s must be denied", subj)
 		}
@@ -435,18 +435,18 @@ func TestAuthCalloutScopesUnregisteredProvider(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	ps, err := worker.Pull(ctx, port.ConsumerConfig{Stream: StreamJobs, Durable: "polar__fetch", Subject: "cairn.jobs.fetch_source.polar"})
+	ps, err := worker.Pull(ctx, port.ConsumerConfig{Stream: StreamJobs, Durable: "polar__fetch", Subject: "cairn.jobs.fetch_source.polar.p1"})
 	if err != nil {
 		t.Fatalf("pull own jobs: %v", err)
 	}
-	if err := env.core.Publish(ctx, "cairn.jobs.fetch_source.polar", "", []byte("job")); err != nil {
+	if err := env.core.Publish(ctx, "cairn.jobs.fetch_source.polar.p1", "", []byte("job")); err != nil {
 		t.Fatal(err)
 	}
 	if msgs, err := ps.Fetch(ctx, 1); err != nil || len(msgs) != 1 {
 		t.Fatalf("fetch own job: %v (%d msgs)", err, len(msgs))
 	}
 
-	for _, subj := range []string{"cairn.jobs.parse_blob.polar", "cairn.cmd.worker.p1-polar.restart", "cairn.webhooks.p1-polar.event"} {
+	for _, subj := range []string{"cairn.jobs.parse_blob.polar.p1", "cairn.cmd.worker.p1-polar.restart", "cairn.webhooks.p1-polar.event"} {
 		if !canSubscribe(t, nc, subj) {
 			t.Errorf("subscribe %s must be allowed", subj)
 		}

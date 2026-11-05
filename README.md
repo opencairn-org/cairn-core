@@ -359,7 +359,7 @@ handshake; the worker validates `verify_token` against
 `CAIRN_STRAVA_WEBHOOK_VERIFY_TOKEN` and echoes the challenge — all
 automatic. After that, `POST $CALLBACK` create/update/delete events flow:
 the worker maps Strava's `owner_id` to the right Cairn account (via
-`cairn.accounts.lookup_by_provider_ext`) and enqueues a fetch, which runs
+`cairn.accounts.lookup.strava.<worker_name>`) and enqueues a fetch, which runs
 through the normal ingest pipeline.
 
 Notes:

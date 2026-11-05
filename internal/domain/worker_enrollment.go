@@ -275,7 +275,7 @@ var WorkerJobTypes = []string{"fetch_source", "parse_blob", "backfill", "reconci
 //   - Provider-scoped (tokens, results, blobs): shared by the provider's
 //     workers.
 //   - Worker-scoped (presence, control, webhooks): keyed on the worker key
-//     {name}-{provider}, which is also the webhook URL.
+//     {name}-{provider}, which is also the webhook URL path token.
 //
 // JetStream: workers pull jobs and webhook events through durable consumers
 // use three KV buckets and read core's info bucket, so the template adds the
@@ -286,14 +286,9 @@ func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTem
 	}
 	p := provider
 	wk := WorkerKey(workerName, provider)
-	jobs := make([]string, 0, 2*len(WorkerJobTypes))
+	jobs := make([]string, 0, len(WorkerJobTypes))
 	for _, j := range WorkerJobTypes {
 		jobs = append(jobs, JobSubject(j, p, workerName))
-	}
-	// Pre-0.5 provider-only subjects, so an upgraded pool drains jobs queued
-	// before the upgrade. Remove in 0.6.
-	for _, j := range WorkerJobTypes {
-		jobs = append(jobs, "cairn.jobs."+j+"."+p)
 	}
 	webhookEvent := fmt.Sprintf("cairn.webhooks.%s.event", wk)
 	return WorkerPermissionTemplate{

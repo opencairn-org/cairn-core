@@ -73,9 +73,8 @@ func assertWorkerAllowed(t *testing.T, admin, worker *Bus) {
 	for _, cc := range []port.ConsumerConfig{
 		{Stream: StreamJobs, Durable: "w1__fetch", Subject: "cairn.jobs.fetch_source.strava.w1"},
 		{Stream: StreamJobs, Durable: "w1__gear", Subject: "cairn.jobs.import_gear.strava.w1"},
-		{Stream: StreamJobs, Durable: "strava__fetch", Subject: "cairn.jobs.fetch_source.strava"}, // legacy drain
-		{Stream: StreamJobs, Durable: "strava__reconcile", Subject: "cairn.jobs.reconcile.strava"},
-		{Stream: StreamJobs, Durable: "strava__metrics", Subject: "cairn.jobs.import_metrics.strava"},
+		{Stream: StreamJobs, Durable: "w1__reconcile", Subject: "cairn.jobs.reconcile.strava.w1"},
+		{Stream: StreamJobs, Durable: "w1__metrics", Subject: "cairn.jobs.import_metrics.strava.w1"},
 		{Stream: StreamWebhooks, Durable: "strava__webhook_event", Subject: "cairn.webhooks.w1-strava.event"},
 	} {
 		ps, err := worker.Pull(ctx, cc)
@@ -198,6 +197,11 @@ func assertWorkerDenied(t *testing.T, worker *Bus) {
 		Stream: StreamJobs, Durable: "steal", Subject: "cairn.jobs.fetch_source.garmin",
 	}); err == nil {
 		t.Error("consumer on another provider's jobs must be denied")
+	}
+	if _, err := worker.Pull(short(), port.ConsumerConfig{
+		Stream: StreamJobs, Durable: "legacy", Subject: "cairn.jobs.fetch_source.strava",
+	}); err == nil {
+		t.Error("consumer on the pre-0.5 provider subject must be denied")
 	}
 	if err := worker.Publish(short(), "cairn.jobs.reconcile.strava", "", []byte("job")); err == nil {
 		t.Error("enqueueing jobs other than fetch_source must be denied")
