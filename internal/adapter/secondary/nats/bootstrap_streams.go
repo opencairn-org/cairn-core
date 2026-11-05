@@ -127,10 +127,14 @@ func natsBootstrapStreamConfigs(replicas int) []jetstream.StreamConfig {
 		},
 		{
 			Name: StreamWebhooks,
-			Description: "Inbound webhook events forwarded raw from /webhooks/<provider>; " +
+			Description: "Inbound webhook events forwarded raw from /webhooks/<worker_key>; " +
 				"provider-specific decoding happens in the worker subscriber. " +
 				"WorkQueue retention — message dropped on ACK.",
-			Subjects:   []string{"cairn.webhooks.>"},
+			// Only the forwarded events: the GET handshake on
+			// cairn.webhooks.<worker_key>.verify is a core request/reply, and a
+			// stream capturing it answers with its pub-ack before the worker does.
+			// The worker key {name}-{provider} is one token, so `*` matches it.
+			Subjects:   []string{"cairn.webhooks.*.event"},
 			Retention:  jetstream.WorkQueuePolicy,
 			Storage:    jetstream.FileStorage,
 			Discard:    jetstream.DiscardOld,

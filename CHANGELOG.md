@@ -6,6 +6,13 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The `CAIRN_WEBHOOKS` stream captures only `cairn.webhooks.*.event`, not the
+  GET verify request/reply: it answered with its pub-ack before the worker
+  could (Strava's `hub.challenge` never echoed back) and kept every verify
+  request until MaxAge. Core applies the narrowed subject to an existing
+  stream on start.
+
 ## [0.7.0] — 2026-11-05
 
 Contract change: core 0.7 needs 0.7 workers (docs/adr/0005); release the

@@ -242,3 +242,42 @@ func TestBus_TerminalErrorTermsWithReason(t *testing.T) {
 		t.Fatal("no terminated advisory")
 	}
 }
+
+// A verify handshake is a plain request/reply; the webhook stream must not
+// capture it or JetStream's pub-ack reaches core before the worker's reply.
+func TestBootstrapStreams_WebhookStreamSkipsVerify(t *testing.T) {
+	bus, js := newTestBus(t)
+	ctx := context.Background()
+	if err := bus.BootstrapStreams(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	sub, err := bus.conn.Subscribe("cairn.webhooks.test-worker.verify", func(m *nats.Msg) {
+		_ = m.Respond([]byte(`{"status":200,"body":"hub.challenge"}`))
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Unsubscribe() }()
+	if err := bus.conn.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := bus.Request(ctx, "cairn.webhooks.test-worker.verify", []byte(`{"method":"GET"}`), 2*time.Second)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if string(got) != `{"status":200,"body":"hub.challenge"}` {
+		t.Fatalf("reply = %s; want the worker's reply, not a JetStream pub-ack", got)
+	}
+	if n := streamMsgs(t, js, StreamWebhooks); n != 0 {
+		t.Fatalf("%s holds %d msgs after a verify; want 0", StreamWebhooks, n)
+	}
+
+	if err := bus.Publish(ctx, "cairn.webhooks.test-worker.event", "evt-1", []byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	if n := streamMsgs(t, js, StreamWebhooks); n != 1 {
+		t.Fatalf("%s holds %d msgs after an event; want 1", StreamWebhooks, n)
+	}
+}
