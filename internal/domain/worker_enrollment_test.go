@@ -46,6 +46,7 @@ func TestStandardPermissionTemplateJetStream(t *testing.T) {
 	if !slices.Contains(tpl.AllowSubscribe, "cairn.jobs.fetch_source.strava.w1") ||
 		slices.Contains(tpl.AllowSubscribe, "cairn.jobs.fetch_source.strava") ||
 		!slices.Contains(tpl.AllowSubscribe, "cairn.discover.strava.w1") ||
+		!slices.Contains(tpl.AllowSubscribe, "cairn.oauth.strava.w1.exchange") ||
 		slices.ContainsFunc(tpl.AllowSubscribe, func(s string) bool { return strings.HasPrefix(s, "$JS") }) {
 		t.Errorf("subscribe allow-list = %v", tpl.AllowSubscribe)
 	}

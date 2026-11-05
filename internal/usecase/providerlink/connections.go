@@ -1,3 +1,8 @@
+// Package providerlink links provider accounts (Strava, Garmin, ...) to
+// users: connection CRUD, the OAuth connect round-trip, credential-based
+// accounts, the account-scoped jobs (gear sync, health import) and the
+// token/credential lookups provider workers make. Provider knowledge comes
+// from the workers' manifests (port.ProviderRegistry); core compiles none in.
 package providerlink
 
 import (
@@ -27,6 +32,9 @@ const (
 	ErrBadWorker        ConnectError = "bad_worker"
 	ErrExchangeFailed   ConnectError = "exchange_failed"
 	ErrChooseWorker     ConnectError = "choose_worker"
+	// ErrNoWorker: no pool of the provider is known, so nobody can exchange
+	// the code.
+	ErrNoWorker ConnectError = "no_worker"
 	// ErrAlreadyLinked: another user holds this provider account; webhooks
 	// carry only the athlete, so two holders could not be told apart.
 	ErrAlreadyLinked ConnectError = "already_linked"
@@ -41,7 +49,7 @@ var (
 
 // Connections manages a user's provider connections and links their accounts.
 type Connections struct {
-	Providers map[string]Provider
+	Providers port.ProviderRegistry
 	Configs   port.UserProviderConfigRepo
 	// Accounts is nil when external accounts are not wired; credential
 	// connections are then stored without an account.
@@ -68,12 +76,27 @@ type NewConnection struct {
 
 func invalid(msg string) error { return port.NewActionError(port.ActionErrorInvalid, msg) }
 
+// provider loads a provider's meta; ErrUnknownProvider when none.
+func (c *Connections) provider(ctx context.Context, id string) (domain.ProviderMeta, error) {
+	if c.Providers == nil {
+		return domain.ProviderMeta{}, ErrUnknownProvider
+	}
+	p, err := c.Providers.Get(ctx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.ProviderMeta{}, ErrUnknownProvider
+	}
+	return p, err
+}
+
 // Create stores a connection. A credential provider has no authorize
 // round-trip, so its account is created with it.
 func (c *Connections) Create(ctx context.Context, userID domain.UserID, in NewConnection) (domain.ConnectionID, error) {
-	p, ok := c.Providers[in.Provider]
-	if !ok {
+	p, err := c.provider(ctx, in.Provider)
+	if errors.Is(err, ErrUnknownProvider) {
 		return domain.ConnectionID{}, invalid("unknown provider")
+	}
+	if err != nil {
+		return domain.ConnectionID{}, fmt.Errorf("load provider: %w", err)
 	}
 	login := strings.TrimSpace(in.ClientID)
 	if login == "" {
@@ -130,18 +153,59 @@ func (c *Connections) linkCredentialAccount(ctx context.Context, userID domain.U
 // connection already used for the same provider account, else the only one.
 func (c *Connections) pool(ctx context.Context, userID domain.UserID, provider string, conn domain.ConnectionID, providerAcctID, requested string) (string, error) {
 	var existing string
-	if accts, err := c.Accounts.ListAccountsForUser(ctx, userID); err == nil {
-		for _, a := range accts {
-			if a.Provider == provider && a.ProviderAccountID == providerAcctID && a.ConnectionID != nil && *a.ConnectionID == conn {
-				existing = a.AssignedWorkerName
-			}
+	for _, a := range c.connectionAccounts(ctx, userID, provider, conn) {
+		if a.ProviderAccountID == providerAcctID {
+			existing = a.AssignedWorkerName
 		}
 	}
-	var known []string
-	if c.Pools != nil {
-		known = c.Pools.KnownPoolNames(ctx, provider)
+	return domain.ResolveConnectPool(requested, existing, c.knownPools(ctx, provider))
+}
+
+func (c *Connections) knownPools(ctx context.Context, provider string) []string {
+	if c.Pools == nil {
+		return nil
 	}
-	return domain.ResolveConnectPool(requested, existing, known)
+	return c.Pools.KnownPoolNames(ctx, provider)
+}
+
+// connectionAccounts lists the accounts a connection already links.
+func (c *Connections) connectionAccounts(ctx context.Context, userID domain.UserID, provider string, conn domain.ConnectionID) []domain.ExternalAccount {
+	if c.Accounts == nil {
+		return nil
+	}
+	accts, err := c.Accounts.ListAccountsForUser(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	var out []domain.ExternalAccount
+	for _, a := range accts {
+		if a.Provider == provider && a.ConnectionID != nil && *a.ConnectionID == conn {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// exchangePool picks the pool that exchanges the code: the requested one,
+// else the only known one, else the pool this connection already uses; with
+// several and no choice the user has to pick.
+func (c *Connections) exchangePool(ctx context.Context, userID domain.UserID, provider string, conn domain.ConnectionID, requested string) (string, error) {
+	if requested != "" {
+		return requested, nil
+	}
+	known := c.knownPools(ctx, provider)
+	switch len(known) {
+	case 0:
+		return "", ErrNoWorker
+	case 1:
+		return known[0], nil
+	}
+	for _, a := range c.connectionAccounts(ctx, userID, provider, conn) {
+		if a.AssignedWorkerName != "" {
+			return a.AssignedWorkerName, nil
+		}
+	}
+	return "", ErrChooseWorker
 }
 
 // Own loads the caller's connection; domain.ErrNotFound for anyone else's.
@@ -170,78 +234,114 @@ func (c *Connections) Delete(ctx context.Context, conn domain.UserProviderConfig
 }
 
 // OAuthProvider resolves a provider that links via the OAuth round-trip.
-func (c *Connections) OAuthProvider(id string) (Provider, error) {
-	p, ok := c.Providers[id]
-	if !ok {
-		return Provider{}, ErrUnknownProvider
+func (c *Connections) OAuthProvider(ctx context.Context, id string) (domain.ProviderMeta, error) {
+	p, err := c.provider(ctx, id)
+	if err != nil {
+		return domain.ProviderMeta{}, err
 	}
 	if !p.OAuth() {
-		return Provider{}, ErrNotOAuth
+		return domain.ProviderMeta{}, ErrNotOAuth
 	}
 	return p, nil
 }
 
 // AuthorizeURL checks that the caller's connection can start the round-trip
-// and returns the provider's authorize URL.
-func (c *Connections) AuthorizeURL(ctx context.Context, userID domain.UserID, p Provider, connID domain.ConnectionID, worker, state, redirectURI string) (string, error) {
+// and returns the provider's authorize URL plus the PKCE verifier to keep
+// for the callback ("" when the provider does not use PKCE).
+func (c *Connections) AuthorizeURL(ctx context.Context, userID domain.UserID, p domain.ProviderMeta, connID domain.ConnectionID, worker, state, redirectURI string) (target, verifier string, err error) {
 	conn, err := c.Configs.GetByID(ctx, connID)
-	if err != nil || conn.UserID != userID || conn.Provider != p.Provider || conn.ClientID == "" {
-		return "", ErrConfigureFirst
+	if err != nil || conn.UserID != userID || conn.Provider != p.ID || conn.ClientID == "" {
+		return "", "", ErrConfigureFirst
 	}
 	// Stored but unreadable (AAD/key change): the token exchange would fail
 	// only after the provider round-trip.
 	if conn.SecretUnreadable {
-		return "", ErrSecretUnreadable
+		return "", "", ErrSecretUnreadable
 	}
 	if worker != "" && !domain.ValidWorkerName(worker) {
-		return "", ErrBadWorker
+		return "", "", ErrBadWorker
+	}
+	if p.OAuth2 == nil {
+		return "", "", ErrNotOAuth
 	}
 	q := url.Values{}
+	for k, v := range p.OAuth2.AuthorizeParams {
+		q.Set(k, v)
+	}
 	q.Set("client_id", conn.ClientID)
 	q.Set("redirect_uri", redirectURI)
 	q.Set("response_type", "code")
-	q.Set("scope", p.Scopes)
-	// force: always show the provider's auth screen, so a user can pick a
-	// different account for a separate connection.
-	q.Set("approval_prompt", "force")
+	if s := p.ScopeString(); s != "" {
+		q.Set("scope", s)
+	}
 	q.Set("state", state)
-	return p.AuthorizeURL + "?" + q.Encode(), nil
+	if p.OAuth2.PKCE {
+		var challenge string
+		verifier, challenge = pkcePair()
+		q.Set("code_challenge", challenge)
+		q.Set("code_challenge_method", "S256")
+	}
+	sep := "?"
+	if strings.Contains(p.OAuth2.AuthorizeURL, "?") {
+		sep = "&"
+	}
+	return p.OAuth2.AuthorizeURL + sep + q.Encode(), verifier, nil
 }
 
-// Complete exchanges the callback's code and links the account to the
-// caller's connection; it returns the new account.
-func (c *Connections) Complete(ctx context.Context, userID domain.UserID, p Provider, connID domain.ConnectionID, code, requestedWorker string) (domain.ExternalAccountID, error) {
+// Complete has the provider's pool exchange the callback's code and links
+// the account to the caller's connection; it returns the new account.
+func (c *Connections) Complete(ctx context.Context, userID domain.UserID, p domain.ProviderMeta, connID domain.ConnectionID, in port.CodeExchange, requestedWorker string) (domain.ExternalAccountID, error) {
 	conn, err := c.Configs.GetByID(ctx, connID)
 	if err != nil || conn.UserID != userID {
 		return domain.ExternalAccountID{}, ErrConfigureFirst
 	}
-	tok, providerAcctID, err := c.Exchanger.ExchangeCode(ctx, p.TokenURL, conn, code)
+	if requestedWorker != "" && !domain.ValidWorkerName(requestedWorker) {
+		return domain.ExternalAccountID{}, ErrBadWorker
+	}
+	exchanger, err := c.exchangePool(ctx, userID, p.ID, conn.ID, requestedWorker)
 	if err != nil {
-		c.Log.Error("oauth code exchange failed", "provider", p.Provider, "error", err)
+		c.Log.Warn("oauth connect: no pool to exchange the code", "provider", p.ID, "error", err)
+		return domain.ExternalAccountID{}, err
+	}
+	if c.Exchanger == nil {
 		return domain.ExternalAccountID{}, ErrExchangeFailed
 	}
+	tok, providerAcctID, err := c.Exchanger.ExchangeCode(ctx, p.ID, exchanger, conn, in)
+	if err != nil {
+		c.Log.Error("oauth code exchange failed", "provider", p.ID, "pool", exchanger, "error", err)
+		return domain.ExternalAccountID{}, ErrExchangeFailed
+	}
+	return c.linkOAuthAccount(ctx, userID, p, conn, tok, providerAcctID, requestedWorker)
+}
+
+// linkOAuthAccount creates the account for an exchanged token and stores it.
+func (c *Connections) linkOAuthAccount(ctx context.Context, userID domain.UserID, p domain.ProviderMeta, conn domain.UserProviderConfig, tok port.TokenState, providerAcctID, requestedWorker string) (domain.ExternalAccountID, error) {
 	label := p.DisplayName
 	if conn.Label != "" {
 		label = conn.Label
 	}
-	pool, err := c.pool(ctx, userID, p.Provider, conn.ID, providerAcctID, requestedWorker)
+	pool, err := c.pool(ctx, userID, p.ID, conn.ID, providerAcctID, requestedWorker)
 	if err != nil {
-		c.Log.Warn("oauth connect: no worker pool", "provider", p.Provider, "error", err)
+		c.Log.Warn("oauth connect: no worker pool", "provider", p.ID, "error", err)
 		return domain.ExternalAccountID{}, ErrChooseWorker
 	}
-	held, err := c.Accounts.HeldByOtherUser(ctx, p.Provider, providerAcctID, userID)
+	held, err := c.Accounts.HeldByOtherUser(ctx, p.ID, providerAcctID, userID)
 	if err != nil {
-		c.Log.Error("oauth connect: holder check failed", "provider", p.Provider, "error", err)
+		c.Log.Error("oauth connect: holder check failed", "provider", p.ID, "error", err)
 		return domain.ExternalAccountID{}, port.NewActionError(port.ActionErrorInternal, "could not save account")
 	}
 	if held {
 		c.Log.Warn("oauth connect: provider account already linked to another user",
-			"provider", p.Provider, "provider_account_id", providerAcctID, "connection_id", conn.ID)
+			"provider", p.ID, "provider_account_id", providerAcctID, "connection_id", conn.ID)
 		return domain.ExternalAccountID{}, ErrAlreadyLinked
 	}
+	scopes := []string{}
+	if p.OAuth2 != nil {
+		scopes = append(scopes, p.OAuth2.Scopes...)
+	}
 	acctID, err := c.Accounts.CreateAccount(ctx, domain.ExternalAccount{
-		UserID: userID, Provider: p.Provider, ProviderAccountID: providerAcctID,
-		ConnectionID: &conn.ID, DisplayLabel: label, GrantedScopes: p.ScopeList(),
+		UserID: userID, Provider: p.ID, ProviderAccountID: providerAcctID,
+		ConnectionID: &conn.ID, DisplayLabel: label, GrantedScopes: scopes,
 		AssignedWorkerName: pool,
 	})
 	if err != nil {
@@ -252,7 +352,7 @@ func (c *Connections) Complete(ctx context.Context, userID domain.UserID, p Prov
 		c.Log.Error("store oauth token failed", "error", err)
 		return domain.ExternalAccountID{}, port.NewActionError(port.ActionErrorInternal, "could not save token")
 	}
-	c.Log.Info("oauth account connected", "provider", p.Provider, "account_id", acctID, "connection_id", conn.ID)
+	c.Log.Info("oauth account connected", "provider", p.ID, "account_id", acctID, "connection_id", conn.ID)
 	c.Jobs.SyncGearOnConnect(ctx, acctID)
 	return acctID, nil
 }

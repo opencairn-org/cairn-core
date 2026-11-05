@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 )
 
@@ -18,6 +19,7 @@ const (
 	OAuthConnectStateCookie = "cairn_oauth_state"
 	oauthConnectionCookie   = "cairn_oauth_connection"
 	oauthWorkerCookie       = "cairn_oauth_worker"
+	oauthPKCECookie         = "cairn_oauth_pkce"
 )
 
 // ConnectionHandlers serve a user's provider connections and the OAuth
@@ -87,9 +89,17 @@ func (h *ConnectionHandlers) list(w http.ResponseWriter, r *http.Request) {
 				"online": wp.Online, "compatible": wp.Compatible,
 			})
 		}
+		fields := make([]map[string]any, 0, 2)
+		for _, key := range []string{domain.ConfigFieldClientID, domain.ConfigFieldClientSecret} {
+			f := p.Provider.Field(key)
+			fields = append(fields, map[string]any{
+				"key": f.Key, "label": f.Label, "help": f.Help, "secret": f.Secret, "placeholder": f.Placeholder,
+			})
+		}
 		provOut = append(provOut, map[string]any{
-			"provider": p.Provider.ID, "display_name": p.Provider.DisplayName, "oauth": p.Provider.OAuth,
-			"worker_pools": pools,
+			"provider": p.Provider.ID, "display_name": p.Provider.DisplayName, "oauth": p.Provider.OAuth(),
+			"auth_method": p.Provider.AuthMethod, "setup_docs_url": p.Provider.SetupDocsURL,
+			"config_fields": fields, "worker_pools": pools,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"connections": out, "providers": provOut})
@@ -190,13 +200,13 @@ func (h *ConnectionHandlers) delete(w http.ResponseWriter, r *http.Request) {
 
 // oauthProvider resolves the caller and {provider} to an OAuth provider,
 // writing the error response itself on failure.
-func (h *ConnectionHandlers) oauthProvider(w http.ResponseWriter, r *http.Request) (domain.UserID, providerlink.Provider, bool) {
+func (h *ConnectionHandlers) oauthProvider(w http.ResponseWriter, r *http.Request) (domain.UserID, domain.ProviderMeta, bool) {
 	userID, ok := h.Auth.User(r)
 	if !ok {
 		http.Error(w, "login required", http.StatusUnauthorized)
-		return userID, providerlink.Provider{}, false
+		return userID, domain.ProviderMeta{}, false
 	}
-	p, err := h.Connections.OAuthProvider(r.PathValue("provider"))
+	p, err := h.Connections.OAuthProvider(r.Context(), r.PathValue("provider"))
 	switch {
 	case errors.Is(err, providerlink.ErrUnknownProvider):
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -211,8 +221,8 @@ func oauthConnectFailed(w http.ResponseWriter, r *http.Request, reason string) {
 	http.Redirect(w, r, "/connections?error="+url.QueryEscape(reason), http.StatusFound)
 }
 
-func (h *ConnectionHandlers) callbackURL(p providerlink.Provider) string {
-	return strings.TrimRight(h.PublicURL, "/") + "/auth/oauth/" + p.Provider + "/callback"
+func (h *ConnectionHandlers) callbackURL(p domain.ProviderMeta) string {
+	return strings.TrimRight(h.PublicURL, "/") + "/auth/oauth/" + p.ID + "/callback"
 }
 
 func (h *ConnectionHandlers) setRoundTripCookie(w http.ResponseWriter, r *http.Request, name, value string) {
@@ -235,7 +245,7 @@ func (h *ConnectionHandlers) connect(w http.ResponseWriter, r *http.Request) {
 	// The pool to connect for travels through the round-trip (docs/adr/0006).
 	worker := r.URL.Query().Get("worker")
 	state := oauthRandToken()
-	target, err := h.Connections.AuthorizeURL(r.Context(), userID, p, connID, worker, state, h.callbackURL(p))
+	target, verifier, err := h.Connections.AuthorizeURL(r.Context(), userID, p, connID, worker, state, h.callbackURL(p))
 	if err != nil {
 		var ce providerlink.ConnectError
 		if errors.As(err, &ce) {
@@ -248,7 +258,8 @@ func (h *ConnectionHandlers) connect(w http.ResponseWriter, r *http.Request) {
 	h.setRoundTripCookie(w, r, OAuthConnectStateCookie, state)
 	h.setRoundTripCookie(w, r, oauthWorkerCookie, worker)
 	h.setRoundTripCookie(w, r, oauthConnectionCookie, connID.String())
-	http.Redirect(w, r, target, http.StatusFound) //nolint:gosec // G710: the provider registry's fixed authorize endpoint
+	h.setRoundTripCookie(w, r, oauthPKCECookie, verifier)
+	http.Redirect(w, r, target, http.StatusFound) //nolint:gosec // G710: the provider's validated (https) authorize endpoint
 }
 
 // callbackParams checks the state and reads the connection cookie and the
@@ -290,11 +301,15 @@ func (h *ConnectionHandlers) callback(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var requested string
+	var requested, verifier string
 	if c, err := r.Cookie(oauthWorkerCookie); err == nil {
 		requested = c.Value
 	}
-	if _, err := h.Connections.Complete(r.Context(), userID, p, connID, code, requested); err != nil {
+	if c, err := r.Cookie(oauthPKCECookie); err == nil {
+		verifier = c.Value
+	}
+	in := port.CodeExchange{Code: code, RedirectURI: h.callbackURL(p), CodeVerifier: verifier}
+	if _, err := h.Connections.Complete(r.Context(), userID, p, connID, in, requested); err != nil {
 		var ce providerlink.ConnectError
 		if errors.As(err, &ce) {
 			oauthConnectFailed(w, r, string(ce))
@@ -303,7 +318,7 @@ func (h *ConnectionHandlers) callback(w http.ResponseWriter, r *http.Request) {
 		writeActionError(w, err, "could not save account")
 		return
 	}
-	http.Redirect(w, r, "/connections?connected="+p.Provider, http.StatusFound)
+	http.Redirect(w, r, "/connections?connected="+p.ID, http.StatusFound)
 }
 
 func oauthRandToken() string {

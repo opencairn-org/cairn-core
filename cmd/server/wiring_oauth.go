@@ -3,27 +3,80 @@ package main
 import (
 	"context"
 	"log/slog"
+	"sync"
+	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/adapter/primary/rest"
+	"github.com/opencairn-org/cairn-core/internal/adapter/secondary/workeroauth"
 	"github.com/opencairn-org/cairn-core/internal/domain"
+	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/oauthserver"
-	"github.com/opencairn-org/cairn-core/internal/usecase/providerlink"
 )
 
-// Provider registry and OAuth-connect wiring shared by the composition root.
-
-type providerMeta = providerlink.Provider
-
-// providerRegistry is the use case's map itself, so patching it (tests)
-// reaches the connect flow.
-var providerRegistry = providerlink.Providers
+// Provider registry reads and OAuth-connect wiring shared by the
+// composition root. Provider meta comes from the workers' manifests
+// (app.Providers); nothing is compiled in.
 
 const oauthStateCookie = rest.OAuthConnectStateCookie
 
-func oauthProvider(meta providerMeta) bool { return meta.OAuth() }
+// providerCache serves provider meta to read paths (activity links, provider
+// lists) without a DB round-trip per call; the manifest watcher invalidates.
+type providerCache struct {
+	mu   sync.Mutex
+	at   time.Time
+	list []domain.ProviderMeta
+}
 
-func providerActivityURL(provider, externalID string) string {
-	return providerRegistry[provider].ActivityURL(externalID)
+const providerCacheTTL = 30 * time.Second
+
+// providerMetas lists the known providers, cached for providerCacheTTL.
+func (app *App) providerMetas(ctx context.Context, logger *slog.Logger) []domain.ProviderMeta {
+	if app.Providers == nil {
+		return nil
+	}
+	c := &app.providers
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.at) < providerCacheTTL {
+		return c.list
+	}
+	list, err := app.Providers.List(ctx)
+	if err != nil {
+		logger.Warn("list providers failed", "error", err)
+		return c.list
+	}
+	c.list, c.at = list, time.Now()
+	return list
+}
+
+func (app *App) invalidateProviders() {
+	app.providers.mu.Lock()
+	app.providers.at = time.Time{}
+	app.providers.mu.Unlock()
+}
+
+func providerActivityURL(app *App, provider, externalID string) string {
+	for _, p := range app.providerMetas(context.Background(), slog.Default()) {
+		if p.ID == provider {
+			return p.ActivityURL(externalID)
+		}
+	}
+	return ""
+}
+
+// appExchanger exchanges OAuth codes through app.CodeExchanger, or the
+// provider's pool over the job bus; resolved per call so tests can swap it.
+type appExchanger struct{ app *App }
+
+func (e appExchanger) ExchangeCode(ctx context.Context, provider, pool string, conn domain.UserProviderConfig, in port.CodeExchange) (port.TokenState, string, error) {
+	ex := e.app.CodeExchanger
+	if ex == nil {
+		if e.app.NATSBus == nil {
+			return port.TokenState{}, "", workeroauth.ErrNoBus
+		}
+		ex = &workeroauth.Exchanger{Bus: e.app.NATSBus}
+	}
+	return ex.ExchangeCode(ctx, provider, pool, conn, in)
 }
 
 func appendQuery(rawURL string, params map[string]string) string {

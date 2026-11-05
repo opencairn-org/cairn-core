@@ -90,10 +90,3 @@ type WorkerPoolInfo struct {
 	Online        bool
 	Compatible    bool
 }
-
-// ProviderInfo describes a provider the instance knows how to connect.
-type ProviderInfo struct {
-	ID          string
-	DisplayName string
-	OAuth       bool // links accounts through an OAuth authorize round-trip
-}

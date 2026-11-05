@@ -16,8 +16,8 @@ type SyncInsight interface {
 	Budget(ctx context.Context, a domain.ExternalAccount) domain.RateBudget
 	// Pools lists a provider's known, non-retired pools.
 	Pools(ctx context.Context, provider string) []domain.WorkerPoolInfo
-	// Providers lists the providers the instance can connect.
-	Providers() []domain.ProviderInfo
+	// Providers lists the providers the instance can connect (worker-declared).
+	Providers(ctx context.Context) []domain.ProviderMeta
 	// ActivityURL is the provider page of an activity, "" when none.
 	ActivityURL(provider, externalID string) string
 	// StartFullSync starts a background discovery of the account.

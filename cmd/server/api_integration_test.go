@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -34,6 +35,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/db"
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/httpsig"
+	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/federation"
 )
 
@@ -874,20 +876,9 @@ func itestFederation(t *testing.T, env *itestEnv, alice *itestClient, actID stri
 // itestConnections links a Strava account through a fake token endpoint and a Garmin credential account.
 func itestConnections(t *testing.T, alice *itestClient) {
 	t.Helper()
-	tokens := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil || r.PostForm.Get("code") != "good" {
-			http.Error(w, "bad code", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"access_token":"at","refresh_token":"rt","expires_in":21600,"token_type":"Bearer","scope":"read","athlete":{"id":4242}}`))
-	}))
-	t.Cleanup(tokens.Close)
-	orig := providerRegistry["strava"]
-	patched := orig
-	patched.TokenURL = tokens.URL
-	providerRegistry["strava"] = patched
-	t.Cleanup(func() { providerRegistry["strava"] = orig })
+	// The provider's pool exchanges the code; stand in for it.
+	alice.env.app.CodeExchanger = itestExchanger{}
+	t.Cleanup(func() { alice.env.app.CodeExchanger = nil })
 
 	conn := alice.post("/api/connections", map[string]any{"provider": "strava", "label": "My Strava", "client_id": "123", "client_secret": "s3cret"}, http.StatusCreated)
 	id := str(conn, "id")
@@ -914,6 +905,16 @@ func itestConnections(t *testing.T, alice *itestClient) {
 	alice.do(http.MethodGet, "/api/connections", nil, http.StatusOK)
 	alice.do(http.MethodDelete, "/api/connections/"+str(g, "id"), nil)
 	alice.do(http.MethodDelete, "/api/connections/"+id, nil)
+}
+
+// itestExchanger accepts the code "good" like a Strava pool would.
+type itestExchanger struct{}
+
+func (itestExchanger) ExchangeCode(_ context.Context, _, _ string, _ domain.UserProviderConfig, in port.CodeExchange) (port.TokenState, string, error) {
+	if in.Code != "good" {
+		return port.TokenState{}, "", errors.New("bad code")
+	}
+	return port.TokenState{AccessToken: "at", RefreshToken: "rt", ExpiresAt: time.Now().Add(6 * time.Hour), TokenType: "Bearer", Scope: "read"}, "4242", nil
 }
 
 func mustURL(t *testing.T, raw string) *url.URL {

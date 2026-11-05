@@ -50,7 +50,7 @@ type ConnectionRow struct {
 
 // ProviderRow is a connectable provider with its pools.
 type ProviderRow struct {
-	Provider domain.ProviderInfo
+	Provider domain.ProviderMeta
 	Pools    []domain.WorkerPoolInfo
 }
 
@@ -220,10 +220,10 @@ func (a *Accounts) Connections(ctx context.Context, userID domain.UserID) ([]Con
 	if err != nil {
 		return nil, nil, fmt.Errorf("list connections: %w", err)
 	}
-	providers := map[string]domain.ProviderInfo{}
+	providers := map[string]domain.ProviderMeta{}
 	var providerRows []ProviderRow
 	if a.insight != nil {
-		for _, p := range a.insight.Providers() {
+		for _, p := range a.insight.Providers(ctx) {
 			providers[p.ID] = p
 			providerRows = append(providerRows, ProviderRow{Provider: p, Pools: a.insight.Pools(ctx, p.ID)})
 		}
@@ -232,7 +232,7 @@ func (a *Accounts) Connections(ctx context.Context, userID domain.UserID) ([]Con
 	for _, c := range conns {
 		row := ConnectionRow{Connection: c, DisplayName: c.Provider}
 		if p, ok := providers[c.Provider]; ok {
-			row.DisplayName, row.OAuth = p.DisplayName, p.OAuth
+			row.DisplayName, row.OAuth = p.DisplayName, p.OAuth()
 		}
 		rows = append(rows, row)
 	}

@@ -84,8 +84,11 @@ func (f *fakeInsight) Budget(context.Context, domain.ExternalAccount) domain.Rat
 func (f *fakeInsight) Pools(context.Context, string) []domain.WorkerPoolInfo {
 	return []domain.WorkerPoolInfo{{Name: "strava-main", Package: "strava", Online: true, Compatible: true}}
 }
-func (f *fakeInsight) Providers() []domain.ProviderInfo {
-	return []domain.ProviderInfo{{ID: "garmin", DisplayName: "Garmin"}, {ID: "strava", DisplayName: "Strava", OAuth: true}}
+func (f *fakeInsight) Providers(context.Context) []domain.ProviderMeta {
+	return []domain.ProviderMeta{
+		{ID: "garmin", DisplayName: "Garmin", AuthMethod: domain.AuthMethodCredentials},
+		{ID: "strava", DisplayName: "Strava", AuthMethod: domain.AuthMethodOAuth2},
+	}
 }
 func (f *fakeInsight) ActivityURL(provider, id string) string {
 	if provider == "strava" {

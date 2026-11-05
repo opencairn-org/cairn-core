@@ -94,6 +94,7 @@ func handleManifestUpdate(ctx context.Context, app *App, log *slog.Logger, entry
 			return
 		}
 	}
+	applyProviderMeta(ctx, app, log, m)
 	version, err := domain.ParseParserVersion(m.Version)
 	if err != nil {
 		log.Warn("manifest version is not a parser version N.M; cannot drive update-available",
@@ -115,13 +116,37 @@ func handleManifestUpdate(ctx context.Context, app *App, log *slog.Logger, entry
 	}
 }
 
+// applyProviderMeta stores the manifest's provider_meta (display, auth,
+// OAuth authorize endpoint, connect-form fields), bound to the package like
+// a pool name. Invalid or foreign-package meta is logged and ignored.
+func applyProviderMeta(ctx context.Context, app *App, log *slog.Logger, m manifestPayloadWire) {
+	if m.ProviderMeta == nil || app.Providers == nil {
+		return
+	}
+	meta := *m.ProviderMeta
+	meta.ID = m.Provider
+	if err := meta.Validate(); err != nil {
+		log.Warn("provider meta rejected", "worker_name", m.WorkerName, "provider", m.Provider, "error", err)
+		return
+	}
+	if err := app.Providers.Upsert(ctx, meta, m.Package); err != nil {
+		log.Warn("provider meta refused", "worker_name", m.WorkerName, "provider", m.Provider, "package", m.Package, "error", err)
+		return
+	}
+	app.invalidateProviders()
+	log.Info("provider meta stored", "provider", m.Provider, "package", m.Package, "auth_method", meta.AuthMethod)
+}
+
 // manifestPayloadWire is the JSON shape workers write to the
-// cairn_worker_manifests KV bucket. Keep in sync with
-// internal/workersdk/worker.go:manifestPayload.
+// cairn_worker_manifests KV bucket. Keep in sync with the worker SDKs'
+// manifest payload.
 type manifestPayloadWire struct {
 	WorkerName string `json:"worker_name"`
 	Version    string `json:"version"`
 	Provider   string `json:"provider"`
 	Package    string `json:"package"`
 	UpdatedAt  string `json:"updated_at"`
+	// ProviderMeta is what the worker declares about connecting its
+	// provider; optional (older workers, parser-only pools).
+	ProviderMeta *domain.ProviderMeta `json:"provider_meta,omitempty"`
 }
