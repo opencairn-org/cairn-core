@@ -43,7 +43,7 @@ require (
 	github.com/aws/smithy-go v1.28.7
 	github.com/bbrks/go-blurhash v1.2.0
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/go-jose/go-jose/v4 v4.1.7
+	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/nats-io/nats-server/v2 v2.15.2
