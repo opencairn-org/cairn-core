@@ -107,6 +107,9 @@ func (f *lookupAccounts) RegisterWebhookSubscription(_ context.Context, _, sub s
 	return nil
 }
 
+// lookupSubject is the pool subject the fake worker asks on.
+const lookupSubject = "cairn.accounts.lookup.strava.w"
+
 func lookupReply(t *testing.T, b []byte) map[string]string {
 	t.Helper()
 	var m map[string]string
@@ -129,17 +132,17 @@ func TestAccountLookup(t *testing.T) {
 	f := &lookupAccounts{accts: []domain.ExternalAccount{acct}}
 	l := &AccountLookup{Accounts: f}
 
-	got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","external_id":"7","subscription_id":"s1"}`)))
+	got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","external_id":"7","subscription_id":"s1"}`)))
 	if got["account_id"] != acct.ID.String() || f.registered[acct.ID] != "s1" {
 		t.Errorf("fallback reply = %v, registered %v", got, f.registered)
 	}
-	if got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","subscription_id":"s1"}`))); got["account_id"] != acct.ID.String() {
+	if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","subscription_id":"s1"}`))); got["account_id"] != acct.ID.String() {
 		t.Errorf("subscription-only = %v", got)
 	}
-	if got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","external_id":"8"}`))); got["error"] != "not_found" {
+	if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","external_id":"8"}`))); got["error"] != "not_found" {
 		t.Errorf("unknown = %v", got)
 	}
-	if got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava"}`))); got["error"] == "" {
+	if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava"}`))); got["error"] == "" {
 		t.Errorf("missing ids = %v", got)
 	}
 	got = lookupReply(t, l.RespondPool(ctx, "cairn.accounts.lookup.strava.alt", []byte(`{"provider":"evil","worker_name":"x","external_id":"7"}`)))
@@ -147,7 +150,7 @@ func TestAccountLookup(t *testing.T) {
 		t.Errorf("pool reply = %v, pool %q", got, f.pool)
 	}
 	f.accts[0].AutoImportEnabled = false
-	if got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","external_id":"7"}`))); got["error"] != "auto_import_suspended" {
+	if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","external_id":"7"}`))); got["error"] != "auto_import_suspended" {
 		t.Errorf("suspended = %v", got)
 	}
 }
@@ -164,7 +167,7 @@ func TestAccountLookupSharedSubscription(t *testing.T) {
 		owner string
 		want  domain.ExternalAccount
 	}{{"100", a}, {"200", b}, {"200", b}, {"100", a}} {
-		got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","external_id":"`+tc.owner+`","subscription_id":"s1"}`)))
+		got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","external_id":"`+tc.owner+`","subscription_id":"s1"}`)))
 		if got["account_id"] != tc.want.ID.String() || got["user_id"] != tc.want.UserID.String() {
 			t.Errorf("owner %s = %v, want %s", tc.owner, got, tc.want.ID)
 		}
@@ -173,7 +176,7 @@ func TestAccountLookupSharedSubscription(t *testing.T) {
 		t.Errorf("self-heal = %v", f.registered)
 	}
 	// Both now hold s1: a subscription-only request cannot pick.
-	if got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","subscription_id":"s1"}`))); got["error"] != "ambiguous" {
+	if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","subscription_id":"s1"}`))); got["error"] != "ambiguous" {
 		t.Errorf("subscription-only = %v", got)
 	}
 }
@@ -187,7 +190,7 @@ func TestAccountLookupAmbiguous(t *testing.T) {
 		`{"provider":"strava","external_id":"100","subscription_id":"s1"}`,
 		`{"provider":"strava","external_id":"100"}`,
 	} {
-		if got := lookupReply(t, l.Respond(ctx, []byte(body))); got["error"] != "ambiguous" {
+		if got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(body))); got["error"] != "ambiguous" {
 			t.Errorf("%s = %v", body, got)
 		}
 	}
@@ -198,7 +201,7 @@ func TestAccountLookupAmbiguous(t *testing.T) {
 	// Same athlete on two apps: the fallback skips the account bound elsewhere.
 	other, fresh := lookupAcct("100", "s9"), lookupAcct("100", "")
 	f.accts = []domain.ExternalAccount{other, fresh}
-	got := lookupReply(t, l.Respond(ctx, []byte(`{"provider":"strava","external_id":"100","subscription_id":"s2"}`)))
+	got := lookupReply(t, l.RespondPool(ctx, lookupSubject, []byte(`{"provider":"strava","external_id":"100","subscription_id":"s2"}`)))
 	if got["account_id"] != fresh.ID.String() || f.registered[fresh.ID] != "s2" {
 		t.Errorf("unbound fallback = %v, registered %v", got, f.registered)
 	}
@@ -245,7 +248,7 @@ func TestWebhookForwarder(t *testing.T) {
 	if _, err := f.Verify(ctx, "strava", "GET", nil); !errors.Is(err, ErrWebhookNoWorker) {
 		t.Errorf("no worker = %v", err)
 	}
-	if ValidWebhookProvider("a.b") || !ValidWebhookProvider("strava_2") {
+	if ValidWebhookTarget("a.b") || !ValidWebhookTarget("strava_2") || !ValidWebhookTarget("strava-importer-strava") {
 		t.Error("provider validation")
 	}
 }

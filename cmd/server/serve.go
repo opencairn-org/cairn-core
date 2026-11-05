@@ -238,14 +238,14 @@ func serveMountCore(ctx context.Context, mux *http.ServeMux, app *App, pool *pgx
 	// per-activity /api/* surface.
 	mountRestAdminOps(mux, app, logger)
 
-	// Provider-agnostic webhook forwarder. POST /webhooks/{provider}
-	// forwards raw bodies to cairn.webhooks.<provider>.event;
-	// GET request/replies to cairn.webhooks.<provider>.verify.
-	// All envelope decoding + signature validation + handshake protocol
-	// lives in the provider's worker (see workersdk.WebhookEvent /
-	// WebhookVerify). Core knows nothing about Strava, Garmin, etc.
+	// Provider-agnostic webhook forwarder, keyed on the pool's worker key
+	// (<name>-<provider>). POST /webhooks/{worker_key} forwards raw bodies
+	// to cairn.webhooks.<worker_key>.event; GET request/replies to
+	// cairn.webhooks.<worker_key>.verify. Envelope decoding, signature
+	// validation and the handshake live in the worker (workersdk
+	// WebhookEvent / WebhookVerify); core knows no provider.
 	mountRestWebhooks(mux, app, logger)
-	logger.Info("generic webhook forwarder mounted", "path", "/webhooks/{provider}")
+	logger.Info("generic webhook forwarder mounted", "path", "/webhooks/{worker_key}")
 
 	// (DLQ /admin endpoints are mounted with the dev /admin/* surface above.)
 

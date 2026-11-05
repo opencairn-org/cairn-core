@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
@@ -79,37 +78,19 @@ func runImportQueueProcessor(ctx context.Context, logger *slog.Logger, app *App)
 }
 
 // startAccountLookupHandler answers workers resolving a webhook's provider
-// owner id into an account, on the legacy subject and the per-pool one
-// (docs/adr/0006).
+// owner id into an account on their pool subject (docs/adr/0006).
 func startAccountLookupHandler(ctx context.Context, app *App, logger *slog.Logger) (port.Subscription, error) {
 	if app.NATSBus == nil || app.ExternalAccounts == nil {
 		return nil, nil
 	}
 	lookup := &syncuc.AccountLookup{Accounts: app.ExternalAccounts, Log: logger.With("component", "account_lookup_handler")}
-	sub, err := app.NATSBus.RespondTo(ctx, "cairn.accounts.lookup_by_provider_ext",
-		func(ctx context.Context, body []byte) ([]byte, error) { return lookup.Respond(ctx, body), nil })
-	if err != nil {
-		return nil, err
-	}
-	poolSub, err := app.NATSBus.RespondToSubject(ctx, "cairn.accounts.lookup.*.*",
+	sub, err := app.NATSBus.RespondToSubject(ctx, "cairn.accounts.lookup.*.*",
 		func(ctx context.Context, subject string, body []byte) ([]byte, error) {
 			return lookup.RespondPool(ctx, subject, body), nil
 		})
 	if err != nil {
-		_ = sub.Close(ctx)
 		return nil, err
 	}
-	lookup.Log.Info("account lookup handler active on cairn.accounts.lookup_by_provider_ext")
-	return multiSubscription{sub, poolSub}, nil
-}
-
-// multiSubscription closes several subscriptions as one.
-type multiSubscription []port.Subscription
-
-func (m multiSubscription) Close(ctx context.Context) error {
-	var err error
-	for _, s := range m {
-		err = errors.Join(err, s.Close(ctx))
-	}
-	return err
+	lookup.Log.Info("account lookup handler active on cairn.accounts.lookup.*.*")
+	return sub, nil
 }

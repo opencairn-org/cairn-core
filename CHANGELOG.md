@@ -6,6 +6,28 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
+
+### Changed
+- Worker request/reply responders (`cairn.tokens.<provider>.*`,
+  `cairn.creds.<provider>.get`, `cairn.blobs.presign_*.<provider>`) take the
+  provider from the subject and refuse accounts and blob keys of other
+  providers. `cairn.creds.*.get` serves every credential provider, not only
+  Garmin; its reply carries `client_id`/`client_secret` (`email`/`password`
+  stay as aliases until 0.8).
+- Every blob key a worker hands back (`presign_download`, `payload_ref`,
+  `raw_blob_id`, attachments) must follow the documented layout under the
+  worker's provider; others are refused.
+- The webhook path token is the pool's worker key, `/webhooks/{worker_key}`
+  (it always was; the route and docs now say so).
+- Forwarded webhook events are deduplicated by body hash, not by second.
+
+### Removed
+- The pre-0.5 provider-scoped job subjects `cairn.jobs.<job>.<provider>` are
+  no longer granted; workers drain their pool subjects only.
+- The `cairn.accounts.lookup_by_provider_ext` responder; workers use
+  `cairn.accounts.lookup.<provider>.<worker_name>`.
+
 ## [0.6.3] — 2026-11-01
 
 Web-UI-only patch; the 0.6.x workers stay compatible.

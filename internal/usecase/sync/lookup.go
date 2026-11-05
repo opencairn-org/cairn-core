@@ -11,11 +11,12 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/port"
 )
 
-// AccountLookup resolves a provider's owner/athlete id (or push
-// subscription) into the internal account + user, for workers routing
-// webhook events. Without it webhook imports fall back to reconcile polling.
+// AccountLookup resolves a provider's owner id (or push subscription) into
+// the internal account + user, for workers routing webhook events. Without
+// it webhook imports fall back to reconcile polling.
 //
-//	request:  {"provider": "strava", "external_id": "12345", "subscription_id": "..."}
+//	subject:  cairn.accounts.lookup.<provider>.<pool>
+//	request:  {"external_id": "12345", "subscription_id": "..."}
 //	reply:    {"account_id": "uuid", "user_id": "uuid"} | {"error": "..."}
 type AccountLookup struct {
 	Accounts port.ExternalAccountRepo
@@ -28,7 +29,7 @@ type LookupRequest struct {
 	ExternalID     string `json:"external_id"`
 	SubscriptionID string `json:"subscription_id"`
 	// WorkerName is the asking pool: one provider account may have a
-	// connection per pool (docs/adr/0006). Empty (pre-0.5 workers) matches any.
+	// connection per pool (docs/adr/0006).
 	WorkerName string `json:"worker_name"`
 }
 
@@ -54,15 +55,6 @@ func (l *AccountLookup) RespondPool(ctx context.Context, subject string, body []
 		return lookupErr("bad_request")
 	}
 	req.Provider, req.WorkerName = parts[3], parts[4]
-	return l.respond(ctx, req)
-}
-
-// Respond answers one raw request body.
-func (l *AccountLookup) Respond(ctx context.Context, body []byte) []byte {
-	var req LookupRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		return lookupErr("bad_request")
-	}
 	return l.respond(ctx, req)
 }
 
