@@ -12,6 +12,11 @@ All notable changes to Cairn are documented here. The format follows
   could (Strava's `hub.challenge` never echoed back) and kept every verify
   request until MaxAge. Core applies the narrowed subject to an existing
   stream on start.
+- `cmd/worker-conformance --active` awaited the reconcile result on the
+  pre-pool subject `cairn.results.reconcile.<provider>.<account>` and so
+  reported every 0.5+ worker, which publishes on
+  `cairn.results.reconcile.<provider>.<pool>.<account>` (docs/adr/0006), as
+  "no reconcile result".
 
 ## [0.7.0] — 2026-11-05
 
