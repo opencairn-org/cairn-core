@@ -729,6 +729,9 @@ message WorkerPoolInfo {
   bool online = 5;
   // Release-compatible with this core (true when offline: unknown).
   bool compatible = 6;
+  // Data types the pool's live instances read, by capability taxonomy name
+  // ("Activity", "Gear", "Sleep", ...); empty while the pool is offline.
+  repeated string reads = 7;
 }
 
 message RateLimitWindow {

@@ -156,7 +156,7 @@ func (f *fakeInsightC) Budget(context.Context, domain.ExternalAccount) domain.Ra
 	return domain.RateBudget{}
 }
 func (f *fakeInsightC) Pools(context.Context, string) []domain.WorkerPoolInfo {
-	return []domain.WorkerPoolInfo{{Name: "p", Package: "strava", Online: true, Compatible: true}}
+	return []domain.WorkerPoolInfo{{Name: "p", Package: "strava", Online: true, Compatible: true, Reads: []string{"Activity"}}}
 }
 func (f *fakeInsightC) Providers(context.Context) []domain.ProviderMeta {
 	return []domain.ProviderMeta{{ID: "strava", DisplayName: "Strava", AuthMethod: domain.AuthMethodOAuth2}}
@@ -191,6 +191,9 @@ func TestExternalAccountServer(t *testing.T) {
 	a := list.GetAccounts()[0]
 	if a.GetImported() != 1 || a.GetStatus() != v1.ExternalAccountStatus_EXTERNAL_ACCOUNT_STATUS_ACTIVE || len(a.GetWorkerPools()) != 1 || !a.GetAutoImportEnabled() || a.GetQueue() == nil {
 		t.Fatalf("account %v", a)
+	}
+	if reads := a.GetWorkerPools()[0].GetReads(); len(reads) != 1 || reads[0] != "Activity" {
+		t.Fatalf("pool reads %v", reads)
 	}
 	prov, _ := s.ListAvailableProviders(ctx, &v1.ListAvailableProvidersRequest{})
 	if len(prov.GetProviders()) != 1 || prov.GetProviders()[0].GetAuthMethod() != v1.AvailableAuthMethod_AVAILABLE_AUTH_METHOD_OAUTH2 {

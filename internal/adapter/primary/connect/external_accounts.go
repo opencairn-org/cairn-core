@@ -159,7 +159,7 @@ func budgetWindowToProto(w *domain.BudgetWindow) *v1.RateLimitWindow {
 }
 
 func poolToProto(p domain.WorkerPoolInfo) *v1.WorkerPoolInfo {
-	return &v1.WorkerPoolInfo{Name: p.Name, Package: p.Package, ParserVersion: p.ParserVersion, Release: p.Release, Online: p.Online, Compatible: p.Compatible}
+	return &v1.WorkerPoolInfo{Name: p.Name, Package: p.Package, ParserVersion: p.ParserVersion, Release: p.Release, Online: p.Online, Compatible: p.Compatible, Reads: p.Reads}
 }
 
 func accountStatusToProto(s domain.ExternalAccountStatus) v1.ExternalAccountStatus {
