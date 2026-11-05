@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -94,7 +93,7 @@ func (i *CredentialIssuer) IssueWorkerCredential(
 	claims := jwt.NewUserClaims(in.UserNKeyPublic)
 	claims.IssuedAt = time.Now().UTC().Unix()
 	claims.Expires = time.Now().UTC().Add(in.TTL).Unix()
-	claims.Name = subjectAccountFromPermissionName(in.Permissions)
+	claims.Name = workerJWTName(in.Permissions)
 	// Config-mode auth-callout: aud names the target account; issuer_account is refused.
 	claims.Audience = i.workerAccount
 
@@ -213,18 +212,18 @@ func validateUserNKey(pub string) error {
 	return nil
 }
 
-func subjectAccountFromPermissionName(p domain.WorkerPermissionTemplate) string {
-	// JWT name is human-readable; the permission template encodes the
-	// provider via the first allowed-publish subject's last token.
+// workerJWTName is the human-readable JWT name cairn-worker-<name>-<provider>
+// (the worker key), read from the template's first result subject
+// cairn.results.<job>.<provider>.<name>.
+func workerJWTName(p domain.WorkerPermissionTemplate) string {
 	if len(p.AllowPublish) == 0 {
 		return "cairn-worker"
 	}
-	last := p.AllowPublish[0]
-	idx := strings.LastIndex(last, ".")
-	if idx < 0 {
+	_, provider, pool, ok := domain.ResultSubjectPool(p.AllowPublish[0])
+	if !ok || pool == "" {
 		return "cairn-worker"
 	}
-	return "cairn-worker-" + last[idx+1:]
+	return "cairn-worker-" + domain.WorkerKey(pool, provider)
 }
 
 func truncate(s string, n int) string {

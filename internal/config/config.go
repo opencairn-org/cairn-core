@@ -165,7 +165,7 @@ type NATSConfig struct {
 
 	// AckWait is the JetStream ack window per job: a worker has this
 	// long to process a job before the broker re-delivers. Should match
-	// the slowest expected job (Strava fetch with rate-limit backoff
+	// the slowest expected job (a provider fetch with rate-limit backoff
 	// can take a few minutes).
 	JobAckWait time.Duration `env:"JOB_ACK_WAIT, default=5m"`
 
