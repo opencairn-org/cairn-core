@@ -137,7 +137,6 @@ streams.
 | `cairn_worker_presence` | 1 | 60 s | `<name>.<inst>` → `{last_seen, manifest_hash, version}`. TTL clears orphaned workers. |
 | `cairn_worker_manifests` | 5 | none | Per `<name>` the last 5 manifests; server diffs on change. |
 | `cairn_rate_limits` | 1 | 15 min | Per `<provider>` a counter for API quotas (Strava: 200/15min). |
-| `cairn_blob_handles` | 1 | 7 d | Server-signed tokens that workers can exchange for fresh presigned URLs (for long-running jobs). |
 
 ### Object-Store buckets
 
