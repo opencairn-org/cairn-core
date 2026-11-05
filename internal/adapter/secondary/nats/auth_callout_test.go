@@ -241,18 +241,10 @@ func (e *calloutEnv) storeEnrollment(name, provider string) (domain.WorkerEnroll
 	return id, token
 }
 
-// connectWorker connects like cairn-provider-strava's connectBus: token plus a fresh user nkey.
+// connectWorker connects like the workers do: the enrollment token alone,
+// no client nkey (the callout issues the user).
 func (e *calloutEnv) connectWorker(name, token string) (*nats.Conn, error) {
-	kp, err := nkeys.CreateUser()
-	if err != nil {
-		return nil, err
-	}
-	pub, err := kp.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	return nats.Connect(e.srv.ClientURL(), nats.Token(token), nats.Name(name),
-		nats.Nkey(pub, kp.Sign), nats.NoReconnect(),
+	return nats.Connect(e.srv.ClientURL(), nats.Token(token), nats.Name(name), nats.NoReconnect(),
 		nats.ErrorHandler(func(*nats.Conn, *nats.Subscription, error) {}))
 }
 
