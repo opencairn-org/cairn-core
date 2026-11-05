@@ -342,23 +342,35 @@ func TestWorkerTokens(t *testing.T) {
 	_ = toks.StoreToken(ctx, acct.ID, port.StoreTokenInput{State: port.TokenState{AccessToken: "at"}})
 	w := &WorkerTokens{Tokens: toks, Accounts: accts, Configs: cfgs, Bus: bus, Log: discard}
 
-	got, err := w.Get(ctx, acct.ID)
+	got, err := w.Get(ctx, "strava", acct.ID)
 	if err != nil || got.State.AccessToken != "at" || got.ClientID != "cid" || got.ClientSecret != "sec" {
 		t.Fatalf("get: %+v %v", got, err)
 	}
-	if _, err := w.Get(ctx, domain.ExternalAccountID(uuid.New())); !errors.Is(err, port.ErrTokenAccountNotFound) {
+	if _, err := w.Get(ctx, "strava", domain.ExternalAccountID(uuid.New())); !errors.Is(err, port.ErrTokenAccountNotFound) {
 		t.Fatalf("unknown account: %v", err)
 	}
-	if err := w.MarkNeedsReauth(ctx, acct.ID, ""); err != nil || toks.flagged[acct.ID] != "refresh_failed" {
+	if _, err := w.Get(ctx, "garmin", acct.ID); !errors.Is(err, ErrWrongProvider) {
+		t.Fatalf("other provider: %v", err)
+	}
+	if err := w.Store(ctx, "garmin", acct.ID, port.StoreTokenInput{State: port.TokenState{AccessToken: "x"}}); !errors.Is(err, ErrWrongProvider) || toks.stored[acct.ID].AccessToken != "at" {
+		t.Fatalf("other provider store: %v %v", err, toks.stored)
+	}
+	if err := w.MarkNeedsReauth(ctx, "garmin", acct.ID, ""); !errors.Is(err, ErrWrongProvider) || len(toks.flagged) != 0 {
+		t.Fatalf("other provider reauth: %v %v", err, toks.flagged)
+	}
+	if err := w.MarkNeedsReauth(ctx, "strava", acct.ID, ""); err != nil || toks.flagged[acct.ID] != "refresh_failed" {
 		t.Fatalf("needs reauth: %v %v", err, toks.flagged)
 	}
 	if len(bus.sent) != 1 || bus.sent[0] != (published{needsReauthSubject, "reauth:" + acct.ID.String()}) {
 		t.Fatalf("event %v", bus.sent)
 	}
-	if email, pw, err := w.Login(ctx, acct.ID); err != nil || email != "cid" || pw != "sec" {
+	if email, pw, err := w.Login(ctx, "strava", acct.ID); err != nil || email != "cid" || pw != "sec" {
 		t.Fatalf("login: %q %q %v", email, pw, err)
 	}
-	if _, _, err := w.Login(ctx, domain.ExternalAccountID(uuid.New())); !errors.Is(err, ErrAccountGone) {
+	if _, _, err := w.Login(ctx, "strava", domain.ExternalAccountID(uuid.New())); !errors.Is(err, ErrAccountGone) {
 		t.Fatalf("gone: %v", err)
+	}
+	if _, pw, err := w.Login(ctx, "garmin", acct.ID); !errors.Is(err, ErrWrongProvider) || pw != "" {
+		t.Fatalf("other provider login: %q %v", pw, err)
 	}
 }
