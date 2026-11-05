@@ -23,10 +23,21 @@
 		release: string;
 		online: boolean;
 	};
+	// One credential slot of the connect form, labelled by the provider's worker.
+	type ConfigField = {
+		key: string;
+		label: string;
+		help: string;
+		secret: boolean;
+		placeholder: string;
+	};
 	type ProviderType = {
 		provider: string;
 		display_name: string;
 		oauth: boolean;
+		auth_method?: string;
+		setup_docs_url?: string;
+		config_fields?: ConfigField[];
 		worker_pools?: Pool[];
 	};
 
@@ -45,7 +56,7 @@
 
 	let showAdd = $state(false);
 	let form = $state({
-		provider: 'strava',
+		provider: '',
 		label: '',
 		client_id: '',
 		client_secret: '',
@@ -63,11 +74,24 @@
 		return `/auth/oauth/${c.provider}/connect?connection=${c.id}${w ? `&worker=${encodeURIComponent(w)}` : ''}`;
 	}
 
-	// Credential-based providers (no OAuth) store a login as client_id/secret —
-	// label the fields accordingly. Driven by the server's provider metadata.
-	const formProviderOAuth = $derived(
-		providers.find((p) => p.provider === form.provider)?.oauth ?? true
-	);
+	// The two credential slots are labelled by the provider's worker (a login
+	// for credential providers, an app's client id/secret for OAuth ones).
+	const formProvider = $derived(providers.find((p) => p.provider === form.provider));
+	const formProviderOAuth = $derived(formProvider?.oauth ?? true);
+	function fieldOf(provider: string, key: string): ConfigField | undefined {
+		return providers
+			.find((p) => p.provider === provider)
+			?.config_fields?.find((f) => f.key === key);
+	}
+	function fieldLabel(provider: string, key: string, fallback: string): string {
+		return fieldOf(provider, key)?.label || fallback;
+	}
+	function fieldHelp(provider: string): string {
+		return (providers.find((p) => p.provider === provider)?.config_fields ?? [])
+			.map((f) => f.help)
+			.filter(Boolean)
+			.join(' ');
+	}
 	let busy = $state(false);
 
 	let editing = $state<string | null>(null);
@@ -82,6 +106,8 @@
 		choose_worker:
 			'Several importers serve this provider. Choose which one this connection is for, then connect again.',
 		bad_worker: 'That importer name is not valid.',
+		no_worker:
+			'No importer for this provider is onboarded yet, so nobody can complete the connection.',
 		already_linked:
 			'This provider account is already linked to another user. Disconnect it there first.',
 		secret_unreadable:
@@ -253,23 +279,25 @@
 				</div>
 				<div>
 					<label for="nc" class="mb-1 block text-xs text-zinc-400">
-						{formProviderOAuth ? m.connections_client_id() : 'Email'}
+						{fieldLabel(form.provider, 'client_id', m.connections_client_id())}
 					</label>
 					<input
 						id="nc"
 						bind:value={form.client_id}
+						placeholder={fieldOf(form.provider, 'client_id')?.placeholder ?? ''}
 						class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm focus:border-accent-400 focus:outline-none"
 					/>
 				</div>
 				<div>
 					<label for="ns" class="mb-1 block text-xs text-zinc-400">
-						{formProviderOAuth ? m.connections_client_secret() : 'Password'}
+						{fieldLabel(form.provider, 'client_secret', m.connections_client_secret())}
 					</label>
 					<input
 						id="ns"
 						type="password"
 						autocomplete="off"
 						bind:value={form.client_secret}
+						placeholder={fieldOf(form.provider, 'client_secret')?.placeholder ?? ''}
 						class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm focus:border-accent-400 focus:outline-none"
 					/>
 				</div>
@@ -293,11 +321,20 @@
 					</p>
 				</div>
 			{/if}
-			{#if !formProviderOAuth}
+			{#if fieldHelp(form.provider) || !formProviderOAuth || formProvider?.setup_docs_url}
 				<p class="text-xs text-zinc-500">
-					{form.provider === 'garmin'
-						? 'Garmin has no public API, so Cairn signs in with your Garmin Connect email and password (stored encrypted). MFA accounts may need a one-time device approval. The account starts importing right after you create the connection.'
-						: 'This provider signs in with stored credentials (encrypted). The account is linked as soon as the connection is created.'}
+					{fieldHelp(form.provider) ||
+						(formProviderOAuth
+							? ''
+							: 'This provider signs in with stored credentials (encrypted). The account is linked as soon as the connection is created.')}
+					{#if formProvider?.setup_docs_url}
+						<a
+							href={formProvider.setup_docs_url}
+							target="_blank"
+							rel="noreferrer"
+							class="text-accent-400 hover:text-accent-300">Setup guide ↗</a
+						>
+					{/if}
 				</p>
 			{/if}
 			<button
@@ -380,7 +417,7 @@
 					/>
 					<input
 						bind:value={editForm.client_id}
-						placeholder={c.oauth ? m.connections_client_id() : 'Email'}
+						placeholder={fieldLabel(c.provider, 'client_id', m.connections_client_id())}
 						class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 focus:border-accent-400 focus:outline-none"
 					/>
 					<input
@@ -389,7 +426,7 @@
 						bind:value={editForm.client_secret}
 						placeholder={c.oauth
 							? m.connections_secret_placeholder()
-							: 'New password (empty keeps existing)'}
+							: `New ${fieldLabel(c.provider, 'client_secret', 'password').toLowerCase()} (empty keeps existing)`}
 						class="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 focus:border-accent-400 focus:outline-none"
 					/>
 					<div class="flex gap-2">
@@ -442,15 +479,10 @@
 								Copy
 							</button>
 						</div>
-						{#if c.provider === 'strava'}
-							<p>
-								Strava: create a push subscription pointing <code>callback_url</code> at the URL
-								above (use your app's <code>client_id</code>/<code>client_secret</code> and the
-								instance's webhook verify token). See the README "Strava webhook setup" section for
-								the exact
-								<code>curl</code>. The worker handles Strava's verification handshake automatically.
-							</p>
-						{/if}
+						<p>
+							Register this URL as the webhook callback of your {c.display_name} app; the importer answers
+							the provider's verification handshake itself.
+						</p>
 					</div>
 				</details>
 			{/if}

@@ -313,6 +313,7 @@ func StandardPermissionTemplate(provider, workerName string) WorkerPermissionTem
 		AllowSubscribe: append(slices.Clone(jobs),
 			fmt.Sprintf("cairn.cmd.worker.%s.>", wk),
 			DiscoverSubject(p, workerName),
+			OAuthExchangeSubject(p, workerName), // core asks the pool to exchange OAuth codes
 			webhookEvent,
 			fmt.Sprintf("cairn.webhooks.%s.verify", wk),
 			"_INBOX.>",

@@ -8,7 +8,25 @@ All notable changes to Cairn are documented here. The format follows
 
 Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
 
+### Added
+- Provider knowledge comes from the workers: a manifest's `provider_meta`
+  (display name, auth method, OAuth authorize endpoint, scopes, PKCE, extra
+  authorize parameters, connect-form field labels, activity link template,
+  setup docs link) is stored in the new `providers` table (migration 00075),
+  bound to the first package that published it. Migration seeds Strava and
+  Garmin so existing connections keep working until their 0.7 workers
+  publish.
+- The connect form labels its two credential slots from the provider's
+  `config_fields`; `GET /api/connections` and `ListAvailableProviders` carry
+  them.
+
 ### Changed
+- The OAuth authorization-code exchange runs in the provider's pool
+  (`cairn.oauth.<provider>.<worker_name>.exchange`, granted by the template):
+  core builds the authorize URL (PKCE S256 when declared), keeps state, and
+  stores the tokens and provider account id the pool returns. The
+  compiled-in Strava/Garmin registry and core's Strava-shaped code exchange
+  are gone.
 - Worker request/reply responders (`cairn.tokens.<provider>.*`,
   `cairn.creds.<provider>.get`, `cairn.blobs.presign_*.<provider>`) take the
   provider from the subject and refuse accounts and blob keys of other

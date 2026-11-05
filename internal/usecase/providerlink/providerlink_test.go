@@ -129,9 +129,14 @@ func (f *fakeTokens) MarkNeedsReauth(_ context.Context, id domain.ExternalAccoun
 }
 
 // fakePools is one pool per provider, "main", optionally declaring gear.
-type fakePools struct{ gear bool }
+type fakePools struct{ gear, none bool }
 
-func (p fakePools) KnownPoolNames(context.Context, string) []string { return []string{"main"} }
+func (p fakePools) KnownPoolNames(context.Context, string) []string {
+	if p.none {
+		return nil
+	}
+	return []string{"main"}
+}
 func (p fakePools) PoolDeclares(_ context.Context, _, pool string, dt capability.DataType) bool {
 	return p.gear && pool == "main" && dt == capability.DataTypeGear
 }
@@ -142,10 +147,45 @@ func (r fixedRouter) AccountWorker(context.Context, domain.ExternalAccount) (str
 	return "main", r.err
 }
 
-type fakeExchanger struct{ err error }
+// fakeExchanger records the last exchange it was asked for.
+type fakeExchanger struct {
+	err            error
+	provider, pool string
+	conn           domain.UserProviderConfig
+	in             port.CodeExchange
+}
 
-func (e fakeExchanger) ExchangeCode(context.Context, string, domain.UserProviderConfig, string) (port.TokenState, string, error) {
+func (e *fakeExchanger) ExchangeCode(_ context.Context, provider, pool string, conn domain.UserProviderConfig, in port.CodeExchange) (port.TokenState, string, error) {
+	e.provider, e.pool, e.conn, e.in = provider, pool, conn, in
 	return port.TokenState{AccessToken: "at"}, "4242", e.err
+}
+
+// testRegistry holds the two providers the seed migration ships.
+func testRegistry() *fakeRegistry {
+	return &fakeRegistry{byID: map[string]domain.ProviderMeta{
+		"strava": {
+			ID: "strava", DisplayName: "Strava", AuthMethod: domain.AuthMethodOAuth2,
+			ActivityURLTemplate: "https://www.strava.com/activities/{id}",
+			OAuth2: &domain.ProviderOAuth{
+				AuthorizeURL: "https://www.strava.com/oauth/authorize", Scopes: []string{"read", "activity:read_all"},
+				ScopeSeparator: ",", AuthorizeParams: map[string]string{"approval_prompt": "force"},
+			},
+		},
+		"garmin": {ID: "garmin", DisplayName: "Garmin", AuthMethod: domain.AuthMethodCredentials},
+	}}
+}
+
+type fakeRegistry struct {
+	port.ProviderRegistry
+	byID map[string]domain.ProviderMeta
+}
+
+func (r *fakeRegistry) Get(_ context.Context, id string) (domain.ProviderMeta, error) {
+	m, ok := r.byID[id]
+	if !ok {
+		return m, domain.ErrNotFound
+	}
+	return m, nil
 }
 
 func newAccount(accts *fakeAccounts, owner domain.UserID) domain.ExternalAccount {
@@ -224,8 +264,8 @@ func newConnections() (*Connections, *fakeConfigs, *fakeAccounts, *fakeTokens) {
 	cfgs, toks := &fakeConfigs{}, &fakeTokens{}
 	accts := &fakeAccounts{}
 	return &Connections{
-		Providers: Providers, Configs: cfgs, Accounts: accts, Tokens: toks,
-		Pools: fakePools{}, Exchanger: fakeExchanger{}, Log: discard,
+		Providers: testRegistry(), Configs: cfgs, Accounts: accts, Tokens: toks,
+		Pools: fakePools{}, Exchanger: &fakeExchanger{}, Log: discard,
 	}, cfgs, accts, toks
 }
 
@@ -265,42 +305,72 @@ func TestConnectRoundTrip(t *testing.T) {
 	c, cfgs, accts, toks := newConnections()
 	user := domain.UserID(uuid.New())
 	id, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: user, Provider: "strava", ClientID: "123"})
-	strava, err := c.OAuthProvider("strava")
+	strava, err := c.OAuthProvider(ctx, "strava")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.OAuthProvider("garmin"); !errors.Is(err, ErrNotOAuth) {
+	if _, err := c.OAuthProvider(ctx, "garmin"); !errors.Is(err, ErrNotOAuth) {
 		t.Fatalf("garmin: %v", err)
 	}
+	if _, err := c.OAuthProvider(ctx, "nope"); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatalf("unknown: %v", err)
+	}
 
-	target, err := c.AuthorizeURL(ctx, user, strava, id, "", "st", "https://cairn.test/cb")
+	target, verifier, err := c.AuthorizeURL(ctx, user, strava, id, "", "st", "https://cairn.test/cb")
 	if err != nil {
 		t.Fatal(err)
 	}
 	u, _ := url.Parse(target)
-	if u.Host != "www.strava.com" || u.Query().Get("state") != "st" || u.Query().Get("client_id") != "123" {
-		t.Fatalf("authorize url %q", target)
+	if u.Host != "www.strava.com" || u.Query().Get("state") != "st" || u.Query().Get("client_id") != "123" ||
+		u.Query().Get("scope") != "read,activity:read_all" || u.Query().Get("approval_prompt") != "force" || verifier != "" {
+		t.Fatalf("authorize url %q (verifier %q)", target, verifier)
 	}
-	if _, err := c.AuthorizeURL(ctx, domain.UserID(uuid.New()), strava, id, "", "st", ""); !errors.Is(err, ErrConfigureFirst) {
+	if _, _, err := c.AuthorizeURL(ctx, domain.UserID(uuid.New()), strava, id, "", "st", ""); !errors.Is(err, ErrConfigureFirst) {
 		t.Fatalf("foreign connection: %v", err)
 	}
-	if _, err := c.AuthorizeURL(ctx, user, strava, id, "bad name!", "st", ""); !errors.Is(err, ErrBadWorker) {
+	if _, _, err := c.AuthorizeURL(ctx, user, strava, id, "bad name!", "st", ""); !errors.Is(err, ErrBadWorker) {
 		t.Fatalf("bad worker: %v", err)
 	}
-
-	acctID, err := c.Complete(ctx, user, strava, id, "code", "")
+	// PKCE providers get a verifier and an S256 challenge.
+	pkce := strava
+	pkce.OAuth2 = &domain.ProviderOAuth{AuthorizeURL: "https://auth.example/authorize?audience=x", PKCE: true, Scopes: []string{"a", "b"}}
+	target, verifier, err = c.AuthorizeURL(ctx, user, pkce, id, "", "st", "https://cairn.test/cb")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a := accts.byID[acctID]; a.ProviderAccountID != "4242" || a.DisplayLabel != "Strava" || len(a.GrantedScopes) != 2 {
+	u, _ = url.Parse(target)
+	if verifier == "" || u.Query().Get("code_challenge") == "" || u.Query().Get("code_challenge_method") != "S256" ||
+		u.Query().Get("audience") != "x" || u.Query().Get("scope") != "a b" {
+		t.Fatalf("pkce authorize url %q", target)
+	}
+
+	ex := &fakeExchanger{}
+	c.Exchanger = ex
+	acctID, err := c.Complete(ctx, user, strava, id, port.CodeExchange{Code: "code", RedirectURI: "https://cairn.test/cb", CodeVerifier: "v"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := accts.byID[acctID]; a.ProviderAccountID != "4242" || a.DisplayLabel != "Strava" || len(a.GrantedScopes) != 2 || a.AssignedWorkerName != "main" {
 		t.Fatalf("account %+v", a)
 	}
 	if toks.stored[acctID].AccessToken != "at" {
 		t.Fatal("token not stored")
 	}
-	c.Exchanger = fakeExchanger{err: errors.New("denied")}
-	if _, err := c.Complete(ctx, user, strava, id, "code", ""); !errors.Is(err, ErrExchangeFailed) {
+	if ex.provider != "strava" || ex.pool != "main" || ex.in.CodeVerifier != "v" || ex.conn.ClientID != "123" {
+		t.Fatalf("exchange went to %s/%s with %+v (conn %s)", ex.provider, ex.pool, ex.in, ex.conn.ClientID)
+	}
+	c.Exchanger = &fakeExchanger{err: errors.New("denied")}
+	if _, err := c.Complete(ctx, user, strava, id, port.CodeExchange{Code: "code"}, ""); !errors.Is(err, ErrExchangeFailed) {
 		t.Fatalf("exchange failure: %v", err)
+	}
+	c.Exchanger = ex
+	if _, err := c.Complete(ctx, user, strava, id, port.CodeExchange{Code: "code"}, "bad name!"); !errors.Is(err, ErrBadWorker) {
+		t.Fatalf("bad worker: %v", err)
+	}
+	// Nobody to exchange with.
+	c.Pools = fakePools{none: true}
+	if _, err := c.Complete(ctx, user, strava, id, port.CodeExchange{Code: "code"}, ""); !errors.Is(err, ErrNoWorker) {
+		t.Fatalf("no pool: %v", err)
 	}
 }
 
@@ -308,23 +378,23 @@ func TestConnectRoundTrip(t *testing.T) {
 func TestConnectRefusesAccountOfAnotherUser(t *testing.T) {
 	ctx := context.Background()
 	c, cfgs, accts, _ := newConnections()
-	strava, _ := c.OAuthProvider("strava")
+	strava, _ := c.OAuthProvider(ctx, "strava")
 	alice, bob := domain.UserID(uuid.New()), domain.UserID(uuid.New())
 	aliceConn, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: alice, Provider: "strava", ClientID: "app1"})
-	first, err := c.Complete(ctx, alice, strava, aliceConn, "code", "")
+	first, err := c.Complete(ctx, alice, strava, aliceConn, port.CodeExchange{Code: "code"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again, err := c.Complete(ctx, alice, strava, aliceConn, "code", ""); err != nil || again == (domain.ExternalAccountID{}) {
+	if again, err := c.Complete(ctx, alice, strava, aliceConn, port.CodeExchange{Code: "code"}, ""); err != nil || again == (domain.ExternalAccountID{}) {
 		t.Fatalf("same-user relink: %v", err)
 	}
 
 	bobSameApp, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: bob, Provider: "strava", ClientID: "app1"})
-	if _, err := c.Complete(ctx, bob, strava, bobSameApp, "code", ""); !errors.Is(err, ErrAlreadyLinked) {
+	if _, err := c.Complete(ctx, bob, strava, bobSameApp, port.CodeExchange{Code: "code"}, ""); !errors.Is(err, ErrAlreadyLinked) {
 		t.Fatalf("other user, same app: %v", err)
 	}
 	bobOwnApp, _ := cfgs.Create(ctx, domain.UserProviderConfig{UserID: bob, Provider: "strava", ClientID: "app2"})
-	if _, err := c.Complete(ctx, bob, strava, bobOwnApp, "code", ""); !errors.Is(err, ErrAlreadyLinked) {
+	if _, err := c.Complete(ctx, bob, strava, bobOwnApp, port.CodeExchange{Code: "code"}, ""); !errors.Is(err, ErrAlreadyLinked) {
 		t.Fatalf("other user, own app: %v", err)
 	}
 	if _, ok := accts.byID[first]; !ok {

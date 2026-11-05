@@ -19,9 +19,17 @@ type PoolCapabilities interface {
 	PoolDeclares(ctx context.Context, provider, pool string, dt capability.DataType) bool
 }
 
+// CodeExchange is what the callback brought back for the token exchange.
+type CodeExchange struct {
+	Code         string
+	RedirectURI  string
+	CodeVerifier string // PKCE, "" when the provider does not use it
+}
+
 // ProviderCodeExchanger trades a provider's OAuth authorization code for
-// tokens with the connection's app credentials. It returns the token state
-// and the provider account id ("" when the provider does not name one).
+// tokens with the connection's app credentials, through the provider's
+// worker pool. It returns the token state and the provider account id (""
+// when the provider does not name one).
 type ProviderCodeExchanger interface {
-	ExchangeCode(ctx context.Context, tokenURL string, conn domain.UserProviderConfig, code string) (TokenState, string, error)
+	ExchangeCode(ctx context.Context, provider, pool string, conn domain.UserProviderConfig, in CodeExchange) (TokenState, string, error)
 }

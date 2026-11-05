@@ -180,17 +180,31 @@ func accountStatusToProto(s domain.ExternalAccountStatus) v1.ExternalAccountStat
 	return v1.ExternalAccountStatus_EXTERNAL_ACCOUNT_STATUS_UNSPECIFIED
 }
 
-func (s *ExternalAccountServer) ListAvailableProviders(context.Context, *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
+func (s *ExternalAccountServer) ListAvailableProviders(ctx context.Context, _ *v1.ListAvailableProvidersRequest) (*v1.ListAvailableProvidersResponse, error) {
 	if s.Insight == nil {
 		return nil, connectrpc.NewError(connectrpc.CodeUnavailable, "providers are not available on this instance")
 	}
 	out := &v1.ListAvailableProvidersResponse{}
-	for _, p := range s.Insight.Providers() {
+	for _, p := range s.Insight.Providers(ctx) {
 		auth := v1.AvailableAuthMethod_AVAILABLE_AUTH_METHOD_BASIC
-		if p.OAuth {
+		if p.OAuth() {
 			auth = v1.AvailableAuthMethod_AVAILABLE_AUTH_METHOD_OAUTH2
 		}
-		out.Providers = append(out.Providers, &v1.AvailableProvider{ProviderId: p.ID, DisplayName: p.DisplayName, AuthMethod: auth})
+		ap := &v1.AvailableProvider{
+			ProviderId: p.ID, DisplayName: p.DisplayName, Description: p.Description,
+			SetupDocsUrl: p.SetupDocsURL, AuthMethod: auth,
+		}
+		for _, key := range []string{domain.ConfigFieldClientID, domain.ConfigFieldClientSecret} {
+			f := p.Field(key)
+			ft := v1.AvailableFieldType_AVAILABLE_FIELD_TYPE_TEXT
+			if f.Secret {
+				ft = v1.AvailableFieldType_AVAILABLE_FIELD_TYPE_SECRET
+			}
+			ap.ConfigFields = append(ap.ConfigFields, &v1.AvailableConfigField{
+				Key: f.Key, Label: f.Label, HelpText: f.Help, Type: ft, Required: true, Placeholder: f.Placeholder,
+			})
+		}
+		out.Providers = append(out.Providers, ap)
 	}
 	return out, nil
 }
@@ -216,7 +230,7 @@ func (s *ExternalAccountServer) ListConnections(ctx context.Context, _ *v1.ListC
 		})
 	}
 	for _, p := range providers {
-		info := &v1.ProviderInfo{Provider: p.Provider.ID, DisplayName: p.Provider.DisplayName, Oauth: p.Provider.OAuth}
+		info := &v1.ProviderInfo{Provider: p.Provider.ID, DisplayName: p.Provider.DisplayName, Oauth: p.Provider.OAuth()}
 		for _, wp := range p.Pools {
 			info.WorkerPools = append(info.WorkerPools, poolToProto(wp))
 		}

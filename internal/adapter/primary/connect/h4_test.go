@@ -158,8 +158,8 @@ func (f *fakeInsightC) Budget(context.Context, domain.ExternalAccount) domain.Ra
 func (f *fakeInsightC) Pools(context.Context, string) []domain.WorkerPoolInfo {
 	return []domain.WorkerPoolInfo{{Name: "p", Package: "strava", Online: true, Compatible: true}}
 }
-func (f *fakeInsightC) Providers() []domain.ProviderInfo {
-	return []domain.ProviderInfo{{ID: "strava", DisplayName: "Strava", OAuth: true}}
+func (f *fakeInsightC) Providers(context.Context) []domain.ProviderMeta {
+	return []domain.ProviderMeta{{ID: "strava", DisplayName: "Strava", AuthMethod: domain.AuthMethodOAuth2}}
 }
 func (f *fakeInsightC) ActivityURL(string, string) string { return "" }
 func (f *fakeInsightC) StartFullSync(a domain.ExternalAccount, _ bool) {

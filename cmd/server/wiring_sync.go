@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log/slog"
-	"sort"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/port"
@@ -37,17 +36,12 @@ func (s syncInsight) Pools(ctx context.Context, provider string) []domain.Worker
 	return out
 }
 
-func (syncInsight) Providers() []domain.ProviderInfo {
-	out := make([]domain.ProviderInfo, 0, len(providerRegistry))
-	for id, meta := range providerRegistry {
-		out = append(out, domain.ProviderInfo{ID: id, DisplayName: meta.DisplayName, OAuth: oauthProvider(meta)})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
-	return out
+func (s syncInsight) Providers(ctx context.Context) []domain.ProviderMeta {
+	return s.app.providerMetas(ctx, s.logger)
 }
 
-func (syncInsight) ActivityURL(provider, externalID string) string {
-	return providerActivityURL(provider, externalID)
+func (s syncInsight) ActivityURL(provider, externalID string) string {
+	return providerActivityURL(s.app, provider, externalID)
 }
 
 func (s syncInsight) StartFullSync(a domain.ExternalAccount, skipExisting bool) {

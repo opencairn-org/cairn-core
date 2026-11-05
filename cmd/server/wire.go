@@ -110,17 +110,22 @@ type App struct {
 	ExternalAccounts       *postgres.ExternalAccountRepo
 	WorkerEnrollments      *postgres.WorkerEnrollmentRepo
 	WorkerPools            port.WorkerPoolRepo
-	presence               presenceCache
-	SigningKeys            *postgres.SigningKeyRepo
-	OAuthTokens            *postgres.OAuthTokenRepo
-	DeadLetters            *postgres.DeadLetterRepo
-	ImportQueue            port.ImportQueueRepo
-	UserProviderConfigs    *postgres.UserProviderConfigRepo
-	ImportEvents           *postgres.ImportEventRepo
-	AthleteProfiles        *postgres.AthleteProfileRepo
-	Passkeys               *postgres.PasskeyRepo
-	Sessions               *postgres.SessionRepo
-	LinkedIdentities       *postgres.LinkedIdentityRepo
+	// Providers is the worker-declared provider meta; providers caches it.
+	Providers port.ProviderRegistry
+	providers providerCache
+	// CodeExchanger overrides the pool-delegated OAuth exchange (tests).
+	CodeExchanger       port.ProviderCodeExchanger
+	presence            presenceCache
+	SigningKeys         *postgres.SigningKeyRepo
+	OAuthTokens         *postgres.OAuthTokenRepo
+	DeadLetters         *postgres.DeadLetterRepo
+	ImportQueue         port.ImportQueueRepo
+	UserProviderConfigs *postgres.UserProviderConfigRepo
+	ImportEvents        *postgres.ImportEventRepo
+	AthleteProfiles     *postgres.AthleteProfileRepo
+	Passkeys            *postgres.PasskeyRepo
+	Sessions            *postgres.SessionRepo
+	LinkedIdentities    *postgres.LinkedIdentityRepo
 
 	// OIDCProviders are configured entirely from CAIRN_OIDC_* env vars; there
 	// is no client database. Empty means OIDC sign-in is disabled.
@@ -455,6 +460,7 @@ func wireAppCoreRepos(app *App, pool *pgxpool.Pool, cfg *config.Config) {
 	)
 	app.WorkerEnrollments = postgres.NewWorkerEnrollmentRepo(pool)
 	app.WorkerPools = postgres.NewWorkerPoolRepo(pool)
+	app.Providers = postgres.NewProviderRepo(pool)
 	app.SigningKeys = postgres.NewSigningKeyRepo(pool)
 	app.Sessions = postgres.NewSessionRepo(pool)
 	app.LinkedIdentities = postgres.NewLinkedIdentityRepo(pool)
@@ -1071,7 +1077,7 @@ func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
 // wireOperatorAdmin builds the fleet and operations use cases, which need
 // package-main helpers (presence KV, NATS keys, the background geocoder).
 func wireOperatorAdmin(app *App, logger *slog.Logger) {
-	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
+	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(app), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
 		Live: func(ctx context.Context) []domain.WorkerHeartbeat { return scanWorkerHeartbeats(ctx, app, logger) }}
 	if app.WorkerPools != nil {
 		app.Fleet.Pools = app.WorkerPools
