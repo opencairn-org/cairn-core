@@ -2,6 +2,7 @@ package providerlink
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -72,6 +73,22 @@ func (f *fakeAccounts) CreateAccount(_ context.Context, a domain.ExternalAccount
 func (f *fakeAccounts) ListAccountsForUser(context.Context, domain.UserID) ([]domain.ExternalAccount, error) {
 	return nil, nil
 }
+func (f *fakeAccounts) UpdateAccountConfig(_ context.Context, id domain.ExternalAccountID, patch map[string]any) error {
+	a := f.byID[id]
+	var cfg map[string]any
+	if len(a.Config) > 0 {
+		_ = json.Unmarshal(a.Config, &cfg)
+	}
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	for k, v := range patch {
+		cfg[k] = v
+	}
+	a.Config, _ = json.Marshal(cfg)
+	f.byID[id] = a
+	return nil
+}
 
 type fakeConfigs struct {
 	port.UserProviderConfigRepo
@@ -129,7 +146,7 @@ func (f *fakeTokens) MarkNeedsReauth(_ context.Context, id domain.ExternalAccoun
 }
 
 // fakePools is one pool per provider, "main", optionally declaring gear.
-type fakePools struct{ gear, none bool }
+type fakePools struct{ gear, metrics, none bool }
 
 func (p fakePools) KnownPoolNames(context.Context, string) []string {
 	if p.none {
@@ -138,7 +155,10 @@ func (p fakePools) KnownPoolNames(context.Context, string) []string {
 	return []string{"main"}
 }
 func (p fakePools) PoolDeclares(_ context.Context, _, pool string, dt capability.DataType) bool {
-	return p.gear && pool == "main" && dt == capability.DataTypeGear
+	if pool != "main" {
+		return false
+	}
+	return (p.gear && dt == capability.DataTypeGear) || (p.metrics && dt == capability.DataTypeHRV)
 }
 
 type fixedRouter struct{ err error }
@@ -236,13 +256,48 @@ func TestImportGearNeedsADeclaringPool(t *testing.T) {
 	}
 }
 
+func TestScheduledMetricsSync(t *testing.T) {
+	ctx := context.Background()
+	accts := &fakeAccounts{}
+	bus := &fakeBus{}
+	acct := newAccount(accts, domain.UserID(uuid.New()))
+	now := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	j := &Jobs{Accounts: accts, Bus: bus, Router: fixedRouter{}, Pools: fakePools{}, Log: discard, Now: func() time.Time { return now }}
+	if err := j.ScheduledMetricsSync(ctx, acct); err != nil || len(bus.sent) != 0 {
+		t.Fatalf("pool without metrics must skip silently: %v %v", err, bus.sent)
+	}
+	j.Pools = fakePools{metrics: true}
+	if err := j.ScheduledMetricsSync(ctx, acct); err != nil || len(bus.sent) != 1 {
+		t.Fatalf("first run: %v %v", err, bus.sent)
+	}
+	if last, ok := lastMetricsImport(accts.byID[acct.ID]); !ok || !last.Equal(now) {
+		t.Fatalf("bookmark %v %v", last, ok)
+	}
+	// Within a day: nothing; a day later: the next window.
+	now = now.Add(23 * time.Hour)
+	if err := j.ScheduledMetricsSync(ctx, accts.byID[acct.ID]); err != nil || len(bus.sent) != 1 {
+		t.Fatalf("too early: %v %v", err, bus.sent)
+	}
+	now = now.Add(2 * time.Hour)
+	if err := j.ScheduledMetricsSync(ctx, accts.byID[acct.ID]); err != nil || len(bus.sent) != 2 {
+		t.Fatalf("next day: %v %v", err, bus.sent)
+	}
+	if err := (&Jobs{}).ScheduledMetricsSync(ctx, acct); !errors.Is(err, errNoBus) {
+		t.Fatalf("no bus: %v", err)
+	}
+}
+
 func TestImportHealth(t *testing.T) {
 	ctx := context.Background()
 	accts := &fakeAccounts{}
 	bus := &fakeBus{}
 	owner := domain.UserID(uuid.New())
 	acct := newAccount(accts, owner)
-	j := &Jobs{Accounts: accts, Bus: bus, Router: fixedRouter{}, Log: discard}
+	j := &Jobs{Accounts: accts, Bus: bus, Router: fixedRouter{}, Pools: fakePools{}, Log: discard}
+	if err := j.ImportHealth(ctx, owner, acct.ID, 7); !errors.Is(err, ErrMetricsNotSupported) || len(bus.sent) != 0 {
+		t.Fatalf("pool without metrics: %v %v", err, bus.sent)
+	}
+	j.Pools = fakePools{metrics: true}
 	if err := j.ImportHealth(ctx, owner, acct.ID, 7); err != nil || len(bus.sent) != 1 || bus.sent[0].subject != "cairn.jobs.import_metrics.strava.main" {
 		t.Fatalf("import health: %v %v", err, bus.sent)
 	}

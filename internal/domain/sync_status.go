@@ -89,4 +89,7 @@ type WorkerPoolInfo struct {
 	Release       string
 	Online        bool
 	Compatible    bool
+	// Reads lists the data types a live, compatible instance declares it
+	// reads (capability taxonomy); empty when offline.
+	Reads []string
 }

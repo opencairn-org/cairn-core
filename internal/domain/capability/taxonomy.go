@@ -79,6 +79,18 @@ var byType = func() map[DataType]TypeSpec {
 	return m
 }()
 
+// MetricTypes returns the time-series (health metric) data types, the ones an
+// import_metrics job delivers.
+func MetricTypes() []DataType {
+	var out []DataType
+	for _, s := range registry {
+		if s.Category == CategoryTimeSeries {
+			out = append(out, s.Type)
+		}
+	}
+	return out
+}
+
 // AllTypes returns the canonical data types in display order.
 func AllTypes() []TypeSpec {
 	out := make([]TypeSpec, len(registry))

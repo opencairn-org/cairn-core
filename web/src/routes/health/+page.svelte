@@ -80,7 +80,7 @@
 		<p class="text-sm text-zinc-600">Loading…</p>
 	{:else if !anyData}
 		<p class="text-sm text-zinc-500">
-			No health data yet. Connect Garmin and run "Import health" from
+			No health data yet. Connect a provider that supplies health data and run "Import health" from
 			<a href="/connections" class="text-accent-400 hover:text-accent-300">Connections</a>.
 		</p>
 	{:else}

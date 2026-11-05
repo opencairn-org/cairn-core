@@ -123,7 +123,7 @@ func syncAccountRowJSON(row providerlink.AccountRow) map[string]any {
 	for _, p := range row.Pools {
 		pools = append(pools, map[string]any{
 			"name": p.Name, "package": p.Package, "parser_version": p.ParserVersion, "release": p.Release,
-			"online": p.Online, "compatible": p.Compatible,
+			"online": p.Online, "compatible": p.Compatible, "reads": p.Reads,
 		})
 	}
 	return map[string]any{
