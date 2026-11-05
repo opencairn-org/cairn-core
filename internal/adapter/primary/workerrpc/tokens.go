@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ import (
 )
 
 // Tokens serves the OAuth token store to workers. The subject's provider
-// segment is informational; routing is by account id.
+// segment is authoritative: the account named in the body must belong to it.
 //
 //	cairn.tokens.<provider>.get          → current token state + app credentials
 //	cairn.tokens.<provider>.store        → optimistic token update
@@ -34,7 +35,7 @@ type Tokens struct {
 func (t *Tokens) Start(ctx context.Context, bus port.JobBus) ([]port.Subscription, error) {
 	handlers := []struct {
 		subject string
-		fn      port.RequestHandler
+		fn      port.SubjectRequestHandler
 	}{
 		{"cairn.tokens.*.get", t.get},
 		{"cairn.tokens.*.store", t.store},
@@ -42,7 +43,7 @@ func (t *Tokens) Start(ctx context.Context, bus port.JobBus) ([]port.Subscriptio
 	}
 	subs := make([]port.Subscription, 0, len(handlers))
 	for _, h := range handlers {
-		sub, err := bus.RespondTo(ctx, h.subject, h.fn)
+		sub, err := bus.RespondToSubject(ctx, h.subject, h.fn)
 		if err != nil {
 			for _, s := range subs {
 				_ = s.Close(ctx)
@@ -86,6 +87,16 @@ type tokenStoreReply struct {
 	Error string `json:"error,omitempty"` // "account_gone" | "stale_store" | "transient" | "bad_request"
 }
 
+// providerOf returns the provider token of a 4-token worker RPC subject
+// (cairn.<family>.<provider>.<op>), "" for any other shape.
+func providerOf(subject string) string {
+	parts := strings.Split(subject, ".")
+	if len(parts) != 4 || !domain.ValidProviderID(parts[2]) {
+		return ""
+	}
+	return parts[2]
+}
+
 // accountOf decodes the request and its account id.
 func accountOf(body []byte, dst any, id func() string) (domain.ExternalAccountID, bool) {
 	if err := json.Unmarshal(body, dst); err != nil {
@@ -98,20 +109,24 @@ func accountOf(body []byte, dst any, id func() string) (domain.ExternalAccountID
 	return domain.ExternalAccountID(u), true
 }
 
-func (t *Tokens) get(ctx context.Context, body []byte) ([]byte, error) {
+func (t *Tokens) get(ctx context.Context, subject string, body []byte) ([]byte, error) {
 	var req struct {
 		AccountID string `json:"account_id"`
 	}
+	provider := providerOf(subject)
 	accID, ok := accountOf(body, &req, func() string { return req.AccountID })
-	if !ok {
+	if !ok || provider == "" {
 		return encode(tokenGetReply{Error: "bad_request"}), nil
 	}
-	tok, err := t.Tokens.Get(ctx, accID)
-	if errors.Is(err, port.ErrTokenAccountNotFound) {
+	tok, err := t.Tokens.Get(ctx, provider, accID)
+	switch {
+	case errors.Is(err, providerlink.ErrWrongProvider):
+		t.Log.Warn("token get: provider mismatch", "subject", subject, "account_id", accID)
+		return encode(tokenGetReply{Error: "account_gone"}), nil
+	case errors.Is(err, port.ErrTokenAccountNotFound):
 		t.Log.Debug("token get: account_gone", "account_id", accID)
 		return encode(tokenGetReply{Error: "account_gone"}), nil
-	}
-	if err != nil {
+	case err != nil:
 		t.Log.Warn("token get: transient error", "account_id", accID, "error", err)
 		return encode(tokenGetReply{Error: "transient", RetryAfter: 30}), nil
 	}
@@ -122,13 +137,14 @@ func (t *Tokens) get(ctx context.Context, body []byte) ([]byte, error) {
 	}), nil
 }
 
-func (t *Tokens) store(ctx context.Context, body []byte) ([]byte, error) {
+func (t *Tokens) store(ctx context.Context, subject string, body []byte) ([]byte, error) {
 	var req tokenStoreRequest
+	provider := providerOf(subject)
 	accID, ok := accountOf(body, &req, func() string { return req.AccountID })
-	if !ok || req.AccessToken == "" || req.ExpiresAt.IsZero() {
+	if !ok || provider == "" || req.AccessToken == "" || req.ExpiresAt.IsZero() {
 		return encode(tokenStoreReply{Error: "bad_request"}), nil
 	}
-	err := t.Tokens.Store(ctx, accID, port.StoreTokenInput{
+	err := t.Tokens.Store(ctx, provider, accID, port.StoreTokenInput{
 		State: port.TokenState{
 			AccessToken: req.AccessToken, RefreshToken: req.RefreshToken, ExpiresAt: req.ExpiresAt,
 			Scope: req.Scope, TokenType: req.TokenType,
@@ -136,6 +152,9 @@ func (t *Tokens) store(ctx context.Context, body []byte) ([]byte, error) {
 		PreviousExpiresAt: req.PreviousExpiresAt,
 	})
 	switch {
+	case errors.Is(err, providerlink.ErrWrongProvider):
+		t.Log.Warn("token store: provider mismatch", "subject", subject, "account_id", accID)
+		return encode(tokenStoreReply{Error: "account_gone"}), nil
 	case errors.Is(err, port.ErrTokenStaleStore):
 		t.Log.Debug("token store: stale (concurrent refresh)", "account_id", accID)
 		return encode(tokenStoreReply{Error: "stale_store"}), nil
@@ -149,16 +168,24 @@ func (t *Tokens) store(ctx context.Context, body []byte) ([]byte, error) {
 	return encode(tokenStoreReply{OK: true}), nil
 }
 
-func (t *Tokens) needsReauth(ctx context.Context, body []byte) ([]byte, error) {
+func (t *Tokens) needsReauth(ctx context.Context, subject string, body []byte) ([]byte, error) {
 	var req struct {
 		AccountID string `json:"account_id"`
 		Reason    string `json:"reason"`
 	}
+	provider := providerOf(subject)
 	accID, ok := accountOf(body, &req, func() string { return req.AccountID })
-	if !ok {
+	if !ok || provider == "" {
 		return encode(tokenStoreReply{Error: "bad_request"}), nil
 	}
-	if err := t.Tokens.MarkNeedsReauth(ctx, accID, req.Reason); err != nil {
+	err := t.Tokens.MarkNeedsReauth(ctx, provider, accID, req.Reason)
+	switch {
+	case errors.Is(err, providerlink.ErrWrongProvider):
+		t.Log.Warn("needs_reauth: provider mismatch", "subject", subject, "account_id", accID)
+		return encode(tokenStoreReply{Error: "account_gone"}), nil
+	case errors.Is(err, domain.ErrNotFound):
+		return encode(tokenStoreReply{Error: "account_gone"}), nil
+	case err != nil:
 		t.Log.Warn("mark needs_reauth failed", "account_id", accID, "error", err)
 		return encode(tokenStoreReply{Error: "transient"}), nil
 	}

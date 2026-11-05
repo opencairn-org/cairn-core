@@ -418,7 +418,7 @@ func (c *serveCleanup) run() {
 }
 
 // serveStartBusHandlers starts the auth-callout subscriber and the worker
-// request/reply responders (OAuth tokens, Garmin creds, reauth, account lookup).
+// request/reply responders (OAuth tokens, credentials, reauth, account lookup).
 func serveStartBusHandlers(ctx context.Context, app *App, logger *slog.Logger, cleanup *serveCleanup) error {
 	// ------------------------------------------------------------------
 	// NATS auth-callout subscriber
@@ -442,8 +442,8 @@ func serveStartBusHandlers(ctx context.Context, app *App, logger *slog.Logger, c
 	// OAuth token handlers
 	//
 	// Three request/reply subjects (get / store / needs_reauth) that
-	// workers use for OAuth token state. Provider-agnostic — the same
-	// handlers serve Strava, Garmin, Polar, etc.
+	// workers use for OAuth token state; the subject's provider must own
+	// the account.
 	// ------------------------------------------------------------------
 	oauthSubs, err := startOAuthTokenHandlers(ctx, app, logger)
 	if err != nil {
@@ -452,9 +452,9 @@ func serveStartBusHandlers(ctx context.Context, app *App, logger *slog.Logger, c
 	for _, sub := range oauthSubs {
 		cleanup.add(sub, logger, "oauth handler: close error")
 	}
-	// Garmin per-user credential handler (cairn.creds.garmin.get).
-	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startGarminCredsHandler,
-		"start garmin creds handler: %w", "garmin creds handler: close error"); err != nil {
+	// Credential providers' per-user login handler (cairn.creds.<provider>.get).
+	if err := serveStartOptionalSub(ctx, app, logger, cleanup, startCredsHandler,
+		"start creds handler: %w", "creds handler: close error"); err != nil {
 		return err
 	}
 	// Reauth notifier: turns needs_reauth events into user notifications.

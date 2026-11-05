@@ -144,12 +144,13 @@ func startOAuthTokenHandlers(ctx context.Context, app *App, logger *slog.Logger)
 	return (&workerrpc.Tokens{Tokens: oauthWorkerTokens(app, log), Log: log}).Start(ctx, app.NATSBus)
 }
 
-// startGarminCredsHandler serves cairn.creds.garmin.get; nil when not wired.
-func startGarminCredsHandler(ctx context.Context, app *App, logger *slog.Logger) (port.Subscription, error) {
+// startCredsHandler serves cairn.creds.<provider>.get for credential
+// providers; nil when not wired.
+func startCredsHandler(ctx context.Context, app *App, logger *slog.Logger) (port.Subscription, error) {
 	if app.NATSBus == nil || app.ExternalAccounts == nil || app.UserProviderConfigs == nil {
 		return nil, nil
 	}
-	return (&workerrpc.GarminLogins{Tokens: oauthWorkerTokens(app, logger), Log: logger}).Start(ctx, app.NATSBus)
+	return (&workerrpc.Logins{Tokens: oauthWorkerTokens(app, logger), Log: logger}).Start(ctx, app.NATSBus)
 }
 
 // oauthPools implements port.PoolDirectory and port.PoolCapabilities over
