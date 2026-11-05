@@ -82,12 +82,12 @@ func NewBusFromConn(nc *nats.Conn, clientName string, logger *slog.Logger) (*Bus
 		cfg: config.NATSConfig{
 			URL:        nc.ConnectedUrl(),
 			ClientName: clientName,
-			// A fetch_source job makes up to two Strava HTTP calls (30s timeout
-			// each) plus rate-limit waits, so the NATS default 30s AckWait would
-			// redeliver mid-processing. Give handlers room. MaxDeliver stays
-			// unbounded: the handler Terms genuine poison (bad payload /
-			// needs_reauth) immediately, while transient + rate-limited errors
-			// should retry until they resolve rather than DLQ a real activity.
+			// A fetch_source job makes several provider HTTP calls plus
+			// rate-limit waits, so the NATS default 30s AckWait would redeliver
+			// mid-processing. Give handlers room. MaxDeliver stays unbounded:
+			// the handler Terms genuine poison (bad payload / needs_reauth)
+			// immediately, while transient + rate-limited errors should retry
+			// until they resolve rather than DLQ a real activity.
 			JobAckWait: 2 * time.Minute,
 		},
 		logger: logger.With("component", "nats_bus"),
