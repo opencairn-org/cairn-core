@@ -15,6 +15,8 @@ import (
 //	GET  /api/admin/workers
 //	GET  /api/admin/worker-pools
 //	POST /api/admin/worker-pools/{provider}/{name}/retire
+//	GET  /api/admin/providers
+//	DELETE /api/admin/providers/{provider}
 //	GET  /api/admin/worker-enrollments                  ?provider=
 //	POST /api/admin/worker-enrollments                  { name, provider, expires_in_hours?, note? }
 //	POST /api/admin/worker-enrollments/{id}/revoke      { reason? }
@@ -32,6 +34,8 @@ func (h *AdminFleetHandlers) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/workers", h.listWorkers)
 	mux.HandleFunc("GET /api/admin/worker-pools", h.listPools)
 	mux.HandleFunc("POST /api/admin/worker-pools/{provider}/{name}/retire", h.retirePool)
+	mux.HandleFunc("GET /api/admin/providers", h.listProviders)
+	mux.HandleFunc("DELETE /api/admin/providers/{provider}", h.unbindProvider)
 	mux.HandleFunc("GET /api/admin/worker-enrollments", h.listEnrollments)
 	mux.HandleFunc("POST /api/admin/worker-enrollments", h.createEnrollment)
 	mux.HandleFunc("POST /api/admin/worker-enrollments/{id}/revoke", h.revokeEnrollment)
@@ -105,6 +109,40 @@ func (h *AdminFleetHandlers) retirePool(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"retired": true})
 }
 
+func (h *AdminFleetHandlers) listProviders(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminGate(h.Auth, w, r); !ok {
+		return
+	}
+	list, err := h.Fleet.Providers(r.Context())
+	if err != nil {
+		writeActionError(w, err, "list failed")
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, p := range list {
+		out = append(out, map[string]any{
+			"provider": p.ID, "package": p.Package, "display_name": p.DisplayName, "auth_method": p.AuthMethod,
+			"oauth": p.OAuth(), "setup_docs_url": p.SetupDocsURL, "updated_at": p.UpdatedAt.UTC(),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"providers": out})
+}
+
+// unbindProvider drops the provider's meta; the next manifest binds it again.
+func (h *AdminFleetHandlers) unbindProvider(w http.ResponseWriter, r *http.Request) {
+	admin, ok := adminGate(h.Auth, w, r)
+	if !ok {
+		return
+	}
+	provider := r.PathValue("provider")
+	if err := h.Fleet.UnbindProvider(r.Context(), actor(r, admin), provider); err != nil {
+		writeActionError(w, err, "unbind failed")
+		return
+	}
+	h.Log.Info("provider meta unbound", "provider", provider, "admin", admin.ID)
+	writeJSON(w, http.StatusOK, map[string]any{"unbound": true})
+}
+
 func (h *AdminFleetHandlers) listEnrollments(w http.ResponseWriter, r *http.Request) {
 	if _, ok := adminGate(h.Auth, w, r); !ok {
 		return
@@ -118,7 +156,7 @@ func (h *AdminFleetHandlers) listEnrollments(w http.ResponseWriter, r *http.Requ
 	for _, e := range list {
 		out = append(out, adminEnrollmentJSON(e))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"enrollments": out, "providers": h.Fleet.Providers})
+	writeJSON(w, http.StatusOK, map[string]any{"enrollments": out, "providers": h.Fleet.ProviderIDs(r.Context())})
 }
 
 func (h *AdminFleetHandlers) createEnrollment(w http.ResponseWriter, r *http.Request) {

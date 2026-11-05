@@ -25,7 +25,12 @@ Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
   health" refuses pools that declare none, like gear.
 - `GET /api/accounts` lists what each pool reads (`worker_pools[].reads`);
   the Sync gear / Import health buttons follow it instead of the provider
-  name.
+  name. The Connect `WorkerPoolInfo` carries the same `reads`.
+- Admin: `GET /api/admin/providers` lists the declared providers with the
+  package each is bound to; `DELETE /api/admin/providers/{provider}` unbinds
+  one so another package can take it over (the live manifests are
+  re-applied at once). The admin page has a Providers panel for it; the
+  action is audited as `provider.unbound`.
 
 ### Changed
 - The OAuth authorization-code exchange runs in the provider's pool
@@ -54,6 +59,9 @@ Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
   no longer granted; workers drain their pool subjects only.
 - The `cairn.accounts.lookup_by_provider_ext` responder; workers use
   `cairn.accounts.lookup.<provider>.<worker_name>`.
+- The `cairn_blob_handles` KV bucket: bootstrapped since the first design,
+  never written or granted. Delete it by hand on existing deployments if you
+  want it gone (`nats kv del cairn_blob_handles`).
 
 ## [0.6.3] — 2026-11-01
 

@@ -62,6 +62,34 @@ func (s *AdminServer) RetireWorkerPool(ctx context.Context, req *v1.RetireWorker
 	return &v1.RetireWorkerPoolResponse{}, nil
 }
 
+func (s *AdminServer) ListProviders(ctx context.Context, _ *v1.ListProvidersRequest) (*v1.ListProvidersResponse, error) {
+	if err := s.fleet(); err != nil {
+		return nil, err
+	}
+	list, err := s.Fleet.Providers(ctx)
+	if err != nil {
+		return nil, actionErr(err)
+	}
+	out := &v1.ListProvidersResponse{}
+	for _, p := range list {
+		out.Providers = append(out.Providers, &v1.RegisteredProvider{
+			Provider: p.ID, Package: p.Package, DisplayName: p.DisplayName, AuthMethod: p.AuthMethod,
+			SetupDocsUrl: p.SetupDocsURL, UpdatedAt: timestamppb.New(p.UpdatedAt),
+		})
+	}
+	return out, nil
+}
+
+func (s *AdminServer) UnbindProvider(ctx context.Context, req *v1.UnbindProviderRequest) (*v1.UnbindProviderResponse, error) {
+	if err := s.fleet(); err != nil {
+		return nil, err
+	}
+	if err := s.Fleet.UnbindProvider(ctx, s.actor(ctx), req.GetProvider()); err != nil {
+		return nil, actionErr(err)
+	}
+	return &v1.UnbindProviderResponse{}, nil
+}
+
 func (s *AdminServer) ListWorkerEnrollments(ctx context.Context, req *v1.ListWorkerEnrollmentsRequest) (*v1.ListWorkerEnrollmentsResponse, error) {
 	if err := s.fleet(); err != nil {
 		return nil, err
@@ -70,7 +98,7 @@ func (s *AdminServer) ListWorkerEnrollments(ctx context.Context, req *v1.ListWor
 	if err != nil {
 		return nil, actionErr(err)
 	}
-	out := &v1.ListWorkerEnrollmentsResponse{Providers: s.Fleet.Providers}
+	out := &v1.ListWorkerEnrollmentsResponse{Providers: s.Fleet.ProviderIDs(ctx)}
 	for _, e := range list {
 		out.Enrollments = append(out.Enrollments, enrollmentToProto(e))
 	}

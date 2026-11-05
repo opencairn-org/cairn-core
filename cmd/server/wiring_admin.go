@@ -29,17 +29,6 @@ func scanWorkerHeartbeats(ctx context.Context, app *App, logger *slog.Logger) []
 	return app.NATSBus.WorkerHeartbeats(ctx, Version, presenceStaleAfter, logger)
 }
 
-// enrollmentProviders suggests provider ids for new enrollments: the
-// providers workers have declared so far (any valid id is still accepted).
-func enrollmentProviders(app *App) []string {
-	metas := app.providerMetas(context.Background(), slog.Default())
-	out := make([]string, 0, len(metas))
-	for _, m := range metas {
-		out = append(out, m.ID)
-	}
-	return out
-}
-
 // natsKeyManager resolves the account-key adapter lazily: wire order sets the bus last.
 type natsKeyManager struct{ app *App }
 

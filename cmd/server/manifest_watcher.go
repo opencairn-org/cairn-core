@@ -137,6 +137,36 @@ func applyProviderMeta(ctx context.Context, app *App, log *slog.Logger, m manife
 	log.Info("provider meta stored", "provider", m.Provider, "package", m.Package, "auth_method", meta.AuthMethod)
 }
 
+// reapplyProviderMeta stores the provider_meta of the provider's live
+// manifests again, after an admin unbound the provider: the pool serving it
+// now binds right away instead of on its next publish.
+func reapplyProviderMeta(ctx context.Context, app *App, log *slog.Logger, provider string) {
+	if app.NATSBus == nil {
+		return
+	}
+	kv, err := app.NATSBus.KV(domain.WorkerManifestBucket)
+	if err != nil {
+		log.Warn("reapply provider meta: manifests bucket", "provider", provider, "error", err)
+		return
+	}
+	keys, err := kv.Keys(ctx)
+	if err != nil {
+		log.Warn("reapply provider meta: list manifests", "provider", provider, "error", err)
+		return
+	}
+	for _, key := range keys {
+		entry, err := kv.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var m manifestPayloadWire
+		if json.Unmarshal(entry.Value, &m) != nil || m.Provider != provider {
+			continue
+		}
+		applyProviderMeta(ctx, app, log, m)
+	}
+}
+
 // manifestPayloadWire is the JSON shape workers write to the
 // cairn_worker_manifests KV bucket. Keep in sync with the worker SDKs'
 // manifest payload.

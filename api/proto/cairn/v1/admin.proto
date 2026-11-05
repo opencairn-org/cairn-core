@@ -170,6 +170,15 @@ service AdminService {
   rpc ListWorkerPools(ListWorkerPoolsRequest) returns (ListWorkerPoolsResponse);
   // Scope: admin cookie session only (OAuth tokens are refused).
   rpc RetireWorkerPool(RetireWorkerPoolRequest) returns (RetireWorkerPoolResponse);
+  // The providers workers declared, each with the package bound to it
+  // (GET /api/admin/providers).
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  // Drop a provider's declared meta so the next manifest, from any package,
+  // binds it again (DELETE /api/admin/providers/{provider}); the live
+  // manifests are re-applied at once.
+  // Scope: admin cookie session only (OAuth tokens are refused).
+  rpc UnbindProvider(UnbindProviderRequest) returns (UnbindProviderResponse);
   // Scope: admin cookie session only (OAuth tokens are refused).
   rpc ListWorkerEnrollments(ListWorkerEnrollmentsRequest) returns (ListWorkerEnrollmentsResponse);
   // The enrollment token is returned once.
@@ -995,6 +1004,26 @@ message RetireWorkerPoolRequest {
   string name = 2;
 }
 message RetireWorkerPoolResponse {}
+
+// A provider as a worker declared it (provider_meta in its manifest).
+message RegisteredProvider {
+  string provider = 1;
+  // Empty for a seeded row no worker has declared yet.
+  string package = 2;
+  string display_name = 3;
+  // "oauth2" or "credentials".
+  string auth_method = 4;
+  string setup_docs_url = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+message ListProvidersRequest {}
+message ListProvidersResponse {
+  repeated RegisteredProvider providers = 1;
+}
+message UnbindProviderRequest {
+  string provider = 1;
+}
+message UnbindProviderResponse {}
 
 message WorkerEnrollment {
   string id = 1;

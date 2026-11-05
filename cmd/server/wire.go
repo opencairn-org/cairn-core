@@ -1077,13 +1077,16 @@ func wireAppCrypto(app *App, cfg *config.Config) (*auth.SecretBox, error) {
 // wireOperatorAdmin builds the fleet and operations use cases, which need
 // package-main helpers (presence KV, NATS keys, the background geocoder).
 func wireOperatorAdmin(app *App, logger *slog.Logger) {
-	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Providers: enrollmentProviders(app), Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
+	app.Fleet = &fleet.Fleet{Audit: app.AuditLog, Create: app.CreateWorkerEnrollment, Revoke: app.RevokeWorkerEnrollment, Events: app.AdminEvents,
 		Live: func(ctx context.Context) []domain.WorkerHeartbeat { return scanWorkerHeartbeats(ctx, app, logger) }}
 	if app.WorkerPools != nil {
 		app.Fleet.Pools = app.WorkerPools
 	}
 	if app.WorkerEnrollments != nil {
 		app.Fleet.Enrollments = app.WorkerEnrollments
+	}
+	if app.Providers != nil {
+		app.Fleet.Registry = adminProviderRegistry{app: app, logger: logger}
 	}
 	app.Ops = &instance.Ops{GeocodeBackfill: geocodeBackfillRunner(app, logger), Keys: natsKeyManager{app: app}, Audit: app.AuditLog}
 	app.WebhookTokens = &webhooks.Tokens{Audit: app.AuditLog}
