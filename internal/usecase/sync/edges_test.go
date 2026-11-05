@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -228,7 +230,8 @@ func TestWebhookForwarder(t *testing.T) {
 	}
 	var env webhookEventEnvelope
 	_ = json.Unmarshal(bus.body, &env)
-	if bus.subject != "cairn.webhooks.strava.event" || bus.msgID != "strava:2026-01-01T00:00:00Z" ||
+	hi := sha256.Sum256([]byte("hi"))
+	if bus.subject != "cairn.webhooks.strava.event" || bus.msgID != "strava:"+hex.EncodeToString(hi[:16])+":2026-01-01T00:00:00Z" ||
 		env.Headers["x-sig"] != "1" || env.Headers["x-webhook-source-addr"] != "1.2.3.4:5" || string(env.Body) != "hi" {
 		t.Errorf("forwarded %s %s %+v", bus.subject, bus.msgID, env)
 	}

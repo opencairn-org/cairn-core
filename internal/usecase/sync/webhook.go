@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,8 +100,11 @@ func (f *WebhookForwarder) Forward(ctx context.Context, provider string, headers
 		return fmt.Errorf("encode envelope: %w", err)
 	}
 	subject := "cairn.webhooks." + provider + ".event"
-	// Best-effort dedup; a provider-aware id would need a decode.
-	msgID := provider + ":" + env.Headers["x-webhook-received-at"]
+	// Dedup only a byte-identical redelivery within the same second: the
+	// body hash keeps two distinct events of one second apart, the second
+	// keeps a legitimate repeat (same payload, later change) deliverable.
+	sum := sha256.Sum256(body)
+	msgID := provider + ":" + hex.EncodeToString(sum[:16]) + ":" + env.Headers["x-webhook-received-at"]
 	// Bounded so an unauthenticated webhook can't hang on a slow JetStream.
 	pubCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
