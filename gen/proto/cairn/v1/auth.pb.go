@@ -4552,7 +4552,10 @@ type WorkerPoolInfo struct {
 	Release       string                 `protobuf:"bytes,4,opt,name=release,proto3" json:"release,omitempty"`
 	Online        bool                   `protobuf:"varint,5,opt,name=online,proto3" json:"online,omitempty"`
 	// Release-compatible with this core (true when offline: unknown).
-	Compatible    bool `protobuf:"varint,6,opt,name=compatible,proto3" json:"compatible,omitempty"`
+	Compatible bool `protobuf:"varint,6,opt,name=compatible,proto3" json:"compatible,omitempty"`
+	// Data types the pool's live instances read, by capability taxonomy name
+	// ("Activity", "Gear", "Sleep", ...); empty while the pool is offline.
+	Reads         []string `protobuf:"bytes,7,rep,name=reads,proto3" json:"reads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4627,6 +4630,13 @@ func (x *WorkerPoolInfo) GetCompatible() bool {
 		return x.Compatible
 	}
 	return false
+}
+
+func (x *WorkerPoolInfo) GetReads() []string {
+	if x != nil {
+		return x.Reads
+	}
+	return nil
 }
 
 type RateLimitWindow struct {
@@ -7039,7 +7049,7 @@ const file_cairn_v1_auth_proto_rawDesc = "" +
 	"inProgress\x12\x12\n" +
 	"\x04done\x18\x03 \x01(\x05R\x04done\x12\x16\n" +
 	"\x06failed\x18\x04 \x01(\x05R\x06failed\x12\x18\n" +
-	"\askipped\x18\x05 \x01(\x05R\askipped\"\xb7\x01\n" +
+	"\askipped\x18\x05 \x01(\x05R\askipped\"\xcd\x01\n" +
 	"\x0eWorkerPoolInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\apackage\x18\x02 \x01(\tR\apackage\x12%\n" +
@@ -7048,7 +7058,8 @@ const file_cairn_v1_auth_proto_rawDesc = "" +
 	"\x06online\x18\x05 \x01(\bR\x06online\x12\x1e\n" +
 	"\n" +
 	"compatible\x18\x06 \x01(\bR\n" +
-	"compatible\"t\n" +
+	"compatible\x12\x14\n" +
+	"\x05reads\x18\a \x03(\tR\x05reads\"t\n" +
 	"\x0fRateLimitWindow\x12\x12\n" +
 	"\x04used\x18\x01 \x01(\x05R\x04used\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x127\n" +
