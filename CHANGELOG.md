@@ -48,6 +48,8 @@ Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
 - Forwarded webhook events are deduplicated by body hash, not by second.
 
 ### Removed
+- `docker/nats-auth-callout.conf` no longer carries the seedless placeholder
+  nkey user that only the Strava worker <= 0.3.0 needed.
 - The pre-0.5 provider-scoped job subjects `cairn.jobs.<job>.<provider>` are
   no longer granted; workers drain their pool subjects only.
 - The `cairn.accounts.lookup_by_provider_ext` responder; workers use
