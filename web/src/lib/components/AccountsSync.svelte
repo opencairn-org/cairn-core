@@ -41,6 +41,7 @@
 			parser_version: string;
 			release: string;
 			online: boolean;
+			reads?: string[];
 		}[];
 		out_of_date?: Record<string, number>;
 		queue: Queue;
@@ -359,8 +360,19 @@
 		}
 	}
 
-	// Garmin-only: queue a health-metric import (HRV/sleep/weight/steps/RHR)
-	// for the last 30 days on the account's worker.
+	// What the account's pool declares it reads (capability taxonomy); gates
+	// the per-type actions below.
+	const METRIC_TYPES = ['Steps', 'HRV', 'RestingHR', 'Sleep', 'Weight', 'WaterIntake'];
+	function poolReads(a: Account): string[] {
+		const pool = a.worker_pools.find((p) => p.name === a.assigned_worker) ?? a.worker_pools[0];
+		return pool?.reads ?? [];
+	}
+	function readsMetrics(a: Account): boolean {
+		return poolReads(a).some((r) => METRIC_TYPES.includes(r));
+	}
+
+	// Queue a health-metric import (HRV/sleep/weight/steps/RHR) for the last
+	// 30 days on the account's worker.
 	async function importHealth(id: string) {
 		busy = { ...busy, [id]: true };
 		error = null;
@@ -522,15 +534,17 @@
 									{reparsed[a.id] ?? `Re-parse ${a.out_of_date?.newer_parser} out of date`}
 								</button>
 							{/if}
-							<button
-								type="button"
-								disabled={busy[a.id]}
-								onclick={() => syncGear(a.id)}
-								class="rounded border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50 max-md:py-2"
-							>
-								Sync gear
-							</button>
-							{#if a.provider === 'garmin'}
+							{#if poolReads(a).includes('Gear')}
+								<button
+									type="button"
+									disabled={busy[a.id]}
+									onclick={() => syncGear(a.id)}
+									class="rounded border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:border-accent-500 hover:text-accent-300 disabled:opacity-50 max-md:py-2"
+								>
+									Sync gear
+								</button>
+							{/if}
+							{#if readsMetrics(a)}
 								<button
 									type="button"
 									disabled={busy[a.id]}

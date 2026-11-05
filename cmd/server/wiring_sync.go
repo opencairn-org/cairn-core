@@ -29,9 +29,19 @@ func (s syncInsight) Budget(ctx context.Context, a domain.ExternalAccount) domai
 
 func (s syncInsight) Pools(ctx context.Context, provider string) []domain.WorkerPoolInfo {
 	pools := knownPools(ctx, s.app, s.logger, provider)
+	live := currentWorkers(ctx, s.app, s.logger)
 	out := make([]domain.WorkerPoolInfo, 0, len(pools))
 	for _, p := range pools {
-		out = append(out, domain.WorkerPoolInfo{Name: p.name, Package: p.pkg, ParserVersion: p.parser, Release: p.release, Online: p.online, Compatible: !p.online || p.compatible})
+		info := domain.WorkerPoolInfo{Name: p.name, Package: p.pkg, ParserVersion: p.parser, Release: p.release, Online: p.online, Compatible: !p.online || p.compatible}
+		for _, w := range live {
+			if w.provider == provider && w.name == p.name && w.compatible {
+				for _, dt := range w.capabilities.ReadableTypes() {
+					info.Reads = append(info.Reads, string(dt))
+				}
+				break
+			}
+		}
+		out = append(out, info)
 	}
 	return out
 }

@@ -18,6 +18,19 @@ import (
 // ErrGearNotSupported: no live worker of the account's pool imports gear.
 var ErrGearNotSupported = port.NewActionError(port.ActionErrorConflict, "no connected worker for this provider imports gear")
 
+// ErrMetricsNotSupported: no live worker of the account's pool imports
+// health metrics.
+var ErrMetricsNotSupported = port.NewActionError(port.ActionErrorConflict, "no connected worker for this provider imports health metrics")
+
+// Scheduled health-metric imports: one window per account per day, with a
+// day of overlap; the first import reaches back scheduledMetricsFirstDays.
+const (
+	scheduledMetricsEvery     = 24 * time.Hour
+	scheduledMetricsOverlap   = 24 * time.Hour
+	scheduledMetricsFirstDays = 30
+	lastMetricsImportKey      = "last_metrics_import_at"
+)
+
 var (
 	errNoBus       = errors.New("worker bus unavailable")
 	errAccountGone = port.NewActionError(port.ActionErrorNotFound, "not found")
@@ -124,6 +137,76 @@ func (j *Jobs) SyncGear(ctx context.Context, userID domain.UserID, id domain.Ext
 	return j.ImportGear(ctx, acct, "manual")
 }
 
+// metricsDeclared reports whether the pool reads any health metric.
+func (j *Jobs) metricsDeclared(ctx context.Context, provider, pool string) bool {
+	if j.Pools == nil {
+		return false
+	}
+	for _, dt := range capability.MetricTypes() {
+		if j.Pools.PoolDeclares(ctx, provider, pool, dt) {
+			return true
+		}
+	}
+	return false
+}
+
+// publishMetrics enqueues an import_metrics job for the window.
+func (j *Jobs) publishMetrics(ctx context.Context, acct domain.ExternalAccount, pool string, since, until time.Time) error {
+	body, _ := json.Marshal(map[string]any{
+		"account_id": acct.ID.String(),
+		"user_id":    acct.UserID.String(),
+		"provider":   acct.Provider,
+		"since_unix": since.Unix(),
+		"until_unix": until.Unix(),
+	})
+	// Unique per request so re-triggering within the dedup window isn't dropped.
+	msgID := fmt.Sprintf("import_metrics:%s:%s:%d", acct.Provider, acct.ID, until.Unix())
+	if err := j.Bus.Publish(ctx, domain.JobSubject("import_metrics", acct.Provider, pool), msgID, body); err != nil {
+		return fmt.Errorf("publish import_metrics: %w", err)
+	}
+	return nil
+}
+
+// ScheduledMetricsSync is the reconcile-time publisher: once a day per
+// account whose pool reads health metrics, with a day of overlap. Accounts of
+// providers without metrics are skipped quietly.
+func (j *Jobs) ScheduledMetricsSync(ctx context.Context, acct domain.ExternalAccount) error {
+	if !j.Available() {
+		return errNoBus
+	}
+	pool, err := j.Router.AccountWorker(ctx, acct)
+	if err != nil {
+		return err
+	}
+	if !j.metricsDeclared(ctx, acct.Provider, pool) {
+		return nil
+	}
+	now := j.now()
+	last, ok := lastMetricsImport(acct)
+	if ok && now.Sub(last) < scheduledMetricsEvery {
+		return nil
+	}
+	since := now.AddDate(0, 0, -scheduledMetricsFirstDays)
+	if ok {
+		since = last.Add(-scheduledMetricsOverlap)
+	}
+	if err := j.publishMetrics(ctx, acct, pool, since, now); err != nil {
+		return err
+	}
+	return j.Accounts.UpdateAccountConfig(ctx, acct.ID, map[string]any{lastMetricsImportKey: now.UTC().Format(time.RFC3339)})
+}
+
+// lastMetricsImport reads the scheduled import's bookmark from the account config.
+func lastMetricsImport(acct domain.ExternalAccount) (time.Time, bool) {
+	var cfg map[string]any
+	if len(acct.Config) == 0 || json.Unmarshal(acct.Config, &cfg) != nil {
+		return time.Time{}, false
+	}
+	raw, _ := cfg[lastMetricsImportKey].(string)
+	t, err := time.Parse(time.RFC3339, raw)
+	return t, err == nil
+}
+
 // HealthImportDays clamps a requested health-import window: 1..365, else 30.
 func HealthImportDays(days int) int {
 	if days > 0 && days <= 365 {
@@ -142,22 +225,15 @@ func (j *Jobs) ImportHealth(ctx context.Context, userID domain.UserID, id domain
 	if err != nil {
 		return err
 	}
-	now := j.now()
-	body, _ := json.Marshal(map[string]any{
-		"account_id": acct.ID.String(),
-		"user_id":    userID.String(),
-		"provider":   acct.Provider,
-		"since_unix": now.AddDate(0, 0, -days).Unix(),
-		"until_unix": now.Unix(),
-	})
 	pool, err := j.Router.AccountWorker(ctx, acct)
 	if err != nil {
 		return port.NewActionError(port.ActionErrorConflict, err.Error())
 	}
-	// Unique per request so re-triggering within the dedup window isn't dropped.
-	msgID := fmt.Sprintf("import_metrics:%s:%s:%d", acct.Provider, acct.ID, now.Unix())
-	if err := j.Bus.Publish(ctx, domain.JobSubject("import_metrics", acct.Provider, pool), msgID, body); err != nil {
-		return fmt.Errorf("publish import_metrics: %w", err)
+	// CAIRN_JOBS is a work queue: a job for a pool that never reads
+	// metrics would sit there forever.
+	if !j.metricsDeclared(ctx, acct.Provider, pool) {
+		return ErrMetricsNotSupported
 	}
-	return nil
+	now := j.now()
+	return j.publishMetrics(ctx, acct, pool, now.AddDate(0, 0, -days), now)
 }

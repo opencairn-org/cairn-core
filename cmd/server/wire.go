@@ -764,7 +764,7 @@ func wireAppNATS(ctx context.Context, app *App, cfg *config.Config, logger *slog
 			_, exhausted := providerBudget(ctx, bus, a.Provider, accountAppID(ctx, app, a), pool)
 			return exhausted
 		},
-		gearSyncHook(app, logger),
+		reconcileHooks(app, logger),
 		nil, // default time.Now
 		nil, // default uuid.NewV7
 	)

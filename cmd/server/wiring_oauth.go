@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -83,7 +84,11 @@ func appendQuery(rawURL string, params map[string]string) string {
 	return oauthserver.AppendQuery(rawURL, params)
 }
 
-// gearSyncHook is the reconcile-time gear import publisher.
-func gearSyncHook(app *App, logger *slog.Logger) func(ctx context.Context, a domain.ExternalAccount) error {
-	return oauthProviderJobs(app, logger).ScheduledGearSync
+// reconcileHooks publishes the gear and health-metric imports that ride
+// along with each reconcile; each only when the account's pool declares it.
+func reconcileHooks(app *App, logger *slog.Logger) func(ctx context.Context, a domain.ExternalAccount) error {
+	jobs := oauthProviderJobs(app, logger)
+	return func(ctx context.Context, a domain.ExternalAccount) error {
+		return errors.Join(jobs.ScheduledGearSync(ctx, a), jobs.ScheduledMetricsSync(ctx, a))
+	}
 }

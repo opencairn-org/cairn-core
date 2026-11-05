@@ -19,6 +19,13 @@ Contract change: core 0.7 needs 0.7 workers (docs/adr/0005).
 - The connect form labels its two credential slots from the provider's
   `config_fields`; `GET /api/connections` and `ListAvailableProviders` carry
   them.
+- Health metrics import on a schedule: alongside reconcile, core publishes
+  `import_metrics` once a day per account whose pool declares a metric data
+  type (a day of overlap, 30 days on the first run). The manual "Import
+  health" refuses pools that declare none, like gear.
+- `GET /api/accounts` lists what each pool reads (`worker_pools[].reads`);
+  the Sync gear / Import health buttons follow it instead of the provider
+  name.
 
 ### Changed
 - The OAuth authorization-code exchange runs in the provider's pool
