@@ -919,6 +919,24 @@ The follow-up consumer `activity-follow-ups` (stream aggregates, best
 efforts, segments, training load, PR dispatch, federation) listens on
 `cairn.events.activity.changed`. See section 8.
 
+**Metric results.** `import_metrics` results carry METRIC events
+(`ImportedMetric{ref, key, ts, value_numeric | value_json}`). The router hands
+each to `metrics.Store.Import`, which routes by key:
+
+| Key | Store | Read by |
+|---|---|---|
+| time-series data type (`Steps`, `HRV`, `RestingHR`, `Sleep`, `Weight`, `WaterIntake`) | `health_samples`, upsert on (user, type, ts, provider, `ref.external_id`) | `GET /api/health`, `ListHealthSeries` (merged per day) |
+| any other key: reserved (`metrics.proto`, e.g. `spo2_pct`, `sleep_stages`) or provider-namespaced (`<provider>.<name>`) | `metrics`, upsert on (user, key, ts, provider, external_id); `derived:<key>@<ts>` when the ref has none | `GET /api/metrics`, `MetricsService` |
+
+Exactly one of `value_numeric` / `value_json` is stored (`value_json` as
+`value_struct`), with provider, external account and, in `metrics`, the
+result's `worker_name` / `worker_version`. A metric the domain refuses
+(key syntax, shape of a reserved key, no or both values, invalid JSON, bad
+user id) or Postgres rejects deterministically is logged at Warn and counted
+in `cairn_worker_metrics_refused_total{provider,reason}`; it never fails the
+other events. A transient storage error NAKs the result; the redelivery
+re-upserts the same rows.
+
 ### Phase 3: Ongoing updates via webhook
 
 Strava calls the Cairn server on every new / edited / deleted

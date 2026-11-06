@@ -5,6 +5,7 @@
 package health
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 
@@ -14,12 +15,14 @@ import (
 
 // Sample is one health reading from one provider.
 type Sample struct {
-	UserID    domain.UserID
-	DataType  capability.DataType
-	Timestamp time.Time
-	Provider  string
-	Value     *float64
-	Unit      string
+	UserID      domain.UserID
+	DataType    capability.DataType
+	Timestamp   time.Time
+	Provider    string
+	ExternalID  string // provider id of the sample; part of the dedup key
+	Value       *float64
+	ValueStruct json.RawMessage // structured reading; the daily merge reads Value only
+	Unit        string
 }
 
 // MergedSample is the winning reading for one (data type, day).

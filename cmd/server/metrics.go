@@ -31,6 +31,16 @@ var (
 		Name: "cairn_build_info",
 		Help: "Build info; constant 1 with version/commit labels.",
 	}, []string{"version", "commit"})
+
+	workerMetricsStored = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "cairn_worker_metrics_stored_total",
+		Help: "Worker METRIC events stored, by result-subject provider and store (health_series, metrics).",
+	}, []string{"provider", "store"})
+
+	workerMetricsRefused = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "cairn_worker_metrics_refused_total",
+		Help: "Worker METRIC events not stored, by result-subject provider and reason.",
+	}, []string{"provider", "reason"})
 )
 
 // setBuildInfoMetric stamps the build_info gauge (called once at startup).
