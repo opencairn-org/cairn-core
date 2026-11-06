@@ -10,6 +10,16 @@ All notable changes to Cairn are documented here. The format follows
 
 Drop-in for 0.7.0: no migration, 0.7 workers keep working.
 
+### Added
+- The Health page lists everything in the metrics store below the daily
+  health cards: the newest value of every key, grouped into reserved keys
+  and one group per provider, with a sparkline over the selected period for
+  numbers and the fields of structured values (sleep stages as minutes per
+  stage). Selecting
+  a metric shows its last 30 entries with provider, worker, version and
+  external id. Units come from the key's suffix (`_pct`, `_bpm`, `_min`, …);
+  day values stamped at 00:00 UTC show their calendar day in every timezone.
+
 ### Fixed
 - The `CAIRN_WEBHOOKS` stream captures only `cairn.webhooks.*.event`, not the
   GET verify request/reply: it answered with its pub-ack before the worker

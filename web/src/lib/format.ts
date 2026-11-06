@@ -12,7 +12,7 @@ const M_PER_MILE = 1609.344;
 const FT_PER_M = 3.28084;
 
 // Map paraglide locale → BCP 47 tag for Intl APIs.
-function intlLocale(): string {
+export function intlLocale(): string {
 	switch (getLocale()) {
 		case 'de':
 			return 'de-DE';
