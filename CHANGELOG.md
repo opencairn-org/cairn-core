@@ -6,6 +6,10 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-11-06
+
+Drop-in for 0.7.0: no migration, 0.7 workers keep working.
+
 ### Fixed
 - The `CAIRN_WEBHOOKS` stream captures only `cairn.webhooks.*.event`, not the
   GET verify request/reply: it answered with its pub-ack before the worker
