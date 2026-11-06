@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/opencairn-org/cairn-core/internal/domain"
@@ -32,7 +33,14 @@ const (
 	RefusedMissingTimestamp = "missing_timestamp"
 	RefusedInvalid          = "invalid"
 	RefusedUnavailable      = "store_unavailable"
+	RefusedBadAccountID     = "bad_external_account_id"
+	RefusedAccountMismatch  = "account_mismatch" // account of another user, provider or pool
 )
+
+// AccountLookup resolves the owner of an imported metric's account.
+type AccountLookup interface {
+	GetExternalAccount(ctx context.Context, id domain.ExternalAccountID) (domain.ExternalAccount, error)
+}
 
 // ImportRefusedError is a worker metric Import does not store; redelivery cannot change that.
 type ImportRefusedError struct {
@@ -85,10 +93,34 @@ func (s *Store) Import(ctx context.Context, in ImportInput) error {
 	} else if !json.Valid(t) {
 		return refused(RefusedBadJSON, errors.New("value_json is not valid JSON"))
 	}
+	if err := s.checkAccount(ctx, in); err != nil {
+		return err
+	}
 	if RouteImport(in.Key) == TargetHealthSeries {
 		return s.importHealth(ctx, in)
 	}
 	return s.importMetric(ctx, in)
+}
+
+// checkAccount refuses a metric unless its account belongs to the metric's user and provider.
+func (s *Store) checkAccount(ctx context.Context, in ImportInput) error {
+	if s == nil || s.Accounts == nil {
+		return refused(RefusedUnavailable, errors.New("account lookup is not available"))
+	}
+	if in.ExternalAccountID == nil {
+		return refused(RefusedBadAccountID, errors.New("external_account_id is required"))
+	}
+	acct, err := s.Accounts.GetExternalAccount(ctx, *in.ExternalAccountID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return refused(RefusedAccountMismatch, err)
+	}
+	if err != nil {
+		return fmt.Errorf("metric account: %w", err)
+	}
+	if acct.UserID != in.UserID || acct.Provider != in.Provider {
+		return refused(RefusedAccountMismatch, fmt.Errorf("account %s belongs to another user or provider", acct.ID))
+	}
+	return nil
 }
 
 func (s *Store) importHealth(ctx context.Context, in ImportInput) error {

@@ -26,6 +26,23 @@ func (f *fakeHealth) SaveSamples(_ context.Context, _ domain.UserID, acct *domai
 	return nil
 }
 
+// fakeAccounts serves accounts by id; err fails every lookup.
+type fakeAccounts struct {
+	rows map[domain.ExternalAccountID]domain.ExternalAccount
+	err  error
+}
+
+func (f fakeAccounts) GetExternalAccount(_ context.Context, id domain.ExternalAccountID) (domain.ExternalAccount, error) {
+	if f.err != nil {
+		return domain.ExternalAccount{}, f.err
+	}
+	a, ok := f.rows[id]
+	if !ok {
+		return domain.ExternalAccount{}, domain.ErrNotFound
+	}
+	return a, nil
+}
+
 func TestRouteImport(t *testing.T) {
 	for key, want := range map[string]ImportTarget{
 		"Steps": TargetHealthSeries, "HRV": TargetHealthSeries, "Sleep": TargetHealthSeries, "WaterIntake": TargetHealthSeries,
@@ -39,7 +56,8 @@ func TestRouteImport(t *testing.T) {
 
 func TestStoreImport(t *testing.T) {
 	ctx := context.Background()
-	user, acct := domain.UserID(uuid.New()), domain.ExternalAccountID(uuid.New())
+	user, acct, stranger := domain.UserID(uuid.New()), domain.ExternalAccountID(uuid.New()), domain.ExternalAccountID(uuid.New())
+	accounts := fakeAccounts{rows: map[domain.ExternalAccountID]domain.ExternalAccount{acct: {ID: acct, UserID: user, Provider: "whoop"}}}
 	ts := time.Date(2026, 11, 1, 6, 30, 0, 0, time.FixedZone("CET", 3600))
 	base := ImportInput{UserID: user, Ts: ts, Provider: "whoop", ExternalAccountID: &acct, ExternalID: "cycle:1",
 		SourceWorkerName: "whoop", SourceWorkerVersion: "1.2"}
@@ -67,11 +85,17 @@ func TestStoreImport(t *testing.T) {
 		{"no timestamp", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.Ts = "Steps", f64(1), time.Time{} }), TargetHealthSeries, RefusedMissingTimestamp},
 		{"no timestamp metric", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.Ts = "steps", f64(1), time.Time{} }), TargetMetrics, RefusedMissingTimestamp},
 		{"no user", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.UserID = "steps", f64(1), domain.UserID{} }), TargetMetrics, RefusedBadUserID},
+		{"no account", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.ExternalAccountID = "Steps", f64(1), nil }), TargetHealthSeries, RefusedBadAccountID},
+		{"unknown account", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.ExternalAccountID = "spo2_pct", f64(97), &stranger }), TargetMetrics, RefusedAccountMismatch},
+		{"account of another user", with(func(in *ImportInput) {
+			in.Key, in.ValueNumeric, in.UserID = "Steps", f64(1), domain.UserID(uuid.New())
+		}), TargetHealthSeries, RefusedAccountMismatch},
+		{"account of another provider", with(func(in *ImportInput) { in.Key, in.ValueNumeric, in.Provider = "spo2_pct", f64(97), "oura" }), TargetMetrics, RefusedAccountMismatch},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			repo, hr := &fakeRepo{rows: map[domain.MetricID]domain.Metric{}}, &fakeHealth{}
-			s := &Store{Repo: repo, Health: hr}
+			s := &Store{Repo: repo, Health: hr, Accounts: accounts}
 			err := s.Import(ctx, tc.in)
 			if got := RouteImport(tc.in.Key); got != tc.target {
 				t.Fatalf("target = %s; want %s", got, tc.target)
@@ -130,5 +154,16 @@ func TestStoreImportUnavailable(t *testing.T) {
 				t.Fatalf("%s: err = %v; want %s", key, err, RefusedUnavailable)
 			}
 		}
+	}
+}
+
+func TestStoreImportAccountLookupError(t *testing.T) {
+	acct := domain.ExternalAccountID(uuid.New())
+	s := &Store{Repo: &fakeRepo{rows: map[domain.MetricID]domain.Metric{}}, Accounts: fakeAccounts{err: errors.New("db down")}}
+	err := s.Import(context.Background(), ImportInput{UserID: domain.UserID(uuid.New()), Key: "spo2_pct", Ts: time.Now(),
+		ValueNumeric: f64(97), Provider: "whoop", ExternalAccountID: &acct})
+	var rf *ImportRefusedError
+	if err == nil || errors.As(err, &rf) {
+		t.Fatalf("lookup failure must be retryable, got %v", err)
 	}
 }

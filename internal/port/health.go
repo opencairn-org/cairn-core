@@ -14,7 +14,9 @@ import (
 // archive stays the source of truth.
 type HealthRepo interface {
 	// SaveSamples upserts raw samples on the natural key (user, type, ts,
-	// provider, external_id). Written by worker METRIC imports (metrics.Store.Import).
+	// provider, external_id); a sample with an external_id replaces the row of
+	// the same (user, type, ts, provider) stored without one. Written by worker
+	// METRIC imports (metrics.Store.Import).
 	SaveSamples(ctx context.Context, userID domain.UserID, accountID *domain.ExternalAccountID, samples []health.Sample) error
 
 	// ListSamples returns raw samples for one user + data type in [from, to).

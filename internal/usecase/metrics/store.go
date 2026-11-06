@@ -28,11 +28,12 @@ const (
 
 // Store runs the metric use-cases; a nil Repo answers Unavailable.
 type Store struct {
-	Repo    port.MetricRepo
-	Athlete port.AthleteProfileRepo // optional; fills the training context
-	Health  port.HealthRepo         // optional; receives imported time-series data types
-	Now     func() time.Time
-	NewID   func() uuid.UUID
+	Repo     port.MetricRepo
+	Athlete  port.AthleteProfileRepo // optional; fills the training context
+	Health   port.HealthRepo         // optional; receives imported time-series data types
+	Accounts AccountLookup           // required by Import; vets the metric's account owner
+	Now      func() time.Time
+	NewID    func() uuid.UUID
 }
 
 func (s *Store) now() time.Time {

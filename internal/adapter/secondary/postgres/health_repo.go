@@ -27,7 +27,12 @@ func (r *HealthRepo) SaveSamples(ctx context.Context, userID domain.UserID, acco
 		acct = accountID.UUID()
 	}
 	for _, s := range samples {
+		// A sample with an external id replaces the legacy row of the same instant stored without one.
 		_, err := db.Exec(ctx, `
+			WITH legacy AS (
+				DELETE FROM health_samples
+				 WHERE $6 <> '' AND user_id = $1 AND data_type = $2 AND ts = $3 AND provider = $4 AND external_id = ''
+			)
 			INSERT INTO health_samples (user_id, data_type, ts, provider, external_account_id, external_id, value, value_struct, unit)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (user_id, data_type, ts, provider, external_id)

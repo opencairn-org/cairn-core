@@ -124,11 +124,17 @@ func TestProcessJobResult_MetricRouting(t *testing.T) {
 		{"shape mismatch", metricEvent(user, acct, "x:2", "spo2_pct", ts, nil, `{"v":97}`), "", "", false, metricsuc.RefusedShapeMismatch},
 		{"both values", metricEvent(user, acct, "x:3", "HRV", ts, num(50), `{"v":50}`), "", "", false, metricsuc.RefusedValue},
 		{"bad user id", metricEvent("nope", acct, "x:4", "steps", ts, num(1), ""), "", "", false, metricsuc.RefusedBadUserID},
+		{"another user's account", metricEvent(uuid.NewString(), acct, "x:5", "Weight", ts, num(70), ""), "", "", false, metricsuc.RefusedAccountMismatch},
+		{"unknown account", metricEvent(user, uuid.NewString(), "x:6", "whoop.strain", ts, num(9), ""), "", "", false, metricsuc.RefusedAccountMismatch},
+		{"malformed account", metricEvent(user, "nope", "x:7", "Steps", ts, num(1), ""), "", "", false, metricsuc.RefusedBadAccountID},
+		{"no account", metricEvent(user, "", "x:8", "spo2_pct", ts, num(97), ""), "", "", false, metricsuc.RefusedBadAccountID},
 	}
 
 	mr := &fakeMetricRepo{rows: map[natKey]domain.Metric{}}
 	hr := &fakeHealthRepo{rows: map[natKey]health.Sample{}, acct: map[natKey]*domain.ExternalAccountID{}}
-	app := &App{MetricStore: &metricsuc.Store{Repo: mr, Health: hr}}
+	acctID := domain.ExternalAccountID(uuid.MustParse(acct))
+	accounts := fakeAccountLookup{acctID: {ID: acctID, UserID: domain.UserID(uuid.MustParse(user)), Provider: "whoop"}}
+	app := &App{MetricStore: &metricsuc.Store{Repo: mr, Health: hr, Accounts: accounts}}
 	var buf bytes.Buffer
 	log := slog.New(slog.NewJSONHandler(&buf, nil))
 	jr := &workerv1.JobResult{WorkerName: "whoop-pool", WorkerVersion: "1.4"}
@@ -195,8 +201,9 @@ func TestProcessJobResult_MetricRouting(t *testing.T) {
 }
 
 func TestIngestMetricEvent_StorageErrors(t *testing.T) {
-	user := uuid.NewString()
-	ev := metricEvent(user, "", "spo2:1", "spo2_pct", time.Now(), num(97), "")
+	user, acct := uuid.New(), domain.ExternalAccountID(uuid.New())
+	accounts := fakeAccountLookup{acct: {ID: acct, UserID: domain.UserID(user), Provider: "whoop"}}
+	ev := metricEvent(user.String(), acct.String(), "spo2:1", "spo2_pct", time.Now(), num(97), "")
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -206,7 +213,7 @@ func TestIngestMetricEvent_StorageErrors(t *testing.T) {
 		{"deterministic is refused", fmt.Errorf("save metric 0: %w", &pgconn.PgError{Code: "23503"}), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			app := &App{MetricStore: &metricsuc.Store{Repo: &fakeMetricRepo{err: tc.err}}}
+			app := &App{MetricStore: &metricsuc.Store{Repo: &fakeMetricRepo{err: tc.err}, Accounts: accounts}}
 			var buf bytes.Buffer
 			err := processWorkerEvent(context.Background(), app, slog.New(slog.NewJSONHandler(&buf, nil)),
 				&workerv1.JobResult{}, &ingestBundle{provider: "whoop"}, ev)

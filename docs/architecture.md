@@ -930,10 +930,14 @@ each to `metrics.Store.Import`, which routes by key:
 
 Exactly one of `value_numeric` / `value_json` is stored (`value_json` as
 `value_struct`), with provider, external account and, in `metrics`, the
-result's `worker_name` / `worker_version`. A metric the domain refuses
+result's `worker_name` / `worker_version`. A health sample with an
+external id replaces the row of the same instant stored without one. The
+ref's `external_account_id` must belong to the ref's user and provider and be
+served by the result's pool (docs/adr/0006). A metric the domain refuses
 (key syntax, shape of a reserved key, no or both values, invalid JSON, bad
-user id) or Postgres rejects deterministically is logged at Warn and counted
-in `cairn_worker_metrics_refused_total{provider,reason}`; it never fails the
+user id, foreign or missing account) or Postgres rejects deterministically
+is logged at Warn and counted in
+`cairn_worker_metrics_refused_total{provider,reason}`; it never fails the
 other events. A transient storage error NAKs the result; the redelivery
 re-upserts the same rows.
 

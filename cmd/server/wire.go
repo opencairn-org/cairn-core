@@ -852,6 +852,9 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.HealthViews = dashboard.NewHealth(app.Health, nil)
 	if app.Metrics != nil {
 		app.MetricStore = &metricsuc.Store{Repo: app.Metrics, Health: app.Health}
+		if app.ExternalAccounts != nil {
+			app.MetricStore.Accounts = app.ExternalAccounts
+		}
 		if app.AthleteProfiles != nil {
 			app.MetricStore.Athlete = app.AthleteProfiles
 		}

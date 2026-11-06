@@ -193,9 +193,8 @@ func checkResultPool(ctx context.Context, app *App, log *slog.Logger, subject st
 	return poolRouting(app, log).CheckResultPool(ctx, subject, jr.GetWorkerName(), jr.GetWorkerPackage())
 }
 
-// checkResultAccount rejects an activity result from a pool that does not serve the account.
-func checkResultAccount(ctx context.Context, app *App, job string, jr *workerv1.JobResult, ia *workerv1.ImportedActivity) error {
-	ref := ia.GetRef()
+// checkResultAccount rejects a result ref from a pool that does not serve the account.
+func checkResultAccount(ctx context.Context, app *App, job string, jr *workerv1.JobResult, ref *workerv1.ExternalRef) error {
 	return poolRouting(app, slog.Default()).CheckResultAccount(ctx, job, jr.GetWorkerName(), jr.GetWorkerPackage(),
 		fleet.ResultRef{Provider: ref.GetProvider(), ExternalAccountID: ref.GetExternalAccountId(), ExternalID: ref.GetExternalId()})
 }
