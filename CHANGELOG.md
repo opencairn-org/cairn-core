@@ -17,6 +17,22 @@ All notable changes to Cairn are documented here. The format follows
   reported every 0.5+ worker, which publishes on
   `cairn.results.reconcile.<provider>.<pool>.<account>` (docs/adr/0006), as
   "no reconcile result".
+- Worker METRIC events are no longer dropped. Time-series data-type keys
+  (`Steps`, `HRV`, `RestingHR`, `Sleep`, `Weight`, `WaterIntake`) still feed
+  the health series, now keyed by the ref's `external_id` and with
+  `value_json` kept as `value_struct`; every other key (reserved keys such as
+  `spo2_pct` or `sleep_stages`, provider-namespaced keys such as
+  `whoop.recovery_score`) lands in the `metrics` store (`GET /api/metrics`,
+  `MetricsService`) with provider, account, external id (derived from key and
+  timestamp when the worker sends none) and worker name/version. A metric
+  core still refuses is logged at Warn and counted in
+  `cairn_worker_metrics_refused_total`; `cairn_worker_metrics_stored_total`
+  counts the stored ones.
+
+### Changed
+- A transient storage error on a METRIC event NAKs the result for
+  redelivery instead of logging and losing the metric; both stores upsert on
+  their natural key, so the redelivery adds no rows.
 
 ## [0.7.0] — 2026-11-05
 

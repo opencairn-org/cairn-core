@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,11 +15,10 @@ import (
 
 	workerv1 "github.com/opencairn-org/cairn-core/gen/proto/cairn/worker/v1"
 	"github.com/opencairn-org/cairn-core/internal/domain"
-	"github.com/opencairn-org/cairn-core/internal/domain/capability"
-	"github.com/opencairn-org/cairn-core/internal/domain/health"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/protoconv"
 	"github.com/opencairn-org/cairn-core/internal/usecase/activity"
+	metricsuc "github.com/opencairn-org/cairn-core/internal/usecase/metrics"
 	"github.com/opencairn-org/cairn-core/internal/usecase/segment"
 )
 
@@ -148,8 +148,8 @@ func processJobResult(ctx context.Context, app *App, log *slog.Logger, subject s
 	// created moments earlier without a DB round-trip. Each effort resolves its activity by
 	// external id (FindSourceByExternalID), so the segment message is
 	// self-contained.
-	job, _, _, _ := domain.ResultSubjectPool(subject)
-	b := &ingestBundle{job: job}
+	job, provider, _, _ := domain.ResultSubjectPool(subject)
+	b := &ingestBundle{job: job, provider: provider}
 
 	for _, ev := range jr.GetEvents() {
 		if err := processWorkerEvent(ctx, app, log, jr, b, ev); err != nil {
@@ -177,10 +177,8 @@ func processWorkerEvent(ctx context.Context, app *App, log *slog.Logger, jr *wor
 		}
 
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_METRIC:
-		// Non-fatal: a health sample must not fail the batch.
-		if err := ingestMetricEvent(ctx, app, ev.GetMetric()); err != nil {
-			log.Warn("metric ingest failed", "error", err)
-		}
+		// A refused metric is logged and counted; only a transient storage error NAKs.
+		return ingestMetricEvent(ctx, app, log, jr, b, ev.GetMetric())
 
 	case workerv1.WorkerEventType_WORKER_EVENT_TYPE_GEAR:
 		// Non-fatal: gear is optional data; the activity that references it
@@ -350,37 +348,69 @@ func failQueueItem(ctx context.Context, app *App, log *slog.Logger, ref *workerv
 	}
 }
 
-// ingestMetricEvent persists a non-activity health metric (HRV, Sleep, Weight,
-// Steps, RestingHR) into the health_samples store, keyed by its canonical
-// DataType (the metric key). Skips unknown/non-health keys.
-func ingestMetricEvent(ctx context.Context, app *App, im *workerv1.ImportedMetric) error {
-	if app.Health == nil || im == nil || im.ValueNumeric == nil {
+// ingestMetricEvent stores a METRIC event via metrics.Store.Import; refusals are logged and counted, transient errors NAK.
+func ingestMetricEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, im *workerv1.ImportedMetric) error {
+	ref := im.GetRef()
+	provider := ref.GetProvider()
+	if provider == "" {
+		provider = b.provider
+	}
+	target := metricsuc.RouteImport(im.GetKey())
+	refuse := func(reason string, err error) error {
+		log.Warn("worker metric refused", "provider", provider, "worker", jr.GetWorkerName(), "key", im.GetKey(),
+			"external_id", ref.GetExternalId(), "store", target, "reason", reason, "error", err)
+		workerMetricsRefused.WithLabelValues(metricLabel(b.provider), reason).Inc()
 		return nil
 	}
-	dt := capability.DataType(im.GetKey())
-	if dt.CategoryOf() != capability.CategoryTimeSeries {
-		return nil // not a health metric
+	if im == nil {
+		return refuse("missing_metric", errors.New("METRIC event without a metric"))
 	}
-	ref := im.GetRef()
+	if app.MetricStore == nil {
+		return refuse(metricsuc.RefusedUnavailable, errors.New("no metric store on this instance"))
+	}
 	uid, err := uuid.Parse(ref.GetUserId())
 	if err != nil {
-		return fmt.Errorf("metric: bad user id: %w", err)
+		return refuse(metricsuc.RefusedBadUserID, err)
 	}
-	var acct *domain.ExternalAccountID
+	in := metricsuc.ImportInput{
+		UserID: domain.UserID(uid), Key: im.GetKey(), ValueNumeric: im.ValueNumeric,
+		Provider: provider, ExternalID: ref.GetExternalId(),
+		SourceWorkerName: jr.GetWorkerName(), SourceWorkerVersion: jr.GetWorkerVersion(),
+	}
+	if im.GetTs() != nil {
+		in.Ts = im.GetTs().AsTime()
+	}
+	if v := im.GetValueJson(); v != "" {
+		in.ValueStruct = json.RawMessage(v)
+	}
 	if s := ref.GetExternalAccountId(); s != "" {
 		if eu, err := uuid.Parse(s); err == nil {
 			ea := domain.ExternalAccountID(eu)
-			acct = &ea
+			in.ExternalAccountID = &ea
+		} else {
+			log.Warn("worker metric has a malformed external_account_id; stored unlinked", "provider", provider, "key", im.GetKey(), "value", s)
 		}
 	}
-	v := im.GetValueNumeric()
-	return app.Health.SaveSamples(ctx, domain.UserID(uid), acct, []health.Sample{{
-		UserID:    domain.UserID(uid),
-		DataType:  dt,
-		Timestamp: im.GetTs().AsTime(),
-		Provider:  ref.GetProvider(),
-		Value:     &v,
-	}})
+	err = app.MetricStore.Import(ctx, in)
+	var rf *metricsuc.ImportRefusedError
+	switch {
+	case err == nil:
+		workerMetricsStored.WithLabelValues(metricLabel(b.provider), string(target)).Inc()
+		return nil
+	case errors.As(err, &rf):
+		return refuse(rf.Reason, rf.Err)
+	case isDeterministicDBError(err):
+		return refuse("rejected_by_db", err)
+	}
+	return fmt.Errorf("store worker metric %q: %w", im.GetKey(), err)
+}
+
+// metricLabel keeps the provider counter label non-empty.
+func metricLabel(provider string) string {
+	if provider == "" {
+		return "unknown"
+	}
+	return provider
 }
 
 // ingestGearEvent records a provider's gear record (docs/gear-v0.4.0.md,
@@ -447,6 +477,7 @@ func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *w
 type ingestBundle struct {
 	segments *segment.ProviderSegmentBatch
 	job      string // job kind of the result subject
+	provider string // provider of the result subject
 }
 
 func (b *ingestBundle) segmentBatch(app *App) *segment.ProviderSegmentBatch {

@@ -851,7 +851,7 @@ func wireAppViews(app *App, logger *slog.Logger) {
 	app.SegmentViews = segmentview.NewSegments(nilIfNilSegments(app), app.Visibility2)
 	app.HealthViews = dashboard.NewHealth(app.Health, nil)
 	if app.Metrics != nil {
-		app.MetricStore = &metricsuc.Store{Repo: app.Metrics}
+		app.MetricStore = &metricsuc.Store{Repo: app.Metrics, Health: app.Health}
 		if app.AthleteProfiles != nil {
 			app.MetricStore.Athlete = app.AthleteProfiles
 		}

@@ -1,6 +1,7 @@
 // Package metrics is the user-facing metric store: paged listing, latest
-// values, charting series, manual entry and the training context. Both the
-// REST /api/metrics routes and MetricsService call it.
+// values, charting series, manual entry, the training context and the
+// import of worker METRIC events. Both the REST /api/metrics routes and
+// MetricsService call it.
 package metrics
 
 import (
@@ -29,6 +30,7 @@ const (
 type Store struct {
 	Repo    port.MetricRepo
 	Athlete port.AthleteProfileRepo // optional; fills the training context
+	Health  port.HealthRepo         // optional; receives imported time-series data types
 	Now     func() time.Time
 	NewID   func() uuid.UUID
 }
