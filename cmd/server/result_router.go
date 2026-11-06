@@ -368,28 +368,13 @@ func ingestMetricEvent(ctx context.Context, app *App, log *slog.Logger, jr *work
 	if app.MetricStore == nil {
 		return refuse(metricsuc.RefusedUnavailable, errors.New("no metric store on this instance"))
 	}
-	uid, err := uuid.Parse(ref.GetUserId())
+	in, reason, err := metricImportInput(jr, im, provider)
 	if err != nil {
-		return refuse(metricsuc.RefusedBadUserID, err)
+		return refuse(reason, err)
 	}
-	in := metricsuc.ImportInput{
-		UserID: domain.UserID(uid), Key: im.GetKey(), ValueNumeric: im.ValueNumeric,
-		Provider: provider, ExternalID: ref.GetExternalId(),
-		SourceWorkerName: jr.GetWorkerName(), SourceWorkerVersion: jr.GetWorkerVersion(),
-	}
-	if im.GetTs() != nil {
-		in.Ts = im.GetTs().AsTime()
-	}
-	if v := im.GetValueJson(); v != "" {
-		in.ValueStruct = json.RawMessage(v)
-	}
-	if s := ref.GetExternalAccountId(); s != "" {
-		if eu, err := uuid.Parse(s); err == nil {
-			ea := domain.ExternalAccountID(eu)
-			in.ExternalAccountID = &ea
-		} else {
-			log.Warn("worker metric has a malformed external_account_id; stored unlinked", "provider", provider, "key", im.GetKey(), "value", s)
-		}
+	// A pool may only write for the accounts it serves (docs/adr/0006).
+	if err := b.accountAllowed(ctx, app, jr, ref); err != nil {
+		return refuse(metricsuc.RefusedAccountMismatch, err)
 	}
 	err = app.MetricStore.Import(ctx, in)
 	var rf *metricsuc.ImportRefusedError
@@ -403,6 +388,46 @@ func ingestMetricEvent(ctx context.Context, app *App, log *slog.Logger, jr *work
 		return refuse("rejected_by_db", err)
 	}
 	return fmt.Errorf("store worker metric %q: %w", im.GetKey(), err)
+}
+
+// metricImportInput maps a METRIC event onto the use-case input; a parse failure returns its refusal reason.
+func metricImportInput(jr *workerv1.JobResult, im *workerv1.ImportedMetric, provider string) (metricsuc.ImportInput, string, error) {
+	ref := im.GetRef()
+	uid, err := uuid.Parse(ref.GetUserId())
+	if err != nil {
+		return metricsuc.ImportInput{}, metricsuc.RefusedBadUserID, err
+	}
+	acct, err := uuid.Parse(ref.GetExternalAccountId())
+	if err != nil {
+		return metricsuc.ImportInput{}, metricsuc.RefusedBadAccountID, err
+	}
+	ea := domain.ExternalAccountID(acct)
+	in := metricsuc.ImportInput{
+		UserID: domain.UserID(uid), Key: im.GetKey(), ValueNumeric: im.ValueNumeric,
+		Provider: provider, ExternalAccountID: &ea, ExternalID: ref.GetExternalId(),
+		SourceWorkerName: jr.GetWorkerName(), SourceWorkerVersion: jr.GetWorkerVersion(),
+	}
+	if im.GetTs() != nil {
+		in.Ts = im.GetTs().AsTime()
+	}
+	if v := im.GetValueJson(); v != "" {
+		in.ValueStruct = json.RawMessage(v)
+	}
+	return in, "", nil
+}
+
+// accountAllowed runs the pool check of a ref's account once per result.
+func (b *ingestBundle) accountAllowed(ctx context.Context, app *App, jr *workerv1.JobResult, ref *workerv1.ExternalRef) error {
+	id := ref.GetExternalAccountId()
+	if err, ok := b.accounts[id]; ok {
+		return err
+	}
+	err := checkResultAccount(ctx, app, b.job, jr, ref)
+	if b.accounts == nil {
+		b.accounts = map[string]error{}
+	}
+	b.accounts[id] = err
+	return err
 }
 
 // metricLabel keeps the provider counter label non-empty.
@@ -445,7 +470,7 @@ func ingestGearEvent(ctx context.Context, app *App, g *workerv1.ImportedGear) er
 func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *workerv1.JobResult, b *ingestBundle, ia *workerv1.ImportedActivity) error {
 	// A pool may only import for its own accounts and re-parse its own
 	// package's sources (docs/adr/0006).
-	if err := checkResultAccount(ctx, app, b.job, jr, ia); err != nil {
+	if err := checkResultAccount(ctx, app, b.job, jr, ia.GetRef()); err != nil {
 		failQueueItem(ctx, app, log, ia.GetRef(), err)
 		return nil
 	}
@@ -476,8 +501,9 @@ func processActivityEvent(ctx context.Context, app *App, log *slog.Logger, jr *w
 // segments upserted earlier in the same JobResult.
 type ingestBundle struct {
 	segments *segment.ProviderSegmentBatch
-	job      string // job kind of the result subject
-	provider string // provider of the result subject
+	job      string           // job kind of the result subject
+	provider string           // provider of the result subject
+	accounts map[string]error // pool verdict per account id (accountAllowed)
 }
 
 func (b *ingestBundle) segmentBatch(app *App) *segment.ProviderSegmentBatch {

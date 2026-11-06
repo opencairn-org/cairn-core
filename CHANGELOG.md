@@ -28,6 +28,14 @@ All notable changes to Cairn are documented here. The format follows
   core still refuses is logged at Warn and counted in
   `cairn_worker_metrics_refused_total`; `cairn_worker_metrics_stored_total`
   counts the stored ones.
+- A METRIC event is stored only for its ref's account: the account must
+  belong to the ref's user and provider and be served by the result's pool
+  (docs/adr/0006), else it is refused as `account_mismatch`
+  (`bad_external_account_id` when the ref has none). Previously any worker
+  could write health samples for any user id.
+- A health sample saved with an external id replaces the row of the same
+  user, type, instant and provider stored without one, so re-imports replace
+  the rows written before samples carried their external id.
 
 ### Changed
 - A transient storage error on a METRIC event NAKs the result for
