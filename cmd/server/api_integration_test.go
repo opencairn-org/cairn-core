@@ -346,10 +346,13 @@ func TestAPI_EndToEnd(t *testing.T) {
 	for _, p := range []string{
 		"/healthz", "/readyz", "/api/version", "/metrics", "/api/instance/features",
 		"/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource",
+		"/.well-known/oauth-protected-resource/mcp",
 		"/.well-known/nodeinfo", "/nodeinfo/2.1",
 	} {
 		anon.do(http.MethodGet, p, nil, http.StatusOK)
 	}
+	// Absent discovery documents are 404, not the SPA.
+	anon.do(http.MethodGet, "/.well-known/openid-configuration", nil, http.StatusNotFound)
 	anon.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
 	anon.rpc("/cairn.v1.AuthService/GetLoginMethods", nil, http.StatusOK)
 	anon.rpc("/cairn.v1.ActivityService/ListActivities", nil, http.StatusUnauthorized)
@@ -664,7 +667,9 @@ func TestAPI_EndToEnd(t *testing.T) {
 			}
 			oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 5, "method": "bogus"}, http.StatusOK)
 			anon.do(http.MethodPost, "/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "ping"}, http.StatusUnauthorized)
-			anon.do(http.MethodGet, "/mcp", nil)
+			anon.do(http.MethodGet, "/mcp", nil, http.StatusUnauthorized)
+			// No SSE stream: an authenticated GET is 405, never 401.
+			oc.do(http.MethodGet, "/mcp", nil, http.StatusMethodNotAllowed)
 			oc.do(http.MethodPost, "/api/activities/"+actID+"/reviewed", nil, http.StatusUnauthorized, http.StatusForbidden)
 			anon.do(http.MethodPost, "/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {str(tok, "refresh_token")}, "client_id": {cid}}, http.StatusOK)
 			// Authorized apps: the client shows up with live tokens, then revoking it ends them.

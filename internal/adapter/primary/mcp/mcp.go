@@ -2,10 +2,11 @@
 // AI agents read a single user's Cairn data. Read-only by design.
 //
 // Transport: Streamable HTTP. The client POSTs JSON-RPC 2.0 to /mcp and gets a
-// single JSON-RPC response (no SSE channel: the tools are request/response).
-// Auth is an OAuth 2.1 bearer access token; a missing or invalid one gets a
-// 401 whose WWW-Authenticate points at the protected-resource metadata (RFC
-// 9728), which is how MCP clients discover the authorization server.
+// single JSON-RPC response (no SSE channel: the tools are request/response),
+// so an authenticated GET /mcp is 405. Auth is an OAuth 2.1 bearer access
+// token; a missing or invalid one gets a 401 whose WWW-Authenticate points at
+// the protected-resource metadata (RFC 9728), which is how MCP clients
+// discover the authorization server.
 package mcp
 
 import (
@@ -13,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +24,12 @@ import (
 )
 
 const mcpProtocolVersion = "2025-06-18"
+
+const (
+	// endpointPath is also the resource identifier's path.
+	endpointPath = "/mcp"
+	metadataPath = "/.well-known/oauth-protected-resource" + endpointPath
+)
 
 // Server serves the MCP endpoint. Tools run in-process, scoped to the token's
 // user and gated on its scopes.
@@ -34,9 +42,38 @@ type Server struct {
 
 // Mount registers the routes.
 func (s *Server) Mount(mux *http.ServeMux) {
-	mux.HandleFunc("POST /mcp", s.handle)
-	// MCP clients may probe with GET; tell them where to authenticate.
-	mux.HandleFunc("GET /mcp", func(w http.ResponseWriter, _ *http.Request) { s.challenge(w) })
+	mux.HandleFunc("POST "+endpointPath, s.handle)
+	mux.HandleFunc("GET "+endpointPath, s.noStream)
+	mux.HandleFunc("GET "+metadataPath, s.resourceMetadata)
+}
+
+// noStream answers the client's SSE probe: 405 means "no stream", whereas a
+// 401 here reads as a rejected token and loops the client back to authorize.
+func (s *Server) noStream(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.authToken(r); !ok {
+		s.challenge(w, r)
+		return
+	}
+	w.Header().Set("Allow", http.MethodPost)
+	http.Error(w, "no SSE stream", http.StatusMethodNotAllowed)
+}
+
+// resourceMetadata is the RFC 9728 document for /mcp, listing only the
+// scopes the tools use.
+func (s *Server) resourceMetadata(w http.ResponseWriter, _ *http.Request) {
+	var scopes []string
+	for _, t := range mcpTools {
+		if !slices.Contains(scopes, t.Scope) {
+			scopes = append(scopes, t.Scope)
+		}
+	}
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"resource":                 s.BaseURL + endpointPath,
+		"authorization_servers":    []string{s.BaseURL},
+		"scopes_supported":         scopes,
+		"bearer_methods_supported": []string{"header"},
+	})
 }
 
 // ToolCount is the number of tools offered.
@@ -75,7 +112,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	// Authenticate the bearer access token up front.
 	at, ok := s.authToken(r)
 	if !ok {
-		s.challenge(w)
+		s.challenge(w, r)
 		return
 	}
 
@@ -122,10 +159,14 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// challenge emits a 401 telling the client where to authenticate (RFC 9728).
-func (s *Server) challenge(w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate",
-		fmt.Sprintf(`Bearer resource_metadata="%s/.well-known/oauth-protected-resource"`, s.BaseURL))
+// challenge emits a 401 telling the client where to authenticate (RFC 9728);
+// a rejected token also gets error="invalid_token" (RFC 6750 §3.1).
+func (s *Server) challenge(w http.ResponseWriter, r *http.Request) {
+	c := fmt.Sprintf(`Bearer resource_metadata="%s%s"`, s.BaseURL, metadataPath)
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		c += `, error="invalid_token"`
+	}
+	w.Header().Set("WWW-Authenticate", c)
 	writeJSON(w, http.StatusUnauthorized, jsonrpcResp{JSONRPC: "2.0",
 		Error: &jsonrpcError{Code: -32001, Message: "authentication required"}})
 }
