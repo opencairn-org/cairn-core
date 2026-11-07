@@ -352,6 +352,8 @@ func serveMountPlatform(mux *http.ServeMux, app *App, logger *slog.Logger) {
 	// UI. In dev the binary embeds nothing and the SvelteKit Node container
 	// behind Caddy serves the UI instead.
 	if h, ok := webui.Handler(); ok {
+		// Discovery clients must get a 404 for absent documents, not index.html.
+		mux.Handle("/.well-known/", http.NotFoundHandler())
 		mux.Handle("/", h)
 		logger.Info("embedded web UI mounted at /")
 	} else {
