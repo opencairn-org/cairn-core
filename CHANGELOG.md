@@ -6,6 +6,31 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-11-07
+
+Drop-in for 0.7.1 with one migration (00076, adds a column; existing API
+tokens keep working). MCP clients re-authorize once.
+
+### Fixed
+- MCP clients that look for a server-to-client stream (Claude.ai, the MCP
+  TypeScript SDK) never connected: an authenticated `GET /mcp` answered `401`,
+  which they read as a rejected token, so they refreshed and retried without
+  end. It now answers `405`, the Streamable HTTP signal for "no stream".
+- The MCP endpoint has its own protected-resource metadata at
+  `/.well-known/oauth-protected-resource/mcp`: `resource` is `<base>/mcp` and
+  `scopes_supported` lists only what the tools use (`activities:read`,
+  `profile:read`), so clients no longer ask for write scopes. Its `401` points
+  there, and a rejected token adds `error="invalid_token"`.
+- Unknown `/.well-known/` paths answer `404` instead of the web app's HTML.
+
+### Changed
+- OAuth tokens are bound to one resource (RFC 8707). Authorize, token and
+  refresh requests take `resource`: the base URL (the API) or `<base>/mcp`;
+  anything else is `invalid_target`. The MCP endpoint accepts only tokens
+  issued for it, and the REST/Connect API refuses those. A request without
+  `resource` gets an API token as before; MCP tokens issued before 0.7.2 are
+  refused at `/mcp`.
+
 ## [0.7.1] — 2026-11-06
 
 Drop-in for 0.7.0: no migration, 0.7 workers keep working.
