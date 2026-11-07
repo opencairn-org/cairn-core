@@ -33,13 +33,13 @@
     "@sveltejs/kit": "3.1.1",
     "@sveltejs/load-config": "0.2.3",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
-    "@tailwindcss/vite": "4.3.3",
+    "@tailwindcss/vite": "4.3.4",
     "@types/geojson": "7946.0.16",
     "@types/node": "26.6.6",
-    "@vitest/coverage-v8": "5.0.5",
+    "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-svelte": "3.23.1",
+    "eslint-plugin-svelte": "3.24.0",
     "globals": "17.14.0",
     "knip": "6.44.1",
     "license-checker-rseidelsohn": "5.0.1",
@@ -47,11 +47,11 @@
     "prettier-plugin-svelte": "4.1.1",
     "svelte": "5.57.3",
     "svelte-check": "4.7.8",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.4",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   },
   "imports": {
     "#lib/*": "./src/lib/*"
