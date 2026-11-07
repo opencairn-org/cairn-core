@@ -11,6 +11,7 @@ import (
 	"github.com/opencairn-org/cairn-core/internal/adapter/primary/rest"
 	"github.com/opencairn-org/cairn-core/internal/adapter/primary/workerrpc"
 	"github.com/opencairn-org/cairn-core/internal/config"
+	"github.com/opencairn-org/cairn-core/internal/domain"
 	"github.com/opencairn-org/cairn-core/internal/domain/capability"
 	"github.com/opencairn-org/cairn-core/internal/port"
 	"github.com/opencairn-org/cairn-core/internal/usecase/oauthserver"
@@ -21,12 +22,17 @@ import (
 // oauthDeviceRequestsPerMinute caps the device endpoints per client address.
 const oauthDeviceRequestsPerMinute = 20
 
-// oauthServerUseCase is the authorization server over app.OAuth.
-func oauthServerUseCase(app *App, auth config.AuthConfig) *oauthserver.Server {
+// oauthServerUseCase is the authorization server over app.OAuth; it issues
+// tokens for the API (base URL) and the MCP endpoint.
+func oauthServerUseCase(app *App, auth config.AuthConfig, baseURL string) *oauthserver.Server {
+	base := strings.TrimRight(baseURL, "/")
 	return &oauthserver.Server{Repo: app.OAuth, Config: oauthserver.Config{
 		AuthCodeTTL: auth.OAuthAuthCodeTTL, AccessTokenTTL: auth.OAuthAccessTokenTTL,
 		RefreshTokenTTL: auth.OAuthRefreshTokenTTL, DeviceCodeTTL: auth.OAuthDeviceCodeTTL,
 		DevicePollInterval: auth.OAuthDevicePollInterval,
+	}, Audiences: map[string]string{
+		base:                    domain.OAuthAudienceAPI,
+		base + mcp.EndpointPath: domain.OAuthAudienceMCP,
 	}}
 }
 
@@ -38,7 +44,7 @@ func mountRestOAuthServer(mux *http.ServeMux, app *App, logger *slog.Logger, bas
 	}
 	limiter := newIPRateLimiter(oauthDeviceRequestsPerMinute, time.Now)
 	h := &rest.OAuthServerHandlers{
-		Auth: restAuth(app), Server: oauthServerUseCase(app, auth), Devices: app.DeviceAuthorizations, Log: logger,
+		Auth: restAuth(app), Server: oauthServerUseCase(app, auth, baseURL), Devices: app.DeviceAuthorizations, Log: logger,
 		BaseURL: strings.TrimRight(baseURL, "/"), DynamicRegistration: auth.OAuthAllowDynamicReg,
 		DeviceLimit: limiter.allow,
 	}
@@ -54,7 +60,7 @@ func mountRestMCP(mux *http.ServeMux, app *App, logger *slog.Logger, baseURL str
 		return
 	}
 	(&mcp.Server{
-		Tokens:  oauthServerUseCase(app, auth),
+		Tokens:  oauthServerUseCase(app, auth, baseURL),
 		Data:    &owndata.Reader{Activities: app.Activities, BestEfforts: app.BestEfforts, Users: app.Users},
 		BaseURL: strings.TrimRight(baseURL, "/"),
 	}).Mount(mux)

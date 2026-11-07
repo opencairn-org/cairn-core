@@ -89,7 +89,7 @@ func (s *Server) PollDevice(ctx context.Context, creds ClientCredentials, device
 		if err != nil || consumed.UserID == nil {
 			return TokenGrant{}, protoErr("invalid_grant", "device_code already used")
 		}
-		return s.issue(ctx, client.ClientID, *consumed.UserID, consumed.GrantedScope)
+		return s.issue(ctx, client.ClientID, *consumed.UserID, consumed.GrantedScope, domain.OAuthAudienceAPI)
 	}
 	return TokenGrant{}, protoErr("invalid_grant", "unknown device code state")
 }

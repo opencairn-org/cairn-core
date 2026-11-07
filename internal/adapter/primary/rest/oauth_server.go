@@ -109,6 +109,7 @@ func (h *OAuthServerHandlers) authorize(w http.ResponseWriter, r *http.Request) 
 	redirectURI, err := h.Server.Authorize(r.Context(), oauthserver.AuthorizeRequest{
 		ClientID: q.Get("client_id"), RedirectURI: q.Get("redirect_uri"), ResponseType: q.Get("response_type"),
 		CodeChallenge: q.Get("code_challenge"), CodeChallengeMethod: q.Get("code_challenge_method"),
+		Resources: q["resource"],
 	})
 	var oe *oauthserver.Error
 	switch {
@@ -155,6 +156,7 @@ func (h *OAuthServerHandlers) decision(w http.ResponseWriter, r *http.Request) {
 		State               string `json:"state"`
 		CodeChallenge       string `json:"code_challenge"`
 		CodeChallengeMethod string `json:"code_challenge_method"`
+		Resource            string `json:"resource"`
 		Approve             bool   `json:"approve"`
 	}
 	if err := decodeJSONBody(r, &req); err != nil {
@@ -188,9 +190,9 @@ func (h *OAuthServerHandlers) token(w http.ResponseWriter, r *http.Request) {
 	switch r.PostForm.Get("grant_type") {
 	case "authorization_code":
 		grant, err = h.Server.ExchangeCode(r.Context(), creds,
-			r.PostForm.Get("code"), r.PostForm.Get("redirect_uri"), r.PostForm.Get("code_verifier"))
+			r.PostForm.Get("code"), r.PostForm.Get("redirect_uri"), r.PostForm.Get("code_verifier"), r.PostForm["resource"])
 	case "refresh_token":
-		grant, err = h.Server.Refresh(r.Context(), creds, r.PostForm.Get("refresh_token"), r.PostForm.Get("scope"))
+		grant, err = h.Server.Refresh(r.Context(), creds, r.PostForm.Get("refresh_token"), r.PostForm.Get("scope"), r.PostForm["resource"])
 	case domain.GrantTypeDeviceCode:
 		grant, err = h.Server.PollDevice(r.Context(), creds, r.PostForm.Get("device_code"))
 	default:

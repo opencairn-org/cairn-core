@@ -75,9 +75,9 @@ func (r *OAuthServerRepo) GetClient(ctx context.Context, clientID string) (domai
 func (r *OAuthServerRepo) CreateAuthCode(ctx context.Context, code domain.OAuthAuthorizationCode, codeHash []byte) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO oauth_authorization_codes
-			(code_hash, client_id, user_id, redirect_uri, scope, code_challenge, code_challenge_method, expires_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		codeHash, code.ClientID, code.UserID.UUID(), code.RedirectURI, code.Scope,
+			(code_hash, client_id, user_id, redirect_uri, scope, audience, code_challenge, code_challenge_method, expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		codeHash, code.ClientID, code.UserID.UUID(), code.RedirectURI, code.Scope, code.Audience,
 		code.CodeChallenge, code.CodeChallengeMethod, code.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create auth code: %w", err)
@@ -91,13 +91,13 @@ func (r *OAuthServerRepo) ConsumeAuthCode(ctx context.Context, codeHash []byte, 
 		UPDATE oauth_authorization_codes
 		   SET consumed_at = $2
 		 WHERE code_hash = $1 AND consumed_at IS NULL AND expires_at > $2
-		RETURNING client_id, user_id, redirect_uri, scope, code_challenge, code_challenge_method, expires_at`,
+		RETURNING client_id, user_id, redirect_uri, scope, audience, code_challenge, code_challenge_method, expires_at`,
 		codeHash, now)
 	var (
 		c   domain.OAuthAuthorizationCode
 		uid uuid.UUID
 	)
-	err := row.Scan(&c.ClientID, &uid, &c.RedirectURI, &c.Scope, &c.CodeChallenge, &c.CodeChallengeMethod, &c.ExpiresAt)
+	err := row.Scan(&c.ClientID, &uid, &c.RedirectURI, &c.Scope, &c.Audience, &c.CodeChallenge, &c.CodeChallengeMethod, &c.ExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.OAuthAuthorizationCode{}, fmt.Errorf("auth code: %w", domain.ErrNotFound)
 	}
@@ -114,9 +114,9 @@ func (r *OAuthServerRepo) ConsumeAuthCode(ctx context.Context, codeHash []byte, 
 
 func (r *OAuthServerRepo) CreateAccessToken(ctx context.Context, t domain.OAuthAccessToken, tokenHash []byte) error {
 	_, err := r.pool.Exec(ctx, `
-		INSERT INTO oauth_access_tokens (token_hash, client_id, user_id, scope, expires_at)
-		VALUES ($1,$2,$3,$4,$5)`,
-		tokenHash, t.ClientID, t.UserID.UUID(), t.Scope, t.ExpiresAt)
+		INSERT INTO oauth_access_tokens (token_hash, client_id, user_id, scope, audience, expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		tokenHash, t.ClientID, t.UserID.UUID(), t.Scope, t.Audience, t.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create access token: %w", err)
 	}
@@ -125,7 +125,7 @@ func (r *OAuthServerRepo) CreateAccessToken(ctx context.Context, t domain.OAuthA
 
 func (r *OAuthServerRepo) FindAccessToken(ctx context.Context, tokenHash []byte) (domain.OAuthAccessToken, error) {
 	return r.oauthASFindToken(ctx, `
-		SELECT client_id, user_id, scope, expires_at, revoked_at
+		SELECT client_id, user_id, scope, audience, expires_at, revoked_at
 		FROM oauth_access_tokens WHERE token_hash = $1`, "access token", tokenHash)
 }
 
@@ -137,7 +137,7 @@ func (r *OAuthServerRepo) oauthASFindToken(ctx context.Context, query, label str
 		uid       uuid.UUID
 		revokedAt *time.Time
 	)
-	err := row.Scan(&t.ClientID, &uid, &t.Scope, &t.ExpiresAt, &revokedAt)
+	err := row.Scan(&t.ClientID, &uid, &t.Scope, &t.Audience, &t.ExpiresAt, &revokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.OAuthAccessToken{}, fmt.Errorf("%s: %w", label, domain.ErrNotFound)
 	}
@@ -159,9 +159,9 @@ func (r *OAuthServerRepo) RevokeAccessToken(ctx context.Context, tokenHash []byt
 
 func (r *OAuthServerRepo) CreateRefreshToken(ctx context.Context, t domain.OAuthRefreshToken, tokenHash []byte) error {
 	_, err := r.pool.Exec(ctx, `
-		INSERT INTO oauth_refresh_tokens (token_hash, client_id, user_id, scope, expires_at)
-		VALUES ($1,$2,$3,$4,$5)`,
-		tokenHash, t.ClientID, t.UserID.UUID(), t.Scope, t.ExpiresAt)
+		INSERT INTO oauth_refresh_tokens (token_hash, client_id, user_id, scope, audience, expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		tokenHash, t.ClientID, t.UserID.UUID(), t.Scope, t.Audience, t.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create refresh token: %w", err)
 	}
@@ -170,7 +170,7 @@ func (r *OAuthServerRepo) CreateRefreshToken(ctx context.Context, t domain.OAuth
 
 func (r *OAuthServerRepo) FindRefreshToken(ctx context.Context, tokenHash []byte) (domain.OAuthRefreshToken, error) {
 	t, err := r.oauthASFindToken(ctx, `
-		SELECT client_id, user_id, scope, expires_at, revoked_at
+		SELECT client_id, user_id, scope, audience, expires_at, revoked_at
 		FROM oauth_refresh_tokens WHERE token_hash = $1`, "refresh token", tokenHash)
 	if err != nil {
 		return domain.OAuthRefreshToken{}, err

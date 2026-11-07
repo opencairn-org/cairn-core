@@ -73,6 +73,7 @@ func TestCallersAuthenticate(t *testing.T) {
 		pat      = domain.PATTokenPrefix + "x"
 		readTok  = domain.OAuthAccessTokenPrefix + "read"
 		emptyTok = domain.OAuthAccessTokenPrefix + "empty"
+		mcpTok   = domain.OAuthAccessTokenPrefix + "mcp"
 	)
 	sess := domain.Session{ID: sid, UserID: alice, ExpiresAt: now.Add(time.Hour)}
 	sessions := &callerSessions{rows: map[string]domain.Session{hashKey(cookie): sess, hashKey(bearer): sess}}
@@ -80,6 +81,7 @@ func TestCallersAuthenticate(t *testing.T) {
 	oauth := callerOAuth{
 		hashKey(readTok):  {UserID: alice, Scope: "activities:read", ExpiresAt: now.Add(time.Hour)},
 		hashKey(emptyTok): {UserID: alice, ExpiresAt: now.Add(time.Hour)},
+		hashKey(mcpTok):   {UserID: alice, Scope: "activities:read", Audience: domain.OAuthAudienceMCP, ExpiresAt: now.Add(time.Hour)},
 	}
 	c := &Callers{Sessions: sessions, PATs: pats, OAuth: oauth, Now: func() time.Time { return now }}
 
@@ -108,6 +110,9 @@ func TestCallersAuthenticate(t *testing.T) {
 	}
 	if _, ok = c.Authenticate(ctx, Credential{Bearer: readTok, NoOAuth: true}); ok {
 		t.Fatal("oauth token admitted with NoOAuth")
+	}
+	if _, ok = c.Authenticate(ctx, Credential{Bearer: mcpTok}); ok {
+		t.Fatal("MCP token admitted to the API")
 	}
 	if _, ok = c.Authenticate(ctx, Credential{Bearer: "garbage"}); ok {
 		t.Fatal("unknown bearer resolved")

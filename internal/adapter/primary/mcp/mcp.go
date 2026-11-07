@@ -26,9 +26,9 @@ import (
 const mcpProtocolVersion = "2025-06-18"
 
 const (
-	// endpointPath is also the resource identifier's path.
-	endpointPath = "/mcp"
-	metadataPath = "/.well-known/oauth-protected-resource" + endpointPath
+	// EndpointPath is also the path of the resource identifier (RFC 8707).
+	EndpointPath = "/mcp"
+	metadataPath = "/.well-known/oauth-protected-resource" + EndpointPath
 )
 
 // Server serves the MCP endpoint. Tools run in-process, scoped to the token's
@@ -42,8 +42,8 @@ type Server struct {
 
 // Mount registers the routes.
 func (s *Server) Mount(mux *http.ServeMux) {
-	mux.HandleFunc("POST "+endpointPath, s.handle)
-	mux.HandleFunc("GET "+endpointPath, s.noStream)
+	mux.HandleFunc("POST "+EndpointPath, s.handle)
+	mux.HandleFunc("GET "+EndpointPath, s.noStream)
 	mux.HandleFunc("GET "+metadataPath, s.resourceMetadata)
 }
 
@@ -69,7 +69,7 @@ func (s *Server) resourceMetadata(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	writeJSON(w, http.StatusOK, map[string]any{
-		"resource":                 s.BaseURL + endpointPath,
+		"resource":                 s.BaseURL + EndpointPath,
 		"authorization_servers":    []string{s.BaseURL},
 		"scopes_supported":         scopes,
 		"bearer_methods_supported": []string{"header"},
@@ -171,9 +171,10 @@ func (s *Server) challenge(w http.ResponseWriter, r *http.Request) {
 		Error: &jsonrpcError{Code: -32001, Message: "authentication required"}})
 }
 
-// authToken validates the OAuth bearer access token.
+// authToken validates the OAuth bearer access token; it must have been
+// issued for this server, never passed through from another resource.
 func (s *Server) authToken(r *http.Request) (domain.OAuthAccessToken, bool) {
-	return s.Tokens.AccessToken(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	return s.Tokens.AccessToken(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "), domain.OAuthAudienceMCP)
 }
 
 // ---------------------------------------------------------------------------

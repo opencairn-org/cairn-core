@@ -109,14 +109,14 @@ func (c *Callers) pat(ctx context.Context, tok string) (Caller, bool) {
 	return Caller{UserID: pat.UserID, Kind: CallerPAT}, true
 }
 
-// oauth admits a read-only token only to non-mutating requests.
+// oauth admits API tokens only, and a read-only one only to non-mutating requests.
 func (c *Callers) oauth(ctx context.Context, tok string, mutating bool) (Caller, bool) {
 	if c.OAuth == nil {
 		return Caller{}, false
 	}
 	hash := sha256.Sum256([]byte(tok))
 	at, err := c.OAuth.FindAccessToken(ctx, hash[:])
-	if err != nil || !at.IsValidAt(c.now()) {
+	if err != nil || !at.IsValidAt(c.now()) || at.Audience != domain.OAuthAudienceAPI {
 		return Caller{}, false
 	}
 	if mutating && !domain.ScopesHaveAnyWrite(at.Scope) {

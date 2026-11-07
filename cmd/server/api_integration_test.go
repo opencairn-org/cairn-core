@@ -651,10 +651,33 @@ func TestAPI_EndToEnd(t *testing.T) {
 			oc.bearer, oc.name = str(tok, "access_token"), "oauth"
 			oc.do(http.MethodGet, "/api/overview", nil, http.StatusOK)
 			oc.rpc("/cairn.v1.ActivityService/ListActivities", nil, http.StatusOK)
-			oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, http.StatusOK)
-			oc.do(http.MethodPost, "/mcp", map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
-			oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 2, "method": "ping"}, http.StatusOK)
-			oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}, http.StatusOK)
+			// MCP takes only tokens bound to it (RFC 8707); the API refuses those.
+			var prm map[string]any
+			_ = json.Unmarshal(anon.do(http.MethodGet, "/.well-known/oauth-protected-resource/mcp", nil, http.StatusOK), &prm)
+			mcpCode := func() string {
+				d := alice.post("/oauth/authorize/decision", map[string]any{
+					"client_id": cid, "redirect_uri": "http://127.0.0.1:9999/cb", "scope": "activities:read", "state": "s",
+					"code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "code_challenge_method": "S256",
+					"resource": str(prm, "resource"), "approve": true,
+				}, http.StatusOK)
+				mu, _ := url.Parse(str(d, "redirect_uri"))
+				return mu.Query().Get("code")
+			}
+			mcpExchange := url.Values{"grant_type": {"authorization_code"}, "client_id": {cid},
+				"redirect_uri": {"http://127.0.0.1:9999/cb"}, "code_verifier": {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"}}
+			mcpExchange.Set("code", mcpCode())
+			mcpExchange.Set("resource", strings.TrimSuffix(str(prm, "resource"), "/mcp"))
+			anon.do(http.MethodPost, "/oauth/token", mcpExchange, http.StatusBadRequest)
+			mcpExchange.Set("code", mcpCode())
+			mcpExchange.Set("resource", str(prm, "resource"))
+			mc := env.anon()
+			mc.bearer, mc.name = str(anon.post("/oauth/token", mcpExchange, http.StatusOK), "access_token"), "mcp"
+			mc.do(http.MethodGet, "/api/overview", nil, http.StatusUnauthorized)
+			oc.do(http.MethodPost, "/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "ping"}, http.StatusUnauthorized)
+			mc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, http.StatusOK)
+			mc.do(http.MethodPost, "/mcp", map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+			mc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 2, "method": "ping"}, http.StatusOK)
+			mc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}, http.StatusOK)
 			for _, tool := range []map[string]any{
 				{"name": "list_activities", "arguments": map[string]any{"limit": 5}},
 				{"name": "get_activity", "arguments": map[string]any{"activity_id": actID}},
@@ -663,13 +686,13 @@ func TestAPI_EndToEnd(t *testing.T) {
 				{"name": "profile", "arguments": map[string]any{}},
 				{"name": "nope", "arguments": map[string]any{}},
 			} {
-				oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": tool}, http.StatusOK)
+				mc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": tool}, http.StatusOK)
 			}
-			oc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 5, "method": "bogus"}, http.StatusOK)
+			mc.post("/mcp", map[string]any{"jsonrpc": "2.0", "id": 5, "method": "bogus"}, http.StatusOK)
 			anon.do(http.MethodPost, "/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "ping"}, http.StatusUnauthorized)
 			anon.do(http.MethodGet, "/mcp", nil, http.StatusUnauthorized)
 			// No SSE stream: an authenticated GET is 405, never 401.
-			oc.do(http.MethodGet, "/mcp", nil, http.StatusMethodNotAllowed)
+			mc.do(http.MethodGet, "/mcp", nil, http.StatusMethodNotAllowed)
 			oc.do(http.MethodPost, "/api/activities/"+actID+"/reviewed", nil, http.StatusUnauthorized, http.StatusForbidden)
 			anon.do(http.MethodPost, "/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {str(tok, "refresh_token")}, "client_id": {cid}}, http.StatusOK)
 			// Authorized apps: the client shows up with live tokens, then revoking it ends them.

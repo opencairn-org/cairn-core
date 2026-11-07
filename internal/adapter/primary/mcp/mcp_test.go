@@ -18,15 +18,21 @@ import (
 const (
 	testBase  = "https://cairn.example"
 	testToken = domain.OAuthAccessTokenPrefix + "valid"
+	apiToken  = domain.OAuthAccessTokenPrefix + "api"
 )
 
 type tokenRepo struct{ port.OAuthServerRepo }
 
 func (tokenRepo) FindAccessToken(_ context.Context, h []byte) (domain.OAuthAccessToken, error) {
-	if string(h) != string(oauthserver.HashToken(testToken)) {
-		return domain.OAuthAccessToken{}, domain.ErrNotFound
+	at := domain.OAuthAccessToken{Scope: domain.ScopeActivitiesRead, ExpiresAt: time.Now().Add(time.Hour)}
+	switch string(h) {
+	case string(oauthserver.HashToken(testToken)):
+		at.Audience = domain.OAuthAudienceMCP
+		return at, nil
+	case string(oauthserver.HashToken(apiToken)):
+		return at, nil
 	}
-	return domain.OAuthAccessToken{Scope: domain.ScopeActivitiesRead, ExpiresAt: time.Now().Add(time.Hour)}, nil
+	return domain.OAuthAccessToken{}, domain.ErrNotFound
 }
 
 func newTestMux() *http.ServeMux {
@@ -45,6 +51,9 @@ func TestGetMCP(t *testing.T) {
 		{"anonymous", "", http.StatusUnauthorized,
 			`Bearer resource_metadata="` + testBase + `/.well-known/oauth-protected-resource/mcp"`},
 		{"invalid token", "Bearer " + domain.OAuthAccessTokenPrefix + "nope", http.StatusUnauthorized,
+			`Bearer resource_metadata="` + testBase + `/.well-known/oauth-protected-resource/mcp", error="invalid_token"`},
+		// Issued for the API: passing it through to MCP is refused.
+		{"API token", "Bearer " + apiToken, http.StatusUnauthorized,
 			`Bearer resource_metadata="` + testBase + `/.well-known/oauth-protected-resource/mcp", error="invalid_token"`},
 		// Streamable HTTP: no SSE stream must be 405, or clients treat the token as rejected.
 		{"valid token", "Bearer " + testToken, http.StatusMethodNotAllowed, ""},
