@@ -33,6 +33,10 @@ type Server struct {
 	Repo   port.OAuthServerRepo
 	Config Config
 	Now    func() time.Time
+	// Audiences maps each accepted resource indicator (RFC 8707), without a
+	// trailing slash, to the audience its tokens get. A request naming no
+	// resource gets domain.OAuthAudienceAPI.
+	Audiences map[string]string
 }
 
 // Error is an OAuth protocol error (RFC 6749 §5.2): Code is the wire error
@@ -66,6 +70,7 @@ var (
 	// ErrMissingChallenge: an approval without a PKCE code_challenge.
 	ErrMissingChallenge = errors.New("missing code_challenge")
 	errInvalidClient    = protoErr("invalid_client", "client authentication failed")
+	errInvalidTarget    = protoErr("invalid_target", "unknown resource, or not the one the grant was issued for")
 )
 
 func (s *Server) now() time.Time {
@@ -73,6 +78,31 @@ func (s *Server) now() time.Time {
 		return s.Now()
 	}
 	return time.Now().UTC()
+}
+
+// audience resolves a request's resource indicators: none is the API, one
+// must be a known resource; several are not supported.
+func (s *Server) audience(resources []string) (string, error) {
+	if len(resources) == 0 {
+		return domain.OAuthAudienceAPI, nil
+	}
+	if len(resources) == 1 {
+		if aud, ok := s.Audiences[strings.TrimSuffix(resources[0], "/")]; ok {
+			return aud, nil
+		}
+	}
+	return "", errInvalidTarget
+}
+
+// sameAudience checks a token request's optional resource against the grant's.
+func (s *Server) sameAudience(resources []string, granted string) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	if aud, err := s.audience(resources); err != nil || aud != granted {
+		return errInvalidTarget
+	}
+	return nil
 }
 
 // ClientCredentials is what a token-endpoint caller presents.
@@ -125,6 +155,7 @@ type AuthorizeRequest struct {
 	ResponseType        string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Resources           []string
 }
 
 // Authorize validates an authorization request. It returns the registered
@@ -144,6 +175,9 @@ func (s *Server) Authorize(ctx context.Context, req AuthorizeRequest) (string, e
 		return redirectURI, protoErr("invalid_request", "PKCE code_challenge is required")
 	case req.CodeChallengeMethod != "" && req.CodeChallengeMethod != "S256":
 		return redirectURI, protoErr("invalid_request", "only S256 code_challenge_method is supported")
+	}
+	if _, err := s.audience(req.Resources); err != nil {
+		return redirectURI, err
 	}
 	return redirectURI, nil
 }
@@ -166,6 +200,7 @@ type Decision struct {
 	State               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Resource            string
 	Approve             bool
 }
 
@@ -182,6 +217,14 @@ func (s *Server) Decide(ctx context.Context, userID domain.UserID, d Decision) (
 	if d.CodeChallenge == "" {
 		return "", ErrMissingChallenge
 	}
+	var resources []string
+	if d.Resource != "" {
+		resources = []string{d.Resource}
+	}
+	audience, err := s.audience(resources)
+	if err != nil {
+		return AppendQuery(redirectURI, map[string]string{"error": "invalid_target", "state": d.State}), nil
+	}
 	scopes := domain.FilterRequestedScopes(domain.ParseScopes(d.Scope), client.Scopes)
 	code, codeHash := newToken(domain.OAuthAuthCodePrefix)
 	method := d.CodeChallengeMethod
@@ -193,6 +236,7 @@ func (s *Server) Decide(ctx context.Context, userID domain.UserID, d Decision) (
 		UserID:              userID,
 		RedirectURI:         redirectURI,
 		Scope:               domain.JoinScopes(scopes),
+		Audience:            audience,
 		CodeChallenge:       d.CodeChallenge,
 		CodeChallengeMethod: method,
 		ExpiresAt:           s.now().Add(s.Config.AuthCodeTTL),
@@ -203,8 +247,9 @@ func (s *Server) Decide(ctx context.Context, userID domain.UserID, d Decision) (
 	return AppendQuery(redirectURI, map[string]string{"code": code, "state": d.State}), nil
 }
 
-// ExchangeCode redeems an authorization code (with its PKCE verifier).
-func (s *Server) ExchangeCode(ctx context.Context, creds ClientCredentials, code, redirectURI, verifier string) (TokenGrant, error) {
+// ExchangeCode redeems an authorization code (with its PKCE verifier); a
+// resource, if given, must be the one the code was issued for.
+func (s *Server) ExchangeCode(ctx context.Context, creds ClientCredentials, code, redirectURI, verifier string, resources []string) (TokenGrant, error) {
 	client, err := s.authenticate(ctx, creds)
 	if err != nil {
 		return TokenGrant{}, err
@@ -223,12 +268,15 @@ func (s *Server) ExchangeCode(ctx context.Context, creds ClientCredentials, code
 	case !domain.VerifyPKCE(verifier, stored.CodeChallenge, stored.CodeChallengeMethod):
 		return TokenGrant{}, protoErr("invalid_grant", "PKCE verification failed")
 	}
-	return s.issue(ctx, client.ClientID, stored.UserID, stored.Scope)
+	if err := s.sameAudience(resources, stored.Audience); err != nil {
+		return TokenGrant{}, err
+	}
+	return s.issue(ctx, client.ClientID, stored.UserID, stored.Scope, stored.Audience)
 }
 
 // Refresh rotates a refresh token: the presented one is revoked and a fresh
-// pair issued. scope may narrow the grant, never widen it.
-func (s *Server) Refresh(ctx context.Context, creds ClientCredentials, refreshToken, scope string) (TokenGrant, error) {
+// pair issued. scope may narrow the grant, never widen it; the audience stays.
+func (s *Server) Refresh(ctx context.Context, creds ClientCredentials, refreshToken, scope string, resources []string) (TokenGrant, error) {
 	client, err := s.authenticate(ctx, creds)
 	if err != nil {
 		return TokenGrant{}, err
@@ -241,26 +289,29 @@ func (s *Server) Refresh(ctx context.Context, creds ClientCredentials, refreshTo
 	if err != nil || !stored.IsValidAt(s.now()) || stored.ClientID != client.ClientID {
 		return TokenGrant{}, protoErr("invalid_grant", "refresh_token invalid or expired")
 	}
+	if err := s.sameAudience(resources, stored.Audience); err != nil {
+		return TokenGrant{}, err
+	}
 	_ = s.Repo.RevokeRefreshToken(ctx, hash) // best-effort: the new pair is issued either way
 	granted := stored.Scope
 	if scope != "" {
 		granted = domain.JoinScopes(domain.FilterRequestedScopes(domain.ParseScopes(scope), domain.ParseScopes(stored.Scope)))
 	}
-	return s.issue(ctx, client.ClientID, stored.UserID, granted)
+	return s.issue(ctx, client.ClientID, stored.UserID, granted, stored.Audience)
 }
 
 // issue mints and persists an access/refresh pair.
-func (s *Server) issue(ctx context.Context, clientID string, userID domain.UserID, scope string) (TokenGrant, error) {
+func (s *Server) issue(ctx context.Context, clientID string, userID domain.UserID, scope, audience string) (TokenGrant, error) {
 	now := s.now()
 	at, atHash := newToken(domain.OAuthAccessTokenPrefix)
 	rt, rtHash := newToken(domain.OAuthRefreshTokenPrefix)
 	if err := s.Repo.CreateAccessToken(ctx, domain.OAuthAccessToken{
-		ClientID: clientID, UserID: userID, Scope: scope, ExpiresAt: now.Add(s.Config.AccessTokenTTL),
+		ClientID: clientID, UserID: userID, Scope: scope, Audience: audience, ExpiresAt: now.Add(s.Config.AccessTokenTTL),
 	}, atHash); err != nil {
 		return TokenGrant{}, serverErr("could not issue token", fmt.Errorf("create access token: %w", err))
 	}
 	if err := s.Repo.CreateRefreshToken(ctx, domain.OAuthRefreshToken{
-		ClientID: clientID, UserID: userID, Scope: scope, ExpiresAt: now.Add(s.Config.RefreshTokenTTL),
+		ClientID: clientID, UserID: userID, Scope: scope, Audience: audience, ExpiresAt: now.Add(s.Config.RefreshTokenTTL),
 	}, rtHash); err != nil {
 		return TokenGrant{}, serverErr("could not issue token", fmt.Errorf("create refresh token: %w", err))
 	}
@@ -278,13 +329,13 @@ func (s *Server) Revoke(ctx context.Context, token string) {
 	}
 }
 
-// AccessToken resolves a live OAuth access token.
-func (s *Server) AccessToken(ctx context.Context, token string) (domain.OAuthAccessToken, bool) {
+// AccessToken resolves a live OAuth access token issued for audience.
+func (s *Server) AccessToken(ctx context.Context, token, audience string) (domain.OAuthAccessToken, bool) {
 	if !strings.HasPrefix(token, domain.OAuthAccessTokenPrefix) {
 		return domain.OAuthAccessToken{}, false
 	}
 	at, err := s.Repo.FindAccessToken(ctx, HashToken(token))
-	if err != nil || !at.IsValidAt(s.now()) {
+	if err != nil || !at.IsValidAt(s.now()) || at.Audience != audience {
 		return domain.OAuthAccessToken{}, false
 	}
 	return at, true

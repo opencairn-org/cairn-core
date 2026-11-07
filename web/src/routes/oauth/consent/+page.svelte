@@ -56,6 +56,7 @@
 					state: params.get('state') ?? '',
 					code_challenge: params.get('code_challenge'),
 					code_challenge_method: params.get('code_challenge_method') ?? 'S256',
+					resource: params.get('resource') ?? '',
 					approve
 				})
 			});

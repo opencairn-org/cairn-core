@@ -160,34 +160,93 @@ func TestCodeFlowAndRefreshRotation(t *testing.T) {
 		t.Fatalf("redirect %q", redirect)
 	}
 	creds := ClientCredentials{ID: app.ClientID}
-	if _, err := s.ExchangeCode(ctx, creds, code, "https://app.example/cb", "wrong"); protoCode(err) != "invalid_grant" {
+	if _, err := s.ExchangeCode(ctx, creds, code, "https://app.example/cb", "wrong", nil); protoCode(err) != "invalid_grant" {
 		t.Fatalf("bad verifier: %v", err)
 	}
 	// The failed attempt consumed the code: codes are one-time.
 	redirect, _ = s.Decide(ctx, user, Decision{ClientID: app.ClientID, RedirectURI: "https://app.example/cb", Scope: "activities:read", CodeChallenge: challenge, Approve: true})
 	u, _ = url.Parse(redirect)
-	grant, err := s.ExchangeCode(ctx, creds, u.Query().Get("code"), "https://app.example/cb", verifier)
+	grant, err := s.ExchangeCode(ctx, creds, u.Query().Get("code"), "https://app.example/cb", verifier, nil)
 	if err != nil || grant.Scope != "activities:read" || grant.ExpiresIn != time.Hour {
 		t.Fatalf("exchange: %+v %v", grant, err)
 	}
-	if at, ok := s.AccessToken(ctx, grant.AccessToken); !ok || at.UserID != user {
+	if at, ok := s.AccessToken(ctx, grant.AccessToken, domain.OAuthAudienceAPI); !ok || at.UserID != user {
 		t.Fatalf("access token not resolvable")
 	}
 
-	next, err := s.Refresh(ctx, creds, grant.RefreshToken, "")
+	next, err := s.Refresh(ctx, creds, grant.RefreshToken, "", nil)
 	if err != nil || next.RefreshToken == grant.RefreshToken {
 		t.Fatalf("refresh: %v", err)
 	}
-	if _, err := s.Refresh(ctx, creds, grant.RefreshToken, ""); protoCode(err) != "invalid_grant" {
+	if _, err := s.Refresh(ctx, creds, grant.RefreshToken, "", nil); protoCode(err) != "invalid_grant" {
 		t.Fatalf("rotated token reused: %v", err)
 	}
-	if _, err := s.Refresh(ctx, ClientCredentials{ID: "nope"}, next.RefreshToken, ""); protoCode(err) != "invalid_client" {
+	if _, err := s.Refresh(ctx, ClientCredentials{ID: "nope"}, next.RefreshToken, "", nil); protoCode(err) != "invalid_client" {
 		t.Fatalf("unknown client: %v", err)
 	}
 
 	s.Revoke(ctx, next.AccessToken)
-	if _, ok := s.AccessToken(ctx, next.AccessToken); ok {
+	if _, ok := s.AccessToken(ctx, next.AccessToken, domain.OAuthAudienceAPI); ok {
 		t.Fatal("revoked token still resolves")
+	}
+}
+
+func TestResourceAudience(t *testing.T) {
+	s := newServer(newFakeRepo(app))
+	s.Audiences = map[string]string{"https://cairn.example": domain.OAuthAudienceAPI, "https://cairn.example/mcp": domain.OAuthAudienceMCP}
+	ctx := context.Background()
+	creds := ClientCredentials{ID: app.ClientID}
+	verifier := "a-long-enough-pkce-verifier-for-the-test-0123456789"
+	sum := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
+	mcp := []string{"https://cairn.example/mcp"}
+
+	req := AuthorizeRequest{ClientID: app.ClientID, RedirectURI: "https://app.example/cb", ResponseType: "code", CodeChallenge: challenge}
+	for _, res := range [][]string{{"https://evil.example"}, {mcp[0], "https://cairn.example"}} {
+		req.Resources = res
+		if _, err := s.Authorize(ctx, req); protoCode(err) != "invalid_target" {
+			t.Fatalf("resource %v: %v", res, err)
+		}
+	}
+	req.Resources = []string{"https://cairn.example/"} // URL serialisers add the slash
+	if _, err := s.Authorize(ctx, req); err != nil {
+		t.Fatalf("API resource: %v", err)
+	}
+
+	code := func() string {
+		redirect, err := s.Decide(ctx, domain.UserID(uuid.New()), Decision{
+			ClientID: app.ClientID, RedirectURI: "https://app.example/cb", Scope: "activities:read",
+			CodeChallenge: challenge, Resource: mcp[0], Approve: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, _ := url.Parse(redirect)
+		return u.Query().Get("code")
+	}
+	if _, err := s.ExchangeCode(ctx, creds, code(), "https://app.example/cb", verifier, []string{"https://cairn.example"}); protoCode(err) != "invalid_target" {
+		t.Fatalf("MCP code redeemed for the API: %v", err)
+	}
+	grant, err := s.ExchangeCode(ctx, creds, code(), "https://app.example/cb", verifier, mcp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.AccessToken(ctx, grant.AccessToken, domain.OAuthAudienceMCP); !ok {
+		t.Fatal("MCP token rejected by MCP")
+	}
+	if _, ok := s.AccessToken(ctx, grant.AccessToken, domain.OAuthAudienceAPI); ok {
+		t.Fatal("MCP token accepted for the API")
+	}
+
+	if _, err := s.Refresh(ctx, creds, grant.RefreshToken, "", []string{"https://cairn.example"}); protoCode(err) != "invalid_target" {
+		t.Fatalf("refresh widened to the API: %v", err)
+	}
+	next, err := s.Refresh(ctx, creds, grant.RefreshToken, "", nil) // the rejected attempt did not burn it
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.AccessToken(ctx, next.AccessToken, domain.OAuthAudienceMCP); !ok {
+		t.Fatal("refresh lost the audience")
 	}
 }
 
@@ -220,7 +279,7 @@ func TestRegister(t *testing.T) {
 	if err != nil || conf.Secret == "" || !repo.clients[conf.Client.ClientID].VerifySecret(conf.Secret) {
 		t.Fatalf("confidential client: %v", err)
 	}
-	if _, err := s.Refresh(ctx, ClientCredentials{ID: conf.Client.ClientID, Secret: "wrong"}, domain.OAuthRefreshTokenPrefix+"x", ""); protoCode(err) != "invalid_client" {
+	if _, err := s.Refresh(ctx, ClientCredentials{ID: conf.Client.ClientID, Secret: "wrong"}, domain.OAuthRefreshTokenPrefix+"x", "", nil); protoCode(err) != "invalid_client" {
 		t.Fatalf("wrong secret: %v", err)
 	}
 }

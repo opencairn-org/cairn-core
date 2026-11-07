@@ -292,6 +292,14 @@ func (c OAuthClient) VerifySecret(secret string) bool {
 // Authorization code
 // ---------------------------------------------------------------------------
 
+// Token audiences: the resource (RFC 8707) a code or token is bound to.
+const (
+	// OAuthAudienceAPI is the REST/Connect API, and every pre-audience token.
+	OAuthAudienceAPI = ""
+	// OAuthAudienceMCP is the MCP endpoint.
+	OAuthAudienceMCP = "mcp"
+)
+
 // OAuthAuthorizationCode is a one-time code exchanged for tokens. Only its hash
 // is stored.
 type OAuthAuthorizationCode struct {
@@ -299,6 +307,7 @@ type OAuthAuthorizationCode struct {
 	UserID              UserID
 	RedirectURI         string
 	Scope               string
+	Audience            string
 	CodeChallenge       string
 	CodeChallengeMethod string
 	ExpiresAt           time.Time
@@ -309,11 +318,12 @@ type OAuthAuthorizationCode struct {
 // Tokens
 // ---------------------------------------------------------------------------
 
-// OAuthAccessToken authorizes API/MCP calls as UserID, bounded by Scope.
+// OAuthAccessToken authorizes calls to Audience as UserID, bounded by Scope.
 type OAuthAccessToken struct {
 	ClientID  string
 	UserID    UserID
 	Scope     string
+	Audience  string
 	ExpiresAt time.Time
 	RevokedAt *time.Time
 }
@@ -334,6 +344,7 @@ type OAuthRefreshToken struct {
 	ClientID  string
 	UserID    UserID
 	Scope     string
+	Audience  string
 	ExpiresAt time.Time
 	RevokedAt *time.Time
 }
