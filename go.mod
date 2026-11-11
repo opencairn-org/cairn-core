@@ -9,7 +9,7 @@ module github.com/opencairn-org/cairn-core
 go 1.26.0
 
 // Minimum patched toolchain: CI and the release build switch to it when their image lags.
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	// Direct dependencies pinned to current stable as of May 2026.
