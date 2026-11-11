@@ -6,7 +6,7 @@ module github.com/opencairn-org/cairn-core
 // 1.26), -30% cgo overhead (relevant if/when we add a FIT parser via
 // cgo), and the new `new(expr)` allocator syntax that we use in a few
 // recompute paths.
-go 1.26.0
+go 1.26.10
 
 // Minimum patched toolchain: CI and the release build switch to it when their image lags.
 toolchain go1.27.4
@@ -52,7 +52,7 @@ require (
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
 	github.com/tormoder/fit v0.15.0
 	github.com/twpayne/go-polyline v1.1.2
-	github.com/wneessen/go-mail v0.8.1
+	github.com/wneessen/go-mail v0.8.2
 	golang.org/x/image v0.47.0
 	golang.org/x/mod v0.42.0
 	golang.org/x/oauth2 v0.38.0
