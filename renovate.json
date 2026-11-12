@@ -10,7 +10,7 @@
   ],
   "automerge": true,
   "postUpdateOptions": ["gomodTidy"],
-  "constraints": { "npm": "^11" },
+  "constraints": { "npm": "^12.0.0" },
   "platformAutomerge": false,
   "lockFileMaintenance": { "enabled": true },
   "labels": ["dependencies"],
