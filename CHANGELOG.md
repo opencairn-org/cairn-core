@@ -6,6 +6,11 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Renovate writes `web/package-lock.json` with npm 11, like CI. npm 12 cannot
+  update the lock file while it holds `@tailwindcss/oxide-wasm32-wasi`
+  (npm/cli#9800), which left web dependency updates without a lock file.
+
 ## [0.7.2] — 2026-11-07
 
 Drop-in for 0.7.1 with one migration (00076, adds a column; existing API
