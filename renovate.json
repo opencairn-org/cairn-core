@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "constraints.npm: lock files are written with npm 11, like CI (build-base) and web/.nvmrc. npm 12 (allow-remote=none) cannot update a lock file that holds a bundleDependencies package such as @tailwindcss/oxide-wasm32-wasi (npm/cli#9800); drop the constraint once that is fixed.",
   "extends": [
     "config:best-practices",
     ":dependencyDashboard",
@@ -9,6 +10,7 @@
   ],
   "automerge": true,
   "postUpdateOptions": ["gomodTidy"],
+  "constraints": { "npm": "^11" },
   "platformAutomerge": false,
   "lockFileMaintenance": { "enabled": true },
   "labels": ["dependencies"],
