@@ -46,7 +46,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/nats-io/nats-server/v2 v2.15.2
+	github.com/nats-io/nats-server/v2 v2.15.3
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
@@ -62,7 +62,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect
+	github.com/antithesishq/antithesis-sdk-go v0.9.0-default-no-op // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.12 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.12 // indirect
