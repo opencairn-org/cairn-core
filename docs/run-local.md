@@ -1,8 +1,8 @@
 # Running Cairn locally
 
 Local dev runs the **supporting services in docker compose** and the **Cairn
-binaries on the host** (server, Strava worker, web), each with live-reload so a
-save rebuilds the artifact. Four shells.
+binaries on the host** (server and web), each with live-reload so a
+save rebuilds the artifact. Use separate shells for the server and web.
 
 ## 1. Supporting services (compose)
 
@@ -14,6 +14,11 @@ make dev-up        # docker compose -f docker-compose.dev.yml up -d
 make dev-logs      # tail
 make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 ```
+
+MinIO is built locally from its pinned upstream source because the community
+container images are no longer available. The first `make dev-up` needs internet
+access and takes longer to compile it; subsequent starts reuse the local image.
+For an explicit rebuild, run `docker compose -f docker-compose.dev.yml build minio`.
 
 | Service | Host port | Notes |
 | --- | --- | --- |
@@ -28,17 +33,32 @@ make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 cp dev.env.example dev.env     # once; matches the compose services + dev secrets
 ```
 
-`make dev-server` / `make dev-worker` source `dev.env` automatically. It sets
+`make dev-server` / `make dev-web` source `dev.env` automatically. It sets
 `CAIRN_DATABASE_URL`, `CAIRN_NATS_URL`, the `CAIRN_STORAGE_*` (MinIO), the
 `CAIRN_EMAIL_SMTP_*` (Mailpit), throwaway auth secrets, and the worker identity.
 `CAIRN_DATABASE_AUTO_MIGRATE=true` applies migrations on boot.
 
 ## 3. The binaries (host, live-reload)
 
+Install Go (see `go.mod`), Node.js and npm first. The Node version used by the
+project is recorded in `web/.nvmrc`. On first setup, install the protobuf
+generators in user-writable directories; no global npm install is required.
+`make dev-web` installs web dependencies and generates the TypeScript protobuf
+files when they are missing.
+
+```sh
+make proto-tools
+npm install --prefix "$HOME/.local/share/cairn-proto" @bufbuild/protoc-gen-es@2.12.0
+go_bin="$(go env GOBIN)"
+export PATH="${go_bin:-$(go env GOPATH)/bin}:$HOME/.local/share/cairn-proto/node_modules/.bin:$PATH"
+```
+
+Run the `go_bin` and `export PATH` lines in each shell that runs `make dev-web`,
+or add the equivalent directories to your shell configuration.
+
 ```sh
 make dev-server    # shell 2: cmd/server   — rebuilds + restarts on save (air)
-make dev-worker    # shell 3: cmd/worker-strava — same
-make dev-web       # shell 4: web/ vite dev server (HMR)
+make dev-web       # shell 3: web/ vite dev server (HMR)
 ```
 
 - **API**: http://localhost:8080 (`/healthz`, `/readyz`, `/metrics`, `/api/*`,
@@ -49,15 +69,16 @@ make dev-web       # shell 4: web/ vite dev server (HMR)
 - Sign in on `/login`. Bootstrap an admin via env on first boot
   (`CAIRN_BOOTSTRAP_ADMIN_*`) or create one with an invite.
 
-`air` is fetched on first run via `go run github.com/air-verse/air@latest` — no
+`air` is fetched on first run at the version pinned in the Makefile — no
 separate install. Its build output lives in `tmp/` (gitignored). Prefer no
 live-reload? `make run` (`go run ./cmd/server serve`) and `cd web && npm run dev`
 still work.
 
 ## The worker / provider plugin
 
-`worker-strava` is the reference plugin. Against the dev NATS (no auth-callout)
-it connects **without** an enrollment token, registers presence + heartbeats,
+The Strava worker imports activities from Strava and is maintained in a separate
+provider repository. Against the dev NATS (no auth-callout), it connects
+**without** an enrollment token, registers presence + heartbeats,
 and subscribes to `cairn.jobs.*.strava`. It sits idle until a real fetch job
 arrives — that needs genuine Strava OAuth credentials and a linked account. To
 exercise the ingest → merge → best-effort → segment → training-load pipeline
@@ -72,7 +93,7 @@ The dev path has no per-worker permission scoping. For a real deployment,
 configure NATS auth-callout, mint an enrollment token (`POST
 /api/admin/worker-enrollments`), and set `CAIRN_WORKER_ENROLLMENT_TOKEN` on the
 worker — the code takes the auth-callout path automatically when the token is
-present (`cmd/worker-strava` `connectBus`). See `docs/architecture.md` §4.5.
+present. See `docs/architecture.md` §4.5.
 
 ## Dev vs prod topology
 

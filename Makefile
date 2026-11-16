@@ -280,5 +280,5 @@ dev-logs:
 dev-server:
 	set -a; [ -f dev.env ] && . ./dev.env; set +a; $(AIR) -c .air.server.toml
 
-dev-web:
+dev-web: web-deps
 	set -a; [ -f dev.env ] && . ./dev.env; set +a; cd $(WEB) && npm run dev

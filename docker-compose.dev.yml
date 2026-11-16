@@ -13,13 +13,14 @@
 #   * cmd/worker-*    — built locally per provider
 #   * web/            — run via `npm run dev` / `npm run build` + Node adapter
 #
-# Every image is pinned to a concrete release tag (no `:latest`) so the
+# Every image or source build is pinned to a concrete release tag so the
 # stack is reproducible — once the images have been pulled the stack
 # replays without internet access.
 #
 # Bring-up:
 #
-#   docker compose -f docker-compose.dev.yml pull              # once, online
+#   docker compose -f docker-compose.dev.yml build minio       # once, online
+#   docker compose -f docker-compose.dev.yml pull --ignore-buildable
 #   docker compose -f docker-compose.dev.yml up -d             # offline-safe afterwards
 #   docker compose -f docker-compose.dev.yml ps                # verify health
 #   docker compose -f docker-compose.dev.yml logs -f postgres  # tail
@@ -30,7 +31,6 @@
 #
 #   cp dev.env.example dev.env   # connection strings + dev secrets
 #   make dev-server              # Go server  (live-reload)
-#   make dev-worker              # Strava worker
 #   make dev-web                 # SvelteKit dev server (vite HMR)
 #
 # The server creates the CAIRN_STORAGE_BUCKET on first boot — no bucket-init
@@ -80,9 +80,12 @@ services:
   # MinIO (S3-compatible blob storage for raw FIT/TCX/GPX uploads)
   # ---------------------------------------------------------------------------
   minio:
-    # Pinned MinIO server release. The `latest` tag drifts; this one is
-    # the most-recent stable RELEASE as of 2026-05.
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # Community images are no longer published; build the pinned upstream source.
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.minio
+    image: cairn-minio:RELEASE.2025-09-07T16-13-09Z
+    pull_policy: never
     restart: unless-stopped
     networks: [cairn]
     command: server /data --console-address ":9001"
