@@ -6,6 +6,11 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.4] — 2026-11-20
+
+Drop-in for 0.7.3: no migration, no change to the configuration. Server
+streams work over HTTP for the first time.
+
 ### Fixed
 - Server streams did not work over HTTP in any release from 0.6.0, where they
   were added, to 0.7.3: `StreamActivityEvents`, `StreamNotifications` and
@@ -25,9 +30,12 @@ All notable changes to Cairn are documented here. The format follows
   (`deploy/k8s/minio.yaml`) run `pgsty/silo`, the community-maintained MinIO
   fork, at `RELEASE.2026-11-12T00-00-00Z`. The pinned `minio/minio` image can
   no longer be pulled, so `make dev-up` failed on a machine without it cached.
-  Silo keeps the S3 API, the `MINIO_*` variables, the health routes and the
-  on-disk format; service names, volumes, secrets and `CAIRN_STORAGE_*` stay
-  as they are.
+  Silo keeps the S3 API, the `MINIO_*` variables and the health routes;
+  service names, volumes, secrets and `CAIRN_STORAGE_*` stay as they are. It
+  documents the same on-disk format, but an existing MinIO volume was not
+  tested against it: back the volume up before switching the image.
+- Dev stack: Mailpit 1.34. The build-base toolchain image builds on a newer
+  `debian:bookworm-slim` digest.
 
 ## [0.7.3] — 2026-11-20
 
