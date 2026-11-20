@@ -18,6 +18,7 @@
   "prConcurrentLimit": 10,
   "prHourlyLimit": 0,
   "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "internalChecksFilter": "strict",
   "pre-commit": { "enabled": true },
   "osvVulnerabilityAlerts": true,
