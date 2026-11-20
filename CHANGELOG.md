@@ -21,6 +21,13 @@ All notable changes to Cairn are documented here. The format follows
   subscription is in place instead of with the first event. A client that
   waits for the headers sees the stream open at once, not up to 30 s later
   with the first heartbeat, and every event from then on reaches it.
+- The dev stack (`docker-compose.dev.yml`) and the Kubernetes manifest
+  (`deploy/k8s/minio.yaml`) run `pgsty/silo`, the community-maintained MinIO
+  fork, at `RELEASE.2026-11-12T00-00-00Z`. The pinned `minio/minio` image can
+  no longer be pulled, so `make dev-up` failed on a machine without it cached.
+  Silo keeps the S3 API, the `MINIO_*` variables, the health routes and the
+  on-disk format; service names, volumes, secrets and `CAIRN_STORAGE_*` stay
+  as they are.
 
 ## [0.7.3] — 2026-11-20
 

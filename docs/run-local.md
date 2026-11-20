@@ -7,7 +7,8 @@ save rebuilds the artifact. Four shells.
 ## 1. Supporting services (compose)
 
 `docker-compose.dev.yml` is dependencies-only — Postgres/TimescaleDB/PostGIS,
-NATS (JetStream), MinIO, and Mailpit. Pinned image tags, bound to `127.0.0.1`.
+NATS (JetStream), Silo (the community MinIO fork, service name `minio`), and
+Mailpit. Pinned image tags, bound to `127.0.0.1`.
 
 ```sh
 make dev-up        # docker compose -f docker-compose.dev.yml up -d
@@ -19,7 +20,7 @@ make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 | --- | --- | --- |
 | Postgres | `localhost:5432` | `cairn` / `cairn` / db `cairn` |
 | NATS | `localhost:4222` (mon `:8222`) | JetStream; `/varz`, `/jsz` |
-| MinIO | `localhost:9000` (console `:9001`) | `cairn` / `cairn-secret` |
+| Silo (`minio`) | `localhost:9000` (console `:9001`) | `cairn` / `cairn-secret` |
 | Mailpit | SMTP `localhost:1025` (UI `:8025`) | read notification emails |
 
 ## 2. Env
