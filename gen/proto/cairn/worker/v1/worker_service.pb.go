@@ -2546,7 +2546,8 @@ type PresignBlobUploadRequest struct {
 	UserId            string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	ExternalAccountId string                 `protobuf:"bytes,3,opt,name=external_account_id,json=externalAccountId,proto3" json:"external_account_id,omitempty"`
 	// Kind of blob, drives the S3 key prefix:
-	//   "activity_raw" "segment_raw" "metric_raw" "uploaded_file" ...
+	//
+	//	"activity_raw" "segment_raw" "metric_raw" "uploaded_file" ...
 	Kind string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Suggested file extension for the S3 key (e.g. "fit", "gpx", "tcx").
 	Extension string `protobuf:"bytes,5,opt,name=extension,proto3" json:"extension,omitempty"`
@@ -4579,7 +4580,8 @@ type RegisterWebhookPayload struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The webhook callback URL the worker should configure on the provider
 	// side; one per pool, core verifies the per-account signature on receipt:
-	//   "https://cairn.example.org/webhooks/{worker_key}"
+	//
+	//	"https://cairn.example.org/webhooks/{worker_key}"
 	CallbackUrl string `protobuf:"bytes,1,opt,name=callback_url,json=callbackUrl,proto3" json:"callback_url,omitempty"`
 	// Events to subscribe to.
 	EventTypes    []WebhookEventType `protobuf:"varint,2,rep,packed,name=event_types,json=eventTypes,proto3,enum=cairn.worker.v1.WebhookEventType" json:"event_types,omitempty"`

@@ -74,3 +74,6 @@ AGENTS.md
 .gemini/
 GEMINI.md
 .github/copilot-instructions.md
+
+# Local development TLS certificates and CA private keys
+/.certs/

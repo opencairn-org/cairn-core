@@ -3065,16 +3065,18 @@ type AuditEntry struct {
 	// IP address of the actor.
 	IpAddress *string `protobuf:"bytes,6,opt,name=ip_address,json=ipAddress,proto3,oneof" json:"ip_address,omitempty"`
 	// What happened. Stable string identifier:
-	//   "user.created", "user.suspended", "user.role_changed",
-	//   "oidc_client.updated", "external_account.deleted",
-	//   "worker.deregistered", "instance_settings.updated",
-	//   "activity.deleted", "auth.login_succeeded",
-	//   "auth.login_failed", "auth.session_revoked", ...
+	//
+	//	"user.created", "user.suspended", "user.role_changed",
+	//	"oidc_client.updated", "external_account.deleted",
+	//	"worker.deregistered", "instance_settings.updated",
+	//	"activity.deleted", "auth.login_succeeded",
+	//	"auth.login_failed", "auth.session_revoked", ...
 	Action   string        `protobuf:"bytes,7,opt,name=action,proto3" json:"action,omitempty"`
 	Severity AuditSeverity `protobuf:"varint,8,opt,name=severity,proto3,enum=cairn.v1.AuditSeverity" json:"severity,omitempty"`
 	// The object the action was performed on. resource_type:
-	//   "user", "external_account", "activity", "oidc_client",
-	//   "worker", "instance_settings", "invite", "job"
+	//
+	//	"user", "external_account", "activity", "oidc_client",
+	//	"worker", "instance_settings", "invite", "job"
 	ResourceType *string `protobuf:"bytes,9,opt,name=resource_type,json=resourceType,proto3,oneof" json:"resource_type,omitempty"`
 	ResourceId   *string `protobuf:"bytes,10,opt,name=resource_id,json=resourceId,proto3,oneof" json:"resource_id,omitempty"`
 	// Optional structured diff: keys are field paths, values are
