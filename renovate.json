@@ -10,7 +10,7 @@
   ],
   "automerge": true,
   "postUpdateOptions": ["gomodTidy"],
-  "constraints": { "npm": "^12.0.0" },
+  "constraints": { "npm": "^11" },
   "platformAutomerge": false,
   "lockFileMaintenance": { "enabled": true },
   "labels": ["dependencies"],
@@ -39,6 +39,11 @@
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "web npm (non-major)"
+    },
+    {
+      "description": "Keeps constraints.npm on 11: Renovate raised it to 12 on its own (#232) and every web lock file update failed again with EALLOWREMOTE. Drop together with the constraint once npm/cli#9800 is fixed.",
+      "matchDepNames": ["npm"],
+      "allowedVersions": "<12"
     },
     {
       "description": "SvelteKit majors and its adapters only work together.",
