@@ -134,7 +134,7 @@ services:
   # Point the server at it:  CAIRN_EMAIL_SMTP_HOST=localhost CAIRN_EMAIL_SMTP_PORT=1025
   # ---------------------------------------------------------------------------
   mailpit:
-    image: axllent/mailpit:v1.33@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+    image: axllent/mailpit:v1.34@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     networks: [cairn]
     ports:
