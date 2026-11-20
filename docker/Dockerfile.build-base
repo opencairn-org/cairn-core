@@ -51,8 +51,8 @@ FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde
 #   PROTOC_GEN_ES             ~ @bufbuild/protobuf in web/package.json
 #   PROTOC_VERSION            protoc → "Protobuf Python Version: 7.35.1" (matches committed pb2 stubs)
 #   PROTOC_GEN_CONNECT_PYTHON pip protoc-gen-connect-python (the codegen plugin, NOT the connect-python runtime)
-ARG GO_VERSION=1.27.2
-ARG GO_SHA256=ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5
+ARG GO_VERSION=1.27.4
+ARG GO_SHA256=7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840
 ARG BUF_VERSION=1.73.0
 ARG BUF_SHA256=8f2986298ad08f0cc1bf999b9797b7c383adf32d7edf0f73d6f1e1a701baeac1
 ARG NODE_VERSION=24.21.0
