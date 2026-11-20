@@ -6,6 +6,22 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Server streams did not work over HTTP in any release from 0.6.0, where they
+  were added, to 0.7.3: `StreamActivityEvents`, `StreamNotifications` and
+  `StreamAdminEvents` answered `200` with a single error frame,
+  `internal: *main.statusWriter does not implement http.Flusher`, and closed.
+  The request-metrics middleware wrapped the response writer without passing
+  on flushing or the write-deadline control; it does now, so a stream stays
+  open and is exempt from `CAIRN_HTTP_WRITE_TIMEOUT` as documented. The web
+  app does not use these streams and was not affected.
+
+### Changed
+- The three server streams send their response headers as soon as the
+  subscription is in place instead of with the first event. A client that
+  waits for the headers sees the stream open at once, not up to 30 s later
+  with the first heartbeat, and every event from then on reaches it.
+
 ## [0.7.3] — 2026-11-20
 
 Drop-in for 0.7.2: security and dependency updates, no migration, no change

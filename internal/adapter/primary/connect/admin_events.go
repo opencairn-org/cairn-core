@@ -27,6 +27,7 @@ func (s *AdminServer) StreamAdminEvents(ctx context.Context, req *v1.StreamAdmin
 
 // adminEventSender is the send side of the stream (generated, or a test double).
 type adminEventSender interface {
+	SendHeaders() error
 	Send(*v1.AdminEvent) error
 }
 
@@ -40,7 +41,7 @@ func (s *AdminServer) streamAdminEvents(ctx context.Context, req *v1.StreamAdmin
 	events, cancel := s.Events.Subscribe(struct{}{})
 	defer cancel()
 	keep := adminEventFilter(req)
-	return pumpStream(ctx, events,
+	return pumpStream(ctx, events, stream.SendHeaders,
 		func() error { return stream.Send(&v1.AdminEvent{Ts: timestamppb.Now()}) },
 		func(ev domain.AdminEvent) error {
 			if !keep(ev) {

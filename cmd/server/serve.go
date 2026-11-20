@@ -383,7 +383,7 @@ func serveNewHTTPServer(ctx context.Context, cfg *config.Config, mux *http.Serve
 
 	return &http.Server{
 		Addr:              cfg.HTTP.Addr,
-		Handler:           metricsMiddleware(securityHeaders(rateLimitMiddleware(httpLimiter, mux))),
+		Handler:           serveHandlerChain(httpLimiter, mux),
 		Protocols:         protocols,
 		ReadTimeout:       cfg.HTTP.ReadTimeout,
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
@@ -391,6 +391,13 @@ func serveNewHTTPServer(ctx context.Context, cfg *config.Config, mux *http.Serve
 		IdleTimeout:       cfg.HTTP.IdleTimeout,
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 	}
+}
+
+// serveHandlerChain is the middleware every request passes on its way to mux.
+// A middleware that wraps the ResponseWriter must keep http.Flusher and
+// Unwrap, or server streams break.
+func serveHandlerChain(limiter *ipRateLimiter, mux http.Handler) http.Handler {
+	return metricsMiddleware(securityHeaders(rateLimitMiddleware(limiter, mux)))
 }
 
 // serveClosable is anything runServe closes on shutdown (subscriptions, KV watchers).
