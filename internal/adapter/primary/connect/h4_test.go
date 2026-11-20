@@ -35,6 +35,8 @@ type fakeStream struct {
 	sent []*v1.NotificationEvent
 }
 
+func (f *fakeStream) SendHeaders() error { return nil }
+
 func (f *fakeStream) Send(e *v1.NotificationEvent) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
