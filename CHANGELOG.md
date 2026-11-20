@@ -6,10 +6,29 @@ All notable changes to Cairn are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.3] — 2026-11-20
+
+Drop-in for 0.7.2: security and dependency updates, no migration, no change
+to the API or the configuration.
+
+### Security
+- Built with Go 1.27.4, which fixes a crash of HTTP/1 servers caused by a
+  header race in `net/http`'s `MaxBytesReader` (GO-2026-6859,
+  CVE-2026-97054). The build-base toolchain image carries the same Go, so
+  workers built on it get the fix with their next release.
+- `golang.org/x/crypto` 0.59.0 (GO-2026-5932, the unmaintained `openpgp`
+  package). Cairn uses `argon2` from this module only.
+
 ### Changed
+- Go modules: pgx 5.13.0, goose 3.30.1, nats-server 2.15.3 with nats/jwt
+  2.8.3 and nkeys 0.4.17, go-jose 4.1.9, go-mail 0.8.2, the AWS SDK for S3,
+  `golang.org/x/image` 0.48.0 and `golang.org/x/oauth2` 0.38.0.
+- Web app: SvelteKit 3.2.0 with adapter-node 6.0.2, Tailwind CSS 4.3.5 and
+  Vite 8.3.8.
 - Renovate writes `web/package-lock.json` with npm 11, like CI. npm 12 cannot
   update the lock file while it holds `@tailwindcss/oxide-wasm32-wasi`
-  (npm/cli#9800), which left web dependency updates without a lock file.
+  (npm/cli#9800), which left web dependency updates without a lock file. A
+  rule keeps Renovate from raising that constraint by itself again.
 
 ## [0.7.2] — 2026-11-07
 
