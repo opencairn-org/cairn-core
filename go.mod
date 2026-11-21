@@ -27,7 +27,7 @@ require (
 	//   jwt/v2     : JWT minting + verification for NATS account/user JWTs
 	//
 	// Versions are the latest stable as of May 2026.
-	github.com/nats-io/nats.go v1.55.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/nats-io/nkeys v0.4.17
 	github.com/pressly/goose/v3 v3.30.1
 	github.com/spf13/cobra v1.10.2
@@ -39,7 +39,7 @@ require (
 	connectrpc.com/connect/v2 v2.0.2
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.21.1
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.115.0
 	github.com/aws/smithy-go v1.28.9
 	github.com/bbrks/go-blurhash v1.2.0
 	github.com/coreos/go-oidc/v3 v3.21.0
