@@ -36,10 +36,10 @@ func newServeCmd() *cobra.Command {
 On startup the server verifies that the database schema matches the version
 embedded in this binary. The behaviour is:
 
-  * schema current             → start normally
+  * schema current              → start normally
   * schema older + AUTO_MIGRATE → apply pending migrations, then start
-  * schema older               → refuse to start; run "cairn migrate up"
-  * schema newer               → refuse to start; this binary is too old
+  * schema older                → refuse to start; run "cairn migrate up"
+  * schema newer                → refuse to start; this binary is too old
 
 Set CAIRN_DATABASE_AUTO_MIGRATE=true for single-node deployments where
 upgrading the binary should also apply migrations in one step. In
