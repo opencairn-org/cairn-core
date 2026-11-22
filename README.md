@@ -154,6 +154,42 @@ nonroot binary that serves the API *and* the embedded SPA (`-tags embedweb`),
 built + pushed by the `build-core` GitHub Actions workflow. Full walkthrough,
 ports, and prod notes are in **[docs/run-local.md](docs/run-local.md)**.
 
+### HTTPS on a phone (local development)
+
+This optional setup allows testing the dev web app and its installed PWA on a
+phone over the local network. Production TLS is terminated at a reverse proxy;
+see [production readiness](docs/production-readiness.md).
+
+On the Xiaomi 14T tested, Chrome trusted the installed local CA and installed
+the PWA. Firefox, Mi Browser and the Android APK encountered certificate
+trust issues; behavior may vary with browser and app configuration.
+
+Generate a certificate for the computer's LAN address, then start Vite with TLS:
+
+```sh
+make dev-web-cert CERT_HOSTS="192.168.2.92" # replace with your LAN IP
+make dev-web HOST=0.0.0.0 HTTPS=1
+```
+
+On the phone, install and trust `.certs/ca/rootCA.pem`, then open
+`https://192.168.2.92:5173` (use `CAIRN_WEB_PORT` if changed in `dev.env`).
+The certificate and its CA stay in the ignored `.certs/` directory. Never share
+`rootCA-key.pem` or `dev-key.pem`. Certificate generation uses a pinned mkcert
+via Go; the first run needs internet access. OpenSSL re-signs the server
+certificate for 30 days by default (`CERT_DAYS` overrides this); regenerate it
+and restart Vite when it expires. It does not install the CA in the
+computer's trust store. See [mkcert mobile setup](https://github.com/FiloSottile/mkcert#mobile-devices)
+for iOS trust settings and Android app requirements: native development builds
+must allow user-installed CAs.
+
+Set `CAIRN_HTTP_PUBLIC_BASE_URL` in `dev.env` to the same HTTPS URL and restart
+`make dev-server` so generated links use the address reachable by the phone.
+Vite still proxies API requests to the local Go server over HTTP.
+
+With WSL2, the phone uses the Windows LAN IP, not the internal WSL IP. Windows
+must forward the web port into WSL (or use mirrored networking) and allow it
+through the firewall. Regenerate the certificate if the LAN IP changes.
+
 ### Running the server by hand
 
 For backend-only work, bring up the deps and run the binary directly:

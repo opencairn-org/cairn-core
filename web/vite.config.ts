@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import adapterNode from '@sveltejs/adapter-node';
 import adapterStatic from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
@@ -45,6 +46,17 @@ export default defineConfig({
 		sveltekit({ preprocess: vitePreprocess(), adapter })
 	],
 	server: {
+		// Local HTTPS lets phones use the dev web app/PWA over the LAN.
+		// Generate with make dev-web-cert; opt in with make dev-web HTTPS=1.
+		// Production TLS is handled by the reverse proxy.
+		...(process.env.CAIRN_WEB_HTTPS === '1'
+			? {
+					https: {
+						cert: readFileSync(new URL('../.certs/dev-cert.pem', import.meta.url)),
+						key: readFileSync(new URL('../.certs/dev-key.pem', import.meta.url))
+					}
+				}
+			: {}),
 		// CAIRN_WEB_PORT lets this dev server avoid colliding with another
 		// project's vite on the same origin (a shared :5173 mixes module graphs
 		// in the browser). `make dev-web` sources dev.env, which sets it.

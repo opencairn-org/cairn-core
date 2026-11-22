@@ -60,7 +60,7 @@ LDFLAGS := -X main.Version=$(shell git describe --tags --always --dirty 2>/dev/n
 .PHONY: help tools proto-tools fmt lint vet test cover audit build dist check-fast check release tidy clean \
 	install mutate test-race test-integration test-db-up test-db-down web-deps web-lint web-check web-test web-cover web-audit web-build \
 	proto proto-lint proto-format proto-check proto-breaking migrate-up migrate-status migrate-redo run \
-	dev-up dev-down dev-logs dev-server dev-web all
+	dev-up dev-down dev-logs dev-server dev-web dev-web-cert all
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*##' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -120,7 +120,9 @@ audit: web-audit ## vulnerabilities, licenses, tidy module graph, secrets
 	$(GO) mod tidy -diff
 	gitleaks git --no-banner --redact .
 
-build: web-build ## build the cairn binary into ./bin/cairn (+ the web app)
+build: web-build build_server ## build the cairn binary into ./bin/cairn (+ the web app)
+
+build_server:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags='$(LDFLAGS)' -o $(BIN_DIR)/cairn ./cmd/server
 
 mutate: ## mutation testing of internal/domain (weekly in CI, not part of check)
@@ -259,11 +261,17 @@ run: ## run the server
 #   cp dev.env.example dev.env   # once; tweak if needed
 #   make dev-server              # shell 2: Go server, rebuilds on save (air)
 #   make dev-web                 # shell 3: SvelteKit dev server (vite HMR)
+#   make dev-web HOST=0.0.0.0    # expose the dev server on all network interfaces
 #   make dev-down                # stop services (add ARGS=-v to wipe data)
 #
 # dev-server sources dev.env (if present) so the binary picks up the compose connection strings + dev secrets.
 # ----------------------------------------------------------------------------
 DEV_COMPOSE := docker compose -f docker-compose.dev.yml
+HTTPS       ?= 0
+CERT_HOSTS  ?= localhost 127.0.0.1 ::1
+CERT_DAYS   ?= 30
+# Pinned, run without installing a global binary or modifying go.mod.
+MKCERT      ?= $(GO) run filippo.io/mkcert@v1.4.4
 # renovate: datasource=go depName=github.com/air-verse/air
 AIR_VERSION ?= v1.67.4
 AIR         := $(GO) run github.com/air-verse/air@$(AIR_VERSION)
@@ -281,4 +289,20 @@ dev-server:
 	set -a; [ -f dev.env ] && . ./dev.env; set +a; $(AIR) -c .air.server.toml
 
 dev-web: web-deps
-	set -a; [ -f dev.env ] && . ./dev.env; set +a; cd $(WEB) && npm run dev
+	set -a; [ -f dev.env ] && . ./dev.env; set +a; cd $(WEB) && CAIRN_WEB_HTTPS="$(HTTPS)" npm run dev$(if $(HOST), -- --host "$(HOST)")
+
+# Local HTTPS lets a phone use the dev web app/PWA over the LAN. This CA is for development only.
+# Tested on Xiaomi 14T: Chrome accepted the local CA and installed the PWA;
+# Firefox, Mi Browser and the Android APK encountered certificate trust issues.
+# Add the address the phone will use, e.g. CERT_HOSTS="192.168.2.92".
+# Production TLS terminates at the reverse proxy.
+# Trust .certs/ca/rootCA.pem on the phone; never share rootCA-key.pem.
+dev-web-cert: ## generate local HTTPS certificates (CERT_HOSTS="LAN_IP")
+	mkdir -p .certs/ca
+	CAROOT="$(CURDIR)/.certs/ca" $(MKCERT) -cert-file .certs/dev-cert.pem -key-file .certs/dev-key.pem localhost 127.0.0.1 ::1 $(CERT_HOSTS)
+	# Re-sign with the same local CA and SANs, limiting the server certificate lifetime.
+	csr=$$(mktemp .certs/dev-csr.XXXXXX); cert=$$(mktemp .certs/dev-cert.XXXXXX)
+	trap 'rm -f "$$csr" "$$cert"' EXIT
+	openssl x509 -x509toreq -in .certs/dev-cert.pem -signkey .certs/dev-key.pem -copy_extensions copy -out "$$csr"
+	openssl x509 -req -in "$$csr" -CA .certs/ca/rootCA.pem -CAkey .certs/ca/rootCA-key.pem -CAcreateserial -days $(CERT_DAYS) -copy_extensions copy -out "$$cert"
+	mv "$$cert" .certs/dev-cert.pem
