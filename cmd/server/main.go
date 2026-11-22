@@ -9,6 +9,7 @@
 //	cairn migrate redo       roll back and re-apply the latest migration
 //	cairn migrate status     list each migration's applied state
 //	cairn migrate version    print the current applied migration version
+//	cairn extract-polyline   extract polyline to later create a segment
 //	cairn version            print binary version metadata
 //	cairn config help        print the full environment-variable surface
 //
@@ -54,6 +55,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newRotateKeyCmd())
 	root.AddCommand(newGenSecretsCmd())
 	root.AddCommand(newAttachmentsCmd())
+	root.AddCommand(newExtractPolylineCmd())
 	return root
 }
 
