@@ -27,6 +27,31 @@ For an explicit rebuild, run `docker compose -f docker-compose.dev.yml build min
 | MinIO | `localhost:9000` (console `:9001`) | `cairn` / `cairn-secret` |
 | Mailpit | SMTP `localhost:1025` (UI `:8025`) | read notification emails |
 
+### PostgreSQL storage
+
+Compose defaults to the Docker-managed `postgres_data` volume. Copy
+`compose.env.example` to `.env`, or merge the settings into an existing
+`.env`, to customize it. Compose reads `.env` automatically; it does not
+load the application's `dev.env`.
+
+For a host directory, set both values:
+
+```dotenv
+CAIRN_DB_STORAGE_TYPE=bind
+CAIRN_DB_STORAGE_SOURCE=/absolute/path/to/cairn/postgres
+```
+
+For a Docker volume, set `CAIRN_DB_STORAGE_TYPE=volume` and
+`CAIRN_DB_STORAGE_SOURCE=postgres_data`, or omit both variables.
+Keep machine-specific paths in the ignored `.env` file.
+
+The container path remains `/home/postgres/pgdata/data`. Changing the source
+does not migrate data: point to the existing directory or migrate while
+PostgreSQL is stopped. An empty location starts a new database. Prepare
+host-directory permissions for the image's postgres user. Never run two
+PostgreSQL instances against the same directory. `down -v` removes managed
+volumes, but does not erase bind-mounted host directories.
+
 ## 2. Env
 
 ```sh

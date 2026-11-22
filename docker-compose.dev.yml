@@ -68,7 +68,10 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/home/postgres/pgdata/data
+      # Compose reads these from .env (see compose.env.example).
+      - type: ${CAIRN_DB_STORAGE_TYPE:-volume}
+        source: ${CAIRN_DB_STORAGE_SOURCE:-postgres_data}
+        target: /home/postgres/pgdata/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cairn -d cairn"]
       interval: 5s
