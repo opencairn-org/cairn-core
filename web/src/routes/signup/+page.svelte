@@ -89,8 +89,8 @@
 	</form>
 
 	<p class="text-center text-xs text-zinc-500">
-		Already have an account? <a href="/login" class="text-accent-400 hover:text-accent-300"
-			>Sign in</a
-		>
+		Already have an account? <a href="/login" class="text-accent-400 hover:text-accent-300">
+			Sign in
+		</a>
 	</p>
 </div>

@@ -426,13 +426,17 @@
 					<button
 						type="button"
 						onclick={() => navigator.clipboard?.writeText(shareURL(l.path))}
-						class="text-zinc-400 hover:text-accent-300">Copy</button
+						class="text-zinc-400 hover:text-accent-300"
 					>
+						Copy
+					</button>
 					<button
 						type="button"
 						onclick={() => revokeShare(l.token)}
-						class="text-zinc-500 hover:text-red-400">Revoke</button
+						class="text-zinc-500 hover:text-red-400"
 					>
+						Revoke
+					</button>
 				</li>
 			{/each}
 			{#if shareLinks.length === 0}
@@ -532,34 +536,39 @@
 								{#if s.is_primary}
 									<span
 										class="rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] uppercase text-accent-300"
-										>primary stream</span
 									>
+										primary stream
+									</span>
 								{/if}
 								{#if s.reparse_eligible}
 									<span
 										class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase text-sky-300"
 										title={`A worker with parser ${s.reparse_with} (dataset v${s.dataset_version}) is online — this source can be re-parsed from its archive`}
-										>re-parsable</span
 									>
+										re-parsable
+									</span>
 								{/if}
 								{#if s.upgrade === 'new_parser'}
 									<span
 										class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase text-sky-300"
 										title={`Parsed by ${s.parser_version}; a newer parser is online. Re-parse from the archive to pick up its changes (no provider quota).`}
-										>newer parser</span
 									>
+										newer parser
+									</span>
 								{:else if s.upgrade === 'new_dataset'}
 									<span
 										class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
 										title={`Imported as dataset v${s.dataset_version}; the online worker uses a newer archive format and cannot read it. Re-fetch from the provider.`}
-										>new dataset</span
 									>
+										new dataset
+									</span>
 								{/if}
 								{#if s.reimport_status && s.reimport_status !== 'current'}
 									<span
 										class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
-										>{s.reimport_status}</span
 									>
+										{s.reimport_status}
+									</span>
 								{/if}
 							</div>
 							<div class="flex flex-wrap items-center justify-end gap-3">
@@ -605,9 +614,9 @@
 											? `Re-parse needs a ${s.provider} worker online that reads dataset v${s.dataset_version || '?'} with parser ${s.parser_version || '?'} or newer.`
 											: 'No archived original to re-parse — re-fetch from the provider to create one.'}
 									>
-										<span class="cursor-not-allowed line-through decoration-zinc-700"
-											>Re-parse from archive</span
-										>
+										<span class="cursor-not-allowed line-through decoration-zinc-700">
+											Re-parse from archive
+										</span>
 										<span class="text-[10px] not-italic text-zinc-500">
 											{s.has_blob
 												? `· needs ${s.provider} parser ≥ ${s.parser_version || s.worker_version} online`
@@ -666,9 +675,9 @@
 								<dt class="text-zinc-500" title="Parser that produced the current data">Parser</dt>
 								<dd class="text-zinc-300">
 									{s.parser_version || '—'}
-									<span class="text-zinc-500"
-										>{s.worker_name || ''}{s.worker_release ? ` ${s.worker_release}` : ''}</span
-									>
+									<span class="text-zinc-500">
+										{s.worker_name || ''}{s.worker_release ? ` ${s.worker_release}` : ''}
+									</span>
 								</dd>
 							</div>
 							<div class="flex justify-between gap-2">
@@ -708,9 +717,9 @@
 								</p>
 								<div class="flex flex-wrap gap-1.5">
 									{#each s.won_field_groups as g (g)}
-										<span class="rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300"
-											>{g}</span
-										>
+										<span class="rounded bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300">
+											{g}
+										</span>
 									{/each}
 								</div>
 							</div>

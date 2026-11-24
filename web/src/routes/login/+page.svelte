@@ -191,9 +191,9 @@
 					{setPasswordError}
 				</div>
 			{/if}
-			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300"
-				>Start over</a
-			>
+			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300">
+				Start over
+			</a>
 		</form>
 	{:else if challenge}
 		<section class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
@@ -218,9 +218,9 @@
 					{challengeError}
 				</div>
 			{/if}
-			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300"
-				>Start over</a
-			>
+			<a href="/login" class="block text-center text-xs text-zinc-500 hover:text-accent-300">
+				Start over
+			</a>
 		</section>
 	{:else}
 		{#if data.oidcClients.length > 0}
@@ -332,9 +332,9 @@
 						Sign in
 					</button>
 					<div class="text-center">
-						<a href="/forgot-password" class="text-xs text-zinc-500 hover:text-accent-300"
-							>Forgot password?</a
-						>
+						<a href="/forgot-password" class="text-xs text-zinc-500 hover:text-accent-300">
+							Forgot password?
+						</a>
 					</div>
 				</form>
 			</section>
@@ -351,8 +351,8 @@
 	{/if}
 
 	<p class="text-center text-xs text-zinc-500">
-		Have an invite code? <a href="/signup" class="text-accent-400 hover:text-accent-300"
-			>Create an account</a
-		>
+		Have an invite code? <a href="/signup" class="text-accent-400 hover:text-accent-300">
+			Create an account
+		</a>
 	</p>
 </div>

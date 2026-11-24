@@ -84,17 +84,22 @@
 						<button
 							onclick={() => hideActivity(r.target_id)}
 							class="rounded border px-3 py-1 text-xs text-red-600 hover:bg-red-50"
-							>Hide activity</button
 						>
+							Hide activity
+						</button>
 					{/if}
 					<button
 						onclick={() => resolve(r.id, 'reviewed')}
-						class="rounded border px-3 py-1 text-xs hover:bg-gray-50">Mark reviewed</button
+						class="rounded border px-3 py-1 text-xs hover:bg-gray-50"
 					>
+						Mark reviewed
+					</button>
 					<button
 						onclick={() => resolve(r.id, 'dismissed')}
-						class="rounded border px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">Dismiss</button
+						class="rounded border px-3 py-1 text-xs text-gray-500 hover:bg-gray-50"
 					>
+						Dismiss
+					</button>
 				</div>
 			</div>
 		{/each}

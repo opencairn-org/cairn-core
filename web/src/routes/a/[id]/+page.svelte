@@ -80,9 +80,9 @@
 			<div>
 				<h1 class="text-xl font-semibold">{activity.title || 'Untitled'}</h1>
 				<div class="text-sm text-zinc-400">
-					{#if owner}<a href={`/u/${owner.username}`} class="hover:underline"
-							>{owner.display_name || owner.username}</a
-						> ·
+					{#if owner}<a href={`/u/${owner.username}`} class="hover:underline">
+							{owner.display_name || owner.username}
+						</a> ·
 					{/if}
 					{formatRelativeDate(activity.start_time)}
 					{#if activity.start_place && can('location')}

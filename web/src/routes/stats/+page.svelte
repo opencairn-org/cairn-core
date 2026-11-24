@@ -132,15 +132,15 @@
 									<tr class="border-t border-zinc-800/70">
 										<td class="px-4 py-2 font-medium text-zinc-200">{y.year}</td>
 										<td class="px-4 py-2 text-right tabular-nums text-zinc-300">{y.count}</td>
-										<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-											>{formatDistance(y.distance_m)}</td
-										>
-										<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-											>{formatDuration(y.moving_s)}</td
-										>
-										<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-											>{formatElevation(y.elevation_gain_m)}</td
-										>
+										<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+											{formatDistance(y.distance_m)}
+										</td>
+										<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+											{formatDuration(y.moving_s)}
+										</td>
+										<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+											{formatElevation(y.elevation_gain_m)}
+										</td>
 										<td class="px-4 py-2">
 											<div class="h-2 rounded-full bg-zinc-800">
 												<div
@@ -169,18 +169,18 @@
 							class="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-2.5 hover:border-zinc-700 hover:bg-zinc-900/80"
 						>
 							<span class="text-accent-400"><SportIcon type={f.value} size={20} /></span>
-							<span class="w-32 shrink-0 text-sm text-zinc-200 max-md:w-24"
-								>{humanize(f.value)}</span
-							>
+							<span class="w-32 shrink-0 text-sm text-zinc-200 max-md:w-24">
+								{humanize(f.value)}
+							</span>
 							<div class="h-2 flex-1 rounded-full bg-zinc-800">
 								<div
 									class="h-2 rounded-full bg-accent-500"
 									style:width={`${(f.count / maxSport) * 100}%`}
 								></div>
 							</div>
-							<span class="w-12 shrink-0 text-right text-sm tabular-nums text-zinc-400"
-								>{f.count}</span
-							>
+							<span class="w-12 shrink-0 text-right text-sm tabular-nums text-zinc-400">
+								{f.count}
+							</span>
 						</a>
 					{/each}
 				</div>

@@ -182,17 +182,21 @@
 						<li class="px-3 py-2 text-xs">
 							<div class="flex items-center justify-between gap-4">
 								<div class="min-w-0">
-									<span class="font-medium text-zinc-200"
-										>{w.worker_key || `${w.worker_name}-${w.provider}`}</span
-									>
+									<span class="font-medium text-zinc-200">
+										{w.worker_key || `${w.worker_name}-${w.provider}`}
+									</span>
 									<span
 										class="ml-2 rounded bg-accent-500/15 px-1.5 py-0.5 text-accent-300"
-										title="reported provider">{w.provider}</span
+										title="reported provider"
 									>
+										{w.provider}
+									</span>
 									<span
 										class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400"
-										title="parser version (dataset.revision)">parser {w.version}</span
+										title="parser version (dataset.revision)"
 									>
+										parser {w.version}
+									</span>
 									{#if w.release}
 										<span
 											class="ml-2 rounded px-1.5 py-0.5 {w.release_compatible
@@ -201,14 +205,17 @@
 											title={w.release_compatible
 												? 'worker release'
 												: `Incompatible with core ${w.core_release}: major.minor must match. Ignored for re-parse and gear sync.`}
-											>{w.release}{w.release_compatible ? '' : ' · incompatible'}</span
 										>
+											{w.release}{w.release_compatible ? '' : ' · incompatible'}
+										</span>
 									{/if}
 									{#if w.webhooks}
 										<span
 											class="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-300"
-											title="This worker owns its webhook endpoint">webhooks</span
+											title="This worker owns its webhook endpoint"
 										>
+											webhooks
+										</span>
 									{/if}
 									{#if w.package}
 										<div class="mt-0.5 font-mono text-zinc-500" title="reported package">
@@ -238,14 +245,20 @@
 												<span class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
 													{t}{#if w.capabilities?.[t]?.push}<span
 															class="ml-0.5 text-sky-400"
-															title="push (webhook)">⚡</span
-														>{/if}{#if w.capabilities?.[t]?.backfill}<span
+															title="push (webhook)"
+														>
+															⚡
+														</span>{/if}{#if w.capabilities?.[t]?.backfill}<span
 															class="ml-0.5 text-zinc-500"
-															title="backfill (historical)">↺</span
-														>{/if}{#if w.capabilities?.[t]?.write}<span
+															title="backfill (historical)"
+														>
+															↺
+														</span>{/if}{#if w.capabilities?.[t]?.write}<span
 															class="ml-0.5 text-amber-400"
-															title="write-back">✎</span
-														>{/if}
+															title="write-back"
+														>
+															✎
+														</span>{/if}
 												</span>
 											{/each}
 										</div>
@@ -259,9 +272,9 @@
 									class="mt-2 flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950/40 px-2 py-1.5"
 								>
 									<span class="shrink-0 text-zinc-500">webhook</span>
-									<code class="flex-1 truncate font-mono text-zinc-300"
-										>{webhookURL(workerKey(w))}</code
-									>
+									<code class="flex-1 truncate font-mono text-zinc-300">
+										{webhookURL(workerKey(w))}
+									</code>
 									<button
 										type="button"
 										onclick={() => navigator.clipboard?.writeText(webhookURL(workerKey(w)))}
@@ -367,8 +380,9 @@
 					<div class="font-medium">Enrollment token — copy it now, it won't be shown again:</div>
 					<code
 						class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100"
-						>{newToken}</code
 					>
+						{newToken}
+					</code>
 				</div>
 			{/if}
 
@@ -380,9 +394,9 @@
 							<div>
 								<span class="font-medium text-zinc-200">{e.name || '—'}</span>
 								{#if e.provider}
-									<span class="ml-2 rounded bg-accent-500/15 px-1.5 py-0.5 text-accent-300"
-										>{e.provider}</span
-									>
+									<span class="ml-2 rounded bg-accent-500/15 px-1.5 py-0.5 text-accent-300">
+										{e.provider}
+									</span>
 								{/if}
 								{#if enrollmentStatus(e, nowMs) === 'revoked'}
 									<span class="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-red-300">revoked</span>
@@ -390,16 +404,17 @@
 									<span
 										class="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-red-300"
 										title="This enrollment has no provider and is refused at connect. Create a new enrollment with a provider and revoke this one."
-										>re-enroll required</span
 									>
+										re-enroll required
+									</span>
 								{:else if enrollmentStatus(e, nowMs) === 'expired'}
-									<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-300"
-										>expired</span
-									>
+									<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-300">
+										expired
+									</span>
 								{:else}
-									<span class="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300"
-										>active</span
-									>
+									<span class="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
+										active
+									</span>
 								{/if}
 								{#if e.note}<span class="ml-2 text-zinc-500">{e.note}</span>{/if}
 								<div class="mt-0.5 text-zinc-600">expires {fmt(e.expires_at)} · {e.id}</div>

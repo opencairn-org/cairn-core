@@ -33,8 +33,9 @@
 >
 	<span
 		class="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium uppercase tracking-wide text-amber-300"
-		>{m.gear_prompt_badge()}</span
 	>
+		{m.gear_prompt_badge()}
+	</span>
 	<span>{m.gear_prompt_text()}</span>
 	<div class="w-48 [&_select]:mt-0 [&_select]:py-1 [&_select]:text-xs">
 		<GearPicker {gear} {type} bind:value={gearId} id="gear-prompt" disabled={busy} />

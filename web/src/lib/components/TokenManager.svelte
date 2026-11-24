@@ -90,9 +90,9 @@
 			/>
 		</div>
 		<div>
-			<label for="pat-expires" class="mb-1 block text-xs text-zinc-500"
-				>Expires (days, 0 = never)</label
-			>
+			<label for="pat-expires" class="mb-1 block text-xs text-zinc-500">
+				Expires (days, 0 = never)
+			</label>
 			<input
 				id="pat-expires"
 				type="number"
@@ -116,15 +116,16 @@
 			class="mb-3 rounded border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200"
 		>
 			<div class="font-medium">Copy your token now — it won't be shown again:</div>
-			<code class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100"
-				>{newToken}</code
-			>
+			<code class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100">
+				{newToken}
+			</code>
 			<button
 				type="button"
 				onclick={() => navigator.clipboard?.writeText(newToken!)}
 				class="mt-1 rounded border border-amber-700/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/30 max-md:py-2"
-				>Copy</button
 			>
+				Copy
+			</button>
 		</div>
 	{/if}
 
@@ -136,8 +137,10 @@
 						<span class="font-medium text-zinc-200">{t.name}</span>
 						<span
 							class="ml-2 rounded px-1.5 py-0.5 {statusColor[t.status] ??
-								'bg-zinc-800 text-zinc-400'}">{t.status}</span
+								'bg-zinc-800 text-zinc-400'}"
 						>
+							{t.status}
+						</span>
 						<span class="ml-2 font-mono text-zinc-500">{t.prefix}</span>
 						<div class="mt-0.5 text-zinc-600">
 							created {formatDate(t.created_at)}
