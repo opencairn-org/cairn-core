@@ -136,15 +136,18 @@
 				<div class="font-medium">
 					Invite created — copy the link now, the code won't be shown again:
 				</div>
-				<code class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100"
-					>{newInvite.signup_url}</code
+				<code
+					class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100"
 				>
+					{newInvite.signup_url}
+				</code>
 				<button
 					type="button"
 					onclick={() => navigator.clipboard?.writeText(newInvite!.signup_url)}
 					class="mt-1 rounded border border-amber-700/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/30 max-md:py-2"
-					>Copy link</button
 				>
+					Copy link
+				</button>
 			</div>
 		{/if}
 
@@ -157,8 +160,10 @@
 							<span class="font-mono text-zinc-300">{i.prefix}</span>
 							<span
 								class="ml-2 rounded px-1.5 py-0.5 {statusColor[i.status] ??
-									'bg-zinc-800 text-zinc-400'}">{i.status}</span
+									'bg-zinc-800 text-zinc-400'}"
 							>
+								{i.status}
+							</span>
 							<span class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400">{i.role}</span>
 							{#if i.email}<span class="ml-2 text-zinc-500">{i.email}</span>{/if}
 							<div class="mt-0.5 text-zinc-600">

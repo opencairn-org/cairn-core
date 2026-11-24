@@ -21,8 +21,9 @@
 			← {title || 'Activity'}
 		</a>
 	{:else}
-		<a href="/activities" class="text-xs text-accent-400 hover:text-accent-300">{m.detail_back()}</a
-		>
+		<a href="/activities" class="text-xs text-accent-400 hover:text-accent-300">
+			{m.detail_back()}
+		</a>
 	{/if}
 	<nav class="flex items-center gap-2 max-md:flex-wrap">
 		{#each links as l (l.href)}

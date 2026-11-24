@@ -152,8 +152,9 @@
 					<h2>{label}</h2>
 					<span
 						class="text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-zinc-400"
-						>→</span
 					>
+						→
+					</span>
 				</a>
 				{#if w && w.count > 0}
 					<dl class="grid grid-cols-2 gap-3">
@@ -195,18 +196,24 @@
 				<nav class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-sm">
 					<h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Explore</h2>
 					<div class="space-y-0.5">
-						<a href="/analysis" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
-							>Training load</a
+						<a
+							href="/analysis"
+							class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
 						>
-						<a href="/stats" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
-							>Stats</a
+							Training load
+						</a>
+						<a href="/stats" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60">
+							Stats
+						</a>
+						<a
+							href="/segments"
+							class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
 						>
-						<a href="/segments" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
-							>Segments</a
-						>
-						<a href="/athlete" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60"
-							>Find athletes</a
-						>
+							Segments
+						</a>
+						<a href="/athlete" class="block rounded px-2 py-1.5 text-zinc-300 hover:bg-zinc-800/60">
+							Find athletes
+						</a>
 					</div>
 				</nav>
 			</aside>
@@ -225,9 +232,9 @@
 										? 'border-accent-500/40 bg-accent-500/20 text-accent-300'
 										: 'border-zinc-700 text-zinc-500 hover:text-zinc-300'}"
 								>
-									{s.label}<span class="ml-1 opacity-60"
-										>{feed.filter((a) => a.source === s.key).length}</span
-									>
+									{s.label}<span class="ml-1 opacity-60">
+										{feed.filter((a) => a.source === s.key).length}
+									</span>
 								</button>
 							{/each}
 						</div>
@@ -238,19 +245,21 @@
 						{#each shown as a (a.source + ':' + a.id)}
 							<article class="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 shadow-sm">
 								<div class="mb-2 flex items-center gap-2 text-sm text-zinc-400">
-									<span class="font-medium text-zinc-100"
-										>{a.owner?.display_name || a.owner?.username}</span
-									>
+									<span class="font-medium text-zinc-100">
+										{a.owner?.display_name || a.owner?.username}
+									</span>
 									{#if a.source === 'self'}
 										<span
 											class="rounded bg-zinc-700/50 px-1.5 py-0.5 text-[10px] uppercase text-zinc-300"
-											>you</span
 										>
+											you
+										</span>
 									{:else if a.source === 'federated'}
 										<span
 											class="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] uppercase text-violet-300"
-											>federated</span
 										>
+											federated
+										</span>
 									{/if}
 									<span>·</span>
 									<span>{formatRelativeDate(a.start_time)}</span>

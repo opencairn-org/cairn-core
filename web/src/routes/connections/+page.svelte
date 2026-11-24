@@ -212,9 +212,9 @@
 			<h1 class="text-2xl font-semibold tracking-tight">{m.connections_title()}</h1>
 			<p class="mt-1 max-w-2xl text-sm text-zinc-400">
 				Each connection is a separate link to a provider with its own credentials. Add several per
-				provider if you like — <strong class="text-zinc-300"
-					>all import into this one Cairn account.</strong
-				>
+				provider if you like — <strong class="text-zinc-300">
+					all import into this one Cairn account.
+				</strong>
 			</p>
 		</div>
 		<button
@@ -332,8 +332,10 @@
 							href={formProvider.setup_docs_url}
 							target="_blank"
 							rel="noreferrer"
-							class="text-accent-400 hover:text-accent-300">Setup guide ↗</a
+							class="text-accent-400 hover:text-accent-300"
 						>
+							Setup guide ↗
+						</a>
 					{/if}
 				</p>
 			{/if}
@@ -468,9 +470,9 @@
 							you finish them (otherwise they arrive on the next periodic sync):
 						</p>
 						<div class="flex items-center gap-2">
-							<code class="flex-1 truncate rounded bg-zinc-900 px-2 py-1 font-mono text-zinc-200"
-								>{ep.url}</code
-							>
+							<code class="flex-1 truncate rounded bg-zinc-900 px-2 py-1 font-mono text-zinc-200">
+								{ep.url}
+							</code>
 							<button
 								type="button"
 								onclick={() => navigator.clipboard?.writeText(ep.url)}

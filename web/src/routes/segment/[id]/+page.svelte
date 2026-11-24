@@ -111,9 +111,9 @@
 				<h1 class="text-2xl font-semibold tracking-tight">{segment.name || 'Segment'}</h1>
 				<div class="mt-0.5 flex flex-wrap gap-x-4 text-xs text-zinc-500">
 					<span>{formatDistance(segment.distance_m)}</span>
-					{#if segment.elevation_gain_m}<span
-							>{formatElevation(segment.elevation_gain_m)} climb</span
-						>{/if}
+					{#if segment.elevation_gain_m}<span>
+							{formatElevation(segment.elevation_gain_m)} climb
+						</span>{/if}
 					{#if segment.avg_grade != null}<span>{segment.avg_grade.toFixed(1)}% avg</span>{/if}
 					{#if segment.climb_category}<span>Cat {segment.climb_category}</span>{/if}
 					<span>{efforts.length} effort{efforts.length === 1 ? '' : 's'}</span>
@@ -148,11 +148,11 @@
 								r={e.elapsed_s === best ? 4 : 2.5}
 								fill={e.elapsed_s === best ? '#22c55e' : '#38bdf8'}
 							>
-								<title
-									>{formatDate(e.start_time)}: {formatDuration(e.elapsed_s)}{e.elapsed_s === best
+								<title>
+									{formatDate(e.start_time)}: {formatDuration(e.elapsed_s)}{e.elapsed_s === best
 										? ' (PR)'
-										: ''}</title
-								>
+										: ''}
+								</title>
 							</circle>
 						{/each}
 					</svg>
@@ -190,15 +190,18 @@
 								<td class="px-4 py-2 text-right tabular-nums">
 									{formatDuration(e.elapsed_s)}
 									{#if e.is_personal_record}<span
-											class="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300">PR</span
-										>{/if}
+											class="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300"
+										>
+											PR
+										</span>{/if}
 								</td>
 								<td class="px-4 py-2 text-right tabular-nums text-zinc-400">#{e.personal_rank}</td>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-400"
-									>{e.avg_heart_rate ?? '—'}</td
-								>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-400">{e.avg_power ?? '—'}</td
-								>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-400">
+									{e.avg_heart_rate ?? '—'}
+								</td>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-400">
+									{e.avg_power ?? '—'}
+								</td>
 							</tr>
 						{/each}
 					</tbody>

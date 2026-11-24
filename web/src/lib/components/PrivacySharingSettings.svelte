@@ -229,11 +229,12 @@
 				<li
 					class="flex items-center justify-between rounded border border-zinc-800 px-3 py-2 text-sm max-md:flex-wrap max-md:gap-2"
 				>
-					<span>{z.label || 'Zone'} — {z.lat.toFixed(4)}, {z.lng.toFixed(4)} (±{z.radius_m} m)</span
-					>
-					<button onclick={() => delZone(z.id)} class="text-xs text-zinc-500 hover:text-red-400"
-						>Remove</button
-					>
+					<span>
+						{z.label || 'Zone'} — {z.lat.toFixed(4)}, {z.lng.toFixed(4)} (±{z.radius_m} m)
+					</span>
+					<button onclick={() => delZone(z.id)} class="text-xs text-zinc-500 hover:text-red-400">
+						Remove
+					</button>
 				</li>
 			{/each}
 			{#if zones.length === 0}<li class="text-sm text-zinc-500">No privacy zones.</li>{/if}
@@ -264,8 +265,9 @@
 			<button
 				onclick={addZone}
 				class="rounded border border-zinc-700 px-3 py-1 text-sm hover:bg-zinc-800 max-md:py-2"
-				>Add zone</button
 			>
+				Add zone
+			</button>
 			<button
 				type="button"
 				onclick={() => (showPicker = !showPicker)}

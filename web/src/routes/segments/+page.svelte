@@ -142,13 +142,15 @@
 									{#if s.has_cr}
 										<span
 											class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
-											>CR</span
 										>
+											CR
+										</span>
 									{:else if s.has_pr}
 										<span
 											class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] uppercase text-emerald-300"
-											>PR</span
 										>
+											PR
+										</span>
 									{/if}
 								</div>
 								<div class="mt-0.5 text-xs text-zinc-500">

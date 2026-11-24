@@ -77,9 +77,9 @@
 			<span
 				class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 text-zinc-950"
 			>
-				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-					><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg
-				>
+				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" />
+				</svg>
 			</span>
 			<div>
 				<div class="text-xs uppercase tracking-widest text-accent-400">Sign in a device</div>

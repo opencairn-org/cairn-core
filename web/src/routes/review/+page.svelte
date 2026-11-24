@@ -92,16 +92,16 @@
 						{#if it.kind === 'duplicate'}
 							<div class="text-xs text-zinc-500">
 								{m.review_dup_hint()}
-								<a href={`/activities/${it.duplicate_of}`} class="hover:text-accent-300"
-									>{m.review_dup_other()}</a
-								>
+								<a href={`/activities/${it.duplicate_of}`} class="hover:text-accent-300">
+									{m.review_dup_other()}
+								</a>
 							</div>
 						{/if}
 					</div>
 					{#if it.kind === 'duplicate'}
-						<span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-300"
-							>{m.review_dup_label()}</span
-						>
+						<span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-300">
+							{m.review_dup_label()}
+						</span>
 						<button
 							type="button"
 							onclick={() => keepBoth(it)}
