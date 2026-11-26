@@ -41,7 +41,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-svelte": "3.24.1",
     "globals": "17.14.0",
-    "knip": "6.47.0",
+    "knip": "6.48.0",
     "license-checker-rseidelsohn": "5.0.1",
     "prettier": "3.10.1",
     "prettier-plugin-svelte": "4.2.0",
