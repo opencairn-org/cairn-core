@@ -30,7 +30,6 @@
 #
 #   cp dev.env.example dev.env   # connection strings + dev secrets
 #   make dev-server              # Go server  (live-reload)
-#   make dev-worker              # Strava worker
 #   make dev-web                 # SvelteKit dev server (vite HMR)
 #
 # The server creates the CAIRN_STORAGE_BUCKET on first boot — no bucket-init

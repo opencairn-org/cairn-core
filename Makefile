@@ -249,13 +249,16 @@ migrate-status:
 migrate-redo:
 	$(GO) run ./cmd/server migrate redo
 
-run: ## run the server
+run: ## run the server with dev.env if present
+	set -a
+	if [ -f dev.env ]; then . ./dev.env; fi
+	set +a
 	$(GO) run ./cmd/server serve
 
 # ----------------------------------------------------------------------------
 # Local dev: supporting services in docker compose, binaries on the host with live-reload.
 #
-#   make dev-up                  # postgres + nats + minio + mailpit (compose)
+#   make dev-up                  # Postgres + NATS + Silo (minio) + Mailpit (compose)
 #   cp dev.env.example dev.env   # once; tweak if needed
 #   make dev-server              # shell 2: Go server, rebuilds on save (air)
 #   make dev-web                 # shell 3: SvelteKit dev server (vite HMR)
@@ -280,5 +283,5 @@ dev-logs:
 dev-server:
 	set -a; [ -f dev.env ] && . ./dev.env; set +a; $(AIR) -c .air.server.toml
 
-dev-web:
+dev-web: web-deps
 	set -a; [ -f dev.env ] && . ./dev.env; set +a; cd $(WEB) && npm run dev

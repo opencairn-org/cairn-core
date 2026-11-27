@@ -113,7 +113,6 @@ Module layout:
 ```
 api/proto/                       Proto schemas (cairn.v1 + cairn.worker.v1)
 cmd/server/                      The cairn binary: composition root (wire.go, mount_*), serve, migrate, CLI
-cmd/worker-strava/               Reference provider worker (Strava)
 internal/
 ├── adapter/
 │   ├── primary/{connect,rest,activitypub,mcp,workerrpc,web}/   Connect-RPC, REST, ActivityPub, MCP, worker NATS RPC, SPA
@@ -133,20 +132,20 @@ docs/                            architecture.md, run-local.md, worker-pooling-v
 ## Prerequisites
 
 - Go 1.26+
+- Node.js and npm (the project version is in `web/.nvmrc`)
 - Docker + Docker Compose
-- [buf](https://buf.build/docs/installation) (only when regenerating proto stubs)
+- Buf and protobuf generators for the first frontend setup; see [local setup](docs/run-local.md)
 
 ## Run it
 
 Local dev runs the **supporting services in docker compose** and the **binaries
-on the host with live-reload** — four shells:
+on the host with live-reload** — separate shells:
 
 ```sh
-make dev-up                  # postgres + nats + minio + mailpit (compose)
+make dev-up                  # Postgres + NATS + Silo (minio) + Mailpit (compose)
 cp dev.env.example dev.env   # once
 make dev-server              # shell 2: Go server   (rebuilds on save)
-make dev-worker              # shell 3: Strava worker (rebuilds on save)
-make dev-web                 # shell 4: SvelteKit dev server (vite HMR)
+make dev-web                 # shell 3: SvelteKit dev server (vite HMR)
 # → http://localhost:5173  (web)   ·   http://localhost:8080  (API)
 ```
 
@@ -160,13 +159,13 @@ ports, and prod notes are in **[docs/run-local.md](docs/run-local.md)**.
 For backend-only work, bring up the deps and run the binary directly:
 
 ```sh
-docker compose up -d                     # Postgres + MinIO + NATS
-export CAIRN_DATABASE_URL="postgres://cairn:cairn@localhost:5432/cairn?sslmode=disable"
-export CAIRN_AUTH_MASTER_ENCRYPTION_KEY="$(openssl rand -base64 32)"
-export CAIRN_INSTANCE_BOOTSTRAP_ADMIN_EMAIL="admin@example.com"
-export CAIRN_INSTANCE_BOOTSTRAP_ADMIN_PASSWORD="changeme"
-make tidy && make migrate-up && make run
+make dev-up
+[ -f dev.env ] || cp dev.env.example dev.env
+make run
 ```
+
+`make run` sources `dev.env` when present. The example env configures Silo and
+applies database migrations on startup.
 
 `make run -- config help` prints every `CAIRN_*` variable, its default, and
 whether it's required. NATS (`CAIRN_NATS_URL`) is optional — without it the
@@ -187,9 +186,9 @@ user-facing surfaces now cover everything it did:
   e.g. `GET /api/activities/feed`, `GET /api/segments`, the per-activity manage
   surface (`POST /api/activities/{id}/recompute`, `.../reimport`, `.../sources/{id}/detach`,
   `.../export.{gpx,tcx,fit}`).
-- **The worker** (`cmd/worker-strava`) — fetches from the provider over NATS and
-  pushes typed `cairn.worker.v1.JobResult` events; the server's result router
-  ingests them through the same merge/best-effort/segment/training-load pipeline.
+- **The Strava worker** (in a separate provider repository) — fetches from the
+  provider over NATS and pushes typed `cairn.worker.v1.JobResult` events; the
+  server's result router ingests them through the same merge/best-effort/segment/training-load pipeline.
 
 ### Operator endpoints (`/api/admin/*`, admin session required)
 
@@ -388,11 +387,8 @@ durable signed delivery queue, instance defederation, and per-domain inbox
 rate-limiting, verified between two live instances. See
 `docs/federation-design.md`.
 
-Two provider workers ship: the **Strava** reference worker (Go,
-`cmd/worker-strava/`) and a **Garmin** worker (Python, `workers/garmin/`),
-proving the model is language- and provider-agnostic — adding another is a new
-`cmd/worker-<provider>/` (or Python equivalent) with its own auth handler, no
-core change. Deliberately out of scope for v1: a GraphQL surface (REST +
+Strava and Garmin provider workers live in separate repositories. Adding a
+provider worker does not require a core change. Deliberately out of scope for v1: a GraphQL surface (REST +
 Connect-RPC cover every UI path).
 
 ## Going to production
