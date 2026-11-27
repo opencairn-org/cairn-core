@@ -124,9 +124,9 @@
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="disc"
-					>Discipline</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="disc">
+					Discipline
+				</label>
 				<select
 					id="disc"
 					bind:value={discipline}
@@ -143,9 +143,9 @@
 
 		{#if gear.length > 0}
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="gear"
-					>{m.gear_title()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="gear">
+					{m.gear_title()}
+				</label>
 				<GearPicker {gear} {type} bind:value={gearId} />
 			</div>
 		{/if}
@@ -161,9 +161,9 @@
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="desc"
-				>Description</label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="desc">
+				Description
+			</label>
 			<textarea
 				id="desc"
 				bind:value={description}
@@ -174,9 +174,9 @@
 
 		<div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="start"
-					>Start ({browserTz})</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="start">
+					Start ({browserTz})
+				</label>
 				<input
 					id="start"
 					type="datetime-local"
@@ -186,9 +186,9 @@
 			</div>
 			<div class="grid grid-cols-2 gap-2">
 				<div>
-					<label class="block text-xs uppercase tracking-wide text-zinc-500" for="dur"
-						>Duration (min)</label
-					>
+					<label class="block text-xs uppercase tracking-wide text-zinc-500" for="dur">
+						Duration (min)
+					</label>
 					<input
 						id="dur"
 						type="number"
@@ -198,9 +198,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-xs uppercase tracking-wide text-zinc-500" for="mov"
-						>Moving (min)</label
-					>
+					<label class="block text-xs uppercase tracking-wide text-zinc-500" for="mov">
+						Moving (min)
+					</label>
 					<input
 						id="mov"
 						type="number"
@@ -215,9 +215,9 @@
 
 		<div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="dist"
-					>Distance (km)</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="dist">
+					Distance (km)
+				</label>
 				<input
 					id="dist"
 					type="number"
@@ -228,9 +228,9 @@
 				/>
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="elev"
-					>Elevation gain (m)</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="elev">
+					Elevation gain (m)
+				</label>
 				<input
 					id="elev"
 					type="number"
@@ -242,9 +242,9 @@
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="subtype"
-				>Custom subtype</label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="subtype">
+				Custom subtype
+			</label>
 			<input
 				id="subtype"
 				bind:value={customSubtype}
@@ -254,18 +254,18 @@
 		</div>
 
 		<fieldset class="flex flex-wrap gap-4">
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isRace} /> Race</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isVirtual} /> Virtual</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isCommute} /> Commute</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isEbike} /> E-bike</label
-			>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isRace} /> Race
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isVirtual} /> Virtual
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isCommute} /> Commute
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isEbike} /> E-bike
+			</label>
 		</fieldset>
 
 		{#if errMsg}
@@ -284,8 +284,10 @@
 			</button>
 			<a
 				href="/activities"
-				class="rounded border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800">Cancel</a
+				class="rounded border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
 			>
+				Cancel
+			</a>
 		</div>
 	</form>
 </div>

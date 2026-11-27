@@ -118,12 +118,12 @@
 				<h1 class="text-xl font-semibold">{profile.user.display_name || profile.user.username}</h1>
 				<div class="text-sm text-zinc-400">@{profile.user.username}</div>
 				<div class="mt-1 flex gap-4 text-sm text-zinc-400">
-					<span
-						><span class="font-semibold text-zinc-100">{profile.followers_count}</span> followers</span
-					>
-					<span
-						><span class="font-semibold text-zinc-100">{profile.following_count}</span> following</span
-					>
+					<span>
+						<span class="font-semibold text-zinc-100">{profile.followers_count}</span> followers
+					</span>
+					<span>
+						<span class="font-semibold text-zinc-100">{profile.following_count}</span> following
+					</span>
 				</div>
 			</div>
 			{#if data.user && !profile.is_self}
@@ -141,21 +141,26 @@
 						<button
 							onclick={reportUser}
 							title="Report"
-							class="text-zinc-500 hover:text-zinc-300 max-md:p-2">⚑</button
+							class="text-zinc-500 hover:text-zinc-300 max-md:p-2"
 						>
+							⚑
+						</button>
 						<button
 							onclick={blockUser}
 							title="Block"
-							class="text-zinc-500 hover:text-red-500 max-md:p-2">⊘</button
+							class="text-zinc-500 hover:text-red-500 max-md:p-2"
 						>
+							⊘
+						</button>
 					</div>
 				{/if}
 			{:else if !data.user}
 				<a
 					href="/login"
 					class="rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-accent-400"
-					>Sign in to follow</a
 				>
+					Sign in to follow
+				</a>
 			{/if}
 		</header>
 
@@ -187,9 +192,9 @@
 					<div class="mt-2 flex gap-6 text-sm">
 						<span class="font-semibold">{formatDistance(a.distance_m ?? 0)}</span>
 						<span class="font-semibold">{formatDuration(a.elapsed_duration_s)}</span>
-						{#if a.elevation_gain_m}<span class="font-semibold"
-								>{Math.round(a.elevation_gain_m)} m</span
-							>{/if}
+						{#if a.elevation_gain_m}<span class="font-semibold">
+								{Math.round(a.elevation_gain_m)} m
+							</span>{/if}
 					</div>
 				</a>
 			{/each}

@@ -227,9 +227,9 @@
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="desc"
-				>Description</label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="desc">
+				Description
+			</label>
 			<textarea
 				id="desc"
 				bind:value={description}
@@ -253,9 +253,9 @@
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="disc"
-					>Discipline</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="disc">
+					Discipline
+				</label>
 				<select
 					id="disc"
 					bind:value={discipline}
@@ -271,9 +271,9 @@
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="subtype"
-				>Custom subtype</label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="subtype">
+				Custom subtype
+			</label>
 			<input
 				id="subtype"
 				bind:value={customSubtype}
@@ -283,25 +283,26 @@
 		</div>
 
 		<fieldset class="flex flex-wrap gap-4">
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isRace} /> Race</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isVirtual} /> Virtual</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isCommute} /> Commute</label
-			>
-			<label class="flex items-center gap-2 text-sm"
-				><input type="checkbox" bind:checked={isEbike} /> E-bike</label
-			>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isRace} /> Race
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isVirtual} /> Virtual
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isCommute} /> Commute
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={isEbike} /> E-bike
+			</label>
 		</fieldset>
 
 		<!-- Summary corrections (overlay): hand-fix merged numbers; blank = use the
 		     merged value. Survives re-import like the classification edits. -->
 		<fieldset class="rounded-lg border border-zinc-800 p-3">
-			<legend class="px-1 text-xs uppercase tracking-wide text-zinc-500">Summary corrections</legend
-			>
+			<legend class="px-1 text-xs uppercase tracking-wide text-zinc-500">
+				Summary corrections
+			</legend>
 			<div class="grid grid-cols-3 gap-3 max-md:grid-cols-1">
 				<div>
 					<label class="block text-[11px] text-zinc-500" for="dist">Distance (km)</label>
@@ -353,24 +354,25 @@
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="gear"
-				>{m.gear_title()}
-				<span class="normal-case tracking-normal text-zinc-600"
-					>· {init.gearSetBy === 'user' ? m.gear_set_by_user() : m.gear_set_by_merge()}</span
-				></label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="gear">
+				{m.gear_title()}
+				<span class="normal-case tracking-normal text-zinc-600">
+					· {init.gearSetBy === 'user' ? m.gear_set_by_user() : m.gear_set_by_merge()}
+				</span>
+			</label>
 			<GearPicker gear={data.gear} {type} bind:value={gearId} disabled={resetGear} />
 			{#if init.gearSetBy === 'user'}
-				<label class="mt-1.5 flex items-center gap-2 text-xs text-zinc-400"
-					><input type="checkbox" bind:checked={resetGear} /> {m.gear_reset_auto()}</label
-				>
+				<label class="mt-1.5 flex items-center gap-2 text-xs text-zinc-400">
+					<input type="checkbox" bind:checked={resetGear} />
+					{m.gear_reset_auto()}
+				</label>
 			{/if}
 		</div>
 
 		<div>
-			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="privacy"
-				>Privacy</label
-			>
+			<label class="block text-xs uppercase tracking-wide text-zinc-500" for="privacy">
+				Privacy
+			</label>
 			<select
 				id="privacy"
 				bind:value={privacy}
@@ -398,8 +400,10 @@
 			</button>
 			<a
 				href={`/activities/${init.id}`}
-				class="rounded border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800">Cancel</a
+				class="rounded border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
 			>
+				Cancel
+			</a>
 		</div>
 	</form>
 
@@ -415,9 +419,9 @@
 
 		<div class="mt-4 space-y-4">
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="donor"
-					>Donor activity</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="donor">
+					Donor activity
+				</label>
 				<select
 					id="donor"
 					bind:value={donorId}
@@ -432,9 +436,10 @@
 
 			<div class="flex flex-wrap gap-x-4 gap-y-2">
 				{#each SOURCE_GROUPS as g (g.key)}
-					<label class="flex items-center gap-2 text-sm"
-						><input type="checkbox" bind:checked={picked[g.key]} /> {g.label}</label
-					>
+					<label class="flex items-center gap-2 text-sm">
+						<input type="checkbox" bind:checked={picked[g.key]} />
+						{g.label}
+					</label>
 				{/each}
 			</div>
 

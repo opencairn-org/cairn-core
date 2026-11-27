@@ -196,16 +196,18 @@
 								<li class="flex items-center justify-between gap-3 px-3 py-1.5 text-sm">
 									<span class="text-zinc-400">{formatDateOnly(e.effective_date)}</span>
 									<span class="flex items-center gap-3">
-										<span class="font-medium tabular-nums text-zinc-100"
-											>{fmtValue(spec, e.value)}</span
-										>
+										<span class="font-medium tabular-nums text-zinc-100">
+											{fmtValue(spec, e.value)}
+										</span>
 										<button
 											type="button"
 											onclick={() => remove(e.id)}
 											class="text-zinc-600 hover:text-red-400"
 											aria-label="Delete"
-											title="Delete">✕</button
+											title="Delete"
 										>
+											✕
+										</button>
 									</span>
 								</li>
 							{/each}
@@ -217,8 +219,10 @@
 							<div>
 								<label
 									for={`d-${spec.key}`}
-									class="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">Date</label
+									class="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500"
 								>
+									Date
+								</label>
 								<input
 									id={`d-${spec.key}`}
 									type="date"

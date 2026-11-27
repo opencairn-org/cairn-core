@@ -144,7 +144,8 @@ func newITestEnv(t *testing.T) *itestEnv {
 		t.Setenv(k, v)
 	}
 	mux := http.NewServeMux()
-	srv := httptest.NewServer(securityHeaders(mux))
+	// The production chain, with a rate ceiling the suite cannot reach.
+	srv := httptest.NewServer(serveHandlerChain(newIPRateLimiter(1e9, nil), mux))
 	t.Cleanup(srv.Close)
 	// localhost, not 127.0.0.1: WebAuthn refuses an IP address as relying-party ID.
 	t.Setenv("CAIRN_HTTP_PUBLIC_BASE_URL", strings.Replace(srv.URL, "127.0.0.1", "localhost", 1))

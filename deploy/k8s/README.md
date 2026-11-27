@@ -10,7 +10,7 @@ config.yaml           non-secret config (ConfigMap cairn-config)
 secrets.example.yaml  → copy to secrets.yaml, fill in, do NOT commit
 postgres.yaml         TimescaleDB StatefulSet + headless Service + 20Gi PVC
 nats.yaml             NATS+JetStream StatefulSet (max_payload 8MB) + 5Gi PVC
-minio.yaml            MinIO StatefulSet + 20Gi PVC (server creates the bucket)
+minio.yaml            Silo (MinIO fork) StatefulSet + 20Gi PVC (server creates the bucket)
 migrate-job.yaml      one-shot `cairn migrate up`
 core.yaml             cairn-core Deployment + Service (:80 → :8080)
 worker-strava.yaml    Strava worker Deployment
@@ -107,7 +107,7 @@ ingress.yaml          TLS entry point (nginx + cert-manager example)
   account key); MinIO holds re-fetchable raw blobs; NATS JetStream is
   transient. See `docs/production-readiness.md`.
 
-> NATS, Postgres and MinIO here are the same pinned images as
+> NATS, Postgres and Silo here are the same pinned images as
 > `docker-compose.dev.yml`. Treat the single-instance backing services as a
 > starting point sized for a small self-hosted instance, not a turnkey HA
 > production data tier.

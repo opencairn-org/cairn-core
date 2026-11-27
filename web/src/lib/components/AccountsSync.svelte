@@ -486,8 +486,9 @@
 								<span
 									class="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
 									title="This account is connected once per importer; this connection uses this one"
-									>via {a.assigned_worker}</span
 								>
+									via {a.assigned_worker}
+								</span>
 							{/if}
 							<span
 								class="ml-2 inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide {toneClass[
@@ -690,8 +691,10 @@
 														target="_blank"
 														rel="noopener noreferrer"
 														class="ml-1 text-zinc-500 hover:text-accent-300"
-														title={`Open original on ${a.provider}`}>↗ {a.provider}</a
+														title={`Open original on ${a.provider}`}
 													>
+														↗ {a.provider}
+													</a>
 												{/if}
 											</span>
 											<span class="shrink-0 text-zinc-600">{formatDate(ev.occurred_at)}</span>
@@ -768,8 +771,10 @@
 																target="_blank"
 																rel="noopener noreferrer"
 																class="hover:text-accent-300 hover:underline"
-																title={`Open on ${a.provider}`}>{it.external_id}</a
+																title={`Open on ${a.provider}`}
 															>
+																{it.external_id}
+															</a>
 														{:else}
 															{it.external_id}
 														{/if}
@@ -778,9 +783,9 @@
 														{/if}
 													</td>
 													<td class="py-1 pr-3 text-zinc-300">{it.attempts}</td>
-													<td class="py-1 pr-3 whitespace-nowrap text-zinc-400"
-														>{formatDate(it.created_at)}</td
-													>
+													<td class="py-1 pr-3 whitespace-nowrap text-zinc-400">
+														{formatDate(it.created_at)}
+													</td>
 													<td class="py-1 pr-3 whitespace-nowrap text-zinc-400">
 														{it.started_at ? formatDate(it.started_at) : '—'}
 													</td>
@@ -821,9 +826,9 @@
 						<div
 							class="mt-3 flex flex-wrap items-center gap-2 rounded border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-xs"
 						>
-							<label for={`poll-${a.id}`} class="text-zinc-400"
-								>Check for new activities every</label
-							>
+							<label for={`poll-${a.id}`} class="text-zinc-400">
+								Check for new activities every
+							</label>
 							<input
 								id={`poll-${a.id}`}
 								type="number"
@@ -859,19 +864,19 @@
 								>
 									<option value="">— choose —</option>
 									{#each a.worker_pools ?? [] as p (p.name)}
-										<option value={p.name}
-											>{p.name} · {p.package}{p.online
+										<option value={p.name}>
+											{p.name} · {p.package}{p.online
 												? ` · parser ${p.parser_version}`
-												: ' · offline'}</option
-										>
+												: ' · offline'}
+										</option>
 									{/each}
 									{#if a.assigned_worker && !(a.worker_pools ?? []).some((p) => p.name === a.assigned_worker)}
 										<option value={a.assigned_worker}>{a.assigned_worker} (offline)</option>
 									{/if}
 								</select>
-								<span class="text-zinc-600"
-									>Imports and re-fetches for this connection run on this worker.</span
-								>
+								<span class="text-zinc-600">
+									Imports and re-fetches for this connection run on this worker.
+								</span>
 							</div>
 						{/if}
 					{/if}
@@ -907,9 +912,9 @@
 							new,
 							{p.already_present} already imported.
 							{#if p.complete === false}
-								<span class="text-amber-300"
-									>(rate-limited — the full sync discovers the rest in the background.)</span
-								>
+								<span class="text-amber-300">
+									(rate-limited — the full sync discovers the rest in the background.)
+								</span>
 							{/if}
 							<div class="mt-2 flex gap-2 max-md:flex-wrap">
 								<button

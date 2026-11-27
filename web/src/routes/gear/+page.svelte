@@ -185,35 +185,35 @@
 	>
 		<div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-kind"
-					>{m.gear_field_kind()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-kind">
+					{m.gear_field_kind()}
+				</label>
 				<select id="g-kind" bind:value={form.kind} class={field}>
 					{#each GEAR_KINDS as k (k)}<option value={k}>{gearKindLabel(k)}</option>{/each}
 				</select>
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-name"
-					>{m.gear_field_name()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-name">
+					{m.gear_field_name()}
+				</label>
 				<input id="g-name" bind:value={form.name} required maxlength="200" class={field} />
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-brand"
-					>{m.gear_field_brand()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-brand">
+					{m.gear_field_brand()}
+				</label>
 				<input id="g-brand" bind:value={form.brand} maxlength="200" class={field} />
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-model"
-					>{m.gear_field_model()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-model">
+					{m.gear_field_model()}
+				</label>
 				<input id="g-model" bind:value={form.model} maxlength="200" class={field} />
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-purchase"
-					>{m.gear_field_purchase()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-purchase">
+					{m.gear_field_purchase()}
+				</label>
 				<input
 					id="g-purchase"
 					type="date"
@@ -222,16 +222,16 @@
 				/>
 			</div>
 			<div>
-				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-notes"
-					>{m.gear_field_notes()}</label
-				>
+				<label class="block text-xs uppercase tracking-wide text-zinc-500" for="g-notes">
+					{m.gear_field_notes()}
+				</label>
 				<input id="g-notes" bind:value={form.notes} maxlength="10000" class={field} />
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<button type="submit" disabled={busy || form.name.trim() === ''} class={btnPrimary}
-				>{m.save()}</button
-			>
+			<button type="submit" disabled={busy || form.name.trim() === ''} class={btnPrimary}>
+				{m.save()}
+			</button>
 			<button type="button" class={btn} onclick={closeForm}>{m.cancel()}</button>
 		</div>
 	</form>
@@ -266,12 +266,12 @@
 							<span class="{badge} bg-zinc-800 text-zinc-300">{r.provider}</span>
 							<span class="font-medium">{r.providerName || r.externalId}</span>
 							<span class="text-zinc-500">· {gearKindLabel(r.kind)}</span>
-							{#if r.brand || r.model}<span class="text-zinc-500"
-									>· {[r.brand, r.model].filter(Boolean).join(' ')}</span
-								>{/if}
-							{#if r.providerDistanceM != null}<span class="text-zinc-500"
-									>· {formatDistance(r.providerDistanceM)}</span
-								>{/if}
+							{#if r.brand || r.model}<span class="text-zinc-500">
+									· {[r.brand, r.model].filter(Boolean).join(' ')}
+								</span>{/if}
+							{#if r.providerDistanceM != null}<span class="text-zinc-500">
+									· {formatDistance(r.providerDistanceM)}
+								</span>{/if}
 							{#if r.retired}<span class="text-zinc-500">· {m.gear_retired_suffix()}</span>{/if}
 						</div>
 						<div class="mt-3 flex flex-wrap items-center gap-2">
@@ -331,15 +331,16 @@
 									<div class="flex flex-wrap items-center gap-2">
 										<span class="{badge} bg-zinc-800 text-zinc-400">{gearKindLabel(g.kind)}</span>
 										<span class="font-medium">{g.name}</span>
-										{#if g.brand || g.model}<span class="text-sm text-zinc-500"
-												>{[g.brand, g.model].filter(Boolean).join(' ')}</span
-											>{/if}
+										{#if g.brand || g.model}<span class="text-sm text-zinc-500">
+												{[g.brand, g.model].filter(Boolean).join(' ')}
+											</span>{/if}
 										{#each g.refs as r (r.provider + r.externalId)}
 											<span
 												class="{badge} bg-sky-500/15 text-sky-300"
 												title={`${r.provider}: ${r.providerName || r.externalId}`}
-												>{r.provider}</span
 											>
+												{r.provider}
+											</span>
 										{/each}
 										{#each defaultTypesByGear[g.id] ?? [] as t (t)}
 											<span class="{badge} bg-emerald-500/15 text-emerald-300">
@@ -362,18 +363,20 @@
 									{#if g.notes}<p class="mt-1 text-xs text-zinc-500">{g.notes}</p>{/if}
 								</div>
 								<div class="flex shrink-0 flex-wrap items-center gap-2">
-									<button type="button" class={btn} onclick={() => openEdit(g)}
-										>{m.gear_edit()}</button
-									>
+									<button type="button" class={btn} onclick={() => openEdit(g)}>
+										{m.gear_edit()}
+									</button>
 									<button
 										type="button"
 										class={btn}
 										disabled={busy}
-										onclick={() => setRetired(g, true)}>{m.gear_retire()}</button
+										onclick={() => setRetired(g, true)}
 									>
-									<button type="button" class={btn} disabled={busy} onclick={() => remove(g)}
-										>{m.gear_delete()}</button
-									>
+										{m.gear_retire()}
+									</button>
+									<button type="button" class={btn} disabled={busy} onclick={() => remove(g)}>
+										{m.gear_delete()}
+									</button>
 								</div>
 							</div>
 							{#if data.gear.length > 1}
@@ -429,9 +432,9 @@
 
 	{#if retired.length > 0}
 		<details class="rounded-xl border border-zinc-800 p-5">
-			<summary class="cursor-pointer text-lg font-semibold"
-				>{m.gear_section_retired()} ({retired.length})</summary
-			>
+			<summary class="cursor-pointer text-lg font-semibold">
+				{m.gear_section_retired()} ({retired.length})
+			</summary>
 			<ul class="mt-3 space-y-2">
 				{#each retired as g (g.id)}
 					<li class="flex items-center justify-between gap-4 text-sm max-md:flex-wrap">
@@ -440,19 +443,24 @@
 							<span class="text-zinc-500">
 								· {formatDistance(g.totalDistanceM)} · {m.gear_activity_count({
 									count: g.activityCount
-								})}</span
-							>
+								})}
+							</span>
 							{#if g.retiredAt}<span class="text-zinc-600">
-									· {formatDateOnly(g.retiredAt)}</span
-								>{/if}
+									· {formatDateOnly(g.retiredAt)}
+								</span>{/if}
 						</span>
 						<span class="flex gap-2">
-							<button type="button" class={btn} disabled={busy} onclick={() => setRetired(g, false)}
-								>{m.gear_unretire()}</button
+							<button
+								type="button"
+								class={btn}
+								disabled={busy}
+								onclick={() => setRetired(g, false)}
 							>
-							<button type="button" class={btn} disabled={busy} onclick={() => remove(g)}
-								>{m.gear_delete()}</button
-							>
+								{m.gear_unretire()}
+							</button>
+							<button type="button" class={btn} disabled={busy} onclick={() => remove(g)}>
+								{m.gear_delete()}
+							</button>
 						</span>
 					</li>
 				{/each}

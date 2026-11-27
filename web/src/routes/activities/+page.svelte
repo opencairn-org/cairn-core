@@ -269,8 +269,10 @@
 								{#if activity.gear_unset}
 									<span
 										class="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300"
-										title={m.gear_prompt_list_hint()}>{m.gear_prompt_badge()}</span
+										title={m.gear_prompt_list_hint()}
 									>
+										{m.gear_prompt_badge()}
+									</span>
 								{/if}
 							</div>
 							<div class="mt-0.5 text-xs text-zinc-500">

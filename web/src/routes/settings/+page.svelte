@@ -236,8 +236,8 @@
 				The in-app feed always shows everything. Choose which also email you{#if !emailChannelAvailable}<span
 						class="text-amber-400"
 					>
-						(email isn't configured on this instance, so these won't send)</span
-					>{/if}.
+						(email isn't configured on this instance, so these won't send)
+					</span>{/if}.
 			</p>
 			<ul class="divide-y divide-zinc-800 rounded border border-zinc-800">
 				{#each notifPrefs as p (p.event_type)}

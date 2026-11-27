@@ -14,6 +14,7 @@ import (
 
 type captureAdminEvents struct{ got chan *v1.AdminEvent }
 
+func (c *captureAdminEvents) SendHeaders() error           { return nil }
 func (c *captureAdminEvents) Send(ev *v1.AdminEvent) error { c.got <- ev; return nil }
 
 func TestStreamAdminEvents(t *testing.T) {

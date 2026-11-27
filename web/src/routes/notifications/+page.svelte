@@ -128,9 +128,9 @@
 								{/if}
 							</div>
 							<div class="mt-1 text-zinc-300">
-								<span class="font-mono text-xs text-zinc-400"
-									>{typeMeta[n.type]?.label ?? n.titleI18nKey}</span
-								>
+								<span class="font-mono text-xs text-zinc-400">
+									{typeMeta[n.type]?.label ?? n.titleI18nKey}
+								</span>
 								{#if Object.keys(n.params).length > 0}
 									<details class="mt-1 text-xs text-zinc-500">
 										<summary class="cursor-pointer">params</summary>

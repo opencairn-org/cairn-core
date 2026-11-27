@@ -158,12 +158,12 @@
 							rx="1.5"
 							class={b.item.is_best ? 'fill-emerald-500' : 'fill-zinc-600'}
 						>
-							<title
-								>{formatDateOnly(b.item.start_time)} · {fmtValue(
+							<title>
+								{formatDateOnly(b.item.start_time)} · {fmtValue(
 									b.item.achieved_value,
 									payload.metric
-								)}</title
-							>
+								)}
+							</title>
 						</rect>
 					{/each}
 				</svg>
