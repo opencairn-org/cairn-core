@@ -249,7 +249,10 @@ migrate-status:
 migrate-redo:
 	$(GO) run ./cmd/server migrate redo
 
-run: ## run the server
+run: ## run the server with dev.env if present
+	set -a
+	if [ -f dev.env ]; then . ./dev.env; fi
+	set +a
 	$(GO) run ./cmd/server serve
 
 # ----------------------------------------------------------------------------

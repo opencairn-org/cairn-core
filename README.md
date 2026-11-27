@@ -159,13 +159,13 @@ ports, and prod notes are in **[docs/run-local.md](docs/run-local.md)**.
 For backend-only work, bring up the deps and run the binary directly:
 
 ```sh
-make dev-up                              # Postgres + NATS + Silo (minio) + Mailpit
-export CAIRN_DATABASE_URL="postgres://cairn:cairn@localhost:5432/cairn?sslmode=disable"
-export CAIRN_AUTH_MASTER_ENCRYPTION_KEY="$(openssl rand -base64 32)"
-export CAIRN_INSTANCE_BOOTSTRAP_ADMIN_EMAIL="admin@example.com"
-export CAIRN_INSTANCE_BOOTSTRAP_ADMIN_PASSWORD="changeme"
-make tidy && make migrate-up && make run
+make dev-up
+[ -f dev.env ] || cp dev.env.example dev.env
+make run
 ```
+
+`make run` sources `dev.env` when present. The example env configures Silo and
+applies database migrations on startup.
 
 `make run -- config help` prints every `CAIRN_*` variable, its default, and
 whether it's required. NATS (`CAIRN_NATS_URL`) is optional — without it the

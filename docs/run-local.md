@@ -29,7 +29,7 @@ make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 cp dev.env.example dev.env     # once; matches the compose services + dev secrets
 ```
 
-`make dev-server` / `make dev-web` source `dev.env` automatically. It sets
+`make dev-server`, `make dev-web`, and `make run` source `dev.env` automatically. It sets
 `CAIRN_DATABASE_URL`, `CAIRN_NATS_URL`, the `CAIRN_STORAGE_*` (Silo), the
 `CAIRN_EMAIL_SMTP_*` (Mailpit), throwaway auth secrets, and the worker identity.
 `CAIRN_DATABASE_AUTO_MIGRATE=true` applies migrations on boot.
@@ -62,13 +62,14 @@ make dev-web       # shell 3: web/ vite dev server (HMR)
 - **Web**: http://localhost:5173 (or the next free port — vite prints it). The
   vite dev server proxies `/api`, `/auth`, `/webhooks`, `/cairn.v1.*`,
   `/cairn.worker.v1.*` to the Go server on :8080.
-- Sign in on `/login`. Bootstrap an admin via env on first boot
-  (`CAIRN_BOOTSTRAP_ADMIN_*`) or create one with an invite.
+- Sign in on `/login`. To bootstrap an admin on first boot, set
+  `CAIRN_INSTANCE_BOOTSTRAP_ADMIN_EMAIL` and
+  `CAIRN_INSTANCE_BOOTSTRAP_ADMIN_PASSWORD` in `dev.env`. You can also create
+  an admin with an invite.
 
 `air` is fetched on first run at the version pinned in the Makefile — no
 separate install. Its build output lives in `tmp/` (gitignored). Prefer no
-live-reload? `make run` (`go run ./cmd/server serve`) and `cd web && npm run dev`
-still work.
+live-reload for the Go server? Use `make run`.
 
 ## The worker / provider plugin
 
