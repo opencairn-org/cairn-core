@@ -13,8 +13,9 @@
 #   * cmd/worker-*    — built locally per provider
 #   * web/            — run via `npm run dev` / `npm run build` + Node adapter
 #
-# Every image is pinned to a concrete release tag so the stack is
-# reproducible. Once pulled, the images can be used offline.
+# Every image is pinned to a concrete release tag (no `:latest`) so the
+# stack is reproducible — once the images have been pulled the stack
+# replays without internet access.
 #
 # Bring-up:
 #
