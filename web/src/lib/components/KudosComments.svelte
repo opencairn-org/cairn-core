@@ -110,16 +110,18 @@
 			{#each comments as c (c.id)}
 				<div class="rounded border border-zinc-800 p-3 text-sm">
 					<div class="mb-1 flex items-center justify-between text-xs text-zinc-500">
-						<a href={`/u/${c.author?.username}`} class="font-medium text-zinc-300 hover:underline"
-							>{c.author?.display_name || c.author?.username}</a
-						>
+						<a href={`/u/${c.author?.username}`} class="font-medium text-zinc-300 hover:underline">
+							{c.author?.display_name || c.author?.username}
+						</a>
 						<span>{formatRelativeDate(c.created_at)}</span>
 					</div>
 					<p class="whitespace-pre-line text-zinc-200">{c.body}</p>
 					<button
 						onclick={() => deleteComment(c.id)}
-						class="mt-1 text-xs text-zinc-600 hover:text-red-400">Delete</button
+						class="mt-1 text-xs text-zinc-600 hover:text-red-400"
 					>
+						Delete
+					</button>
 				</div>
 			{/each}
 			{#if comments.length === 0}
@@ -138,8 +140,9 @@
 				onclick={postComment}
 				disabled={busy || !draft.trim()}
 				class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-				>Post</button
 			>
+				Post
+			</button>
 		</div>
 	</section>
 {/if}

@@ -4,7 +4,7 @@
 # *depend* on but which is NOT part of the source tree:
 #
 #   * Postgres 17 + TimescaleDB + PostGIS  (data plane)
-#   * MinIO                                 (S3-compatible blob store)
+#   * Silo                                  (S3-compatible blob store, MinIO fork)
 #   * NATS 2.14 with JetStream              (worker control plane + job bus)
 #
 # Explicitly NOT included:
@@ -80,15 +80,13 @@ services:
       start_period: 20s
 
   # ---------------------------------------------------------------------------
-  # MinIO (S3-compatible blob storage for raw FIT/TCX/GPX uploads)
+  # Silo (S3-compatible blob storage for raw FIT/TCX/GPX uploads)
   # ---------------------------------------------------------------------------
   minio:
-    # Community images are no longer published; build the pinned upstream source.
-    build:
-      context: ./docker
-      dockerfile: Dockerfile.minio
-    image: cairn-minio:RELEASE.2025-09-07T16-13-09Z
-    pull_policy: never
+    # Silo, the community-maintained MinIO fork (MinIO no longer publishes
+    # images). Same S3 API, MINIO_* variables, health routes and on-disk
+    # format, so the service name and volume stay `minio`.
+    image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329
     restart: unless-stopped
     networks: [cairn]
     command: server /data --console-address ":9001"
@@ -140,7 +138,7 @@ services:
   # Point the server at it:  CAIRN_EMAIL_SMTP_HOST=localhost CAIRN_EMAIL_SMTP_PORT=1025
   # ---------------------------------------------------------------------------
   mailpit:
-    image: axllent/mailpit:v1.33@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+    image: axllent/mailpit:v1.34@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     networks: [cairn]
     ports:

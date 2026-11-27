@@ -33,9 +33,9 @@
 			<span class="rounded bg-accent-500/15 px-1.5 py-0.5 text-accent-300">merged</span>
 			<span>best channel from each source:</span>
 			{#each provenance as p (p.channel)}
-				<span class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300"
-					>{p.channel} ← {p.provider}</span
-				>
+				<span class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+					{p.channel} ← {p.provider}
+				</span>
 			{/each}
 		</div>
 	{/if}

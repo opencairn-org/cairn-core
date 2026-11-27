@@ -40,6 +40,7 @@ func (s *NotificationServer) StreamNotifications(ctx context.Context, req *v1.St
 // eventSender is the send side of the stream (the generated stream, or a
 // test double).
 type eventSender interface {
+	SendHeaders() error
 	Send(*v1.NotificationEvent) error
 }
 
@@ -54,7 +55,7 @@ func (s *NotificationServer) streamNotifications(ctx context.Context, req *v1.St
 	events, cancel := s.Hub.Subscribe(userID)
 	defer cancel()
 	keep := streamFilter(req)
-	return pumpStream(ctx, events,
+	return pumpStream(ctx, events, stream.SendHeaders,
 		func() error { return stream.Send(&v1.NotificationEvent{UserId: userID.String()}) },
 		func(batch []domain.Notification) error { return forwardBatch(stream, batch, keep) })
 }

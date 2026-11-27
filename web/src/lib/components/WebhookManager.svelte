@@ -230,15 +230,16 @@
 			class="mb-3 rounded border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200"
 		>
 			<div class="font-medium">Copy the signing secret now — it won't be shown again:</div>
-			<code class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100"
-				>{newSecret}</code
-			>
+			<code class="mt-1 block break-all rounded bg-zinc-950/60 px-2 py-1 font-mono text-amber-100">
+				{newSecret}
+			</code>
 			<button
 				type="button"
 				onclick={() => navigator.clipboard?.writeText(newSecret!)}
 				class="mt-1 rounded border border-amber-700/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/30 max-md:py-2"
-				>Copy</button
 			>
+				Copy
+			</button>
 		</div>
 	{/if}
 
@@ -250,15 +251,15 @@
 						<div class="min-w-0">
 							<span class="font-medium text-zinc-200">{h.name}</span>
 							{#if h.auto_disabled}
-								<span class="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-red-300"
-									>auto-disabled</span
-								>
+								<span class="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-red-300">
+									auto-disabled
+								</span>
 							{:else if !h.enabled}
 								<span class="ml-2 rounded bg-zinc-700/40 px-1.5 py-0.5 text-zinc-400">paused</span>
 							{:else}
-								<span class="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300"
-									>active</span
-								>
+								<span class="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
+									active
+								</span>
 							{/if}
 							<div class="mt-0.5 truncate font-mono text-zinc-500">{h.url}</div>
 							<div class="mt-0.5 text-zinc-600">
@@ -286,35 +287,40 @@
 								type="button"
 								onclick={() => test(h)}
 								class="rounded border border-zinc-700 px-2 py-1 text-zinc-400 hover:border-accent-500 hover:text-accent-300 max-md:py-2"
-								>Test</button
 							>
+								Test
+							</button>
 							<button
 								type="button"
 								onclick={() => rotate(h)}
 								class="rounded border border-zinc-700 px-2 py-1 text-zinc-400 hover:border-accent-500 hover:text-accent-300 max-md:py-2"
-								>Rotate secret</button
 							>
+								Rotate secret
+							</button>
 							{#if h.auto_disabled}
 								<button
 									type="button"
 									onclick={() => reenable(h)}
 									class="rounded border border-zinc-700 px-2 py-1 text-zinc-400 hover:border-emerald-600 hover:text-emerald-300 max-md:py-2"
-									>Re-enable</button
 								>
+									Re-enable
+								</button>
 							{:else}
 								<button
 									type="button"
 									onclick={() => toggleEnabled(h)}
 									class="rounded border border-zinc-700 px-2 py-1 text-zinc-400 hover:border-zinc-500 max-md:py-2"
-									>{h.enabled ? 'Pause' : 'Resume'}</button
 								>
+									{h.enabled ? 'Pause' : 'Resume'}
+								</button>
 							{/if}
 							<button
 								type="button"
 								onclick={() => remove(h)}
 								class="rounded border border-zinc-700 px-2 py-1 text-zinc-400 hover:border-red-600 hover:text-red-300 max-md:py-2"
-								>Delete</button
 							>
+								Delete
+							</button>
 						</div>
 					</div>
 				</li>

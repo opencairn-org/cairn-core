@@ -34,7 +34,7 @@ LICENSES  ?= MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0
 # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
 GOLANGCI_VERSION      ?= v2.15.0
 # renovate: datasource=go depName=golang.org/x/vuln
-GOVULNCHECK_VERSION   ?= v1.9.0
+GOVULNCHECK_VERSION   ?= v1.10.0
 # renovate: datasource=go depName=github.com/google/go-licenses/v2
 GO_LICENSES_VERSION   ?= v2.0.1
 # renovate: datasource=go depName=github.com/go-gremlins/gremlins
@@ -42,7 +42,7 @@ GREMLINS_VERSION      ?= v0.6.0
 # Mutation test efficacy floor for the pure domain package (58.8% today).
 MUTATION_MIN ?= 55
 # renovate: datasource=go depName=github.com/fleetlint/fleetlint
-FLEETLINT_VERSION     ?= v0.10.0
+FLEETLINT_VERSION     ?= v0.11.1
 # Proto toolchain; keep in step with docker/Dockerfile.build-base.
 # renovate: datasource=go depName=github.com/bufbuild/buf
 BUF_VERSION           ?= v1.75.0
@@ -51,7 +51,7 @@ PROTOC_GEN_GO_VERSION ?= v1.36.12
 # renovate: datasource=go depName=connectrpc.com/connect/v2
 PROTOC_GEN_CONNECT_GO_VERSION ?= v2.0.2
 # renovate: datasource=go depName=github.com/grpc-ecosystem/grpc-gateway/v2
-PROTOC_GEN_OPENAPIV2_VERSION ?= v2.33.0
+PROTOC_GEN_OPENAPIV2_VERSION ?= v2.34.0
 # Tools are built with this module's toolchain: golangci-lint refuses code that targets a newer Go than it was built with.
 TOOLCHAIN := $(shell $(GO) env GOVERSION)
 

@@ -18,6 +18,8 @@ type captureActivityEvents struct {
 	fail bool
 }
 
+func (c *captureActivityEvents) SendHeaders() error { return nil }
+
 func (c *captureActivityEvents) Send(ev *v1.ActivityEvent) error {
 	if c.fail {
 		return context.Canceled

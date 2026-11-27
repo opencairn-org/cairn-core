@@ -66,9 +66,9 @@
 					<span class="rounded bg-accent-500/15 px-1.5 py-0.5 text-accent-300">{p.provider}</span>
 					<span class="font-mono text-zinc-500">{p.package}</span>
 					{#if p.retired_at}
-						<span class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400" title={fmt(p.retired_at)}
-							>retired</span
-						>
+						<span class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400" title={fmt(p.retired_at)}>
+							retired
+						</span>
 					{:else if p.online_instances > 0}
 						<span class="text-emerald-400">● {p.online_instances} online</span>
 					{:else}

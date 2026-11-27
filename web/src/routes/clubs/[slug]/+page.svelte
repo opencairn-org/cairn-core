@@ -122,15 +122,17 @@
 					onclick={leave}
 					disabled={busy}
 					class="rounded-full border bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-					>Leave</button
 				>
+					Leave
+				</button>
 			{:else if club.is_public}
 				<button
 					onclick={join}
 					disabled={busy}
 					class="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-					>Join</button
 				>
+					Join
+				</button>
 			{/if}
 		</header>
 
@@ -145,8 +147,9 @@
 								<a
 									href={`/u/${a.owner?.username}`}
 									class="font-medium text-gray-700 hover:underline"
-									>{a.owner?.display_name || a.owner?.username}</a
 								>
+									{a.owner?.display_name || a.owner?.username}
+								</a>
 								<span>· {formatRelativeDate(a.start_time)}</span>
 							</div>
 							<a href={`/a/${a.id}`} class="flex items-center gap-3 hover:opacity-90">
@@ -167,8 +170,9 @@
 				<ul class="space-y-1 text-sm">
 					{#each members as m (m.id)}
 						<li>
-							<a href={`/u/${m.username}`} class="hover:underline">{m.display_name || m.username}</a
-							>
+							<a href={`/u/${m.username}`} class="hover:underline">
+								{m.display_name || m.username}
+							</a>
 							{#if m.role === 'owner'}<span class="ml-1 text-xs text-gray-400">(owner)</span>{/if}
 						</li>
 					{/each}

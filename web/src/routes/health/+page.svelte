@@ -155,9 +155,9 @@
 						<div class="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
 							<div class="flex items-baseline justify-between">
 								<span class="text-xs uppercase tracking-wide text-zinc-500">{m.label}</span>
-								{#if m.latest}<span class="text-lg font-semibold text-zinc-100"
-										>{m.format(m.latest.value)}</span
-									>{/if}
+								{#if m.latest}<span class="text-lg font-semibold text-zinc-100">
+										{m.format(m.latest.value)}
+									</span>{/if}
 							</div>
 							<svg viewBox="0 0 100 30" preserveAspectRatio="none" class="mt-2 h-10 w-full">
 								<path
@@ -199,9 +199,9 @@
 								: 'border-zinc-800'}"
 						>
 							<div class="flex items-baseline justify-between gap-2">
-								<span class="truncate text-xs uppercase tracking-wide text-zinc-500" title={sm.key}
-									>{metricLabel(sm.key)}</span
-								>
+								<span class="truncate text-xs uppercase tracking-wide text-zinc-500" title={sm.key}>
+									{metricLabel(sm.key)}
+								</span>
 								{#if sm.value_numeric != null}
 									<span class="shrink-0 text-lg font-semibold text-zinc-100">{display(sm)}</span>
 								{/if}
@@ -235,15 +235,17 @@
 				{#if selected && g.metrics.some((sm) => sm.key === selected)}
 					<div class="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
 						<div class="mb-2 flex items-baseline justify-between">
-							<span class="text-sm font-medium text-zinc-200"
-								>{metricLabel(selected)}
-								<code class="ml-1 text-[11px] text-zinc-500">{selected}</code></span
-							>
+							<span class="text-sm font-medium text-zinc-200">
+								{metricLabel(selected)}
+								<code class="ml-1 text-[11px] text-zinc-500">{selected}</code>
+							</span>
 							<button
 								type="button"
 								onclick={() => (selected = null)}
-								class="text-xs text-zinc-500 hover:text-zinc-300">Close</button
+								class="text-xs text-zinc-500 hover:text-zinc-300"
 							>
+								Close
+							</button>
 						</div>
 						{#if history == null}
 							<p class="text-xs text-zinc-600">Loading…</p>
@@ -268,8 +270,9 @@
 												<td class="whitespace-nowrap py-1 pr-3 text-zinc-400">{source(row)}</td>
 												<td
 													class="hidden break-all py-1 font-mono text-[11px] text-zinc-500 sm:table-cell"
-													>{row.external_id ?? '—'}</td
 												>
+													{row.external_id ?? '—'}
+												</td>
 											</tr>
 										{/each}
 									</tbody>

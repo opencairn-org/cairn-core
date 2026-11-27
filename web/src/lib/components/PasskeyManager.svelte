@@ -137,11 +137,17 @@
 						<button
 							type="button"
 							onclick={() => rename(p)}
-							class="text-zinc-400 hover:text-zinc-200">Rename</button
+							class="text-zinc-400 hover:text-zinc-200"
 						>
-						<button type="button" onclick={() => remove(p)} class="text-zinc-400 hover:text-red-300"
-							>Remove</button
+							Rename
+						</button>
+						<button
+							type="button"
+							onclick={() => remove(p)}
+							class="text-zinc-400 hover:text-red-300"
 						>
+							Remove
+						</button>
 					</div>
 				</li>
 			{/each}

@@ -10,10 +10,10 @@
 			<a href="/admin" class="text-xs text-accent-400 hover:text-accent-300">← back</a>
 			<h1 class="mt-2 text-3xl font-semibold tracking-tight max-md:text-2xl">Identity Providers</h1>
 			<p class="mt-1 text-sm text-zinc-400">
-				OIDC providers are configured entirely through <code class="text-zinc-300"
-					>CAIRN_OIDC_*</code
-				> environment variables and shown on the login page. This view is read-only — to add, change or
-				remove a provider, edit the environment and restart the server.
+				OIDC providers are configured entirely through <code class="text-zinc-300">
+					CAIRN_OIDC_*
+				</code> environment variables and shown on the login page. This view is read-only — to add, change
+				or remove a provider, edit the environment and restart the server.
 			</p>
 		</div>
 	</header>

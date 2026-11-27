@@ -27,9 +27,9 @@ require (
 	//   jwt/v2     : JWT minting + verification for NATS account/user JWTs
 	//
 	// Versions are the latest stable as of May 2026.
-	github.com/nats-io/nats.go v1.55.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/nats-io/nkeys v0.4.17
-	github.com/pressly/goose/v3 v3.30.0
+	github.com/pressly/goose/v3 v3.30.1
 	github.com/spf13/cobra v1.10.2
 	github.com/vgarvardt/pgx-google-uuid/v5 v5.6.0
 	golang.org/x/crypto v0.59.0
@@ -38,8 +38,8 @@ require (
 require (
 	connectrpc.com/connect/v2 v2.0.2
 	github.com/aws/aws-sdk-go-v2 v1.48.0
-	github.com/aws/aws-sdk-go-v2/credentials v1.21.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
+	github.com/aws/aws-sdk-go-v2/credentials v1.21.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
 	github.com/aws/smithy-go v1.28.9
 	github.com/bbrks/go-blurhash v1.2.0
 	github.com/coreos/go-oidc/v3 v3.21.0
@@ -87,7 +87,7 @@ require (
 	github.com/kisielk/errcheck v1.6.1 // indirect
 	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/mdempsky/unconvert v0.0.0-20230125054757-2661c2c99a9b // indirect
-	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/mfridman/interpolate v0.2.0 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect

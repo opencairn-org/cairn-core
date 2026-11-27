@@ -80,9 +80,9 @@
 			<span
 				class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 text-zinc-950"
 			>
-				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none"
-					><path d="M3 19h18L14.5 7l-3 5-2-3L3 19z" fill="currentColor" /></svg
-				>
+				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+					<path d="M3 19h18L14.5 7l-3 5-2-3L3 19z" fill="currentColor" />
+				</svg>
 			</span>
 			<div>
 				<div class="text-xs uppercase tracking-widest text-accent-400">Authorize</div>
@@ -119,8 +119,9 @@
 									fill="none"
 									stroke="currentColor"
 									stroke-width="2.5"
-									><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg
 								>
+									<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+								</svg>
 							{:else}
 								<svg
 									class="h-3 w-3"
@@ -128,12 +129,13 @@
 									fill="none"
 									stroke="currentColor"
 									stroke-width="2.5"
-									><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle
+								>
+									<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle
 										cx="12"
 										cy="12"
 										r="2.5"
-									/></svg
-								>
+									/>
+								</svg>
 							{/if}
 						</span>
 						<div>

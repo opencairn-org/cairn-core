@@ -75,6 +75,8 @@ type statusWriter struct {
 	wroteHeader bool
 }
 
+var _ http.Flusher = (*statusWriter)(nil)
+
 func (s *statusWriter) WriteHeader(code int) {
 	if !s.wroteHeader {
 		s.status = code
@@ -87,6 +89,19 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 	s.wroteHeader = true
 	return s.ResponseWriter.Write(b)
 }
+
+// Flush forwards to the wrapped writer: connect-go refuses a server stream
+// whose writer is not an http.Flusher.
+func (s *statusWriter) Flush() {
+	s.wroteHeader = true
+	if f, ok := s.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap lets http.ResponseController reach the wrapped writer (write
+// deadlines, hijack).
+func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
 func statusClass(code int) string {
 	return strconv.Itoa(code/100) + "xx"

@@ -20,8 +20,8 @@ resources:
 # (or with `kustomize edit set image ...`) instead of editing each manifest.
 images:
   - name: ghcr.io/opencairn-org/cairn-core
-    newTag: v0.5.1@sha256:f71ef02cf7d2e2725fd90f83d3b8542dbc4f37719331b027e24e7822a42c44fe
+    newTag: v0.7.4@sha256:67173f8bf6ab6c6dfdda5c256fe0628b7d44c30940ee3c7e315250abe89dd18c
   - name: ghcr.io/opencairn-org/cairn-provider-strava
-    newTag: v0.5.0@sha256:c3d724cafd0a2fa5f7425cde302603cf659f7d707affb67f3889e0a682b6fc49
+    newTag: v0.7.2@sha256:8dfde66d74d47ca841a6806e0e1a4a86289519c6c04dd5092e7939600bf94bd6
   - name: ghcr.io/opencairn-org/cairn-provider-garmin
-    newTag: v0.5.0@sha256:5e3a0325d87c2a17507826de31d1349dd26500a31d3e31133f20a1b16518efad
+    newTag: v0.7.1@sha256:2d6108d270bc95a50ecc0fb365045379578c2832db754f0d9243ffc415027440

@@ -24,6 +24,7 @@ func (s *ActivityServer) StreamActivityEvents(ctx context.Context, req *v1.Strea
 
 // activityEventSender is the send side of the stream (generated, or a test double).
 type activityEventSender interface {
+	SendHeaders() error
 	Send(*v1.ActivityEvent) error
 }
 
@@ -38,7 +39,7 @@ func (s *ActivityServer) streamActivityEvents(ctx context.Context, req *v1.Strea
 	events, cancel := s.Events.Subscribe(userID)
 	defer cancel()
 	keep := activityEventFilter(req)
-	return pumpStream(ctx, events,
+	return pumpStream(ctx, events, stream.SendHeaders,
 		func() error { return stream.Send(&v1.ActivityEvent{Ts: timestamppb.Now()}) },
 		func(ev domain.ActivityEvent) error { return forwardActivityEvent(stream, ev, keep) })
 }

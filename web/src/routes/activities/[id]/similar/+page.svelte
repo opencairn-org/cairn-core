@@ -153,9 +153,9 @@
 					{/each}
 				</svg>
 				<div class="mt-1 flex gap-4 text-[11px] text-zinc-500">
-					<span
-						><span class="inline-block h-2 w-2 rounded-sm bg-accent-400"></span> this effort</span
-					>
+					<span>
+						<span class="inline-block h-2 w-2 rounded-sm bg-accent-400"></span> this effort
+					</span>
 					<span><span class="inline-block h-2 w-2 rounded-sm bg-emerald-500"></span> fastest</span>
 				</div>
 			</section>
@@ -183,15 +183,18 @@
 									<a href={`/activities/${r.id}`} class="text-accent-400 hover:text-accent-300">
 										{formatDateOnly(r.start_time)}
 									</a>
-									{#if r.is_current}<span class="ml-1 text-[10px] text-accent-300">(this)</span
-										>{/if}
+									{#if r.is_current}<span class="ml-1 text-[10px] text-accent-300">
+											(this)
+										</span>{/if}
 								</td>
 								<td class="px-3 py-2 text-right tabular-nums">{formatDistance(r.distance_m)}</td>
 								<td class="px-3 py-2 text-right font-medium tabular-nums">
 									{formatDuration(r.moving_s)}
 									{#if r.moving_s === payload.summary.best_moving_s}<span
-											class="ml-1 text-emerald-400">★</span
-										>{/if}
+											class="ml-1 text-emerald-400"
+										>
+											★
+										</span>{/if}
 								</td>
 								<td class="px-3 py-2 text-right tabular-nums">{pace(r.pace_s_per_km)}</td>
 								<td class="px-3 py-2 text-right tabular-nums">{r.avg_heart_rate ?? '—'}</td>

@@ -301,32 +301,36 @@
 				{/if}
 				{#if a.gearId}
 					<p class="mt-1 text-sm text-zinc-400">
-						<a href="/gear" class="text-zinc-300 hover:text-accent-300"
-							>{a.gearName || m.gear_title()}</a
-						>
+						<a href="/gear" class="text-zinc-300 hover:text-accent-300">
+							{a.gearName || m.gear_title()}
+						</a>
 						<span class="text-zinc-600">
-							· {a.gearSetBy === 'user' ? m.gear_set_by_user() : m.gear_set_by_merge()}</span
-						>
+							· {a.gearSetBy === 'user' ? m.gear_set_by_user() : m.gear_set_by_merge()}
+						</span>
 					</p>
 				{/if}
 				{#if a.isVirtual || a.isEbike || a.isCommute || a.isRace}
 					<div class="mt-1.5 flex flex-wrap gap-1.5">
 						{#if a.isRace}<span
 								class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-300"
-								>Race</span
-							>{/if}
+							>
+								Race
+							</span>{/if}
 						{#if a.isVirtual}<span
 								class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-sky-300"
-								>Virtual</span
-							>{/if}
+							>
+								Virtual
+							</span>{/if}
 						{#if a.isCommute}<span
 								class="rounded bg-zinc-500/15 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-300"
-								>Commute</span
-							>{/if}
+							>
+								Commute
+							</span>{/if}
 						{#if a.isEbike}<span
 								class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-emerald-300"
-								>E-bike</span
-							>{/if}
+							>
+								E-bike
+							</span>{/if}
 					</div>
 				{/if}
 				<p class="mt-0.5 text-xs text-zinc-600">{a.timezone} · {sourcesLabel}</p>
@@ -545,24 +549,24 @@
 						{#each laps as l, i (i)}
 							<tr class="border-t border-zinc-800/70">
 								<td class="px-4 py-2 font-medium text-zinc-200">{l.label || `Lap ${l.index}`}</td>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-									>{formatDistance(l.distance_m)}</td
-								>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-									>{formatDuration(l.moving_s || l.elapsed_s)}</td
-								>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-									>{formatPace(l.avg_speed_mps)}</td
-								>
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-									>{formatHeartRate(l.avg_heart_rate)}</td
-								>
-								{#if anyLapPower}<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-										>{formatPower(l.avg_power)}</td
-									>{/if}
-								<td class="px-4 py-2 text-right tabular-nums text-zinc-300"
-									>{formatElevation(l.elevation_gain_m)}</td
-								>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+									{formatDistance(l.distance_m)}
+								</td>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+									{formatDuration(l.moving_s || l.elapsed_s)}
+								</td>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+									{formatPace(l.avg_speed_mps)}
+								</td>
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+									{formatHeartRate(l.avg_heart_rate)}
+								</td>
+								{#if anyLapPower}<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+										{formatPower(l.avg_power)}
+									</td>{/if}
+								<td class="px-4 py-2 text-right tabular-nums text-zinc-300">
+									{formatElevation(l.elevation_gain_m)}
+								</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -631,9 +635,9 @@
 									<li class="flex items-center gap-2 text-xs">
 										<span class="h-2.5 w-2.5 shrink-0 rounded-sm" style:background={ZONE_COLORS[i]}
 										></span>
-										<span class="w-28 shrink-0 text-zinc-300 max-md:w-20 max-md:truncate"
-											>{z.label}</span
-										>
+										<span class="w-28 shrink-0 text-zinc-300 max-md:w-20 max-md:truncate">
+											{z.label}
+										</span>
 										<span class="w-24 shrink-0 tabular-nums text-zinc-500 max-md:hidden">
 											{Math.round(z.low_pct * zset.reference)}{z.high_pct > 0
 												? `–${Math.round(z.high_pct * zset.reference)}`
@@ -647,12 +651,12 @@
 												style:background={ZONE_COLORS[i]}
 											></div>
 										</div>
-										<span class="w-16 shrink-0 text-right tabular-nums text-zinc-300"
-											>{formatDuration(z.seconds)}</span
-										>
-										<span class="w-10 shrink-0 text-right tabular-nums text-zinc-500"
-											>{Math.round(zonePct(zset, z.seconds))}%</span
-										>
+										<span class="w-16 shrink-0 text-right tabular-nums text-zinc-300">
+											{formatDuration(z.seconds)}
+										</span>
+										<span class="w-10 shrink-0 text-right tabular-nums text-zinc-500">
+											{Math.round(zonePct(zset, z.seconds))}%
+										</span>
 									</li>
 								{/each}
 							</ul>
@@ -704,8 +708,10 @@
 									{#if s.is_personal_record}
 										<span
 											class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300"
-											title="Personal record">PR</span
+											title="Personal record"
 										>
+											PR
+										</span>
 									{/if}
 									{#if s.climb_category}
 										<span
@@ -765,22 +771,24 @@
 							{#if s.isPrimary}
 								<span
 									class="ml-2 rounded bg-accent-500/15 px-1.5 py-0.5 text-xs text-accent-300"
-									title="Maps and charts render from this source">primary</span
+									title="Maps and charts render from this source"
 								>
+									primary
+								</span>
 							{/if}
 							{#if s.status === 'detached'}
-								<span class="ml-2 rounded bg-zinc-700/50 px-1.5 py-0.5 text-xs text-zinc-400"
-									>detached</span
-								>
+								<span class="ml-2 rounded bg-zinc-700/50 px-1.5 py-0.5 text-xs text-zinc-400">
+									detached
+								</span>
 							{:else if s.status !== 'active'}
-								<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-300"
-									>{humanizeStatus(s.status)}</span
-								>
+								<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-300">
+									{humanizeStatus(s.status)}
+								</span>
 							{/if}
 							{#if s.reimportStatus === 'update_available'}
-								<span class="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-300"
-									>update available</span
-								>
+								<span class="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-300">
+									update available
+								</span>
 							{/if}
 							<div class="mt-0.5 truncate text-xs text-zinc-600">
 								{s.externalId ? `#${s.externalId} · ` : ''}imported {formatDate(
