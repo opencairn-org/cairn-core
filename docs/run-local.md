@@ -16,10 +16,8 @@ make dev-logs      # tail
 make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 ```
 
-MinIO is built locally from its pinned upstream source because the community
-container images are no longer available. The first `make dev-up` needs internet
-access and takes longer to compile it; subsequent starts reuse the local image.
-For an explicit rebuild, run `docker compose -f docker-compose.dev.yml build minio`.
+`make dev-up` pulls the pinned Silo image if it is missing locally. To view
+Silo's logs, run `docker compose -f docker-compose.dev.yml logs -f minio`.
 
 | Service | Host port | Notes |
 | --- | --- | --- |
@@ -35,7 +33,7 @@ cp dev.env.example dev.env     # once; matches the compose services + dev secret
 ```
 
 `make dev-server` / `make dev-web` source `dev.env` automatically. It sets
-`CAIRN_DATABASE_URL`, `CAIRN_NATS_URL`, the `CAIRN_STORAGE_*` (MinIO), the
+`CAIRN_DATABASE_URL`, `CAIRN_NATS_URL`, the `CAIRN_STORAGE_*` (Silo), the
 `CAIRN_EMAIL_SMTP_*` (Mailpit), throwaway auth secrets, and the worker identity.
 `CAIRN_DATABASE_AUTO_MIGRATE=true` applies migrations on boot.
 
@@ -119,8 +117,8 @@ adapter-static) → compile the Go server with `-tags embedweb`, embedding the S
 from `internal/adapter/primary/web/dist` → **`gcr.io/distroless/static-debian12:nonroot`**
 runtime (nonroot uid 65532, no shell, ca-certs + tzdata, ~56 MB). The resulting
 `cairn serve` answers both `/cairn.v1.*` and `/` (the embedded UI with
-client-side-routing fallback). Point it at Postgres/NATS/MinIO via the same
-`CAIRN_*` env; no Node, no Caddy, no separate web deployment.
+client-side-routing fallback). Point it at Postgres, NATS, and S3-compatible
+storage via the same `CAIRN_*` env; no Node, no Caddy, no separate web deployment.
 
 This is exactly what the Gitea **build-core** workflow builds and pushes
 (`johnny/cairn-core` → `.../cairn`). The provider workers live in their own
