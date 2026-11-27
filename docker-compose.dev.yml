@@ -13,14 +13,12 @@
 #   * cmd/worker-*    — built locally per provider
 #   * web/            — run via `npm run dev` / `npm run build` + Node adapter
 #
-# Every image or source build is pinned to a concrete release tag so the
-# stack is reproducible — once the images have been pulled the stack
-# replays without internet access.
+# Every image is pinned to a concrete release tag so the stack is
+# reproducible. Once pulled, the images can be used offline.
 #
 # Bring-up:
 #
-#   docker compose -f docker-compose.dev.yml build minio       # once, online
-#   docker compose -f docker-compose.dev.yml pull --ignore-buildable
+#   docker compose -f docker-compose.dev.yml pull              # once, online
 #   docker compose -f docker-compose.dev.yml up -d             # offline-safe afterwards
 #   docker compose -f docker-compose.dev.yml ps                # verify health
 #   docker compose -f docker-compose.dev.yml logs -f postgres  # tail

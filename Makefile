@@ -255,7 +255,7 @@ run: ## run the server
 # ----------------------------------------------------------------------------
 # Local dev: supporting services in docker compose, binaries on the host with live-reload.
 #
-#   make dev-up                  # postgres + nats + minio + mailpit (compose)
+#   make dev-up                  # Postgres + NATS + Silo (minio) + Mailpit (compose)
 #   cp dev.env.example dev.env   # once; tweak if needed
 #   make dev-server              # shell 2: Go server, rebuilds on save (air)
 #   make dev-web                 # shell 3: SvelteKit dev server (vite HMR)
