@@ -16,9 +16,6 @@ make dev-logs      # tail
 make dev-down      # stop, keep data   (make dev-down ARGS=-v to wipe volumes)
 ```
 
-`make dev-up` pulls the pinned Silo image if it is missing locally. To view
-Silo's logs, run `docker compose -f docker-compose.dev.yml logs -f minio`.
-
 | Service | Host port | Notes |
 | --- | --- | --- |
 | Postgres | `localhost:5432` | `cairn` / `cairn` / db `cairn` |
